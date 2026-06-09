@@ -303,6 +303,9 @@ export interface Ticket {
   attachments: string[];
   watchers: string[];
   comments: TicketComment[];
+  source: TicketSource;
+  sourceEmail?: string;
+  sourceFlagged?: boolean;
   resolvedAt?: string;
   createdAt: string;
   updatedAt: string;
