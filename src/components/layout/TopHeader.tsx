@@ -94,35 +94,8 @@ export function TopHeader() {
             <Search className="h-4 w-4" />
           </Button>
 
-          {/* Create menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" className="hidden h-9 gap-1.5 rounded-xl sm:inline-flex">
-                <Plus className="h-4 w-4" /> Create
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Quick create</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {createActions.map((a) => {
-                const allowed = can(a.capability, role);
-                return (
-                  <DropdownMenuItem
-                    key={a.label}
-                    disabled={!allowed}
-                    onClick={() => {
-                      if (!allowed) return;
-                      navigate({ to: a.to });
-                    }}
-                  >
-                    <a.icon className="mr-2 h-4 w-4" />
-                    <span className="flex-1">{a.label}</span>
-                    {!allowed && <span className="text-[10px] text-muted-foreground">restricted</span>}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Quick Create hidden until Phase 2 backend permission checks. */}
+
 
           {/* Notification bell — opens drawer */}
           <Button
