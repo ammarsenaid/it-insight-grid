@@ -80,11 +80,12 @@ export function RelationPicker({
     });
   };
 
-  const filterFn = <T extends { id: string } & Record<string, unknown>>(items: T[], fields: (keyof T)[]) => {
+  const filterFn = <T extends { id: string }>(items: T[], fields: (keyof T)[]) => {
     const term = q.trim().toLowerCase();
     if (!term) return items;
     return items.filter((it) => fields.some((f) => String(it[f] ?? "").toLowerCase().includes(term)));
   };
+
 
   const totalSelected =
     draft.ticketIds.length +
