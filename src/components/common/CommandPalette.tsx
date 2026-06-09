@@ -66,6 +66,7 @@ export function CommandPalette({
   const navigate = useNavigate();
   const data = useData();
   const knowledge = useKnowledge();
+  const backend = useTeamArticles();
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -74,19 +75,27 @@ export function CommandPalette({
 
   const records = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return { pages: [], assets: [], tasks: [] };
+    if (!q) return { pages: [], backendArticles: [], assets: [], tasks: [] };
     return {
       pages: knowledge.nodes
         .filter((n) => n.type === "page" && n.title.toLowerCase().includes(q))
         .slice(0, 5),
+      backendArticles: backend.articles
+        .filter((a) => a.title.toLowerCase().includes(q) || (a.excerpt ?? "").toLowerCase().includes(q))
+        .slice(0, 6),
       assets: data.assets.filter((a) => a.hostname.toLowerCase().includes(q) || a.displayName.toLowerCase().includes(q)).slice(0, 5),
       tasks: data.tasks.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 5),
     };
-  }, [query, data, knowledge]);
+  }, [query, data, knowledge, backend]);
 
   const go = (to: string) => {
     onOpenChange(false);
     navigate({ to });
+  };
+
+  const goArticle = (id: string) => {
+    onOpenChange(false);
+    navigate({ to: "/documents", search: { article: id } });
   };
 
   const groups = useMemo(() => {
