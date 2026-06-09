@@ -15,6 +15,7 @@ import {
   UserCog,
   Command as CommandIcon,
   Check,
+  Sliders,
 } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { useData } from "@/lib/data/store";
+import { useData, updateSettings } from "@/lib/data/store";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { NotificationDrawer } from "@/components/common/NotificationDrawer";
 import { ROLES, setRole, useRole, can, type Role } from "@/lib/permissions";
@@ -184,6 +185,19 @@ export function TopHeader() {
                   </div>
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <Sliders className="h-3 w-3" /> Quick preferences
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={(e) => { e.preventDefault(); updateSettings({ compactMode: !data.settings.compactMode }); }}>
+                <Check className={cn("mr-2 h-4 w-4", data.settings.compactMode ? "opacity-100" : "opacity-0")} /> Compact mode
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.preventDefault(); updateSettings({ reducedMotion: !data.settings.reducedMotion }); }}>
+                <Check className={cn("mr-2 h-4 w-4", data.settings.reducedMotion ? "opacity-100" : "opacity-0")} /> Reduced motion
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.preventDefault(); updateSettings({ showNotifications: !data.settings.showNotifications }); }}>
+                <Check className={cn("mr-2 h-4 w-4", data.settings.showNotifications ? "opacity-100" : "opacity-0")} /> Show notifications
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link to="/settings" className="flex items-center">

@@ -196,6 +196,8 @@ export interface ActivityLog {
   id: ID;
   type: string;
   message: string;
+  actor?: string;
+  module?: string;
   entityType?: string;
   entityId?: ID;
   createdAt: string;

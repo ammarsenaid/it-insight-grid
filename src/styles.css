@@ -108,3 +108,24 @@
 @utility metric-accent-success { color: #52D6A4; }
 @utility metric-accent-warning { color: #FFC86B; }
 @utility metric-accent-danger { color: #FF7C91; }
+
+/* User preferences */
+body.reduced-motion *,
+body.reduced-motion *::before,
+body.reduced-motion *::after {
+  animation-duration: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+body.compact-mode {
+  --compact-scale: 0.92;
+}
+body.compact-mode main {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+body.compact-mode .glass-card {
+  border-radius: 0.75rem;
+}

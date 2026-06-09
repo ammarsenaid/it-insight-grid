@@ -25,6 +25,7 @@ function SettingsPage() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [snapshotName, setSnapshotName] = useState("");
+  const [importPreview, setImportPreview] = useState<{ json: string; summary: Record<string, number>; ok: boolean } | null>(null);
 
   const doExport = () => {
     const json = exportJSON();
@@ -34,10 +35,25 @@ function SettingsPage() {
     toast.success("Data exported");
   };
 
-  const doImport = async (f: File) => {
+  const previewImport = async (f: File) => {
     const text = await f.text();
-    if (importJSON(text)) toast.success("Data imported");
+    try {
+      const parsed = JSON.parse(text);
+      const summary: Record<string, number> = {};
+      for (const k of ["folders","documents","assets","ipam","tasks","notes","tickets","users","teams","trash","activity","snapshots","notifications"]) {
+        if (Array.isArray(parsed[k])) summary[k] = parsed[k].length;
+      }
+      setImportPreview({ json: text, summary, ok: !!parsed.settings });
+    } catch {
+      setImportPreview({ json: text, summary: {}, ok: false });
+    }
+  };
+
+  const confirmImport = () => {
+    if (!importPreview) return;
+    if (importJSON(importPreview.json)) toast.success("Data imported");
     else toast.error("Invalid JSON");
+    setImportPreview(null);
   };
 
   const createSnapshot = () => {
@@ -114,7 +130,7 @@ function SettingsPage() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={doExport}><Download className="mr-1.5 h-4 w-4" /> Export JSON</Button>
             <Button variant="secondary" onClick={() => fileRef.current?.click()}><Upload className="mr-1.5 h-4 w-4" /> Import JSON</Button>
-            <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && doImport(e.target.files[0])} />
+            <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) previewImport(f); e.target.value = ""; }} />
             <Button variant="secondary" onClick={() => setConfirmReset(true)}><RotateCcw className="mr-1.5 h-4 w-4" /> Reset demo data</Button>
             <Button variant="destructive" onClick={() => setConfirmClear(true)}><Trash2 className="mr-1.5 h-4 w-4" /> Clear all</Button>
           </div>
@@ -148,6 +164,26 @@ function SettingsPage() {
         onConfirm={() => { resetDemo(); toast.success("Demo data restored"); setConfirmReset(false); }} />
       <ConfirmDialog open={confirmClear} onOpenChange={setConfirmClear} title="Clear all local data?" description="Everything will be removed. This cannot be undone." destructive confirmLabel="Clear"
         onConfirm={() => { clearAll(); toast.success("All data cleared"); setConfirmClear(false); }} />
+      <ConfirmDialog
+        open={!!importPreview}
+        onOpenChange={(o) => !o && setImportPreview(null)}
+        title={importPreview?.ok ? "Replace local data with import?" : "Invalid import file"}
+        description={importPreview?.ok ? "Review the contents below — your current data will be replaced." : "The selected file does not appear to be a valid prototype backup."}
+        destructive={importPreview?.ok}
+        confirmLabel={importPreview?.ok ? "Replace data" : "OK"}
+        onConfirm={() => importPreview?.ok ? confirmImport() : setImportPreview(null)}
+      >
+        {importPreview?.ok && (
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+            {Object.entries(importPreview.summary).map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between rounded-md border border-border/40 bg-background/40 px-2 py-1">
+                <span className="capitalize text-muted-foreground">{k}</span>
+                <span className="font-mono">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }
