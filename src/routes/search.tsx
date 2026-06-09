@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/lib/data/store";
 import { useKnowledge, getAncestry } from "@/lib/knowledge/store";
+import { useTeamArticles } from "@/lib/knowledge/useTeamArticles";
 import { useProtocols } from "@/lib/protocols/store";
 
 export const Route = createFileRoute("/search")({
