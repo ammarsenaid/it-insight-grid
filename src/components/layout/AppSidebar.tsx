@@ -39,7 +39,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { refreshFromStorage, useData } from "@/lib/data/store";
-import { useKnowledge } from "@/lib/knowledge/store";
+
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { toast } from "sonner";
 
@@ -100,11 +100,8 @@ const groups = [
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const data = useData();
-  const knowledge = useKnowledge();
   const { isPlatformAdmin } = useAuth();
   const ticketsCount = data.tickets.length;
-  const knowledgePageCount = knowledge.nodes.filter((n) => n.type === "page").length;
-  const spaceCount = knowledge.nodes.filter((n) => n.type === "space").length;
 
   // Global navigation no longer relies on the frontend-only prototype roles.
   // Only admin links are gated, by the real is_platform_admin() result.
