@@ -106,7 +106,9 @@ export function KnowledgeBackendWorkspace() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [showArchived, setShowArchived] = useState(false);
   const [tagFilter, setTagFilter] = useState<string | "">("");
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { items: recent, track: trackRecent, forget: forgetRecent } = useRecentlyViewed(activeTeamId);
+
 
   // Dialogs
   const [spaceDialog, setSpaceDialog] = useState<{ open: boolean; initial: KbSpace | null }>({
