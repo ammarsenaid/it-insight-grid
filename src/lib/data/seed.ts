@@ -270,6 +270,7 @@ export function buildSeed(): DataState {
           : []),
       ],
       resolvedAt: t.status === "resolved" ? new Date(Date.now() - 2 * 3600_000).toISOString() : undefined,
+      source: t.source,
       createdAt: created,
       updatedAt: new Date(Date.now() - Math.max(1, createdHoursAgo - 2) * 3600_000).toISOString(),
     };
