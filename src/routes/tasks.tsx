@@ -352,7 +352,7 @@ function TasksPage() {
           <MetricCard icon={Users} label="Assigned to me" value={mine} accent="primary" />
         </button>
         <button onClick={() => setScope("team")} className="text-left">
-          <MetricCard icon={Users} label="Team tasks" value={teamTasks} accent="info" />
+          <MetricCard icon={Users} label="Team tasks" value={teamTasks} accent="primary" />
         </button>
         <button onClick={() => { setScope("all"); setFDue("overdue"); }} className="text-left">
           <MetricCard icon={AlertTriangle} label="Overdue" value={overdue} accent="danger" />
