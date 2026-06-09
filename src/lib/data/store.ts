@@ -23,6 +23,8 @@ function load(): DataState {
     if (!Array.isArray(merged.ticketViews)) merged.ticketViews = seeded.ticketViews;
     if (!Array.isArray(merged.catalog)) merged.catalog = seeded.catalog;
     if (!merged.ticketSettings) merged.ticketSettings = seeded.ticketSettings;
+    if (!Array.isArray(merged.taskViews)) merged.taskViews = seeded.taskViews;
+    if (!Array.isArray(merged.noteTemplates)) merged.noteTemplates = seeded.noteTemplates;
     return merged;
   } catch {
     return buildSeed();
