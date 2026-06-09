@@ -229,6 +229,50 @@ export interface TicketSavedView {
   filters: Record<string, string>;
 }
 
+export interface CatalogItem {
+  id: ID;
+  name: string;
+  category: string;
+  icon: string; // lucide icon name
+  description: string;
+  estimatedTime: string;
+  defaultPriority: TicketPriority;
+  defaultTeam: string;
+  fields: CatalogField[];
+}
+
+export interface CatalogField {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "select" | "date";
+  required?: boolean;
+  options?: string[];
+  placeholder?: string;
+}
+
+export interface SLAPolicy {
+  id: ID;
+  priority: TicketPriority;
+  responseMinutes: number;
+  resolveMinutes: number;
+}
+
+export interface RoutingRule {
+  id: ID;
+  category: string;
+  team: string;
+}
+
+export interface TicketSettings {
+  categories: string[];
+  teams: string[];
+  statuses: TicketStatus[];
+  priorities: TicketPriority[];
+  slaPolicies: SLAPolicy[];
+  routingRules: RoutingRule[];
+}
+
+
 export interface DataState {
   folders: Folder[];
   documents: Document[];
