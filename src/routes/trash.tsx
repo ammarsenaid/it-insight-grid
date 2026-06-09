@@ -26,7 +26,7 @@ export const Route = createFileRoute("/trash")({
   component: TrashPage,
 });
 
-const KINDS: TrashKind[] = ["folder", "document", "asset", "ipam", "task", "note"];
+const KINDS: TrashKind[] = ["asset", "ipam", "task", "note"];
 
 function TrashPage() {
   const data = useData();
@@ -123,10 +123,8 @@ function TrashPage() {
           </div>
         }
       />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <MetricCard icon={Trash2} label="Recoverable" value={data.trash.length} accent="primary" />
-        <MetricCard icon={Trash2} label="Documents" value={data.trash.filter((t) => t.kind === "document").length} accent="muted" />
-        <MetricCard icon={Trash2} label="Folders" value={data.trash.filter((t) => t.kind === "folder").length} accent="muted" />
         <MetricCard icon={Trash2} label="Operational" value={data.trash.filter((t) => ["asset","ipam","task","note"].includes(t.kind)).length} accent="muted" />
         <MetricCard icon={Trash2} label="Oldest" value={oldest ? formatDateTime(oldest.deletedAt) : "—"} accent="warning" />
       </div>

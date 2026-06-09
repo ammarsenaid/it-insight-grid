@@ -60,7 +60,7 @@ export function TopHeader() {
   }, []);
 
   const createActions: { label: string; icon: typeof FileText; to: string; capability: string }[] = [
-    { label: "New Document", icon: FileText, to: "/documents", capability: "documents.create" },
+    { label: "New Knowledge Page", icon: FileText, to: "/documents", capability: "documents.create" },
     { label: "New Ticket", icon: Ticket, to: "/tickets", capability: "tickets.create" },
     { label: "New Asset (CMDB)", icon: Server, to: "/cmdb", capability: "cmdb.write" },
     { label: "New IP Record", icon: Network, to: "/ipam", capability: "ipam.write" },
@@ -85,7 +85,7 @@ export function TopHeader() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onFocus={() => setPaletteOpen(true)}
-            placeholder="Search documents, assets, IPs, tasks, notes..."
+            placeholder="Search knowledge, assets, IPs, tasks, notes..."
             className="h-10 rounded-xl border-border/60 bg-card/60 pl-10 pr-20"
           />
           <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground sm:inline-flex">

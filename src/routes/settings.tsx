@@ -119,8 +119,8 @@ function SettingsPage() {
         <Card title="Local Prototype Storage" className="lg:col-span-2">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Storage" value="Active" tone="success" />
-            <Stat label="Documents" value={data.documents.length} />
-            <Stat label="Folders" value={data.folders.length} />
+            <Stat label="Knowledge Pages" value={knowledgePageCount} />
+            <Stat label="Spaces" value={spaceCount} />
             <Stat label="CMDB" value={data.assets.length} />
             <Stat label="IPAM" value={data.ipam.length} />
             <Stat label="Tasks" value={data.tasks.length} />

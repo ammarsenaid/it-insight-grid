@@ -26,92 +26,10 @@ const id = (p: string) => `${p}_${++i}_${Math.random().toString(36).slice(2, 7)}
 
 export function buildSeed(): DataState {
   i = 0;
-  const folderNames = [
-    "01 - General Documentation",
-    "02 - Network",
-    "03 - Active Directory",
-    "04 - Microsoft 365",
-    "05 - Security",
-    "06 - Backup and Recovery",
-    "07 - Server Hyper-V",
-    "08 - Applications",
-    "09 - Onboarding",
-    "10 - Archive",
-  ];
-  const folders: Folder[] = folderNames.map((name) => ({
-    id: id("fld"),
-    name,
-    parentId: null,
-    createdAt: daysAgo(60),
-    updatedAt: daysAgo(10),
-  }));
-
-  // a subfolder
-  folders.push({
-    id: id("fld"),
-    name: "Firewall Rules",
-    parentId: folders[1].id,
-    createdAt: daysAgo(40),
-    updatedAt: daysAgo(5),
-  });
-  folders.push({
-    id: id("fld"),
-    name: "Group Policies",
-    parentId: folders[2].id,
-    createdAt: daysAgo(35),
-    updatedAt: daysAgo(3),
-  });
-
-  const docTemplates: Array<Partial<Document> & { name: string; ext: Document["extension"]; folderIdx: number; cat: string }> = [
-    { name: "Network Topology Overview", ext: "pdf", folderIdx: 1, cat: "Network", description: "Complete diagram of corporate network." },
-    { name: "Firewall Configuration Baseline", ext: "md", folderIdx: 10, cat: "Security", description: "Baseline rules for perimeter firewall." },
-    { name: "AD Forest Design", ext: "docx", folderIdx: 2, cat: "Active Directory", description: "Design document for AD forest." },
-    { name: "M365 Tenant Settings", ext: "xlsx", folderIdx: 3, cat: "M365", description: "Inventory of tenant configuration." },
-    { name: "Incident Response Plan", ext: "pdf", folderIdx: 4, cat: "Security", description: "Standard IR playbook." },
-    { name: "Backup Schedule Q1", ext: "xlsx", folderIdx: 5, cat: "Backup", description: "Veeam job schedule." },
-    { name: "Hyper-V Cluster Runbook", ext: "md", folderIdx: 6, cat: "Virtualization", description: "Operational runbook for HV cluster." },
-    { name: "Onboarding Checklist", ext: "docx", folderIdx: 8, cat: "HR/IT", description: "Standard onboarding for new hires." },
-    { name: "Patch Management Policy", ext: "pdf", folderIdx: 4, cat: "Security", description: "Monthly patching policy." },
-    { name: "VPN User Guide", ext: "md", folderIdx: 1, cat: "Network", description: "How to connect via corporate VPN." },
-    { name: "Office 365 Migration Plan", ext: "pptx", folderIdx: 3, cat: "M365", description: "Migration strategy." },
-    { name: "Disaster Recovery Plan", ext: "pdf", folderIdx: 5, cat: "Backup", description: "DR plan and runbook." },
-    { name: "Rack Layout DC1", ext: "image", folderIdx: 1, cat: "Network", description: "Physical rack diagram." },
-    { name: "License Inventory", ext: "xlsx", folderIdx: 7, cat: "Applications", description: "Software licensing tracker." },
-    { name: "Default GPO List", ext: "md", folderIdx: 11, cat: "Active Directory", description: "Default group policies applied." },
-    { name: "Helpdesk SLA", ext: "pdf", folderIdx: 0, cat: "General", description: "Service level agreements." },
-    { name: "Endpoint Security Standard", ext: "docx", folderIdx: 4, cat: "Security", description: "EDR and AV configuration." },
-    { name: "Server Inventory Snapshot", ext: "txt", folderIdx: 6, cat: "Virtualization", description: "Plain inventory list." },
-    { name: "Veeam Repository Sizing", ext: "xlsx", folderIdx: 5, cat: "Backup", description: "Capacity planning." },
-    { name: "Archived 2022 Procedures", ext: "pdf", folderIdx: 9, cat: "Archive", description: "Old procedures from 2022." },
-    { name: "Switch Stack Configuration", ext: "md", folderIdx: 1, cat: "Network", description: "Core switch stack details." },
-    { name: "Application Catalog", ext: "xlsx", folderIdx: 7, cat: "Applications", description: "All managed applications." },
-  ];
-
-  const statuses: Document["status"][] = ["draft", "review", "approved", "approved", "archived"];
-  const imps: Document["importance"][] = ["low", "normal", "high", "critical"];
-  const owners = ["alice.it", "bob.admin", "carol.netops", "david.secops"];
-
-  const sampleContent = "# Overview\n\nThis is a mock document used in the prototype.\n\n## Sections\n- Configuration\n- Procedures\n- References\n\nAll content is stored locally in your browser.";
-
-  const documents: Document[] = docTemplates.map((t, idx) => ({
-    id: id("doc"),
-    name: t.name,
-    extension: t.ext,
-    title: t.name,
-    description: t.description ?? "",
-    folderId: folders[t.folderIdx]?.id ?? null,
-    category: t.cat,
-    status: statuses[idx % statuses.length],
-    importance: imps[idx % imps.length],
-    owner: owners[idx % owners.length],
-    tags: [t.cat.toLowerCase()],
-    content: sampleContent,
-    size: 24_000 + idx * 4137,
-    version: "1." + (idx % 6),
-    reviewDate: daysAhead(30 + (idx % 60)),
-    createdAt: daysAgo(50 - idx),
-    updatedAt: daysAgo(idx % 25),
-  }));
+  // Legacy file-record folders/documents were removed in schema v2.
+  // The structured Knowledge Base lives in a separate store (ikc.knowledge.v1).
+  const folders: Folder[] = [];
+  const documents: Document[] = [];
 
   const assetSeed = [
     { hostname: "DC01", display: "Primary Domain Controller", type: "server", ip: "192.168.0.10", os: "Windows Server 2022", role: "Domain Controller", env: "production" },
@@ -360,14 +278,12 @@ export function buildSeed(): DataState {
 
 
   const activity: ActivityLog[] = [
-    { id: id("act"), type: "document.create", message: "Added document 'VPN User Guide'", createdAt: daysAgo(0) },
-    { id: id("act"), type: "folder.create", message: "Created folder 'Firewall Rules'", createdAt: daysAgo(1) },
+    { id: id("act"), type: "knowledge.create", message: "Published page 'VPN User Guide'", createdAt: daysAgo(0) },
     { id: id("act"), type: "task.update", message: "Updated task 'Quarterly DR test'", createdAt: daysAgo(1) },
     { id: id("act"), type: "ipam.assign", message: "Assigned 192.168.0.40 to BACKUP01", createdAt: daysAgo(2) },
     { id: id("act"), type: "asset.edit", message: "Edited CMDB asset 'HYPERV01'", createdAt: daysAgo(2) },
     { id: id("act"), type: "note.create", message: "Created note 'Backup window adjustments'", createdAt: daysAgo(3) },
-    { id: id("act"), type: "trash.restore", message: "Restored 'Old Network Diagram' from Recycle Bin", createdAt: daysAgo(4) },
-    { id: id("act"), type: "document.update", message: "Updated 'AD Forest Design'", createdAt: daysAgo(5) },
+    { id: id("act"), type: "knowledge.update", message: "Updated knowledge page 'AD Forest Design'", createdAt: daysAgo(5) },
   ];
 
   const notifications: NotificationItem[] = [
@@ -377,15 +293,6 @@ export function buildSeed(): DataState {
   ];
 
   const trash = [
-    {
-      id: id("trh"),
-      kind: "document" as const,
-      name: "Old Network Diagram v0.9",
-      originalLocation: "02 - Network",
-      payload: null,
-      size: 22000,
-      deletedAt: daysAgo(3),
-    },
     {
       id: id("trh"),
       kind: "ipam" as const,

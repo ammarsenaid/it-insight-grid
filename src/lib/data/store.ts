@@ -3,9 +3,38 @@ import type { DataState, ActivityLog, TrashItem, TrashKind, AppSettings } from "
 import { buildSeed } from "./seed";
 
 const KEY = "ikc.data.v1";
+const SCHEMA_VERSION_KEY = "ikc.frontend.schemaVersion";
+const CURRENT_SCHEMA = 2;
 
 let state: DataState = load();
 const listeners = new Set<() => void>();
+
+/**
+ * Versioned migration. Runs once per schema bump.
+ * v2: Removes obsolete legacy file-record documents/folders and their
+ *     recycle-bin entries. Preserves tickets, CMDB, IPAM, tasks, notes,
+ *     users, teams, audit, settings, snapshots and notifications.
+ */
+function migrate(parsed: Partial<DataState>): Partial<DataState> {
+  if (typeof window === "undefined") return parsed;
+  const stored = Number(localStorage.getItem(SCHEMA_VERSION_KEY) ?? "1");
+  if (stored < 2) {
+    parsed.folders = [];
+    parsed.documents = [];
+    if (Array.isArray(parsed.trash)) {
+      parsed.trash = parsed.trash.filter(
+        (t) => t.kind !== "document" && t.kind !== "folder",
+      );
+    }
+    if (Array.isArray(parsed.activity)) {
+      parsed.activity = parsed.activity.filter(
+        (a) => !a.type?.startsWith("document.") && !a.type?.startsWith("folder."),
+      );
+    }
+    localStorage.setItem(SCHEMA_VERSION_KEY, String(CURRENT_SCHEMA));
+  }
+  return parsed;
+}
 
 function load(): DataState {
   if (typeof window === "undefined") return buildSeed();
@@ -13,10 +42,11 @@ function load(): DataState {
     const seeded = buildSeed();
     const raw = localStorage.getItem(KEY);
     if (!raw) {
+      localStorage.setItem(SCHEMA_VERSION_KEY, String(CURRENT_SCHEMA));
       localStorage.setItem(KEY, JSON.stringify(seeded));
       return seeded;
     }
-    const parsed = JSON.parse(raw) as Partial<DataState>;
+    const parsed = migrate(JSON.parse(raw) as Partial<DataState>);
     // Merge in any new top-level keys added by later batches (forward-compat)
     const merged: DataState = { ...seeded, ...parsed } as DataState;
     if (!Array.isArray(merged.tickets)) merged.tickets = seeded.tickets;
@@ -27,6 +57,8 @@ function load(): DataState {
     if (!Array.isArray(merged.noteTemplates)) merged.noteTemplates = seeded.noteTemplates;
     if (!Array.isArray(merged.users)) merged.users = seeded.users;
     if (!Array.isArray(merged.teams)) merged.teams = seeded.teams;
+    // Persist migrated state so legacy entries don't reappear.
+    localStorage.setItem(KEY, JSON.stringify(merged));
     return merged;
   } catch {
     return buildSeed();
