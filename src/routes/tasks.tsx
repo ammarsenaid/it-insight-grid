@@ -29,7 +29,7 @@ import {
   duplicateTask, escalateTask, isOverdue, reopenTask, saveTaskView,
   setTaskStatus, updateTask,
 } from "@/lib/data/tasks";
-import { TASK_TEMPLATES, getTaskTemplate } from "@/lib/data/task-templates";
+import { getTaskTemplate } from "@/lib/data/task-templates";
 import { useTemplates, incrementUsage } from "@/lib/templates/store";
 import type { RegistryTemplate } from "@/lib/templates/types";
 import type { Task, TaskPriority, TaskScope, TaskSource, TaskStatus } from "@/lib/data/types";
