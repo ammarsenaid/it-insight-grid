@@ -12,6 +12,26 @@ export interface Folder {
   updatedAt: string;
 }
 
+export type DocumentVisibility = "public" | "internal" | "restricted";
+
+export interface DocumentVersion {
+  id: ID;
+  version: string;
+  note: string;
+  author: string;
+  createdAt: string;
+  size: number;
+}
+
+export interface DocumentRelations {
+  ticketIds: ID[];
+  assetIds: ID[];
+  ipamIds: ID[];
+  taskIds: ID[];
+  noteIds: ID[];
+  userIds: ID[];
+}
+
 export interface Document {
   id: ID;
   name: string;
@@ -29,9 +49,13 @@ export interface Document {
   version: string;
   reviewDate?: string;
   favorite?: boolean;
+  visibility?: DocumentVisibility;
+  versions?: DocumentVersion[];
+  relations?: DocumentRelations;
   createdAt: string;
   updatedAt: string;
 }
+
 
 export type AssetType = "server" | "vm" | "computer" | "network" | "application" | "storage";
 export type AssetStatus = "active" | "maintenance" | "retired";
