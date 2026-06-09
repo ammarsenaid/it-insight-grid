@@ -323,32 +323,64 @@ function DocumentsPage() {
   const detailsDoc = data.documents.find((d) => d.id === detailsId) ?? null;
   const previewDoc = data.documents.find((d) => d.id === previewId) ?? null;
 
+  const isKnowledge = workspace === "knowledge";
+
   return (
     <div>
       <PageHeader
         title="Documents"
-        description="IT documentation library — folders, metadata, lifecycle, and rich previews."
+        description={
+          isKnowledge
+            ? "Author structured internal documentation — spaces, books, chapters, and pages."
+            : "Legacy file records — folders, metadata, lifecycle, and rich previews."
+        }
         actions={
-          <>
-            {canFolderWrite && (
-              <Button variant="secondary" onClick={() => onNewSubFolder(selectedFolder ?? "")} disabled={!selectedFolder}>
-                <FolderIcon className="mr-1.5 h-4 w-4" /> New Subfolder
-              </Button>
-            )}
-            {canFolderWrite && (
-              <Button variant="secondary" onClick={onNewRootFolder}>
-                <FolderIcon className="mr-1.5 h-4 w-4" /> New Folder
-              </Button>
-            )}
-            {canCreate && (
-              <Button onClick={openCreateDoc}>
-                <Plus className="mr-1.5 h-4 w-4" /> Add Document
-              </Button>
-            )}
-          </>
+          isKnowledge ? null : (
+            <>
+              {canFolderWrite && (
+                <Button variant="secondary" onClick={() => onNewSubFolder(selectedFolder ?? "")} disabled={!selectedFolder}>
+                  <FolderIcon className="mr-1.5 h-4 w-4" /> New Subfolder
+                </Button>
+              )}
+              {canFolderWrite && (
+                <Button variant="secondary" onClick={onNewRootFolder}>
+                  <FolderIcon className="mr-1.5 h-4 w-4" /> New Folder
+                </Button>
+              )}
+              {canCreate && (
+                <Button onClick={openCreateDoc}>
+                  <Plus className="mr-1.5 h-4 w-4" /> Add Document
+                </Button>
+              )}
+            </>
+          )
         }
       />
 
+      <div className="mb-4 inline-flex items-center gap-1 rounded-xl border border-border/40 bg-card/40 p-1">
+        <button
+          type="button"
+          onClick={() => setWorkspace("knowledge")}
+          className={cn(
+            "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+            isKnowledge ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Knowledge
+        </button>
+        <button
+          type="button"
+          onClick={() => setWorkspace("legacy")}
+          className={cn(
+            "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+            !isKnowledge ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Legacy File Records
+        </button>
+      </div>
+
+      {isKnowledge ? <KnowledgeWorkspace /> : (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
         {/* Folder tree */}
         <aside className="glass-card hidden rounded-2xl p-3 lg:block">
