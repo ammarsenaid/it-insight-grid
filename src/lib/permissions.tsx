@@ -143,6 +143,7 @@ export const PAGE_VISIBILITY: Record<string, Role[]> = {
   "/admin/teams": ADMINS,
   "/admin/roles": ADMINS,
   "/admin/ticket-settings": [...ADMINS, "sd_lead"],
+  "/admin/templates": [...ADMINS, "sd_lead", "doc_editor"],
   "/trash": ADMINS,
   "/settings": ROLES.map((r) => r.id),
 };
