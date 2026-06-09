@@ -107,6 +107,12 @@ function TicketsPage() {
   const tickets = useMemo(() => data.tickets.map(recomputeSla), [data.tickets]);
   const currentUser = AGENTS[0];
 
+  const openTicket = (id: string) => navigate({ to: "/tickets/$id", params: { id } });
+  const shouldIgnoreRowNavigation = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+    return Boolean(target.closest("a,button,input,[role='menuitem'],[data-radix-dropdown-menu-content]"));
+  };
+
   const [query, setQuery] = useState("");
   const [fStatus, setFStatus] = useState<string>("all");
   const [fPriority, setFPriority] = useState<string>("all");
@@ -332,15 +338,26 @@ function TicketsPage() {
                     return (
                       <tr
                         key={t.id}
-                        onClick={() => navigate({ to: "/tickets/$id", params: { id: t.id } })}
-                        className="cursor-pointer border-t border-border/40 hover:bg-white/[0.02]"
+                        onClick={(e) => {
+                          if (e.defaultPrevented || shouldIgnoreRowNavigation(e.target)) return;
+                          openTicket(t.id);
+                        }}
+                        onKeyDown={(e) => {
+                          if ((e.key !== "Enter" && e.key !== " ") || shouldIgnoreRowNavigation(e.target)) return;
+                          e.preventDefault();
+                          openTicket(t.id);
+                        }}
+                        tabIndex={0}
+                        role="link"
+                        aria-label={`Open ${t.number} ${t.subject}`}
+                        className="cursor-pointer border-t border-border/40 outline-none transition-colors hover:bg-white/[0.02] focus-visible:bg-white/[0.02] focus-visible:ring-1 focus-visible:ring-ring"
                       >
                         <td className={cellBody(density)} onClick={(e) => e.stopPropagation()}>
                           <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleOne(t.id)} aria-label={`Select ${t.number}`} />
                         </td>
-                        <td className={cellBody(density, "font-mono text-[11px] text-primary")}><Link to="/tickets/$id" params={{ id: t.id }} className="hover:underline" onClick={(e) => e.stopPropagation()}>{t.number}</Link></td>
+                        <td className={cellBody(density, "font-mono text-[11px] text-primary")}><Link to="/tickets/$id" params={{ id: t.id }} className="hover:underline">{t.number}</Link></td>
                         <td className={cellBody(density, "max-w-[280px]")}>
-                          <Link to="/tickets/$id" params={{ id: t.id }} className="block truncate font-medium hover:underline" onClick={(e) => e.stopPropagation()}>{t.subject}</Link>
+                          <Link to="/tickets/$id" params={{ id: t.id }} className="block truncate font-medium hover:underline">{t.subject}</Link>
                           {t.tags.length > 0 && (
                             <div className="mt-0.5 flex flex-wrap gap-1">
                               {t.tags.slice(0, 3).map((tag) => (
