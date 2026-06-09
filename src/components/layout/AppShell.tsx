@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { TopHeader } from "./TopHeader";
+import { ContextErrorBanner } from "./ContextErrorBanner";
 import { useData } from "@/lib/data/store";
 
 export function AppShell({ children }: { children: ReactNode }) {
