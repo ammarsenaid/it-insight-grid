@@ -134,7 +134,7 @@ export function Markdown({ source, className }: { source: string; className?: st
     <div
       className={cn("text-sm text-foreground/90", className)}
       // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ html }}
+      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }
