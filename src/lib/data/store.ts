@@ -79,16 +79,19 @@ export function useSlice<T>(selector: (s: DataState) => T): T {
 export const uid = (p: string) =>
   `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
-export function logActivity(type: string, message: string, entityType?: string, entityId?: string) {
+export function logActivity(type: string, message: string, entityType?: string, entityId?: string, actor?: string) {
+  const moduleFromType = type.split(".")[0];
   const entry: ActivityLog = {
     id: uid("act"),
     type,
     message,
+    actor,
+    module: moduleFromType,
     entityType,
     entityId,
     createdAt: new Date().toISOString(),
   };
-  setState((s) => ({ ...s, activity: [entry, ...s.activity].slice(0, 200) }));
+  setState((s) => ({ ...s, activity: [entry, ...s.activity].slice(0, 500) }));
 }
 
 export function trashItem(kind: TrashKind, name: string, originalLocation: string, payload: unknown, size = 1024) {
