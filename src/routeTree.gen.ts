@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as IpamRouteImport } from './routes/ipam'
+import { Route as DocumentsRouteImport } from './routes/documents'
 import { Route as CmdbRouteImport } from './routes/cmdb'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -22,6 +23,11 @@ const TasksRoute = TasksRouteImport.update({
 const IpamRoute = IpamRouteImport.update({
   id: '/ipam',
   path: '/ipam',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentsRoute = DocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CmdbRoute = CmdbRouteImport.update({
@@ -38,12 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cmdb': typeof CmdbRoute
+  '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cmdb': typeof CmdbRoute
+  '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
   '/tasks': typeof TasksRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cmdb': typeof CmdbRoute
+  '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cmdb' | '/ipam' | '/tasks'
+  fullPaths: '/' | '/cmdb' | '/documents' | '/ipam' | '/tasks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cmdb' | '/ipam' | '/tasks'
-  id: '__root__' | '/' | '/cmdb' | '/ipam' | '/tasks'
+  to: '/' | '/cmdb' | '/documents' | '/ipam' | '/tasks'
+  id: '__root__' | '/' | '/cmdb' | '/documents' | '/ipam' | '/tasks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CmdbRoute: typeof CmdbRoute
+  DocumentsRoute: typeof DocumentsRoute
   IpamRoute: typeof IpamRoute
   TasksRoute: typeof TasksRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/ipam'
       fullPath: '/ipam'
       preLoaderRoute: typeof IpamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documents': {
+      id: '/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof DocumentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cmdb': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CmdbRoute: CmdbRoute,
+  DocumentsRoute: DocumentsRoute,
   IpamRoute: IpamRoute,
   TasksRoute: TasksRoute,
 }
