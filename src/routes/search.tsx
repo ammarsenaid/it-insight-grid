@@ -20,6 +20,7 @@ function SearchPage() {
   const data = useData();
   const knowledge = useKnowledge();
   const protocols = useProtocols();
+  const backend = useTeamArticles();
   const initial = Route.useSearch().q;
   const [q, setQ] = useState(initial);
   const ql = q.toLowerCase();
