@@ -448,6 +448,8 @@ export function KnowledgeBackendWorkspace() {
               onDeleteArticle={handleDeleteArticle}
               onEditArticleTags={(a) => setTagsDialog({ open: true, articleId: a.id })}
               onReload={reload}
+              recent={recent}
+              onForgetRecent={forgetRecent}
             />
           )}
         </section>
