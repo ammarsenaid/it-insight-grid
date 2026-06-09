@@ -539,6 +539,8 @@ export function buildSeed(): DataState {
         { id: id("rr"), category: "Backup", team: "Infrastructure" },
       ],
     },
+    users: usersList,
+    teams: teamsList,
     trash,
     activity,
     snapshots: [],
