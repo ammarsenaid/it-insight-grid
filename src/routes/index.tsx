@@ -30,6 +30,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { MetricCard } from "@/components/common/MetricCard";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/lib/data/store";
+import { useKnowledge } from "@/lib/knowledge/store";
 import { Badge } from "@/components/ui/badge";
 import { timeAgo } from "@/components/common/format";
 import {
@@ -97,7 +98,7 @@ function meForRole(role: Role) {
 function primaryCreateForRole(role: Role): { label: string; to: string; show: boolean } {
   if (isReadOnly(role)) return { label: "", to: "/", show: false };
   if (isRequester(role)) return { label: "Submit Request", to: "/service-catalog", show: true };
-  if (role === "doc_editor") return { label: "Add Document", to: "/documents", show: true };
+  if (role === "doc_editor") return { label: "New Knowledge Page", to: "/documents", show: true };
   if (role === "helpdesk" || role === "technician" || role === "sd_lead" || role === "network_admin")
     return { label: "New Ticket", to: "/tickets", show: true };
   return { label: "Create", to: "/tickets", show: true }; // admins
@@ -107,6 +108,9 @@ function primaryCreateForRole(role: Role): { label: string; to: string; show: bo
 
 function Dashboard() {
   const data = useData();
+  const knowledge = useKnowledge();
+  const knowledgePages = useMemo(() => knowledge.nodes.filter((n) => n.type === "page"), [knowledge.nodes]);
+  const spaceCount = useMemo(() => knowledge.nodes.filter((n) => n.type === "space").length, [knowledge.nodes]);
   const role = useRole();
   const navigate = useNavigate();
   const prefs = useDashboardPrefs();
@@ -136,7 +140,7 @@ function Dashboard() {
   );
   const maintenanceAssets = data.assets.filter((a) => a.status === "maintenance");
   const unlinkedIP = data.ipam.filter((i) => i.status === "used" && !i.linkedAssetId);
-  const reviewDocs = data.documents.filter((d) => d.status === "review");
+  const reviewDocs = knowledgePages.filter((p) => p.status === "in_review");
 
   // -------- my work --------
   const myTickets = useMemo(() => {
@@ -164,9 +168,12 @@ function Dashboard() {
   // -------- charts --------
   const docChart = useMemo(() => {
     const map = new Map<string, number>();
-    data.documents.forEach((d) => map.set(d.category, (map.get(d.category) ?? 0) + 1));
+    knowledgePages.forEach((p) => {
+      const tag = p.tags[0] ?? "General";
+      map.set(tag, (map.get(tag) ?? 0) + 1);
+    });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
-  }, [data.documents]);
+  }, [knowledgePages]);
 
   const ticketStatusChart = useMemo(() => {
     const order = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
@@ -214,8 +221,8 @@ function Dashboard() {
       {/* Documentation / infra metrics */}
       {prefs.docMetrics && showDocMetrics && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <MetricCard icon={FileText} label="Documents" value={data.documents.length} sub="In knowledge base" accent="primary" />
-          <MetricCard icon={FolderIcon} label="Folders" value={data.folders.length} sub="Organized structure" accent="primary" />
+          <MetricCard icon={FileText} label="Knowledge Pages" value={knowledgePages.length} sub="In knowledge base" accent="primary" />
+          <MetricCard icon={FolderIcon} label="Spaces" value={spaceCount} sub="Top-level areas" accent="primary" />
           {showCmdbIpam && (
             <>
               <MetricCard icon={Server} label="CMDB Assets" value={data.assets.length} sub="Tracked infrastructure" accent="success" />
@@ -325,10 +332,10 @@ function Dashboard() {
                 <AlertRow
                   key={d.id}
                   severity="info"
-                  module="Document"
+                  module="Knowledge"
                   title={`Awaiting review: ${d.title}`}
-                  meta={d.category}
-                  cta="Review Document"
+                  meta={d.tags[0] ?? "Knowledge Base"}
+                  cta="Review Page"
                   onClick={() => navigate({ to: "/documents" })}
                 />
               ))}
@@ -383,7 +390,7 @@ function Dashboard() {
       {(prefs.docsChart && showDocsChart && docChart.length > 0) || (prefs.ticketsChart && showTicketsChart) ? (
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {prefs.docsChart && showDocsChart && docChart.length > 0 && (
-            <ChartCard title="Documents by Category">
+            <ChartCard title="Knowledge Pages by Tag">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={docChart}>
                   <CartesianGrid stroke="rgba(255,255,255,0.06)" />
@@ -522,8 +529,7 @@ function Stat({ label, value, tone = "default" }: { label: string; value: number
 
 function QuickActions({ role, onOpenMyWork }: { role: Role; onOpenMyWork: () => void }) {
   const actions: { to: string; icon: ComponentType<{ className?: string }>; label: string; cap?: string; onClick?: () => void }[] = [
-    { to: "/documents", icon: FileText, label: "Add Document", cap: "documents.create" },
-    { to: "/documents", icon: FolderIcon, label: "Create Folder", cap: "folders.write" },
+    { to: "/documents", icon: FileText, label: "New Knowledge Page", cap: "documents.create" },
     { to: "/tickets", icon: TicketIcon, label: "New Ticket", cap: "tickets.create" },
     { to: "/service-catalog", icon: ListChecks, label: "Submit Request", cap: "tickets.create" },
     { to: "/cmdb", icon: Server, label: "Add CMDB Asset", cap: "cmdb.write" },
@@ -622,13 +628,13 @@ function SlaStat({ label, value, tone }: { label: string; value: number; tone: "
 // ---------- customize drawer ----------
 
 const SECTION_META: { key: DashboardSection; label: string; hint: string }[] = [
-  { key: "docMetrics", label: "Documentation metrics", hint: "Top row of documents, folders, tasks and notes." },
+  { key: "docMetrics", label: "Knowledge metrics", hint: "Top row of knowledge pages, spaces, tasks and notes." },
   { key: "serviceDesk", label: "Service Desk overview", hint: "Open / unassigned / SLA cards." },
   { key: "myWork", label: "My Work", hint: "Your assigned tickets, tasks, waiting items." },
   { key: "quickActions", label: "Quick Actions", hint: "Create shortcuts for common entities." },
   { key: "alerts", label: "Operational Alerts", hint: "Overdue, breached, maintenance signals." },
   { key: "activity", label: "Recent Activity", hint: "Latest system events." },
-  { key: "docsChart", label: "Documents by Category", hint: "Knowledge base distribution chart." },
+  { key: "docsChart", label: "Knowledge Pages by Tag", hint: "Knowledge base distribution chart." },
   { key: "ticketsChart", label: "Tickets by Status", hint: "Queue distribution chart." },
   { key: "slaHealth", label: "SLA Health summary", hint: "Healthy / warning / breached counts." },
 ];
