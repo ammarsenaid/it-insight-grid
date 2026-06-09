@@ -136,6 +136,7 @@ export const PAGE_VISIBILITY: Record<string, Role[]> = {
   "/ipam": [...ALL_IT],
   "/tasks": [...ALL_IT],
   "/notes": [...ALL_IT],
+  "/protocols": [...ALL_IT],
   "/audit": [...ADMINS, "auditor"],
   "/reports": [...ADMINS, "sd_lead", "auditor"],
   "/admin/users": ADMINS,
