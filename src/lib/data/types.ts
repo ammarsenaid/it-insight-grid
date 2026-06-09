@@ -282,6 +282,8 @@ export interface DataState {
   notes: Note[];
   tickets: Ticket[];
   ticketViews: TicketSavedView[];
+  catalog: CatalogItem[];
+  ticketSettings: TicketSettings;
   trash: TrashItem[];
   activity: ActivityLog[];
   snapshots: LocalSnapshot[];
