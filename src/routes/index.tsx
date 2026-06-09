@@ -563,7 +563,7 @@ const moduleBadgeTone: Record<string, string> = {
   Ticket: "border-[#5B8CFF]/30 bg-[#5B8CFF]/10 text-[#5B8CFF]",
   Task: "border-[#FFC86B]/30 bg-[#FFC86B]/10 text-[#FFC86B]",
   CMDB: "border-[#52D6A4]/30 bg-[#52D6A4]/10 text-[#52D6A4]",
-  Document: "border-[#A98BFF]/30 bg-[#A98BFF]/10 text-[#A98BFF]",
+  Knowledge: "border-[#A98BFF]/30 bg-[#A98BFF]/10 text-[#A98BFF]",
   System: "border-border bg-muted/40 text-muted-foreground",
 };
 
@@ -571,7 +571,7 @@ function AlertRow({
   severity, module, title, meta, cta, onClick,
 }: {
   severity: "critical" | "high" | "medium" | "info";
-  module: "Ticket" | "Task" | "CMDB" | "Document" | "System";
+  module: "Ticket" | "Task" | "CMDB" | "Knowledge" | "System";
   title: string;
   meta: string;
   cta: string;
