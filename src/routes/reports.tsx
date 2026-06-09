@@ -44,6 +44,10 @@ function ReportsPage() {
   const byStatus = ["open", "in_progress", "waiting", "resolved", "closed"].map((s) => ({
     label: s, value: recentTickets.filter((t) => t.status === s).length,
   }));
+  const SOURCES = ["email", "portal", "service_catalog", "manual", "internal", "protocol", "task"] as const;
+  const bySource = SOURCES.map((s) => ({
+    label: s, value: recentTickets.filter((t) => (t.source ?? "manual") === s).length,
+  }));
 
   // CMDB
   const cmdbByStatus = ["active", "maintenance", "retired"].map((s) => ({
