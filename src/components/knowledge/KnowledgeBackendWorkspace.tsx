@@ -53,6 +53,7 @@ import { ArticleFormDialog } from "./dialogs/ArticleFormDialog";
 import { TagsEditorDialog } from "./dialogs/TagsEditorDialog";
 import { ArticleContentEditor } from "./ArticleContentEditor";
 import { ReviewTimelinePanel } from "./ReviewTimelinePanel";
+import { AttachmentsPanel } from "./AttachmentsPanel";
 import type {
   ArticleStatus,
   KbArticle,
@@ -915,8 +916,11 @@ function ArticleView({
       </div>
 
       <div className={cn("grid min-h-0 gap-3", panel !== "none" && "lg:grid-cols-[minmax(0,1fr)_300px]")}>
-        <div className="min-h-0 overflow-y-auto rounded-xl border border-border/40 bg-white/[0.02] p-4">
-          {article.content_markdown ? <Markdown source={article.content_markdown} /> : <p className="text-sm text-muted-foreground">This article has no content yet.</p>}
+        <div className="min-h-0 space-y-3 overflow-y-auto">
+          <div className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
+            {article.content_markdown ? <Markdown source={article.content_markdown} /> : <p className="text-sm text-muted-foreground">This article has no content yet.</p>}
+          </div>
+          <AttachmentsPanel articleId={article.id} teamId={teamId} canUpdate={canUpdate} />
         </div>
         {panel === "revisions" && (
           <RevisionsPanel
