@@ -38,6 +38,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { refreshFromStorage, useData } from "@/lib/data/store";
+import { useKnowledge } from "@/lib/knowledge/store";
 import { canSeePage, useRole } from "@/lib/permissions";
 import { toast } from "sonner";
 
@@ -46,7 +47,7 @@ const groups = [
     label: "Knowledge",
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard },
-      { title: "Documents", url: "/documents", icon: FileText },
+      { title: "Knowledge Base", url: "/documents", icon: FileText },
       { title: "Global Search", url: "/search", icon: Search },
     ],
   },
@@ -95,8 +96,11 @@ const groups = [
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const data = useData();
+  const knowledge = useKnowledge();
   const role = useRole();
   const ticketsCount = data.tickets.length;
+  const knowledgePageCount = knowledge.nodes.filter((n) => n.type === "page").length;
+  const spaceCount = knowledge.nodes.filter((n) => n.type === "space").length;
 
   const visibleGroups = groups
     .map((g) => ({ ...g, items: g.items.filter((it) => canSeePage(it.url, role)) }))
@@ -155,8 +159,8 @@ export function AppSidebar() {
             <span>Local Prototype</span>
           </div>
           <div className="space-y-1 text-muted-foreground">
-            <Row icon={<FileText className="h-3 w-3" />} label="Documents" value={data.documents.length} />
-            <Row icon={<Folder className="h-3 w-3" />} label="Folders" value={data.folders.length} />
+            <Row icon={<FileText className="h-3 w-3" />} label="Knowledge Pages" value={knowledgePageCount} />
+            <Row icon={<Folder className="h-3 w-3" />} label="Spaces" value={spaceCount} />
             <Row icon={<Ticket className="h-3 w-3" />} label="Tickets" value={ticketsCount} />
             <Row icon={<Trash2 className="h-3 w-3" />} label="Recycle Bin" value={data.trash.length} />
           </div>

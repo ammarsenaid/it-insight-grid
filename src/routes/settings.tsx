@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { clearAll, exportJSON, importJSON, resetDemo, setState, uid, updateSettings, useData } from "@/lib/data/store";
+import { useKnowledge } from "@/lib/knowledge/store";
 import { toast } from "sonner";
 import { formatDateTime } from "@/components/common/format";
 
@@ -20,6 +21,9 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const data = useData();
+  const knowledge = useKnowledge();
+  const knowledgePageCount = knowledge.nodes.filter((n) => n.type === "page").length;
+  const spaceCount = knowledge.nodes.filter((n) => n.type === "space").length;
   const s = data.settings;
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -119,8 +123,8 @@ function SettingsPage() {
         <Card title="Local Prototype Storage" className="lg:col-span-2">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Storage" value="Active" tone="success" />
-            <Stat label="Documents" value={data.documents.length} />
-            <Stat label="Folders" value={data.folders.length} />
+            <Stat label="Knowledge Pages" value={knowledgePageCount} />
+            <Stat label="Spaces" value={spaceCount} />
             <Stat label="CMDB" value={data.assets.length} />
             <Stat label="IPAM" value={data.ipam.length} />
             <Stat label="Tasks" value={data.tasks.length} />

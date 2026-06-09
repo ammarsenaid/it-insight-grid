@@ -31,11 +31,12 @@ import {
   Plus,
 } from "lucide-react";
 import { useData } from "@/lib/data/store";
+import { useKnowledge } from "@/lib/knowledge/store";
 import { toast } from "sonner";
 
 const NAV = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard, group: "Knowledge" },
-  { label: "Documents", to: "/documents", icon: FileText, group: "Knowledge" },
+  { label: "Knowledge Base", to: "/documents", icon: FileText, group: "Knowledge" },
   { label: "Global Search", to: "/search", icon: Search, group: "Knowledge" },
   { label: "Tickets", to: "/tickets", icon: Ticket, group: "Service Desk" },
   { label: "My Requests", to: "/my-requests", icon: Inbox, group: "Service Desk" },
@@ -63,6 +64,7 @@ export function CommandPalette({
 }) {
   const navigate = useNavigate();
   const data = useData();
+  const knowledge = useKnowledge();
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -71,13 +73,15 @@ export function CommandPalette({
 
   const records = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return { docs: [], assets: [], tasks: [] };
+    if (!q) return { pages: [], assets: [], tasks: [] };
     return {
-      docs: data.documents.filter((d) => d.title.toLowerCase().includes(q) || d.name.toLowerCase().includes(q)).slice(0, 5),
+      pages: knowledge.nodes
+        .filter((n) => n.type === "page" && n.title.toLowerCase().includes(q))
+        .slice(0, 5),
       assets: data.assets.filter((a) => a.hostname.toLowerCase().includes(q) || a.displayName.toLowerCase().includes(q)).slice(0, 5),
       tasks: data.tasks.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 5),
     };
-  }, [query, data]);
+  }, [query, data, knowledge]);
 
   const go = (to: string) => {
     onOpenChange(false);
@@ -92,7 +96,7 @@ export function CommandPalette({
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Search pages, documents, assets, tasks…" value={query} onValueChange={setQuery} />
+      <CommandInput placeholder="Search pages, knowledge, assets, tasks…" value={query} onValueChange={setQuery} />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
 
@@ -118,12 +122,12 @@ export function CommandPalette({
           </CommandGroup>
         ))}
 
-        {(records.docs.length + records.assets.length + records.tasks.length) > 0 && (
+        {(records.pages.length + records.assets.length + records.tasks.length) > 0 && (
           <>
             <CommandSeparator />
-            {records.docs.length > 0 && (
-              <CommandGroup heading="Documents">
-                {records.docs.map((d) => (
+            {records.pages.length > 0 && (
+              <CommandGroup heading="Knowledge Base">
+                {records.pages.map((d) => (
                   <CommandItem key={d.id} onSelect={() => go("/documents")}>
                     <FileText className="mr-2 h-4 w-4" /> {d.title}
                   </CommandItem>

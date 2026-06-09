@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
-  BarChart3, Ticket, Server, Network, FileText, CheckSquare,
+  BarChart3, Ticket, Server, Network, BookOpen, CheckSquare,
   AlertTriangle, Download, Clock, CheckCircle2,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useData } from "@/lib/data/store";
+import { useKnowledge } from "@/lib/knowledge/store";
 import { can } from "@/lib/permissions";
 import { toCSV, downloadCSV } from "@/lib/csv";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/reports")({
 
 function ReportsPage() {
   const data = useData();
+  const knowledge = useKnowledge();
   const [range, setRange] = useState("30");
 
   const sinceMs = range === "all" ? 0 : Date.now() - Number(range) * 86_400_000;
@@ -55,11 +57,14 @@ function ReportsPage() {
   const ipFree = data.ipam.filter((i) => i.status === "free").length;
   const ipUtil = ipTotal ? Math.round((ipUsed / ipTotal) * 100) : 0;
 
-  // Documents
-  const docByStatus = ["draft", "review", "approved", "archived"].map((s) => ({
-    label: s, value: data.documents.filter((d) => d.status === s).length,
+  // Knowledge Base pages
+  const knowledgePages = knowledge.nodes.filter((n) => n.type === "page");
+  const docByStatus = ["draft", "in_review", "approved", "published", "archived"].map((s) => ({
+    label: s, value: knowledgePages.filter((p) => p.status === s).length,
   }));
-  const docsOverdueReview = data.documents.filter((d) => d.reviewDate && new Date(d.reviewDate).getTime() < Date.now()).length;
+  const docsOverdueReview = knowledgePages.filter(
+    (p) => p.reviewDate && new Date(p.reviewDate).getTime() < Date.now(),
+  ).length;
 
   // Tasks
   const tasksByStatus = ["open", "in_progress", "blocked", "done"].map((s) => ({
@@ -154,9 +159,9 @@ function ReportsPage() {
           ]} />
         </Section>
 
-        <Section title="Document review status" icon={FileText} link="/documents"
-          onExport={() => exportReport("docs", docByStatus)}>
-          <Bars data={docByStatus.map((d) => ({ ...d, tone: d.label === "approved" ? "success" : d.label === "review" ? "warning" : d.label === "draft" ? "primary" : "muted" }))} />
+        <Section title="Knowledge Base review status" icon={BookOpen} link="/documents"
+          onExport={() => exportReport("knowledge", docByStatus)}>
+          <Bars data={docByStatus.map((d) => ({ ...d, tone: d.label === "published" || d.label === "approved" ? "success" : d.label === "in_review" ? "warning" : d.label === "draft" ? "primary" : "muted" }))} />
           {docsOverdueReview > 0 && (
             <div className="mt-3 flex items-center justify-between rounded-lg border border-[#FFC86B]/30 bg-[#FFC86B]/5 px-3 py-2 text-xs">
               <span className="text-[#FFC86B]">Overdue review</span>

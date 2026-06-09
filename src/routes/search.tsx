@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { FileText, Folder, Server, Network, CheckSquare, StickyNote, Search, BookOpen } from "lucide-react";
+import { FileText, Server, Network, CheckSquare, StickyNote, Search, BookOpen } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchInput } from "@/components/common/SearchInput";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -34,8 +34,6 @@ function SearchPage() {
             has(n.status),
         )
       : [],
-    documents: ql ? data.documents.filter((d) => has(d.title) || has(d.description) || d.tags.some((t) => has(t))) : [],
-    folders: ql ? data.folders.filter((f) => has(f.name)) : [],
     assets: ql ? data.assets.filter((a) => has(a.hostname) || has(a.displayName) || has(a.ipAddress)) : [],
     ipam: ql ? data.ipam.filter((i) => has(i.ipAddress) || has(i.hostname)) : [],
     tasks: ql ? data.tasks.filter((t) => has(t.title)) : [],
@@ -46,7 +44,7 @@ function SearchPage() {
 
   return (
     <div>
-      <PageHeader title="Global Search" description="Search across knowledge pages, documents, CMDB assets, IP addresses, tasks, and notes." />
+      <PageHeader title="Global Search" description="Search across knowledge pages, CMDB assets, IP addresses, tasks, and notes." />
       <div className="glass-card rounded-2xl p-4">
         <SearchInput value={q} onChange={setQ} placeholder="Type to search everywhere..." />
         <div className="mt-2 text-xs text-muted-foreground">{ql ? `${total} results` : "Type a query to begin"}</div>
@@ -55,7 +53,7 @@ function SearchPage() {
       <div className="mt-6 space-y-6">
         <Group
           icon={BookOpen}
-          title="Knowledge"
+          title="Knowledge Base"
           items={results.knowledge.map((n) => {
             const path = getAncestry(n.id, knowledge.nodes)
               .slice(0, -1)
@@ -69,12 +67,11 @@ function SearchPage() {
             };
           })}
         />
-        <Group icon={FileText} title="Documents" items={results.documents.map((d) => ({ id: d.id, title: d.title, sub: `${d.category} · ${d.extension}`, to: "/documents" }))} />
-        <Group icon={Folder} title="Folders" items={results.folders.map((f) => ({ id: f.id, title: f.name, sub: "Folder", to: "/documents" }))} />
         <Group icon={Server} title="CMDB Assets" items={results.assets.map((a) => ({ id: a.id, title: a.hostname, sub: `${a.displayName} · ${a.ipAddress}`, to: "/cmdb" }))} />
         <Group icon={Network} title="IP Addresses" items={results.ipam.map((i) => ({ id: i.id, title: i.ipAddress, sub: `${i.hostname} · ${i.subnet}`, to: "/ipam" }))} />
         <Group icon={CheckSquare} title="Tasks" items={results.tasks.map((t) => ({ id: t.id, title: t.title, sub: `${t.category} · ${t.status}`, to: "/tasks" }))} />
         <Group icon={StickyNote} title="Notes" items={results.notes.map((n) => ({ id: n.id, title: n.title, sub: n.category, to: "/notes" }))} />
+        <Group icon={FileText} title="Documents" items={[]} />
         {!ql && (
           <div className="grid place-items-center rounded-2xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground"><Search className="mb-2 h-6 w-6" />Start typing to search</div>
         )}
