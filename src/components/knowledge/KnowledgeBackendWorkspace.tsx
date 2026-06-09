@@ -930,8 +930,18 @@ function ArticleView({
   onEditContent: () => void; onEditMeta: () => void; onEditTags: () => void;
   onDelete: () => void; onReload: () => void;
 }) {
-  type SidePanel = "none" | "revisions" | "review";
-  const [panel, setPanel] = useState<SidePanel>("none");
+  type SidePanel = "none" | "revisions" | "review" | "outline";
+  const [panel, setPanel] = useState<SidePanel>("outline");
+  const handleCopyLink = async () => {
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const url = `${base}/documents?article=${article.id}`;
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard.");
+    } catch {
+      toast.error("Could not copy link.");
+    }
+  };
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
       <div>
