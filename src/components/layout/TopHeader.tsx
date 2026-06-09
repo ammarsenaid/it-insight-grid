@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { useData } from "@/lib/data/store";
+import { useData, updateSettings } from "@/lib/data/store";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { NotificationDrawer } from "@/components/common/NotificationDrawer";
 import { ROLES, setRole, useRole, can, type Role } from "@/lib/permissions";
