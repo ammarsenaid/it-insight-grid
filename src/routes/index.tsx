@@ -54,6 +54,7 @@ import {
 import { recomputeSla, AGENTS } from "@/lib/data/tickets";
 import { DetailsDrawer } from "@/components/common/DetailsDrawer";
 import { Switch } from "@/components/ui/switch";
+import { BackendKnowledgePanel } from "@/components/knowledge/BackendKnowledgePanel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
