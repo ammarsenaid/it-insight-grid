@@ -128,6 +128,7 @@ export function TicketsPage() {
   const [fAssignee, setFAssignee] = useState<string>("all");
   const [fCategory, setFCategory] = useState<string>("all");
   const [fSla, setFSla] = useState<string>("all");
+  const [fSource, setFSource] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
