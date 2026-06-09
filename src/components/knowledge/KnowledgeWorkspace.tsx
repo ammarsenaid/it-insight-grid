@@ -72,6 +72,14 @@ export function KnowledgeWorkspace() {
   const role = useRole();
   const canEdit = can("documents.edit", role) || role === "technician" || role === "helpdesk";
   const canPublish = can("documents.changeStatus", role);
+  const allTemplates = useTemplates();
+  const pageTemplates = useMemo(
+    () => allTemplates.filter((t) =>
+      !t.archived &&
+      ["knowledge_page", "sop", "troubleshooting", "runbook", "postmortem", "change", "onboarding", "offboarding"].includes(t.type),
+    ),
+    [allTemplates],
+  );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("browse");
