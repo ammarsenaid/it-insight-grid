@@ -12,7 +12,6 @@ import {
   Brain,
   RefreshCw,
   Database,
-  Folder,
   Ticket,
   Inbox,
   ShoppingBag,
