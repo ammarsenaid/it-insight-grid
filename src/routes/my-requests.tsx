@@ -180,6 +180,7 @@ function RequesterCreateDrawer({ open, onOpenChange, requester }: { open: boolea
         const t = createTicket({
           requester, subject: subject.trim(), description: description.trim(),
           type, category, priority, team: "Service Desk", tags: ["self-service"],
+          source: "portal",
         });
         toast.success(`Request ${t.number} submitted`, { description: "You'll be notified when IT responds." });
         reset();
