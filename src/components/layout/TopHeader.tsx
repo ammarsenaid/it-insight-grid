@@ -113,7 +113,7 @@ export function TopHeader() {
             )}
           </Button>
 
-          {/* Profile + role switcher */}
+          {/* Profile menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="ml-1 flex items-center gap-2 rounded-xl border border-border/60 bg-card/60 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-card/80">
