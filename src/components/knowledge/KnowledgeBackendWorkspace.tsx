@@ -676,16 +676,51 @@ function SelectionView(p: SelectionViewProps) {
 
   if (!selection) {
     return (
-      <div className="grid h-full place-items-center text-center text-sm text-muted-foreground">
+      <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-muted-foreground">
         <div>
           <FileText className="mx-auto mb-2 h-6 w-6 opacity-60" />
           Select a Space, Category, or Article on the left.
+          <div className="mt-1 text-[11px] text-muted-foreground/70">Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search.</div>
           {perms.manageTeam && data.spaces.length === 0 && (
             <div className="mt-3">
               <Button size="sm" onClick={p.onNewSpace}><Plus className="mr-1 h-3 w-3" /> Create first space</Button>
             </div>
           )}
         </div>
+        {p.recent.length > 0 && (
+          <div className="w-full max-w-sm rounded-xl border border-border/40 bg-white/[0.02] p-3 text-left">
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <Clock className="h-3 w-3" /> Recently viewed
+            </div>
+            <ul className="space-y-1 text-xs">
+              {p.recent.map((r) => {
+                const exists = data.articles.some((a) => a.id === r.id);
+                return (
+                  <li key={r.id} className="group flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={!exists}
+                      onClick={() => exists && onOpenArticle(r.id)}
+                      className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-foreground/80 hover:bg-white/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      title={exists ? r.title : "No longer accessible"}
+                    >
+                      <FileText className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{r.title}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
+                      onClick={() => p.onForgetRecent(r.id)}
+                      aria-label="Remove"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </div>
     );
   }
