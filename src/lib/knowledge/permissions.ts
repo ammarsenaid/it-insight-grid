@@ -57,7 +57,12 @@ export function useKnowledgePermissions(teamId: string | null) {
       try {
         const sb = getSupabase();
         const results = await Promise.all(
-          KEYS.map((key) => sb.rpc("has_permission", { _permission_key: key, _team_id: teamId })),
+          KEYS.map((key) =>
+            sb.rpc("has_permission", {
+              requested_permission_key: key,
+              requested_team_id: teamId,
+            }),
+          ),
         );
         if (id !== requestRef.current || teamId !== currentTeamRef.current) return;
         const anyErr = results.find((r) => r.error);
