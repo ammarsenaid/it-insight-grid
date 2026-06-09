@@ -12,7 +12,10 @@ import type {
   ActivityLog,
   NotificationItem,
   AppSettings,
+  User,
+  Team,
 } from "./types";
+
 
 const now = () => new Date().toISOString();
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400000).toISOString();
@@ -406,7 +409,56 @@ export function buildSeed(): DataState {
     reducedMotion: false,
   };
 
+  // ---------------------------------------------------------------
+  // Users (mock directory) and Teams
+  // ---------------------------------------------------------------
+  const userSeed: Array<Omit<User, "id" | "createdAt" | "updatedAt">> = [
+    { username: "sarah.chen",   displayName: "Sarah Chen",   email: "sarah.chen@acme.local",   department: "IT",         team: "IT Leadership",  role: "super_admin",   title: "Head of IT",          status: "active" },
+    { username: "alice.it",     displayName: "Alice Romano", email: "alice.it@acme.local",     department: "IT",         team: "Infrastructure", role: "it_admin",      title: "IT Administrator",    status: "active" },
+    { username: "bob.admin",    displayName: "Bob Mendes",   email: "bob.admin@acme.local",    department: "IT",         team: "Infrastructure", role: "it_admin",      title: "Infrastructure Lead", status: "active" },
+    { username: "carol.netops", displayName: "Carol Singh",  email: "carol.netops@acme.local", department: "IT",         team: "Network",        role: "network_admin", title: "Network Engineer",    status: "active" },
+    { username: "david.secops", displayName: "David Park",   email: "david.secops@acme.local", department: "IT",         team: "Security",       role: "technician",    title: "Security Engineer",   status: "active" },
+    { username: "mia.lead",     displayName: "Mia Hartmann", email: "mia.lead@acme.local",     department: "IT",         team: "Service Desk",   role: "sd_lead",       title: "Service Desk Lead",   status: "active" },
+    { username: "noah.help",    displayName: "Noah Becker",  email: "noah.help@acme.local",    department: "IT",         team: "Service Desk",   role: "helpdesk",      title: "Helpdesk Agent",      status: "active" },
+    { username: "lia.tech",     displayName: "Lia Vargas",   email: "lia.tech@acme.local",     department: "IT",         team: "Service Desk",   role: "technician",    title: "Field Technician",    status: "active" },
+    { username: "eli.docs",     displayName: "Eli Lambert",  email: "eli.docs@acme.local",     department: "IT",         team: "Documentation",  role: "doc_editor",    title: "Documentation Editor", status: "active" },
+    { username: "rita.audit",   displayName: "Rita Okonkwo", email: "rita.audit@acme.local",   department: "Compliance", team: "Audit",          role: "auditor",       title: "Internal Auditor",    status: "active" },
+    { username: "alice.morgan", displayName: "Alice Morgan", email: "alice.morgan@acme.local", department: "Finance",    team: "—",              role: "employee",      title: "Finance Analyst",     status: "active" },
+    { username: "ben.taylor",   displayName: "Ben Taylor",   email: "ben.taylor@acme.local",   department: "Sales",      team: "—",              role: "employee",      title: "Account Executive",   status: "active" },
+    { username: "carla.rivera", displayName: "Carla Rivera", email: "carla.rivera@acme.local", department: "HR",         team: "—",              role: "employee",      title: "HR Specialist",       status: "active" },
+    { username: "david.kim",    displayName: "David Kim",    email: "david.kim@acme.local",    department: "Engineering", team: "—",             role: "employee",      title: "Software Engineer",   status: "active" },
+    { username: "evelyn.shaw",  displayName: "Evelyn Shaw",  email: "evelyn.shaw@acme.local",  department: "Marketing",  team: "—",              role: "employee",      title: "Marketing Manager",   status: "active" },
+    { username: "felix.novak",  displayName: "Felix Novak",  email: "felix.novak@acme.local",  department: "Operations", team: "—",              role: "employee",      title: "Operations Lead",     status: "archived" },
+  ];
+  const usersList: User[] = userSeed.map((u, idx) => ({
+    id: id("usr"),
+    ...u,
+    notes: "",
+    createdAt: daysAgo(200 - idx * 5),
+    updatedAt: daysAgo(idx),
+  }));
+
+  const findUser = (username: string) => usersList.find((u) => u.username === username);
+
+  const teamSeed: Array<Omit<Team, "id" | "createdAt" | "updatedAt">> = [
+    { name: "Service Desk",   description: "Tier-1 support, ticket triage and end-user requests.",       leadUserId: findUser("mia.lead")?.id,    memberIds: [findUser("mia.lead")?.id, findUser("noah.help")?.id, findUser("lia.tech")?.id].filter(Boolean) as string[], queueOwnership: ["Hardware", "Identity", "Applications", "Other"], assetScopes: ["computer", "application"] },
+    { name: "Network",        description: "Network engineering — firewalls, switching, IPAM, Wi-Fi.",   leadUserId: findUser("carol.netops")?.id, memberIds: [findUser("carol.netops")?.id].filter(Boolean) as string[],                                              queueOwnership: ["Network"],                                       assetScopes: ["network"] },
+    { name: "Infrastructure", description: "Servers, virtualization, storage and backup.",               leadUserId: findUser("bob.admin")?.id,    memberIds: [findUser("alice.it")?.id, findUser("bob.admin")?.id].filter(Boolean) as string[],                       queueOwnership: ["Infrastructure", "Storage", "Backup"],            assetScopes: ["server", "vm", "storage"] },
+    { name: "Security",       description: "Security operations, identity and incident response.",        leadUserId: findUser("david.secops")?.id, memberIds: [findUser("david.secops")?.id].filter(Boolean) as string[],                                              queueOwnership: ["Security"],                                      assetScopes: ["application", "network"] },
+    { name: "Applications",   description: "Business application owners and Microsoft 365 admins.",       leadUserId: findUser("eli.docs")?.id,     memberIds: [findUser("eli.docs")?.id].filter(Boolean) as string[],                                                   queueOwnership: ["Applications"],                                  assetScopes: ["application"] },
+    { name: "Documentation",  description: "Authors and curators of the knowledge base.",                 leadUserId: findUser("eli.docs")?.id,     memberIds: [findUser("eli.docs")?.id].filter(Boolean) as string[],                                                   queueOwnership: [],                                                assetScopes: [] },
+    { name: "Audit",          description: "Read-only compliance and internal audit.",                    leadUserId: findUser("rita.audit")?.id,   memberIds: [findUser("rita.audit")?.id].filter(Boolean) as string[],                                                 queueOwnership: [],                                                assetScopes: [] },
+    { name: "IT Leadership",  description: "IT executives with full administrative access.",              leadUserId: findUser("sarah.chen")?.id,   memberIds: [findUser("sarah.chen")?.id].filter(Boolean) as string[],                                                 queueOwnership: [],                                                assetScopes: [] },
+  ];
+  const teamsList: Team[] = teamSeed.map((t, idx) => ({
+    id: id("team"),
+    ...t,
+    createdAt: daysAgo(180 - idx * 5),
+    updatedAt: daysAgo(idx),
+  }));
+
   return {
+
     folders,
     documents,
     assets,
