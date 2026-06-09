@@ -40,8 +40,18 @@ export function useRole(): Role {
 
 // Capability matrix (frontend-only mock)
 const CAPS: Record<string, Role[]> = {
+  "documents.view.draft": ["admin", "agent"],
+  "documents.view.archived": ["admin", "agent"],
+  "documents.view.restricted": ["admin", "agent"],
   "documents.create": ["admin", "agent"],
+  "documents.edit": ["admin", "agent"],
   "documents.delete": ["admin"],
+  "documents.archive": ["admin", "agent"],
+  "documents.changeStatus": ["admin", "agent"],
+  "documents.move": ["admin", "agent"],
+  "documents.bulk": ["admin", "agent"],
+  "folders.write": ["admin", "agent"],
+  "folders.delete": ["admin"],
   "tickets.create": ["admin", "agent", "user"],
   "tickets.assign": ["admin", "agent"],
   "tickets.resolve": ["admin", "agent"],
@@ -58,6 +68,7 @@ const CAPS: Record<string, Role[]> = {
   "recyclebin.restore": ["admin"],
   "settings.write": ["admin"],
 };
+
 
 export function can(capability: string, current?: Role): boolean {
   const r = current ?? role;
