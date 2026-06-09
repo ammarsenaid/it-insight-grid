@@ -130,7 +130,7 @@ function SettingsPage() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={doExport}><Download className="mr-1.5 h-4 w-4" /> Export JSON</Button>
             <Button variant="secondary" onClick={() => fileRef.current?.click()}><Upload className="mr-1.5 h-4 w-4" /> Import JSON</Button>
-            <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && doImport(e.target.files[0])} />
+            <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) previewImport(f); e.target.value = ""; }} />
             <Button variant="secondary" onClick={() => setConfirmReset(true)}><RotateCcw className="mr-1.5 h-4 w-4" /> Reset demo data</Button>
             <Button variant="destructive" onClick={() => setConfirmClear(true)}><Trash2 className="mr-1.5 h-4 w-4" /> Clear all</Button>
           </div>
