@@ -123,6 +123,8 @@ export function clearAll() {
     noteTemplates: [],
     tickets: [],
     ticketViews: [],
+    users: [],
+    teams: [],
     trash: [],
     activity: [],
     snapshots: [],
