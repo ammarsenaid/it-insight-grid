@@ -329,6 +329,8 @@ export function KnowledgeBackendWorkspace() {
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="in_review">In Review</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="published">Published</SelectItem>
                 <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
@@ -757,6 +759,7 @@ function SelectionView(p: SelectionViewProps) {
         article={art}
         canUpdate={perms.update}
         canDelete={perms.delete}
+        canApprove={perms.manageTeam}
         onSaved={() => { p.onReload(); }}
         onClose={() => p.setEditingArticle(false)}
       />
