@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Ticket as TicketIcon,
@@ -103,6 +103,7 @@ type SortKey = "number" | "subject" | "priority" | "status" | "sla" | "createdAt
 function TicketsPage() {
   const data = useData();
   const role = useRole();
+  const navigate = useNavigate();
   const tickets = useMemo(() => data.tickets.map(recomputeSla), [data.tickets]);
   const currentUser = AGENTS[0];
 
@@ -329,13 +330,17 @@ function TicketsPage() {
                   {pageItems.map((t) => {
                     const asset = lookupAsset(t.linkedAssetId);
                     return (
-                      <tr key={t.id} className="border-t border-border/40 hover:bg-white/[0.02]">
-                        <td className={cellBody(density)}>
+                      <tr
+                        key={t.id}
+                        onClick={() => navigate({ to: "/tickets/$id", params: { id: t.id } })}
+                        className="cursor-pointer border-t border-border/40 hover:bg-white/[0.02]"
+                      >
+                        <td className={cellBody(density)} onClick={(e) => e.stopPropagation()}>
                           <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleOne(t.id)} aria-label={`Select ${t.number}`} />
                         </td>
-                        <td className={cellBody(density, "font-mono text-[11px] text-primary")}><Link to="/tickets/$id" params={{ id: t.id }} className="hover:underline">{t.number}</Link></td>
+                        <td className={cellBody(density, "font-mono text-[11px] text-primary")}><Link to="/tickets/$id" params={{ id: t.id }} className="hover:underline" onClick={(e) => e.stopPropagation()}>{t.number}</Link></td>
                         <td className={cellBody(density, "max-w-[280px]")}>
-                          <Link to="/tickets/$id" params={{ id: t.id }} className="block truncate font-medium hover:underline">{t.subject}</Link>
+                          <Link to="/tickets/$id" params={{ id: t.id }} className="block truncate font-medium hover:underline" onClick={(e) => e.stopPropagation()}>{t.subject}</Link>
                           {t.tags.length > 0 && (
                             <div className="mt-0.5 flex flex-wrap gap-1">
                               {t.tags.slice(0, 3).map((tag) => (
@@ -354,7 +359,7 @@ function TicketsPage() {
                         <td className={cellBody(density, "font-mono text-[11px] text-muted-foreground")}>{asset?.hostname ?? "—"}</td>
                         <td className={cellBody(density, "text-muted-foreground")} suppressHydrationWarning>{timeAgo(t.createdAt)}</td>
                         <td className={cellBody(density, "text-muted-foreground")} suppressHydrationWarning>{timeAgo(t.updatedAt)}</td>
-                        <td className={cellBody(density)}>
+                        <td className={cellBody(density)} onClick={(e) => e.stopPropagation()}>
                           <RowActions ticket={t} canWrite={canWrite} />
                         </td>
                       </tr>
