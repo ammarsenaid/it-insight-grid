@@ -33,6 +33,7 @@ import { Route as ServiceCatalogIdRouteImport } from './routes/service-catalog.$
 import { Route as ProtocolsIdRouteImport } from './routes/protocols.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTicketSettingsRouteImport } from './routes/admin.ticket-settings'
+import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminTeamsRouteImport } from './routes/admin.teams'
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 
@@ -156,6 +157,11 @@ const AdminTicketSettingsRoute = AdminTicketSettingsRouteImport.update({
   path: '/admin/ticket-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
+  id: '/admin/templates',
+  path: '/admin/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminTeamsRoute = AdminTeamsRouteImport.update({
   id: '/admin/teams',
   path: '/admin/teams',
@@ -187,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/trash': typeof TrashRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
@@ -213,6 +220,7 @@ export interface FileRoutesByTo {
   '/trash': typeof TrashRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
@@ -242,6 +250,7 @@ export interface FileRoutesById {
   '/trash': typeof TrashRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/trash'
     | '/admin/roles'
     | '/admin/teams'
+    | '/admin/templates'
     | '/admin/ticket-settings'
     | '/admin/users'
     | '/protocols/$id'
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/trash'
     | '/admin/roles'
     | '/admin/teams'
+    | '/admin/templates'
     | '/admin/ticket-settings'
     | '/admin/users'
     | '/protocols/$id'
@@ -326,6 +337,7 @@ export interface FileRouteTypes {
     | '/trash'
     | '/admin/roles'
     | '/admin/teams'
+    | '/admin/templates'
     | '/admin/ticket-settings'
     | '/admin/users'
     | '/protocols/$id'
@@ -355,6 +367,7 @@ export interface RootRouteChildren {
   TrashRoute: typeof TrashRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminTeamsRoute: typeof AdminTeamsRoute
+  AdminTemplatesRoute: typeof AdminTemplatesRoute
   AdminTicketSettingsRoute: typeof AdminTicketSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
@@ -529,6 +542,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTicketSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/templates': {
+      id: '/admin/templates'
+      path: '/admin/templates'
+      fullPath: '/admin/templates'
+      preLoaderRoute: typeof AdminTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/teams': {
       id: '/admin/teams'
       path: '/admin/teams'
@@ -605,6 +625,7 @@ const rootRouteChildren: RootRouteChildren = {
   TrashRoute: TrashRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminTeamsRoute: AdminTeamsRoute,
+  AdminTemplatesRoute: AdminTemplatesRoute,
   AdminTicketSettingsRoute: AdminTicketSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
 }

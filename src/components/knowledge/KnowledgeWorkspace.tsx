@@ -57,7 +57,7 @@ import type {
   KnowledgeRelations,
 } from "@/lib/knowledge/types";
 import { emptyRelations } from "@/lib/knowledge/types";
-import { TEMPLATES } from "@/lib/knowledge/templates";
+import { useTemplates, incrementUsage } from "@/lib/templates/store";
 import { KnowledgeTree } from "./KnowledgeTree";
 import { KnowledgeBrowse } from "./KnowledgeBrowse";
 import { KnowledgeEditor } from "./KnowledgeEditor";
@@ -72,6 +72,14 @@ export function KnowledgeWorkspace() {
   const role = useRole();
   const canEdit = can("documents.edit", role) || role === "technician" || role === "helpdesk";
   const canPublish = can("documents.changeStatus", role);
+  const allTemplates = useTemplates();
+  const pageTemplates = useMemo(
+    () => allTemplates.filter((t) =>
+      !t.archived &&
+      ["knowledge_page", "sop", "troubleshooting", "runbook", "postmortem", "change", "onboarding", "offboarding"].includes(t.type),
+    ),
+    [allTemplates],
+  );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("browse");
@@ -159,7 +167,7 @@ export function KnowledgeWorkspace() {
       type,
       title: "",
       description: "",
-      templateId: type === "page" ? "tpl_blank" : "",
+      templateId: type === "page" ? "reg_kb_tpl_blank" : "",
     });
   };
 
@@ -169,13 +177,17 @@ export function KnowledgeWorkspace() {
       toast.error("Title is required");
       return;
     }
+    const tpl = createState.type === "page" && createState.templateId
+      ? pageTemplates.find((t) => t.id === createState.templateId)
+      : undefined;
     const node = createNode({
       type: createState.type,
       parentId: createState.parentId,
       title: createState.title,
       description: createState.description || undefined,
-      templateId: createState.type === "page" ? createState.templateId : undefined,
+      content: tpl?.content,
     });
+    if (tpl) incrementUsage(tpl.id);
     toast.success(`${labelType(createState.type)} created`);
     setCreateState(null);
     setSelectedId(node.id);
@@ -593,7 +605,7 @@ export function KnowledgeWorkspace() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TEMPLATES.map((t) => (
+                      {pageTemplates.map((t) => (
                         <SelectItem key={t.id} value={t.id}>
                           {t.name}
                         </SelectItem>
@@ -601,7 +613,7 @@ export function KnowledgeWorkspace() {
                     </SelectContent>
                   </Select>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    {TEMPLATES.find((t) => t.id === createState.templateId)?.description}
+                    {pageTemplates.find((t) => t.id === createState.templateId)?.description}
                   </p>
                 </div>
               )}
