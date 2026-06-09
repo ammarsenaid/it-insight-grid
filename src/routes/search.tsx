@@ -16,31 +16,59 @@ export const Route = createFileRoute("/search")({
 
 function SearchPage() {
   const data = useData();
+  const knowledge = useKnowledge();
   const initial = Route.useSearch().q;
   const [q, setQ] = useState(initial);
   const ql = q.toLowerCase();
   const has = (s: string) => s.toLowerCase().includes(ql);
 
   const results = useMemo(() => ({
+    knowledge: ql
+      ? knowledge.nodes.filter(
+          (n) =>
+            has(n.title) ||
+            has(n.description ?? "") ||
+            has(n.content ?? "") ||
+            n.tags.some((t) => has(t)) ||
+            has(n.ownerId) ||
+            has(n.status),
+        )
+      : [],
     documents: ql ? data.documents.filter((d) => has(d.title) || has(d.description) || d.tags.some((t) => has(t))) : [],
     folders: ql ? data.folders.filter((f) => has(f.name)) : [],
     assets: ql ? data.assets.filter((a) => has(a.hostname) || has(a.displayName) || has(a.ipAddress)) : [],
     ipam: ql ? data.ipam.filter((i) => has(i.ipAddress) || has(i.hostname)) : [],
     tasks: ql ? data.tasks.filter((t) => has(t.title)) : [],
     notes: ql ? data.notes.filter((n) => has(n.title) || has(n.content)) : [],
-  }), [data, ql]);
+  }), [data, knowledge, ql]);
 
   const total = Object.values(results).reduce((a, b) => a + b.length, 0);
 
   return (
     <div>
-      <PageHeader title="Global Search" description="Search across documents, folders, CMDB assets, IP addresses, tasks, and notes." />
+      <PageHeader title="Global Search" description="Search across knowledge pages, documents, CMDB assets, IP addresses, tasks, and notes." />
       <div className="glass-card rounded-2xl p-4">
         <SearchInput value={q} onChange={setQ} placeholder="Type to search everywhere..." />
         <div className="mt-2 text-xs text-muted-foreground">{ql ? `${total} results` : "Type a query to begin"}</div>
       </div>
 
       <div className="mt-6 space-y-6">
+        <Group
+          icon={BookOpen}
+          title="Knowledge"
+          items={results.knowledge.map((n) => {
+            const path = getAncestry(n.id, knowledge.nodes)
+              .slice(0, -1)
+              .map((a) => a.title)
+              .join(" / ");
+            return {
+              id: n.id,
+              title: n.title,
+              sub: `${path || "Top level"} · ${n.status}`,
+              to: `/documents?k=${n.id}`,
+            };
+          })}
+        />
         <Group icon={FileText} title="Documents" items={results.documents.map((d) => ({ id: d.id, title: d.title, sub: `${d.category} · ${d.extension}`, to: "/documents" }))} />
         <Group icon={Folder} title="Folders" items={results.folders.map((f) => ({ id: f.id, title: f.name, sub: "Folder", to: "/documents" }))} />
         <Group icon={Server} title="CMDB Assets" items={results.assets.map((a) => ({ id: a.id, title: a.hostname, sub: `${a.displayName} · ${a.ipAddress}`, to: "/cmdb" }))} />
