@@ -26,6 +26,9 @@ export type NewTicketInput = {
   assignee?: string;
   tags?: string[];
   attachments?: string[];
+  source?: TicketSource;
+  sourceEmail?: string;
+  sourceFlagged?: boolean;
 };
 
 function nextNumber(): string {
