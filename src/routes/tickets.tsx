@@ -382,7 +382,10 @@ export function TicketsPage() {
                         </td>
                         <td className={cellBody(density, "font-mono text-[11px] text-primary")}><Link to="/tickets/$id" params={{ id: t.id }} className="hover:underline">{t.number}</Link></td>
                         <td className={cellBody(density, "max-w-[280px]")}>
-                          <Link to="/tickets/$id" params={{ id: t.id }} className="block truncate font-medium hover:underline">{t.subject}</Link>
+                          <div className="flex items-center gap-1.5">
+                            <Link to="/tickets/$id" params={{ id: t.id }} className="block truncate font-medium hover:underline">{t.subject}</Link>
+                            <SourceBadge source={t.source} flagged={t.sourceFlagged} />
+                          </div>
                           {t.tags.length > 0 && (
                             <div className="mt-0.5 flex flex-wrap gap-1">
                               {t.tags.slice(0, 3).map((tag) => (
@@ -528,6 +531,27 @@ function cellHead(d: "comfortable" | "compact", extra = "") {
 function cellBody(d: "comfortable" | "compact", extra = "") {
   return `${d === "compact" ? "px-2 py-1.5" : "px-3 py-2.5"} align-middle ${extra}`;
 }
+
+const SOURCE_TONE: Record<string, "info" | "success" | "warning" | "muted" | "danger" | "default"> = {
+  email: "info",
+  portal: "success",
+  service_catalog: "default",
+  manual: "muted",
+  internal: "muted",
+  protocol: "warning",
+  task: "warning",
+};
+function SourceBadge({ source, flagged }: { source?: import("@/lib/data/types").TicketSource; flagged?: boolean }) {
+  const s = source ?? "manual";
+  return (
+    <span className="inline-flex items-center gap-1">
+      <StatusBadge label={labelSource(s)} tone={SOURCE_TONE[s] ?? "muted"} />
+      {flagged && <StatusBadge label="Review" tone="warning" />}
+    </span>
+  );
+}
+
+
 
 function ThSort({
   label, col, sortKey, sortDir, onSort, density,

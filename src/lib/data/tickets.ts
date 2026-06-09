@@ -1,5 +1,13 @@
-import type { CatalogItem, Ticket, TicketPriority, TicketSLA, TicketSavedView, TicketSource, TicketStatus, NotificationItem } from "./types";
+import type { CatalogItem, MailboxSettings, Ticket, TicketPriority, TicketSLA, TicketSavedView, TicketSource, TicketStatus, NotificationItem } from "./types";
 import { getState, setState, uid, logActivity, trashItem } from "./store";
+
+export function updateMailboxSettings(patch: Partial<MailboxSettings>) {
+  setState((s) => ({
+    ...s,
+    ticketSettings: { ...s.ticketSettings, mailbox: { ...s.ticketSettings.mailbox, ...patch } },
+  }));
+  logActivity("ticket.mailbox.update", `Mailbox settings updated`);
+}
 
 function pushNotification(n: Omit<NotificationItem, "id" | "createdAt">) {
   const item: NotificationItem = {

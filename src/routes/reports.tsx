@@ -44,6 +44,10 @@ function ReportsPage() {
   const byStatus = ["open", "in_progress", "waiting", "resolved", "closed"].map((s) => ({
     label: s, value: recentTickets.filter((t) => t.status === s).length,
   }));
+  const SOURCES = ["email", "portal", "service_catalog", "manual", "internal", "protocol", "task"] as const;
+  const bySource = SOURCES.map((s) => ({
+    label: s, value: recentTickets.filter((t) => (t.source ?? "manual") === s).length,
+  }));
 
   // CMDB
   const cmdbByStatus = ["active", "maintenance", "retired"].map((s) => ({
@@ -131,6 +135,12 @@ function ReportsPage() {
           onExport={() => exportReport("tickets-by-status", byStatus)}>
           <Bars data={byStatus.map((d) => ({ ...d, tone: "primary" as const }))} />
         </Section>
+
+        <Section title="Tickets by intake source" icon={Ticket} link="/tickets"
+          onExport={() => exportReport("tickets-by-source", bySource)}>
+          <Bars data={bySource.map((d) => ({ ...d, tone: d.label === "email" ? "primary" as const : d.label === "portal" ? "success" as const : d.label === "service_catalog" ? "primary" as const : d.label === "protocol" || d.label === "task" ? "warning" as const : "muted" as const }))} />
+        </Section>
+
 
         <Section title="CMDB status" icon={Server} link="/cmdb"
           onExport={() => exportReport("cmdb-status", cmdbByStatus)}>
