@@ -88,6 +88,7 @@ import { can, useRole } from "@/lib/permissions";
 import { toast } from "sonner";
 import { fileIconFor, formatBytes, formatDate } from "@/components/common/format";
 import { cn } from "@/lib/utils";
+import { KnowledgeWorkspace } from "@/components/knowledge/KnowledgeWorkspace";
 
 export const Route = createFileRoute("/documents")({
   head: () => ({
@@ -108,6 +109,9 @@ function DocumentsPage() {
   const canCreate = can("documents.create", role);
   const canBulk = can("documents.bulk", role);
   const canFolderWrite = can("folders.write", role);
+
+  // Workspace mode (Knowledge default, Legacy file records secondary)
+  const [workspace, setWorkspace] = useState<"knowledge" | "legacy">("knowledge");
 
   // Filters / view state
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
