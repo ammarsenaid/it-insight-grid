@@ -13,9 +13,8 @@ import { getSupabase, isSupabaseConfigured, supabase } from "@/integrations/supa
 export interface ProfileRow {
   id: string;
   display_name: string | null;
-  full_name?: string | null;
-  email?: string | null;
-  avatar_url?: string | null;
+  email: string | null;
+  avatar_url: string | null;
 }
 
 export interface TeamRow {
@@ -62,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Profile
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
-      .select("id, display_name, full_name, email, avatar_url")
+      .select("id, display_name, email, avatar_url")
       .eq("id", userId)
       .maybeSingle();
     if (profileError) {
