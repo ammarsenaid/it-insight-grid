@@ -373,6 +373,12 @@ export function buildSeed(): DataState {
     ipam,
     tasks,
     notes,
+    tickets,
+    ticketViews: [
+      { id: id("vw"), name: "My open tickets", query: "", filters: { assignee: owners[0], status: "open" } },
+      { id: id("vw"), name: "SLA at risk", query: "", filters: { sla: "warning" } },
+      { id: id("vw"), name: "Critical incidents", query: "", filters: { priority: "critical", type: "incident" } },
+    ],
     trash,
     activity,
     snapshots: [],
