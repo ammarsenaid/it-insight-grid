@@ -7,7 +7,7 @@ import {
 import { PageHeader } from "@/components/common/PageHeader";
 import { MetricCard } from "@/components/common/MetricCard";
 import { SearchInput } from "@/components/common/SearchInput";
-import { StatusBadge } from "@/components/common/StatusBadge";
+import { StatusBadge, statusTone } from "@/components/common/StatusBadge";
 import { EmptyState } from "@/components/common/EmptyState";
 import { DataTable, type Column } from "@/components/common/DataTable";
 import { FormDrawer } from "@/components/common/FormDrawer";
@@ -146,7 +146,7 @@ function ProtocolsPage() {
   const runCols: Column<ProtocolRun>[] = [
     { key: "id", header: "ID", render: (r) => <span className="font-mono text-xs">{r.runNumber}</span> },
     { key: "template", header: "Template", render: (r) => <div className="font-medium">{r.templateTitle}</div> },
-    { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status as any}>{STATUS_LABEL[r.status]}</StatusBadge> },
+    { key: "status", header: "Status", render: (r) => <StatusBadge label={STATUS_LABEL[r.status]} tone={statusTone(r.status)} /> },
     { key: "assignee", header: "Assignee", render: (r) => <span className="text-sm">{r.assignedUser ?? "—"}</span> },
     { key: "team", header: "Team", render: (r) => <span className="text-sm text-muted-foreground">{r.team ?? "—"}</span> },
     { key: "progress", header: "Progress", render: (r) => {
@@ -250,15 +250,16 @@ function ProtocolsPage() {
 // ----- Template drawer (create + edit + step builder) -----
 function TemplateDrawer({ open, template, onClose }: { open: boolean; template: ProtocolTemplate | null; onClose: () => void }) {
   const editing = !!template;
-  const initial = template ?? {
-    title: "", category: "Operations", description: "", purpose: "", scope: "", preconditions: "",
-    assignedTeam: "", estimatedMinutes: 30, approvalRequired: false, recurrence: "none" as ProtocolRecurrence,
-    requiredAssetIds: [], requiredKnowledgeIds: [], tags: [], visibility: "internal" as const, steps: [],
+  const blank: ProtocolTemplate = {
+    id: "", title: "", category: "Operations", description: "", purpose: "", scope: "", preconditions: "",
+    assignedTeam: "", estimatedMinutes: 30, approvalRequired: false, recurrence: "none",
+    requiredAssetIds: [], requiredKnowledgeIds: [], tags: [], visibility: "internal", steps: [],
+    createdAt: "", updatedAt: "",
   };
-  const [form, setForm] = useState(initial);
+  const [form, setForm] = useState<ProtocolTemplate>(template ?? blank);
 
   // Re-init when opening a different template
-  useMemo(() => { setForm(initial); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [template, open]);
+  useMemo(() => { setForm(template ?? blank); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [template, open]);
 
   const save = () => {
     if (!form.title.trim()) { toast.error("Title is required"); return; }
