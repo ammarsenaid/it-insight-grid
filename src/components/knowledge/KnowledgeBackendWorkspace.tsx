@@ -52,6 +52,7 @@ import { CategoryFormDialog } from "./dialogs/CategoryFormDialog";
 import { ArticleFormDialog } from "./dialogs/ArticleFormDialog";
 import { TagsEditorDialog } from "./dialogs/TagsEditorDialog";
 import { ArticleContentEditor } from "./ArticleContentEditor";
+import { ReviewTimelinePanel } from "./ReviewTimelinePanel";
 import type {
   ArticleStatus,
   KbArticle,
@@ -329,6 +330,8 @@ export function KnowledgeBackendWorkspace() {
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="in_review">In Review</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="published">Published</SelectItem>
                 <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
@@ -757,6 +760,7 @@ function SelectionView(p: SelectionViewProps) {
         article={art}
         canUpdate={perms.update}
         canDelete={perms.delete}
+        canApprove={perms.manageTeam}
         onSaved={() => { p.onReload(); }}
         onClose={() => p.setEditingArticle(false)}
       />
@@ -852,7 +856,8 @@ function ArticleView({
   onEditContent: () => void; onEditMeta: () => void; onEditTags: () => void;
   onDelete: () => void; onReload: () => void;
 }) {
-  const [showRevisions, setShowRevisions] = useState(false);
+  type SidePanel = "none" | "revisions" | "review";
+  const [panel, setPanel] = useState<SidePanel>("none");
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
       <div>
@@ -896,23 +901,37 @@ function ArticleView({
               {tags.map((t) => <Badge key={t} variant="secondary" className="h-5 text-[10px]">#{t}</Badge>)}
             </div>
           )}
-          <Button size="sm" variant="ghost" className="ml-auto h-7 px-2 text-xs" onClick={() => setShowRevisions((v) => !v)}>
-            <History className="mr-1 h-3 w-3" />{showRevisions ? "Hide history" : "Revision history"}
-          </Button>
+          <div className="ml-auto flex items-center gap-1">
+            <Button size="sm" variant={panel === "review" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
+              onClick={() => setPanel((p) => (p === "review" ? "none" : "review"))}>
+              <History className="mr-1 h-3 w-3" />Review
+            </Button>
+            <Button size="sm" variant={panel === "revisions" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
+              onClick={() => setPanel((p) => (p === "revisions" ? "none" : "revisions"))}>
+              <History className="mr-1 h-3 w-3" />Revisions
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="grid min-h-0 gap-3 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className={cn("grid min-h-0 gap-3", panel !== "none" && "lg:grid-cols-[minmax(0,1fr)_300px]")}>
         <div className="min-h-0 overflow-y-auto rounded-xl border border-border/40 bg-white/[0.02] p-4">
           {article.content_markdown ? <Markdown source={article.content_markdown} /> : <p className="text-sm text-muted-foreground">This article has no content yet.</p>}
         </div>
-        {showRevisions && (
+        {panel === "revisions" && (
           <RevisionsPanel
             articleId={article.id}
             teamId={teamId}
             canRestore={canUpdate}
             currentRev={article.revision_number}
             onRestored={onReload}
+          />
+        )}
+        {panel === "review" && (
+          <ReviewTimelinePanel
+            articleId={article.id}
+            teamId={teamId}
+            refreshKey={`${article.revision_number}:${article.status}`}
           />
         )}
       </div>
