@@ -269,6 +269,8 @@ export type TicketPriority = "low" | "normal" | "high" | "critical";
 export type TicketStatus = "open" | "in_progress" | "waiting" | "resolved" | "closed" | "cancelled";
 export type TicketSLA = "ok" | "warning" | "breached";
 export type TicketType = "incident" | "request" | "change" | "problem";
+export type TicketSource = "email" | "portal" | "service_catalog" | "manual" | "internal" | "protocol" | "task";
+export type UnknownRequesterFallback = "create_temp" | "assign_fallback" | "ignore" | "flag_review";
 
 export interface TicketComment {
   id: ID;
