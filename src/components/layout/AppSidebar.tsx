@@ -167,13 +167,14 @@ export function AppSidebar() {
         <div className="glass-card rounded-xl p-3 text-xs">
           <div className="mb-2 flex items-center gap-2 font-medium">
             <Database className="h-3.5 w-3.5 metric-accent-primary" />
-            <span>Local Prototype</span>
+            <span>Workspace</span>
           </div>
           <div className="space-y-1 text-muted-foreground">
-            <Row icon={<FileText className="h-3 w-3" />} label="Knowledge Pages" value={knowledgePageCount} />
-            <Row icon={<Folder className="h-3 w-3" />} label="Spaces" value={spaceCount} />
-            <Row icon={<Ticket className="h-3 w-3" />} label="Tickets" value={ticketsCount} />
-            <Row icon={<Trash2 className="h-3 w-3" />} label="Recycle Bin" value={data.trash.length} />
+            <div className="flex items-center gap-1.5 text-emerald-300">
+              <FileText className="h-3 w-3" /> Knowledge backend connected
+            </div>
+            <Row icon={<Ticket className="h-3 w-3" />} label="Tickets (prototype)" value={ticketsCount} />
+            <Row icon={<Trash2 className="h-3 w-3" />} label="Recycle Bin (prototype)" value={data.trash.length} />
           </div>
           <Button
             size="sm"
@@ -181,13 +182,14 @@ export function AppSidebar() {
             className="mt-3 h-8 w-full text-xs"
             onClick={() => {
               refreshFromStorage();
-              toast.success("Local data refreshed");
+              toast.success("Prototype data refreshed");
             }}
           >
-            <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh local data
+            <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh prototype data
           </Button>
         </div>
       </SidebarFooter>
+
     </Sidebar>
   );
 }
