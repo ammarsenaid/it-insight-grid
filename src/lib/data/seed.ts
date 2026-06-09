@@ -5,7 +5,9 @@ import type {
   CMDBAsset,
   IPAMEntry,
   Task,
+  TaskSavedView,
   Note,
+  NoteTemplate,
   Ticket,
   ActivityLog,
   NotificationItem,
@@ -204,17 +206,38 @@ export function buildSeed(): DataState {
   const tasks: Task[] = taskSeed.map((t, idx) => ({
     id: id("tsk"),
     title: t.title,
+    description: "",
     category: t.cat,
     priority: t.prio as Task["priority"],
     status: t.status as Task["status"],
+    scope: idx % 3 === 0 ? "personal" : idx % 3 === 1 ? "team" : "shared",
     dueDate: t.due,
     assignedTo: owners[idx % owners.length],
+    owner: owners[idx % owners.length],
+    team: ["Infrastructure", "Network", "Security", "Service Desk"][idx % 4],
+    tags: [t.cat.toLowerCase()],
+    recurring: idx === 8 ? { freq: "monthly", interval: 1 } : null,
+    dependencyIds: [],
+    escalated: t.prio === "critical" && t.status !== "done",
+    archived: false,
+    watchers: [],
     linkedDocumentId: idx % 3 === 0 ? documents[idx % documents.length].id : undefined,
     linkedAssetId: idx % 2 === 0 ? assets[idx % assets.length].id : undefined,
+    linkedTicketIds: [],
+    linkedIpamIds: [],
+    linkedNoteIds: [],
+    linkedUserIds: [],
+    completedAt: t.status === "done" ? daysAgo(1) : undefined,
     notes: "",
     createdAt: daysAgo(30 - idx),
     updatedAt: daysAgo(idx % 10),
   }));
+
+  const taskViews: TaskSavedView[] = [
+    { id: id("tvw"), name: "My open work", scope: "my", query: "", filters: { status: "open" } },
+    { id: id("tvw"), name: "Critical & overdue", scope: "all", query: "", filters: { priority: "critical" } },
+    { id: id("tvw"), name: "Team backlog", scope: "team", query: "", filters: { status: "open" } },
+  ];
 
   const noteSeed = [
     { title: "AD replication issue notes", cat: "Active Directory" },
@@ -230,11 +253,28 @@ export function buildSeed(): DataState {
     id: id("nte"),
     title: n.title,
     category: n.cat,
-    content: `# ${n.title}\n\nQuick reference note. Add details here.\n\n- Item 1\n- Item 2\n- Item 3`,
+    tags: [n.cat.toLowerCase()],
+    pinned: idx < 2,
+    archived: false,
+    isTemplate: false,
+    owner: owners[idx % owners.length],
+    content: `# ${n.title}\n\nQuick reference note. Add details here.\n\n- Item 1\n- Item 2\n- Item 3\n\n## Notes\nUse **bold** or *italic* and \`inline code\` to organize ideas.`,
     linkedDocumentId: idx % 2 === 0 ? documents[idx % documents.length].id : undefined,
+    linkedTicketIds: [],
+    linkedAssetIds: [],
+    linkedIpamIds: [],
+    linkedTaskIds: [],
+    linkedUserIds: [],
     createdAt: daysAgo(20 - idx),
     updatedAt: daysAgo(idx % 8),
   }));
+
+  const noteTemplates: NoteTemplate[] = [
+    { id: id("ntpl"), name: "Incident postmortem", category: "Security", content: "# Postmortem\n\n## Summary\n\n## Timeline\n- \n\n## Root cause\n\n## Action items\n- [ ] " },
+    { id: id("ntpl"), name: "Change runbook", category: "Infrastructure", content: "# Change runbook\n\n## Scope\n\n## Pre-checks\n- [ ] \n\n## Steps\n1. \n\n## Rollback\n\n## Validation\n- [ ] " },
+    { id: id("ntpl"), name: "Meeting notes", category: "General", content: "# Meeting notes\n\n**Date:** \n**Attendees:** \n\n## Agenda\n- \n\n## Decisions\n- \n\n## Action items\n- [ ] " },
+    { id: id("ntpl"), name: "Troubleshooting log", category: "Network", content: "# Troubleshooting\n\n## Symptom\n\n## Environment\n\n## Hypotheses\n- \n\n## Findings\n\n## Resolution\n" },
+  ];
   const teams = ["Service Desk", "Network", "Infrastructure", "Security", "Applications"];
   const requesters = ["alice.morgan", "ben.taylor", "carla.rivera", "david.kim", "evelyn.shaw", "felix.novak", "grace.huang", "henry.park", "isabella.ross"];
   const ticketSeed = [
@@ -372,7 +412,9 @@ export function buildSeed(): DataState {
     assets,
     ipam,
     tasks,
+    taskViews,
     notes,
+    noteTemplates,
     tickets,
     ticketViews: [
       { id: id("vw"), name: "My open tickets", query: "", filters: { assignee: owners[0], status: "open" } },
