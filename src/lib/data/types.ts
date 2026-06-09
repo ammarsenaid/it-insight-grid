@@ -106,20 +106,58 @@ export interface IPAMEntry {
 
 export type TaskPriority = "low" | "normal" | "high" | "critical";
 export type TaskStatus = "open" | "in_progress" | "blocked" | "done";
+export type TaskScope = "personal" | "team" | "shared";
+
+export interface TaskRecurrence {
+  freq: "daily" | "weekly" | "monthly";
+  interval: number;
+}
 
 export interface Task {
   id: ID;
   title: string;
+  description?: string;
   category: string;
   priority: TaskPriority;
   status: TaskStatus;
+  scope?: TaskScope;
   dueDate?: string;
+  reminderAt?: string;
   assignedTo: string;
+  owner?: string;
+  team?: string;
+  tags?: string[];
+  recurring?: TaskRecurrence | null;
+  dependencyIds?: ID[];
+  escalated?: boolean;
+  archived?: boolean;
+  watchers?: string[];
   linkedDocumentId?: ID;
   linkedAssetId?: ID;
+  linkedTicketIds?: ID[];
+  linkedIpamIds?: ID[];
+  linkedNoteIds?: ID[];
+  linkedUserIds?: ID[];
+  sourceTicketId?: ID;
+  completedAt?: string;
   notes: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TaskSavedView {
+  id: ID;
+  name: string;
+  scope: "my" | "team" | "all";
+  query: string;
+  filters: Record<string, string>;
+}
+
+export interface NoteTemplate {
+  id: ID;
+  name: string;
+  category: string;
+  content: string;
 }
 
 export interface Note {
@@ -127,7 +165,17 @@ export interface Note {
   title: string;
   category: string;
   content: string;
+  tags?: string[];
+  pinned?: boolean;
+  archived?: boolean;
+  isTemplate?: boolean;
+  owner?: string;
   linkedDocumentId?: ID;
+  linkedTicketIds?: ID[];
+  linkedAssetIds?: ID[];
+  linkedIpamIds?: ID[];
+  linkedTaskIds?: ID[];
+  linkedUserIds?: ID[];
   createdAt: string;
   updatedAt: string;
 }
