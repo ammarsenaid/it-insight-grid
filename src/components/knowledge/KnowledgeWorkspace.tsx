@@ -436,41 +436,7 @@ export function KnowledgeWorkspace() {
         </div>
       </section>
 
-      {/* Details */}
-      <aside className="glass-card hidden h-full min-h-0 rounded-2xl p-4 lg:flex lg:flex-col">
-        {selected ? (
-          <KnowledgeDetailsPanel
-            node={selected}
-            ancestry={ancestry}
-            onOpen={() => {
-              if (selected.type === "page") setMode("view");
-            }}
-            onEdit={() => setMode("edit")}
-            onPreview={() => setMode("view")}
-            onFavorite={() => toggleFavorite(selected.id)}
-            onCopyLink={() => onCopyLink(selected)}
-            onDuplicate={() => {
-              const c = duplicateNode(selected.id);
-              if (c) {
-                toast.success("Duplicated");
-                setSelectedId(c.id);
-              }
-            }}
-            onMove={() => openMove(selected)}
-            onArchive={() => setConfirmArchive(selected)}
-            onDelete={() => setConfirmDelete(selected)}
-            onRestoreVersion={(vid) => {
-              restoreVersion(selected.id, vid);
-              toast.success("Version restored");
-            }}
-            onOpenRelations={() => setRelationsTarget(selected)}
-          />
-        ) : (
-          <div className="grid h-full place-items-center text-xs text-muted-foreground">
-            Select an item to see details.
-          </div>
-        )}
-      </aside>
+      {/* Details now live in an on-demand drawer (see below) for full-width reading */}
 
       {/* Mobile tree drawer */}
       <Sheet open={treeOpen} onOpenChange={setTreeOpen}>
