@@ -25,6 +25,7 @@ import {
   ChevronRight,
   ArrowUpRight,
 } from "lucide-react";
+import { useProtocols as useProtocolsHook } from "@/lib/protocols/store";
 import { useMemo, useState, type ComponentType } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { MetricCard } from "@/components/common/MetricCard";
