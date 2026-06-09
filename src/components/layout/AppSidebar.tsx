@@ -42,7 +42,6 @@ import { Button } from "@/components/ui/button";
 import { refreshFromStorage, useData } from "@/lib/data/store";
 import { useKnowledge } from "@/lib/knowledge/store";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useAuth } from "@/lib/auth/AuthProvider";
 import { toast } from "sonner";
 
 const groups = [
