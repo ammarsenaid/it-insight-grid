@@ -127,7 +127,7 @@ function AdminUsersPage() {
         </div>
       </div>
 
-      <SectionCard noPadding>
+      <SectionCard contentClassName="p-0">
         {visible.length === 0 ? (
           <EmptyState icon={Users} title="No users match your filters" description="Adjust search or change the tab." className="m-4" />
         ) : (
