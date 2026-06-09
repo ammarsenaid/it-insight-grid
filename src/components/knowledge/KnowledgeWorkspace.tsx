@@ -356,12 +356,12 @@ export function KnowledgeWorkspace() {
 
       {/* Main area */}
       <section className="glass-card flex h-full min-h-0 flex-col rounded-2xl p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-2 lg:hidden">
-          <Button size="sm" variant="secondary" className="h-8" onClick={() => setTreeOpen(true)}>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="secondary" className="h-8 lg:hidden" onClick={() => setTreeOpen(true)}>
             <PanelLeft className="mr-1 h-4 w-4" /> Tree
           </Button>
           {selected && (
-            <Button size="sm" variant="secondary" className="h-8" onClick={() => setDetailsOpen(true)}>
+            <Button size="sm" variant="secondary" className="ml-auto h-8" onClick={() => setDetailsOpen(true)}>
               <PanelRight className="mr-1 h-4 w-4" /> Details
             </Button>
           )}
