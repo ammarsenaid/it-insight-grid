@@ -1,4 +1,4 @@
-import type { CatalogItem, Ticket, TicketPriority, TicketSLA, TicketSavedView, TicketStatus, NotificationItem } from "./types";
+import type { CatalogItem, Ticket, TicketPriority, TicketSLA, TicketSavedView, TicketSource, TicketStatus, NotificationItem } from "./types";
 import { getState, setState, uid, logActivity, trashItem } from "./store";
 
 function pushNotification(n: Omit<NotificationItem, "id" | "createdAt">) {
@@ -26,6 +26,9 @@ export type NewTicketInput = {
   assignee?: string;
   tags?: string[];
   attachments?: string[];
+  source?: TicketSource;
+  sourceEmail?: string;
+  sourceFlagged?: boolean;
 };
 
 function nextNumber(): string {
@@ -83,6 +86,9 @@ export function createTicket(input: NewTicketInput): Ticket {
     tags: input.tags ?? [],
     attachments: input.attachments ?? [],
     watchers: [],
+    source: input.source ?? "manual",
+    sourceEmail: input.sourceEmail,
+    sourceFlagged: input.sourceFlagged,
     comments: [
       {
         id: uid("cmt"),
@@ -96,7 +102,7 @@ export function createTicket(input: NewTicketInput): Ticket {
     updatedAt: now,
   };
   setState((s) => ({ ...s, tickets: [ticket, ...s.tickets] }));
-  logActivity("ticket.create", `Created ticket ${ticket.number} — ${ticket.subject}`, "ticket", ticket.id);
+  logActivity("ticket.create", `Created ticket ${ticket.number} — ${ticket.subject} (source: ${ticket.source})`, "ticket", ticket.id);
   pushNotification({ title: `New ticket ${ticket.number}`, message: ticket.subject, type: "info" });
   return ticket;
 }
@@ -244,6 +250,20 @@ export const TICKET_TYPES: Ticket["type"][] = ["incident", "request", "change", 
 export const SERVICES = ["Email", "Active Directory", "File Storage", "Backup", "Identity", "Remote Access", "Wi-Fi", "LAN", "Printing", "Storage", "Software", "Collaboration", "Onboarding", "Patching"];
 export const AGENTS = ["jordan.lee", "morgan.diaz", "sasha.patel", "leo.nguyen", "ivy.brooks"];
 
+export const TICKET_SOURCES: TicketSource[] = ["email", "portal", "service_catalog", "manual", "internal", "protocol", "task"];
+
+export function labelSource(s: TicketSource): string {
+  switch (s) {
+    case "email": return "Email";
+    case "portal": return "Portal";
+    case "service_catalog": return "Service Catalog";
+    case "manual": return "Manual";
+    case "internal": return "Internal";
+    case "protocol": return "Protocol";
+    case "task": return "Task";
+  }
+}
+
 export function submitCatalogRequest(item: CatalogItem, requester: string, values: Record<string, string>): Ticket {
   const subject = `${item.name} — ${requester}`;
   const lines = item.fields.map((f) => `- **${f.label}**: ${values[f.key] || "—"}`).join("\n");
@@ -259,10 +279,105 @@ export function submitCatalogRequest(item: CatalogItem, requester: string, value
     affectedService: item.category,
     team: item.defaultTeam,
     tags: ["catalog", item.category.toLowerCase()],
+    source: "service_catalog",
   });
 }
 
+export type EmailIntakeInput = {
+  fromEmail: string;
+  fromName?: string;
+  subject: string;
+  body: string;
+  receivedAt?: string;
+};
+
+export type EmailIntakeResult =
+  | { outcome: "linked" | "fallback" | "temp" | "flagged"; ticket: Ticket; matchedRequester?: string }
+  | { outcome: "ignored"; reason: string };
+
+export function intakeEmail(input: EmailIntakeInput): EmailIntakeResult {
+  const state = getState();
+  const mailbox = state.ticketSettings.mailbox;
+  if (!mailbox.enabled) {
+    logActivity("ticket.email.ignored", `Email from ${input.fromEmail} ignored — mailbox disabled`);
+    return { outcome: "ignored", reason: "Mailbox is disabled" };
+  }
+  const cleanEmail = input.fromEmail.trim().toLowerCase();
+  const match = state.users.find((u) => u.email.toLowerCase() === cleanEmail);
+
+  if (match) {
+    const t = createTicket({
+      requester: match.username,
+      subject: input.subject || "(no subject)",
+      description: input.body || "(empty email body)",
+      type: "incident",
+      category: mailbox.defaultCategory,
+      priority: mailbox.defaultPriority,
+      team: mailbox.defaultTeam,
+      tags: ["email"],
+      source: "email",
+      sourceEmail: cleanEmail,
+    });
+    return { outcome: "linked", ticket: t, matchedRequester: match.username };
+  }
+
+  switch (mailbox.unknownFallback) {
+    case "ignore":
+      logActivity("ticket.email.ignored", `Email from unknown sender ${cleanEmail} ignored`);
+      return { outcome: "ignored", reason: "Unknown sender — configured to ignore" };
+    case "assign_fallback": {
+      const t = createTicket({
+        requester: mailbox.fallbackRequester,
+        subject: `[Unknown sender ${cleanEmail}] ${input.subject || "(no subject)"}`,
+        description: `Original sender: ${cleanEmail}\n\n${input.body || "(empty email body)"}`,
+        type: "incident",
+        category: mailbox.defaultCategory,
+        priority: mailbox.defaultPriority,
+        team: mailbox.defaultTeam,
+        tags: ["email", "unknown-sender"],
+        source: "email",
+        sourceEmail: cleanEmail,
+      });
+      return { outcome: "fallback", ticket: t };
+    }
+    case "flag_review": {
+      const t = createTicket({
+        requester: mailbox.fallbackRequester,
+        subject: `[Needs review] ${input.subject || "(no subject)"}`,
+        description: `Sender ${cleanEmail} could not be matched to an employee. Please review and reassign.\n\n${input.body || "(empty email body)"}`,
+        type: "incident",
+        category: mailbox.defaultCategory,
+        priority: mailbox.defaultPriority,
+        team: mailbox.defaultTeam,
+        tags: ["email", "needs-review"],
+        source: "email",
+        sourceEmail: cleanEmail,
+        sourceFlagged: true,
+      });
+      return { outcome: "flagged", ticket: t };
+    }
+    case "create_temp":
+    default: {
+      const tempUsername = `guest:${cleanEmail}`;
+      const t = createTicket({
+        requester: tempUsername,
+        subject: input.subject || "(no subject)",
+        description: `Temporary requester created from email.\nSender: ${cleanEmail}\n\n${input.body || "(empty email body)"}`,
+        type: "incident",
+        category: mailbox.defaultCategory,
+        priority: mailbox.defaultPriority,
+        team: mailbox.defaultTeam,
+        tags: ["email", "temp-requester"],
+        source: "email",
+        sourceEmail: cleanEmail,
+      });
+      return { outcome: "temp", ticket: t };
+    }
+  }
+}
+
 export const REQUESTERS = ["alice.morgan", "ben.taylor", "carla.rivera", "david.kim", "evelyn.shaw", "felix.novak", "grace.huang", "henry.park", "isabella.ross"];
+
 
 // Current "logged-in" requester depends on role: end-users see their own slice.
 export function currentRequesterFor(role: string): string {

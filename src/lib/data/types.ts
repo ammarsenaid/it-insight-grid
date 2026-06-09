@@ -269,6 +269,8 @@ export type TicketPriority = "low" | "normal" | "high" | "critical";
 export type TicketStatus = "open" | "in_progress" | "waiting" | "resolved" | "closed" | "cancelled";
 export type TicketSLA = "ok" | "warning" | "breached";
 export type TicketType = "incident" | "request" | "change" | "problem";
+export type TicketSource = "email" | "portal" | "service_catalog" | "manual" | "internal" | "protocol" | "task";
+export type UnknownRequesterFallback = "create_temp" | "assign_fallback" | "ignore" | "flag_review";
 
 export interface TicketComment {
   id: ID;
@@ -301,6 +303,9 @@ export interface Ticket {
   attachments: string[];
   watchers: string[];
   comments: TicketComment[];
+  source: TicketSource;
+  sourceEmail?: string;
+  sourceFlagged?: boolean;
   resolvedAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -347,6 +352,16 @@ export interface RoutingRule {
   team: string;
 }
 
+export interface MailboxSettings {
+  address: string;
+  enabled: boolean;
+  unknownFallback: UnknownRequesterFallback;
+  fallbackRequester: string;
+  defaultCategory: string;
+  defaultTeam: string;
+  defaultPriority: TicketPriority;
+}
+
 export interface TicketSettings {
   categories: string[];
   teams: string[];
@@ -354,6 +369,7 @@ export interface TicketSettings {
   priorities: TicketPriority[];
   slaPolicies: SLAPolicy[];
   routingRules: RoutingRule[];
+  mailbox: MailboxSettings;
 }
 
 

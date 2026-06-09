@@ -33,6 +33,8 @@ import { formatDateTime, timeAgo } from "@/components/common/format";
 import { useData } from "@/lib/data/store";
 import {
   createTicket,
+  TICKET_SOURCES,
+  labelSource,
   archiveTickets,
   assignTickets,
   setStatus,
@@ -126,6 +128,7 @@ export function TicketsPage() {
   const [fAssignee, setFAssignee] = useState<string>("all");
   const [fCategory, setFCategory] = useState<string>("all");
   const [fSla, setFSla] = useState<string>("all");
+  const [fSource, setFSource] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
@@ -154,7 +157,7 @@ export function TicketsPage() {
   }, []);
 
   const resetFilters = () => {
-    setQuery(""); setFStatus("all"); setFPriority("all"); setFType("all"); setFTeam("all"); setFAssignee("all"); setFCategory("all"); setFSla("all"); setPage(1);
+    setQuery(""); setFStatus("all"); setFPriority("all"); setFType("all"); setFTeam("all"); setFAssignee("all"); setFCategory("all"); setFSla("all"); setFSource("all"); setPage(1);
   };
 
   // Apply filters
@@ -178,6 +181,7 @@ export function TicketsPage() {
     if (fAssignee !== "all") list = list.filter((t) => (t.assignee ?? "") === (fAssignee === "unassigned" ? "" : fAssignee));
     if (fCategory !== "all") list = list.filter((t) => t.category === fCategory);
     if (fSla !== "all") list = list.filter((t) => t.sla === fSla);
+    if (fSource !== "all") list = list.filter((t) => (t.source ?? "manual") === fSource);
     list.sort((a, b) => {
       const av = a[sortKey] as string;
       const bv = b[sortKey] as string;
@@ -185,7 +189,7 @@ export function TicketsPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [tickets, query, fStatus, fPriority, fType, fTeam, fAssignee, fCategory, fSla, sortKey, sortDir]);
+  }, [tickets, query, fStatus, fPriority, fType, fTeam, fAssignee, fCategory, fSla, fSource, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageSafe = Math.min(page, totalPages);
@@ -241,6 +245,7 @@ export function TicketsPage() {
     setFAssignee(filters.assignee ?? "all");
     setFCategory(filters.category ?? "all");
     setFSla(filters.sla ?? "all");
+    setFSource(filters.source ?? "all");
     setQuery(filters.q ?? "");
     setPage(1);
   };
@@ -285,6 +290,7 @@ export function TicketsPage() {
           <SelectFilter value={fAssignee} onChange={setFAssignee} placeholder="Assignee" options={[{ value: "all", label: "All assignees" }, { value: "unassigned", label: "Unassigned" }, ...AGENTS.map((a) => ({ value: a, label: a }))]} />
           <SelectFilter value={fCategory} onChange={setFCategory} placeholder="Category" options={[{ value: "all", label: "All categories" }, ...TICKET_CATEGORIES.map((c) => ({ value: c, label: c }))]} />
           <SelectFilter value={fSla} onChange={setFSla} placeholder="SLA" options={[{ value: "all", label: "All SLA" }, { value: "ok", label: "On track" }, { value: "warning", label: "At risk" }, { value: "breached", label: "Breached" }]} />
+          <SelectFilter value={fSource} onChange={setFSource} placeholder="Source" options={[{ value: "all", label: "All Sources" }, ...TICKET_SOURCES.map((s) => ({ value: s, label: labelSource(s) }))]} />
         </FilterBar>
 
         {selected.size > 0 && (
@@ -495,7 +501,7 @@ export function TicketsPage() {
             query,
             filters: {
               status: fStatus, priority: fPriority, type: fType, team: fTeam,
-              assignee: fAssignee, category: fCategory, sla: fSla, q: query,
+              assignee: fAssignee, category: fCategory, sla: fSla, source: fSource, q: query,
             },
           });
           toast.success(`View '${viewName}' saved`);
