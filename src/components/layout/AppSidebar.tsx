@@ -41,7 +41,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { refreshFromStorage, useData } from "@/lib/data/store";
 import { useKnowledge } from "@/lib/knowledge/store";
-import { canSeePage, useRole } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { toast } from "sonner";
 
@@ -103,21 +102,20 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const data = useData();
   const knowledge = useKnowledge();
-  const role = useRole();
   const { isPlatformAdmin } = useAuth();
   const ticketsCount = data.tickets.length;
   const knowledgePageCount = knowledge.nodes.filter((n) => n.type === "page").length;
   const spaceCount = knowledge.nodes.filter((n) => n.type === "space").length;
 
+  // Global navigation no longer relies on the frontend-only prototype roles.
+  // Only admin links are gated, by the real is_platform_admin() result.
   const visibleGroups = groups
     .map((g) => ({
       ...g,
-      items: g.items.filter((it) => {
-        if (it.url.startsWith("/admin") && !isPlatformAdmin) return false;
-        return canSeePage(it.url, role);
-      }),
+      items: g.items.filter((it) => !(it.url.startsWith("/admin") && !isPlatformAdmin)),
     }))
     .filter((g) => g.items.length > 0);
+
 
 
   return (

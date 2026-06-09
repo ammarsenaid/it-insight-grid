@@ -4,13 +4,6 @@ import {
   Bell,
   Search,
   User,
-  Plus,
-  FileText,
-  Server,
-  Network,
-  CheckSquare,
-  StickyNote,
-  Ticket,
   LogOut,
   UserCog,
   Command as CommandIcon,
@@ -32,7 +25,6 @@ import { Badge } from "@/components/ui/badge";
 import { useData, updateSettings } from "@/lib/data/store";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { NotificationDrawer } from "@/components/common/NotificationDrawer";
-import { can, useRole } from "@/lib/permissions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -43,7 +35,6 @@ export function TopHeader() {
   const [notifOpen, setNotifOpen] = useState(false);
   const navigate = useNavigate();
   const data = useData();
-  const role = useRole();
   const { profile, user, signOut, isPlatformAdmin } = useAuth();
   const meta = (user?.user_metadata ?? {}) as { display_name?: string; full_name?: string };
   const displayName =
@@ -68,14 +59,10 @@ export function TopHeader() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const createActions: { label: string; icon: typeof FileText; to: string; capability: string }[] = [
-    { label: "New Knowledge Page", icon: FileText, to: "/documents", capability: "documents.create" },
-    { label: "New Ticket", icon: Ticket, to: "/tickets", capability: "tickets.create" },
-    { label: "New Asset (CMDB)", icon: Server, to: "/cmdb", capability: "cmdb.write" },
-    { label: "New IP Record", icon: Network, to: "/ipam", capability: "ipam.write" },
-    { label: "New Task", icon: CheckSquare, to: "/tasks", capability: "tasks.write" },
-    { label: "New Note", icon: StickyNote, to: "/notes", capability: "notes.write" },
-  ];
+  // Quick Create is intentionally hidden until real backend permission checks
+  // land in Phase 2 — the previous frontend-only role gating is not a real
+  // authorization source.
+
 
   return (
     <>
@@ -107,35 +94,8 @@ export function TopHeader() {
             <Search className="h-4 w-4" />
           </Button>
 
-          {/* Create menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" className="hidden h-9 gap-1.5 rounded-xl sm:inline-flex">
-                <Plus className="h-4 w-4" /> Create
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Quick create</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {createActions.map((a) => {
-                const allowed = can(a.capability, role);
-                return (
-                  <DropdownMenuItem
-                    key={a.label}
-                    disabled={!allowed}
-                    onClick={() => {
-                      if (!allowed) return;
-                      navigate({ to: a.to });
-                    }}
-                  >
-                    <a.icon className="mr-2 h-4 w-4" />
-                    <span className="flex-1">{a.label}</span>
-                    {!allowed && <span className="text-[10px] text-muted-foreground">restricted</span>}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Quick Create hidden until Phase 2 backend permission checks. */}
+
 
           {/* Notification bell — opens drawer */}
           <Button
@@ -153,7 +113,7 @@ export function TopHeader() {
             )}
           </Button>
 
-          {/* Profile + role switcher */}
+          {/* Profile menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="ml-1 flex items-center gap-2 rounded-xl border border-border/60 bg-card/60 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-card/80">

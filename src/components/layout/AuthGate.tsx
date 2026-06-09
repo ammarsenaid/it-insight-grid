@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { AppShell } from "./AppShell";
 
@@ -8,15 +9,21 @@ const PUBLIC_PATHS = new Set<string>(["/auth"]);
 /**
  * Top-level gate for the authenticated UI.
  *
- * Behavior:
- *  - Unauthenticated user on a protected route → redirected to /auth.
- *  - Authenticated user on /auth → redirected to /.
- *  - Authenticated non-admin on /admin/* → redirected to /.
- *  - Authenticated admin on /admin/* → allowed.
+ * Routing rules (applied after auth resolves on the client):
+ *  - unauthenticated user on a protected route → /auth
+ *  - authenticated user on /auth → /
+ *  - authenticated non-admin on /admin/* → /
+ *  - authenticated admin on /admin/* → allowed
  *
- * SSR vs. client hydration: we render the same wrapper (AppShell for
- * protected routes, bare children for /auth) on both sides to avoid
- * hydration mismatches. The redirect effects run on the client after mount.
+ * Rendering rules:
+ *  - /auth is a bare public route; SSR and client render the same tree
+ *    (no AppShell, no splash) so hydration matches.
+ *  - For protected routes, while auth has not yet resolved (SSR, pre-mount,
+ *    or session restoration in flight) we render a neutral full-screen
+ *    splash on both server and client — never the AppShell or protected
+ *    children. The splash is deterministic so hydration matches.
+ *  - Once resolved, unauthenticated / unauthorized-admin renders null
+ *    while the redirect navigates away.
  */
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { loading, session, isPlatformAdmin } = useAuth();
@@ -31,7 +38,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (loading) return;
+    if (!mounted || loading) return;
     if (!session && !isPublic) {
       navigate({ to: "/auth", replace: true });
     } else if (session && isPublic) {
@@ -39,16 +46,34 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     } else if (session && isAdminRoute && !isPlatformAdmin) {
       navigate({ to: "/", replace: true });
     }
-  }, [loading, session, isPublic, isAdminRoute, isPlatformAdmin, navigate]);
+  }, [mounted, loading, session, isPublic, isAdminRoute, isPlatformAdmin, navigate]);
 
-  // Public route: render bare. Both SSR and client render the same tree.
+  // /auth is always bare — same on SSR and client.
   if (isPublic) return <>{children}</>;
 
-  // After mount we know the real session state; suppress flashes during redirect.
-  if (mounted && !loading) {
-    if (!session) return null;
-    if (isAdminRoute && !isPlatformAdmin) return null;
+  // Protected route, auth not yet resolved → neutral splash.
+  if (!mounted || loading) {
+    return <AuthSplash />;
   }
 
+  // Resolved but not allowed here → render nothing while redirect runs.
+  if (!session) return null;
+  if (isAdminRoute && !isPlatformAdmin) return null;
+
   return <AppShell>{children}</AppShell>;
+}
+
+function AuthSplash() {
+  return (
+    <div className="dark grid min-h-screen place-items-center bg-background">
+      <div
+        className="flex items-center gap-3 text-sm text-muted-foreground"
+        role="status"
+        aria-live="polite"
+      >
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span>Loading…</span>
+      </div>
+    </div>
+  );
 }
