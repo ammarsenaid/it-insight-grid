@@ -80,6 +80,7 @@ export interface CMDBAsset {
   status: AssetStatus;
   warrantyExpiration?: string;
   notes: string;
+  dependencyIds?: ID[];
   createdAt: string;
   updatedAt: string;
 }
