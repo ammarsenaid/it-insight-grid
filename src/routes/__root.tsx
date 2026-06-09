@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { AppShell } from "@/components/layout/AppShell";
+
 import { AuthGate } from "@/components/layout/AuthGate";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 
@@ -17,23 +17,21 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
-    <AppShell>
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="max-w-md text-center">
-          <h1 className="text-7xl font-bold text-foreground">404</h1>
-          <h2 className="mt-4 text-xl font-semibold">Page not found</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            The page you're looking for doesn't exist.
-          </p>
-          <a
-            href="/"
-            className="mt-6 inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go to dashboard
-          </a>
-        </div>
+    <div className="dark flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-md text-center">
+        <h1 className="text-7xl font-bold text-foreground">404</h1>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          The page you're looking for doesn't exist or has been moved.
+        </p>
+        <a
+          href="/"
+          className="mt-6 inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Go to dashboard
+        </a>
       </div>
-    </AppShell>
+    </div>
   );
 }
 
@@ -50,7 +48,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          An unexpected error occurred while loading this page. Please try again.
+        </p>
         <button
           onClick={() => {
             router.invalidate();
