@@ -10,18 +10,37 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrashRouteImport } from './routes/trash'
+import { Route as TicketsConfigRouteImport } from './routes/tickets-config'
+import { Route as TicketsRouteImport } from './routes/tickets'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ServiceCatalogRouteImport } from './routes/service-catalog'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as NotesRouteImport } from './routes/notes'
+import { Route as MyRequestsRouteImport } from './routes/my-requests'
 import { Route as IpamRouteImport } from './routes/ipam'
 import { Route as DocumentsRouteImport } from './routes/documents'
 import { Route as CmdbRouteImport } from './routes/cmdb'
+import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminTeamsRouteImport } from './routes/admin.teams'
+import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 
 const TrashRoute = TrashRouteImport.update({
   id: '/trash',
   path: '/trash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TicketsConfigRoute = TicketsConfigRouteImport.update({
+  id: '/tickets-config',
+  path: '/tickets-config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TicketsRoute = TicketsRouteImport.update({
+  id: '/tickets',
+  path: '/tickets',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TasksRoute = TasksRouteImport.update({
@@ -34,14 +53,29 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ServiceCatalogRoute = ServiceCatalogRouteImport.update({
+  id: '/service-catalog',
+  path: '/service-catalog',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotesRoute = NotesRouteImport.update({
   id: '/notes',
   path: '/notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyRequestsRoute = MyRequestsRouteImport.update({
+  id: '/my-requests',
+  path: '/my-requests',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IpamRoute = IpamRouteImport.update({
@@ -59,92 +93,175 @@ const CmdbRoute = CmdbRouteImport.update({
   path: '/cmdb',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuditRoute = AuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTeamsRoute = AdminTeamsRouteImport.update({
+  id: '/admin/teams',
+  path: '/admin/teams',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRolesRoute = AdminRolesRouteImport.update({
+  id: '/admin/roles',
+  path: '/admin/roles',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/audit': typeof AuditRoute
   '/cmdb': typeof CmdbRoute
   '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
+  '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
+  '/service-catalog': typeof ServiceCatalogRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/tickets': typeof TicketsRoute
+  '/tickets-config': typeof TicketsConfigRoute
   '/trash': typeof TrashRoute
+  '/admin/roles': typeof AdminRolesRoute
+  '/admin/teams': typeof AdminTeamsRoute
+  '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/audit': typeof AuditRoute
   '/cmdb': typeof CmdbRoute
   '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
+  '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
+  '/service-catalog': typeof ServiceCatalogRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/tickets': typeof TicketsRoute
+  '/tickets-config': typeof TicketsConfigRoute
   '/trash': typeof TrashRoute
+  '/admin/roles': typeof AdminRolesRoute
+  '/admin/teams': typeof AdminTeamsRoute
+  '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/audit': typeof AuditRoute
   '/cmdb': typeof CmdbRoute
   '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
+  '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
+  '/service-catalog': typeof ServiceCatalogRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
+  '/tickets': typeof TicketsRoute
+  '/tickets-config': typeof TicketsConfigRoute
   '/trash': typeof TrashRoute
+  '/admin/roles': typeof AdminRolesRoute
+  '/admin/teams': typeof AdminTeamsRoute
+  '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/audit'
     | '/cmdb'
     | '/documents'
     | '/ipam'
+    | '/my-requests'
     | '/notes'
+    | '/reports'
     | '/search'
+    | '/service-catalog'
     | '/settings'
     | '/tasks'
+    | '/tickets'
+    | '/tickets-config'
     | '/trash'
+    | '/admin/roles'
+    | '/admin/teams'
+    | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/audit'
     | '/cmdb'
     | '/documents'
     | '/ipam'
+    | '/my-requests'
     | '/notes'
+    | '/reports'
     | '/search'
+    | '/service-catalog'
     | '/settings'
     | '/tasks'
+    | '/tickets'
+    | '/tickets-config'
     | '/trash'
+    | '/admin/roles'
+    | '/admin/teams'
+    | '/admin/users'
   id:
     | '__root__'
     | '/'
+    | '/audit'
     | '/cmdb'
     | '/documents'
     | '/ipam'
+    | '/my-requests'
     | '/notes'
+    | '/reports'
     | '/search'
+    | '/service-catalog'
     | '/settings'
     | '/tasks'
+    | '/tickets'
+    | '/tickets-config'
     | '/trash'
+    | '/admin/roles'
+    | '/admin/teams'
+    | '/admin/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuditRoute: typeof AuditRoute
   CmdbRoute: typeof CmdbRoute
   DocumentsRoute: typeof DocumentsRoute
   IpamRoute: typeof IpamRoute
+  MyRequestsRoute: typeof MyRequestsRoute
   NotesRoute: typeof NotesRoute
+  ReportsRoute: typeof ReportsRoute
   SearchRoute: typeof SearchRoute
+  ServiceCatalogRoute: typeof ServiceCatalogRoute
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
+  TicketsRoute: typeof TicketsRoute
+  TicketsConfigRoute: typeof TicketsConfigRoute
   TrashRoute: typeof TrashRoute
+  AdminRolesRoute: typeof AdminRolesRoute
+  AdminTeamsRoute: typeof AdminTeamsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -154,6 +271,20 @@ declare module '@tanstack/react-router' {
       path: '/trash'
       fullPath: '/trash'
       preLoaderRoute: typeof TrashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tickets-config': {
+      id: '/tickets-config'
+      path: '/tickets-config'
+      fullPath: '/tickets-config'
+      preLoaderRoute: typeof TicketsConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tickets': {
+      id: '/tickets'
+      path: '/tickets'
+      fullPath: '/tickets'
+      preLoaderRoute: typeof TicketsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tasks': {
@@ -170,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/service-catalog': {
+      id: '/service-catalog'
+      path: '/service-catalog'
+      fullPath: '/service-catalog'
+      preLoaderRoute: typeof ServiceCatalogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/search': {
       id: '/search'
       path: '/search'
@@ -177,11 +315,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notes': {
       id: '/notes'
       path: '/notes'
       fullPath: '/notes'
       preLoaderRoute: typeof NotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-requests': {
+      id: '/my-requests'
+      path: '/my-requests'
+      fullPath: '/my-requests'
+      preLoaderRoute: typeof MyRequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ipam': {
@@ -205,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CmdbRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -212,19 +371,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/teams': {
+      id: '/admin/teams'
+      path: '/admin/teams'
+      fullPath: '/admin/teams'
+      preLoaderRoute: typeof AdminTeamsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/roles': {
+      id: '/admin/roles'
+      path: '/admin/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof AdminRolesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuditRoute: AuditRoute,
   CmdbRoute: CmdbRoute,
   DocumentsRoute: DocumentsRoute,
   IpamRoute: IpamRoute,
+  MyRequestsRoute: MyRequestsRoute,
   NotesRoute: NotesRoute,
+  ReportsRoute: ReportsRoute,
   SearchRoute: SearchRoute,
+  ServiceCatalogRoute: ServiceCatalogRoute,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
+  TicketsRoute: TicketsRoute,
+  TicketsConfigRoute: TicketsConfigRoute,
   TrashRoute: TrashRoute,
+  AdminRolesRoute: AdminRolesRoute,
+  AdminTeamsRoute: AdminTeamsRoute,
+  AdminUsersRoute: AdminUsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

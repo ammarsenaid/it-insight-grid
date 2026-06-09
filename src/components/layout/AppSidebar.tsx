@@ -13,6 +13,15 @@ import {
   RefreshCw,
   Database,
   Folder,
+  Ticket,
+  Inbox,
+  ShoppingBag,
+  ShieldCheck,
+  BarChart3,
+  Users,
+  UsersRound,
+  KeyRound,
+  Sliders,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,12 +50,36 @@ const groups = [
     ],
   },
   {
+    label: "Service Desk",
+    items: [
+      { title: "Tickets", url: "/tickets", icon: Ticket },
+      { title: "My Requests", url: "/my-requests", icon: Inbox },
+      { title: "Service Catalog", url: "/service-catalog", icon: ShoppingBag },
+    ],
+  },
+  {
     label: "Operations",
     items: [
       { title: "CMDB", url: "/cmdb", icon: Server },
       { title: "IPAM", url: "/ipam", icon: Network },
       { title: "Tasks", url: "/tasks", icon: CheckSquare },
       { title: "Notes", url: "/notes", icon: StickyNote },
+    ],
+  },
+  {
+    label: "Governance",
+    items: [
+      { title: "Audit Log", url: "/audit", icon: ShieldCheck },
+      { title: "Reports", url: "/reports", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { title: "Users", url: "/admin/users", icon: Users },
+      { title: "Teams", url: "/admin/teams", icon: UsersRound },
+      { title: "Roles", url: "/admin/roles", icon: KeyRound },
+      { title: "Ticket Configuration", url: "/tickets-config", icon: Sliders },
     ],
   },
   {
@@ -61,6 +94,8 @@ const groups = [
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const data = useData();
+  // Tickets module ships in Batch 3 — display a deterministic mock count
+  const ticketsCount = 12;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -95,7 +130,7 @@ export function AppSidebar() {
                       <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
                         <Link to={item.url} className="flex items-center gap-3">
                           <item.icon className="h-4 w-4" />
-                          <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                          <span className="flex-1 truncate group-data-[collapsible=icon]:hidden">{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -116,7 +151,8 @@ export function AppSidebar() {
           <div className="space-y-1 text-muted-foreground">
             <Row icon={<FileText className="h-3 w-3" />} label="Documents" value={data.documents.length} />
             <Row icon={<Folder className="h-3 w-3" />} label="Folders" value={data.folders.length} />
-            <Row icon={<Trash2 className="h-3 w-3" />} label="Trash" value={data.trash.length} />
+            <Row icon={<Ticket className="h-3 w-3" />} label="Tickets" value={ticketsCount} />
+            <Row icon={<Trash2 className="h-3 w-3" />} label="Recycle Bin" value={data.trash.length} />
           </div>
           <Button
             size="sm"
