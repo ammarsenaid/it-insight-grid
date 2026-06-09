@@ -36,20 +36,6 @@ const KIND_TO_KEY: Record<RelationKind, keyof RelationSelection> = {
   user: "userIds",
 };
 
-// Mock user directory — real one ships in Batch 7
-const MOCK_USERS = [
-  { id: "u_alice", label: "alice.it" },
-  { id: "u_bob", label: "bob.admin" },
-  { id: "u_carol", label: "carol.netops" },
-  { id: "u_david", label: "david.secops" },
-];
-
-// Mock ticket directory — real ones ship in Batch 3
-const MOCK_TICKETS = [
-  { id: "t_1001", label: "INC-1001 · Mailbox quota exceeded" },
-  { id: "t_1002", label: "INC-1002 · VPN connection drops" },
-  { id: "t_1003", label: "REQ-2007 · Laptop replacement" },
-];
 
 export function RelationPicker({
   open,
@@ -139,10 +125,13 @@ export function RelationPicker({
 
           <PickerList
             value="ticket"
-            items={filterFn(MOCK_TICKETS, ["label"]).map((t) => ({ id: t.id, primary: t.label }))}
+            items={filterFn(data.tickets, ["number", "subject"]).map((t) => ({
+              id: t.id,
+              primary: t.number,
+              secondary: t.subject,
+            }))}
             selected={draft.ticketIds}
             onToggle={(id) => toggle("ticket", id)}
-            emptyHint="Tickets module ships in Batch 3 — these are mock records."
           />
           <PickerList
             value="asset"
@@ -186,10 +175,13 @@ export function RelationPicker({
           />
           <PickerList
             value="user"
-            items={filterFn(MOCK_USERS, ["label"]).map((u) => ({ id: u.id, primary: u.label }))}
+            items={filterFn(data.users, ["username", "displayName"]).map((u) => ({
+              id: u.id,
+              primary: u.displayName || u.username,
+              secondary: u.email,
+            }))}
             selected={draft.userIds}
             onToggle={(id) => toggle("user", id)}
-            emptyHint="User directory ships in Batch 7 — these are mock entries."
           />
         </Tabs>
 
