@@ -1,10 +1,9 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
-  Plus, CheckSquare, Clock, AlertTriangle, Calendar as CalendarIcon, Flame, CheckCircle2,
-  MoreHorizontal, Edit, Trash2, PlayCircle, Copy, TrendingUp, Bell, Archive,
-  Bookmark, Repeat, RotateCcw, Search, ListChecks, Ticket as TicketIcon, ShieldCheck,
-  Wrench, FileCode, ChevronLeft, ChevronRight, Layers, Users,
+  Plus, CheckSquare, AlertTriangle, Calendar as CalendarIcon, Flame, CheckCircle2,
+  MoreHorizontal, Edit, Trash2, PlayCircle, Copy, TrendingUp, Archive,
+  Bookmark, Repeat, RotateCcw, Search, FileCode, ChevronLeft, ChevronRight, Layers, Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { MetricCard } from "@/components/common/MetricCard";
@@ -27,12 +26,11 @@ import {
   CURRENT_TEAM, CURRENT_USER, TASK_CATEGORIES, TASK_OWNERS, TASK_TEAMS, TASK_SOURCES,
   archiveTask, bulkAddTag, bulkArchive, bulkDelete, bulkUpdateTasks,
   checklistProgress, completeTask, createTask, deleteTask, deleteTaskView,
-  duplicateTask, escalateTask, isOverdue, reopenTask, saveTaskView, scheduleReminder,
+  duplicateTask, escalateTask, isOverdue, reopenTask, saveTaskView,
   setTaskStatus, updateTask,
 } from "@/lib/data/tasks";
 import { TASK_TEMPLATES, getTaskTemplate } from "@/lib/data/task-templates";
 import type { Task, TaskPriority, TaskScope, TaskSource, TaskStatus } from "@/lib/data/types";
-import { useProtocols, startRun } from "@/lib/protocols/store";
 import { toast } from "sonner";
 import { formatDate } from "@/components/common/format";
 import { can, useRole } from "@/lib/permissions";
