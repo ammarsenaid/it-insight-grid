@@ -235,6 +235,86 @@ export function buildSeed(): DataState {
     createdAt: daysAgo(20 - idx),
     updatedAt: daysAgo(idx % 8),
   }));
+  const teams = ["Service Desk", "Network", "Infrastructure", "Security", "Applications"];
+  const requesters = ["alice.morgan", "ben.taylor", "carla.rivera", "david.kim", "evelyn.shaw", "felix.novak", "grace.huang", "henry.park", "isabella.ross"];
+  const ticketSeed = [
+    { sub: "Cannot connect to VPN", cat: "Network", sub2: "VPN", type: "incident", prio: "high", status: "open", sla: "warning", hostHint: "FIREWALL01", team: "Network", svc: "Remote Access" },
+    { sub: "Outlook crashes on launch", cat: "Applications", sub2: "Email", type: "incident", prio: "normal", status: "in_progress", sla: "ok", hostHint: "M365-TENANT", team: "Service Desk", svc: "Email" },
+    { sub: "New starter laptop request", cat: "Hardware", sub2: "Workstation", type: "request", prio: "normal", status: "open", sla: "ok", hostHint: undefined, team: "Service Desk", svc: "Onboarding" },
+    { sub: "File share permissions error", cat: "Storage", sub2: "Shares", type: "incident", prio: "high", status: "waiting", sla: "ok", hostHint: "FILESERVER01", team: "Infrastructure", svc: "File Storage" },
+    { sub: "DC01 disk space critical", cat: "Infrastructure", sub2: "Servers", type: "incident", prio: "critical", status: "in_progress", sla: "breached", hostHint: "DC01", team: "Infrastructure", svc: "Active Directory" },
+    { sub: "Reset password for finance user", cat: "Identity", sub2: "Accounts", type: "request", prio: "low", status: "resolved", sla: "ok", hostHint: undefined, team: "Service Desk", svc: "Identity" },
+    { sub: "Backup job failed overnight", cat: "Backup", sub2: "Veeam", type: "incident", prio: "high", status: "open", sla: "warning", hostHint: "BACKUP01", team: "Infrastructure", svc: "Backup" },
+    { sub: "Phishing email reported", cat: "Security", sub2: "Email", type: "incident", prio: "high", status: "in_progress", sla: "ok", hostHint: "M365-TENANT", team: "Security", svc: "Email" },
+    { sub: "Add VLAN 30 for IoT segment", cat: "Network", sub2: "VLAN", type: "change", prio: "normal", status: "open", sla: "ok", hostHint: "SWITCH-CORE-01", team: "Network", svc: "LAN" },
+    { sub: "Printer offline on floor 2", cat: "Hardware", sub2: "Printer", type: "incident", prio: "low", status: "open", sla: "ok", hostHint: "PRINTSRV01", team: "Service Desk", svc: "Printing" },
+    { sub: "Recurring AD replication warnings", cat: "Identity", sub2: "Directory", type: "problem", prio: "high", status: "in_progress", sla: "warning", hostHint: "DC02", team: "Infrastructure", svc: "Active Directory" },
+    { sub: "Teams meeting audio issues", cat: "Applications", sub2: "Collaboration", type: "incident", prio: "normal", status: "waiting", sla: "ok", hostHint: "M365-TENANT", team: "Service Desk", svc: "Collaboration" },
+    { sub: "SAN degraded disk replacement", cat: "Hardware", sub2: "Storage", type: "change", prio: "critical", status: "in_progress", sla: "warning", hostHint: "SANSTORAGE01", team: "Infrastructure", svc: "Storage" },
+    { sub: "Install Adobe Acrobat", cat: "Applications", sub2: "Software", type: "request", prio: "low", status: "resolved", sla: "ok", hostHint: "WS-ADMIN-01", team: "Service Desk", svc: "Software" },
+    { sub: "Suspicious login from foreign IP", cat: "Security", sub2: "Identity", type: "incident", prio: "critical", status: "open", sla: "breached", hostHint: undefined, team: "Security", svc: "Identity" },
+    { sub: "Add user to Marketing group", cat: "Identity", sub2: "Groups", type: "request", prio: "low", status: "resolved", sla: "ok", hostHint: undefined, team: "Service Desk", svc: "Identity" },
+    { sub: "Wi-Fi slow in conference room", cat: "Network", sub2: "Wi-Fi", type: "incident", prio: "normal", status: "open", sla: "ok", hostHint: "SWITCH-FLOOR2", team: "Network", svc: "Wi-Fi" },
+    { sub: "Schedule monthly patching window", cat: "Infrastructure", sub2: "Patching", type: "change", prio: "normal", status: "open", sla: "ok", hostHint: "HYPERV01", team: "Infrastructure", svc: "Patching" },
+  ];
+  const statusToHours: Record<string, number> = { open: 4, in_progress: 12, waiting: 24, resolved: -8, closed: -24, cancelled: -1 };
+  const tickets: Ticket[] = ticketSeed.map((t, idx) => {
+    const linkedAsset = t.hostHint ? assets.find((a) => a.hostname === t.hostHint) : undefined;
+    const linkedIp = linkedAsset ? ipam.find((p) => p.linkedAssetId === linkedAsset.id) : undefined;
+    const createdHoursAgo = 2 + idx * 3;
+    const created = new Date(Date.now() - createdHoursAgo * 3600_000).toISOString();
+    const slaHours = statusToHours[t.status];
+    const slaDue = new Date(Date.now() + slaHours * 3600_000).toISOString();
+    const num = "INC-" + String(1024 + idx).padStart(5, "0");
+    return {
+      id: id("tkt"),
+      number: num,
+      subject: t.sub,
+      description: `${t.sub}. Reported by ${requesters[idx % requesters.length]}. Initial triage in progress.`,
+      requester: requesters[idx % requesters.length],
+      type: t.type as Ticket["type"],
+      category: t.cat,
+      subcategory: t.sub2,
+      priority: t.prio as Ticket["priority"],
+      status: t.status as Ticket["status"],
+      sla: t.sla as Ticket["sla"],
+      slaDueAt: slaDue,
+      affectedService: t.svc,
+      assignee: idx % 5 === 0 ? undefined : owners[idx % owners.length],
+      team: t.team,
+      linkedAssetId: linkedAsset?.id,
+      linkedIpamId: linkedIp?.id,
+      tags: [t.cat.toLowerCase(), t.type],
+      attachments: [],
+      watchers: [requesters[(idx + 1) % requesters.length]],
+      comments: [
+        {
+          id: id("cmt"),
+          author: requesters[idx % requesters.length],
+          body: t.sub,
+          internal: false,
+          createdAt: created,
+        },
+        ...(idx % 2 === 0
+          ? [
+              {
+                id: id("cmt"),
+                author: owners[idx % owners.length],
+                body: "Investigating — will update shortly.",
+                internal: true,
+                createdAt: new Date(Date.now() - (createdHoursAgo - 1) * 3600_000).toISOString(),
+              },
+            ]
+          : []),
+      ],
+      resolvedAt: t.status === "resolved" ? new Date(Date.now() - 2 * 3600_000).toISOString() : undefined,
+      createdAt: created,
+      updatedAt: new Date(Date.now() - Math.max(1, createdHoursAgo - 2) * 3600_000).toISOString(),
+    };
+  });
+  // unused team list var safeguard
+  void teams;
+
 
   const activity: ActivityLog[] = [
     { id: id("act"), type: "document.create", message: "Added document 'VPN User Guide'", createdAt: daysAgo(0) },
