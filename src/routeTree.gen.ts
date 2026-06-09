@@ -24,6 +24,7 @@ import { Route as IpamRouteImport } from './routes/ipam'
 import { Route as DocumentsRouteImport } from './routes/documents'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CmdbRouteImport } from './routes/cmdb'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TicketsIndexRouteImport } from './routes/tickets.index'
@@ -113,6 +114,11 @@ const CmdbRoute = CmdbRouteImport.update({
   path: '/cmdb',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuditRoute = AuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -182,6 +188,7 @@ const AdminMailboxRoute = AdminMailboxRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
+  '/auth': typeof AuthRoute
   '/cmdb': typeof CmdbRoute
   '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
@@ -212,6 +219,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
+  '/auth': typeof AuthRoute
   '/cmdb': typeof CmdbRoute
   '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
+  '/auth': typeof AuthRoute
   '/cmdb': typeof CmdbRoute
   '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
@@ -273,6 +282,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/audit'
+    | '/auth'
     | '/cmdb'
     | '/dashboard'
     | '/documents'
@@ -303,6 +313,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/audit'
+    | '/auth'
     | '/cmdb'
     | '/dashboard'
     | '/documents'
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/audit'
+    | '/auth'
     | '/cmdb'
     | '/dashboard'
     | '/documents'
@@ -362,6 +374,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditRoute: typeof AuditRoute
+  AuthRoute: typeof AuthRoute
   CmdbRoute: typeof CmdbRoute
   DashboardRoute: typeof DashboardRoute
   DocumentsRoute: typeof DocumentsRoute
@@ -490,6 +503,13 @@ declare module '@tanstack/react-router' {
       path: '/cmdb'
       fullPath: '/cmdb'
       preLoaderRoute: typeof CmdbRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/audit': {
@@ -628,6 +648,7 @@ const TicketsRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditRoute: AuditRoute,
+  AuthRoute: AuthRoute,
   CmdbRoute: CmdbRoute,
   DashboardRoute: DashboardRoute,
   DocumentsRoute: DocumentsRoute,

@@ -35,6 +35,7 @@ import { NotificationDrawer } from "@/components/common/NotificationDrawer";
 import { ROLES, setRole, useRole, can, type Role } from "@/lib/permissions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 export function TopHeader() {
   const [q, setQ] = useState("");
@@ -43,7 +44,10 @@ export function TopHeader() {
   const navigate = useNavigate();
   const data = useData();
   const role = useRole();
+  const { profile, user, signOut, isPlatformAdmin } = useAuth();
   const currentRole = ROLES.find((r) => r.id === role) ?? ROLES[0];
+  const displayName = profile?.display_name || profile?.full_name || user?.email || "Signed in";
+  const userEmail = user?.email ?? "";
   const notifs = data.notifications;
   const unread = useMemo(() => notifs.filter((n) => !n.read).length, [notifs]);
 
@@ -152,16 +156,18 @@ export function TopHeader() {
                   <User className="h-3.5 w-3.5" />
                 </div>
                 <div className="hidden text-xs leading-tight sm:block">
-                  <div className="font-medium">{currentRole.label}</div>
-                  <div className="text-[10px] text-muted-foreground">Prototype role</div>
+                  <div className="font-medium">{displayName}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {isPlatformAdmin ? "Platform admin" : currentRole.label}
+                  </div>
                 </div>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">IT Administrator</span>
-                  <span className="text-[11px] font-normal text-muted-foreground">admin@local.prototype</span>
+                  <span className="text-sm font-medium">{displayName}</span>
+                  <span className="text-[11px] font-normal text-muted-foreground">{userEmail}</span>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -203,7 +209,13 @@ export function TopHeader() {
                   <UserCog className="mr-2 h-4 w-4" /> Open settings
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.info("Sign-out is not available in the local prototype.")}>
+              <DropdownMenuItem
+                onClick={async () => {
+                  await signOut();
+                  navigate({ to: "/auth", replace: true });
+                  toast.success("Signed out");
+                }}
+              >
                 <LogOut className="mr-2 h-4 w-4" /> Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
