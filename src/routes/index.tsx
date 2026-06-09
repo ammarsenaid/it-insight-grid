@@ -166,7 +166,7 @@ function Dashboard() {
               <li key={a.id} className="relative">
                 <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
                 <p className="text-xs leading-snug">{a.message}</p>
-                <p className="text-[10px] text-muted-foreground">{timeAgo(a.createdAt)}</p>
+                <p className="text-[10px] text-muted-foreground" suppressHydrationWarning>{timeAgo(a.createdAt)}</p>
               </li>
             ))}
           </ol>
