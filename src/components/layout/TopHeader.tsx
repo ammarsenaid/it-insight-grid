@@ -158,7 +158,7 @@ export function TopHeader() {
                 <div className="hidden text-xs leading-tight sm:block">
                   <div className="font-medium">{displayName}</div>
                   <div className="text-[10px] text-muted-foreground">
-                    {isPlatformAdmin ? "Platform admin" : currentRole.label}
+                    {isPlatformAdmin ? "Platform admin" : "Authenticated user"}
                   </div>
                 </div>
               </button>
@@ -170,26 +170,6 @@ export function TopHeader() {
                   <span className="text-[11px] font-normal text-muted-foreground">{userEmail}</span>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                <UserCog className="h-3 w-3" /> Active prototype role
-              </DropdownMenuLabel>
-              {ROLES.map((r) => (
-                <DropdownMenuItem
-                  key={r.id}
-                  onClick={() => {
-                    setRole(r.id as Role);
-                    toast.success(`Active role: ${r.label}`);
-                  }}
-                  className="flex items-start gap-2"
-                >
-                  <Check className={cn("mt-0.5 h-4 w-4 shrink-0", role === r.id ? "opacity-100" : "opacity-0")} />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{r.label}</div>
-                    <div className="text-[11px] text-muted-foreground">{r.description}</div>
-                  </div>
-                </DropdownMenuItem>
-              ))}
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
                 <Sliders className="h-3 w-3" /> Quick preferences
