@@ -501,7 +501,7 @@ export function TicketsPage() {
             query,
             filters: {
               status: fStatus, priority: fPriority, type: fType, team: fTeam,
-              assignee: fAssignee, category: fCategory, sla: fSla, q: query,
+              assignee: fAssignee, category: fCategory, sla: fSla, source: fSource, q: query,
             },
           });
           toast.success(`View '${viewName}' saved`);
