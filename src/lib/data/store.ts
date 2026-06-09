@@ -21,6 +21,8 @@ function load(): DataState {
     const merged: DataState = { ...seeded, ...parsed } as DataState;
     if (!Array.isArray(merged.tickets)) merged.tickets = seeded.tickets;
     if (!Array.isArray(merged.ticketViews)) merged.ticketViews = seeded.ticketViews;
+    if (!Array.isArray(merged.catalog)) merged.catalog = seeded.catalog;
+    if (!merged.ticketSettings) merged.ticketSettings = seeded.ticketSettings;
     return merged;
   } catch {
     return buildSeed();
