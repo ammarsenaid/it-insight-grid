@@ -243,3 +243,37 @@ export const TICKET_STATUSES: TicketStatus[] = ["open", "in_progress", "waiting"
 export const TICKET_TYPES: Ticket["type"][] = ["incident", "request", "change", "problem"];
 export const SERVICES = ["Email", "Active Directory", "File Storage", "Backup", "Identity", "Remote Access", "Wi-Fi", "LAN", "Printing", "Storage", "Software", "Collaboration", "Onboarding", "Patching"];
 export const AGENTS = ["jordan.lee", "morgan.diaz", "sasha.patel", "leo.nguyen", "ivy.brooks"];
+
+export function submitCatalogRequest(item: CatalogItem, requester: string, values: Record<string, string>): Ticket {
+  const subject = `${item.name} — ${requester}`;
+  const lines = item.fields.map((f) => `- **${f.label}**: ${values[f.key] || "—"}`).join("\n");
+  const description = `Service catalog request: ${item.name}\n\n${item.description}\n\n${lines}`;
+  return createTicket({
+    requester,
+    subject,
+    description,
+    type: "request",
+    category: item.category,
+    subcategory: item.name,
+    priority: item.defaultPriority,
+    affectedService: item.category,
+    team: item.defaultTeam,
+    tags: ["catalog", item.category.toLowerCase()],
+  });
+}
+
+export const REQUESTERS = ["alice.morgan", "ben.taylor", "carla.rivera", "david.kim", "evelyn.shaw", "felix.novak", "grace.huang", "henry.park", "isabella.ross"];
+
+// Current "logged-in" requester depends on role: end-users see their own slice.
+export function currentRequesterFor(role: string): string {
+  if (role === "user" || role === "viewer") return "alice.morgan";
+  return "jordan.lee";
+}
+
+export function slaLabel(t: Ticket): { label: string; tone: "success" | "warning" | "danger" | "muted" | "info" } {
+  if (t.status === "waiting") return { label: "Paused", tone: "muted" };
+  if (t.status === "resolved" || t.status === "closed") return { label: "Resolved", tone: "info" };
+  if (t.sla === "breached") return { label: "Breached", tone: "danger" };
+  if (t.sla === "warning") return { label: "At risk", tone: "warning" };
+  return { label: "Healthy", tone: "success" };
+}
