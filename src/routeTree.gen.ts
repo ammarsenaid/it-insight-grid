@@ -9,10 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as IpamRouteImport } from './routes/ipam'
 import { Route as CmdbRouteImport } from './routes/cmdb'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IpamRoute = IpamRouteImport.update({
   id: '/ipam',
   path: '/ipam',
@@ -33,34 +39,45 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cmdb': typeof CmdbRoute
   '/ipam': typeof IpamRoute
+  '/tasks': typeof TasksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cmdb': typeof CmdbRoute
   '/ipam': typeof IpamRoute
+  '/tasks': typeof TasksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cmdb': typeof CmdbRoute
   '/ipam': typeof IpamRoute
+  '/tasks': typeof TasksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cmdb' | '/ipam'
+  fullPaths: '/' | '/cmdb' | '/ipam' | '/tasks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cmdb' | '/ipam'
-  id: '__root__' | '/' | '/cmdb' | '/ipam'
+  to: '/' | '/cmdb' | '/ipam' | '/tasks'
+  id: '__root__' | '/' | '/cmdb' | '/ipam' | '/tasks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CmdbRoute: typeof CmdbRoute
   IpamRoute: typeof IpamRoute
+  TasksRoute: typeof TasksRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ipam': {
       id: '/ipam'
       path: '/ipam'
@@ -89,7 +106,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CmdbRoute: CmdbRoute,
   IpamRoute: IpamRoute,
+  TasksRoute: TasksRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
