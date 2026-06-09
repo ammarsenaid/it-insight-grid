@@ -1,4 +1,4 @@
-import type { CatalogItem, Ticket, TicketPriority, TicketSLA, TicketSavedView, TicketStatus, NotificationItem } from "./types";
+import type { CatalogItem, Ticket, TicketPriority, TicketSLA, TicketSavedView, TicketSource, TicketStatus, NotificationItem } from "./types";
 import { getState, setState, uid, logActivity, trashItem } from "./store";
 
 function pushNotification(n: Omit<NotificationItem, "id" | "createdAt">) {
