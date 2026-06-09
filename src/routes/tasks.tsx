@@ -146,6 +146,11 @@ function TasksPage() {
   const [newViewName, setNewViewName] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [calCursor, setCalCursor] = useState<Date>(new Date());
+  const allRegistryTemplates = useTemplates();
+  const taskRegistryTemplates = useMemo(
+    () => allRegistryTemplates.filter((t) => t.type === "task" && !t.archived),
+    [allRegistryTemplates],
+  );
 
   const cats = useMemo(() => {
     const set = new Set(TASK_CATEGORIES);
@@ -236,7 +241,8 @@ function TasksPage() {
     if (!writable) { toast.error("Read-only role"); return; }
     setEditId(null);
     const base = empty();
-    setForm(presetTpl ? applyTemplateToForm(presetTpl, base) : base);
+    setForm(presetTpl ? applyTemplateToForm(presetTpl, base, taskRegistryTemplates) : base);
+    if (presetTpl) incrementUsage(presetTpl);
     setTemplateId(presetTpl ?? "none");
     setDrawerOpen(true);
   };
@@ -266,9 +272,9 @@ function TasksPage() {
       : { freq: form.recurringFreq, interval: Math.max(1, form.recurringInterval) };
     const tags = form.tags.split(",").map((s) => s.trim()).filter(Boolean);
     const watchers = form.watchers.split(",").map((s) => s.trim()).filter(Boolean);
-    const tpl = templateId !== "none" ? getTaskTemplate(templateId) : null;
-    const seededChecklist = !editId && tpl?.checklist
-      ? tpl.checklist.map((c, i) => ({ id: `ck_${Date.now()}_${i}`, title: c.title, completed: false, required: !!c.required }))
+    const checklistSrc = templateId !== "none" ? resolveChecklistForTemplate(templateId, taskRegistryTemplates) : null;
+    const seededChecklist = !editId && checklistSrc
+      ? checklistSrc.map((c, i) => ({ id: `ck_${Date.now()}_${i}`, title: c.title, completed: false, required: !!c.required }))
       : undefined;
     const payload = {
       title: form.title.trim(),
@@ -350,7 +356,7 @@ function TasksPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-[60vh] overflow-y-auto">
                 <DropdownMenuLabel className="text-[10px] uppercase">Task templates</DropdownMenuLabel>
-                {TASK_TEMPLATES.map((t) => (
+                {taskRegistryTemplates.map((t) => (
                   <DropdownMenuItem key={t.id} onClick={() => openCreate(t.id)}>
                     <span className="truncate">{t.name}</span>
                     <span className="ml-auto text-[10px] text-muted-foreground">{t.category}</span>
@@ -582,11 +588,11 @@ function TasksPage() {
         {!editId && (
           <div>
             <Label className="text-xs">Use template</Label>
-            <Select value={templateId} onValueChange={(v) => { setTemplateId(v); if (v !== "none") setForm((p) => applyTemplateToForm(v, p)); }}>
+            <Select value={templateId} onValueChange={(v) => { setTemplateId(v); if (v !== "none") { setForm((p) => applyTemplateToForm(v, p, taskRegistryTemplates)); incrementUsage(v); } }}>
               <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No template</SelectItem>
-                {TASK_TEMPLATES.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                {taskRegistryTemplates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
