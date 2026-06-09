@@ -289,6 +289,7 @@ export function TicketsPage() {
           <SelectFilter value={fAssignee} onChange={setFAssignee} placeholder="Assignee" options={[{ value: "all", label: "All assignees" }, { value: "unassigned", label: "Unassigned" }, ...AGENTS.map((a) => ({ value: a, label: a }))]} />
           <SelectFilter value={fCategory} onChange={setFCategory} placeholder="Category" options={[{ value: "all", label: "All categories" }, ...TICKET_CATEGORIES.map((c) => ({ value: c, label: c }))]} />
           <SelectFilter value={fSla} onChange={setFSla} placeholder="SLA" options={[{ value: "all", label: "All SLA" }, { value: "ok", label: "On track" }, { value: "warning", label: "At risk" }, { value: "breached", label: "Breached" }]} />
+          <SelectFilter value={fSource} onChange={setFSource} placeholder="Source" options={[{ value: "all", label: "All Sources" }, ...TICKET_SOURCES.map((s) => ({ value: s, label: labelSource(s) }))]} />
         </FilterBar>
 
         {selected.size > 0 && (
