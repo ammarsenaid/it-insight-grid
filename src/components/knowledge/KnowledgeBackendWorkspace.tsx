@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Library,
   FolderTree,
@@ -16,6 +16,10 @@ import {
   Trash2,
   Tags as TagsIcon,
   Filter,
+  List as ListIcon,
+  Link2,
+  Clock,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
