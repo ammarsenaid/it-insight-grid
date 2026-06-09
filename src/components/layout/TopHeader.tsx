@@ -1,6 +1,21 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bell, Search, User } from "lucide-react";
+import {
+  Bell,
+  Search,
+  User,
+  Plus,
+  FileText,
+  Server,
+  Network,
+  CheckSquare,
+  StickyNote,
+  Ticket,
+  LogOut,
+  UserCog,
+  Command as CommandIcon,
+  Check,
+} from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,92 +29,182 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useData } from "@/lib/data/store";
+import { CommandPalette } from "@/components/common/CommandPalette";
+import { NotificationDrawer } from "@/components/common/NotificationDrawer";
+import { ROLES, setRole, useRole, can, type Role } from "@/lib/permissions";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export function TopHeader() {
   const [q, setQ] = useState("");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const navigate = useNavigate();
   const data = useData();
+  const role = useRole();
+  const currentRole = ROLES.find((r) => r.id === role) ?? ROLES[0];
   const notifs = data.notifications;
   const unread = useMemo(() => notifs.filter((n) => !n.read).length, [notifs]);
 
+  // Cmd+K / Ctrl+K opens the command palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const createActions: { label: string; icon: typeof FileText; to?: string; capability: string; toastMsg?: string }[] = [
+    { label: "New Document", icon: FileText, to: "/documents", capability: "documents.create" },
+    { label: "New Ticket", icon: Ticket, capability: "tickets.create", toastMsg: "Ticket creation ships in Batch 3" },
+    { label: "New Asset (CMDB)", icon: Server, to: "/cmdb", capability: "cmdb.write" },
+    { label: "New IP Record", icon: Network, to: "/ipam", capability: "ipam.write" },
+    { label: "New Task", icon: CheckSquare, to: "/tasks", capability: "tasks.write" },
+    { label: "New Note", icon: StickyNote, to: "/notes", capability: "notes.write" },
+  ];
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md md:px-6">
-      <SidebarTrigger className="h-9 w-9" />
+    <>
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md md:px-6">
+        <SidebarTrigger className="h-9 w-9" />
 
-      <form
-        className="relative ml-2 hidden flex-1 max-w-xl md:block"
-        onSubmit={(e) => {
-          e.preventDefault();
-          navigate({ to: "/search", search: { q } as never });
-        }}
-      >
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search documents, assets, IPs, tasks, notes..."
-          className="h-10 rounded-xl border-border/60 bg-card/60 pl-10"
-        />
-      </form>
+        <form
+          className="relative ml-2 hidden flex-1 max-w-xl md:block"
+          onSubmit={(e) => {
+            e.preventDefault();
+            navigate({ to: "/search", search: { q } as never });
+          }}
+        >
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onFocus={() => setPaletteOpen(true)}
+            placeholder="Search documents, assets, IPs, tasks, notes..."
+            className="h-10 rounded-xl border-border/60 bg-card/60 pl-10 pr-20"
+          />
+          <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground sm:inline-flex">
+            <CommandIcon className="h-3 w-3" />K
+          </kbd>
+        </form>
 
-      <div className="flex flex-1 items-center justify-end gap-2 md:flex-none">
-        <Link to="/search" className="md:hidden">
-          <Button size="icon" variant="ghost"><Search className="h-4 w-4" /></Button>
-        </Link>
+        <div className="flex flex-1 items-center justify-end gap-2 md:flex-none">
+          <Button size="icon" variant="ghost" className="md:hidden" onClick={() => setPaletteOpen(true)} aria-label="Search">
+            <Search className="h-4 w-4" />
+          </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="relative">
-              <Bell className="h-4 w-4" />
-              {unread > 0 && (
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[var(--destructive)]" />
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel className="flex items-center justify-between">
-              Notifications
-              <Badge variant="outline" className="text-[10px]">{notifs.length}</Badge>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {notifs.length === 0 && (
-              <div className="px-3 py-6 text-center text-xs text-muted-foreground">No notifications</div>
-            )}
-            {notifs.map((n) => (
-              <DropdownMenuItem key={n.id} className="flex-col items-start gap-1 py-2">
-                <div className="flex w-full items-center justify-between">
-                  <span className="text-xs font-medium">{n.title}</span>
-                  <Badge
-                    variant="outline"
-                    className={
-                      n.type === "danger"
-                        ? "border-[var(--destructive)]/40 text-[var(--destructive)]"
-                        : n.type === "warning"
-                        ? "border-[var(--warning)]/40 text-[var(--warning)]"
-                        : n.type === "success"
-                        ? "border-[var(--success)]/40 text-[var(--success)]"
-                        : ""
-                    }
+          {/* Create menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="hidden h-9 gap-1.5 rounded-xl sm:inline-flex">
+                <Plus className="h-4 w-4" /> Create
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Quick create</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {createActions.map((a) => {
+                const allowed = can(a.capability, role);
+                return (
+                  <DropdownMenuItem
+                    key={a.label}
+                    disabled={!allowed}
+                    onClick={() => {
+                      if (!allowed) return;
+                      if (a.to) navigate({ to: a.to });
+                      if (a.toastMsg) toast.info(a.toastMsg);
+                    }}
                   >
-                    {n.type}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">{n.message}</p>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                    <a.icon className="mr-2 h-4 w-4" />
+                    <span className="flex-1">{a.label}</span>
+                    {!allowed && <span className="text-[10px] text-muted-foreground">restricted</span>}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        <div className="ml-1 flex items-center gap-2 rounded-xl border border-border/60 bg-card/60 py-1.5 pl-1.5 pr-3">
-          <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-primary">
-            <User className="h-3.5 w-3.5" />
-          </div>
-          <div className="hidden text-xs leading-tight sm:block">
-            <div className="font-medium">IT Administrator</div>
-            <div className="text-[10px] text-muted-foreground">Local prototype</div>
-          </div>
+          {/* Notification bell — opens drawer */}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="relative"
+            onClick={() => setNotifOpen(true)}
+            aria-label="Notifications"
+          >
+            <Bell className="h-4 w-4" />
+            {unread > 0 && (
+              <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--destructive)] px-1 text-[9px] font-bold text-destructive-foreground">
+                {unread}
+              </span>
+            )}
+          </Button>
+
+          {/* Profile + role switcher */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="ml-1 flex items-center gap-2 rounded-xl border border-border/60 bg-card/60 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-card/80">
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-primary">
+                  <User className="h-3.5 w-3.5" />
+                </div>
+                <div className="hidden text-xs leading-tight sm:block">
+                  <div className="font-medium">{currentRole.label}</div>
+                  <div className="text-[10px] text-muted-foreground">Prototype role</div>
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">IT Administrator</span>
+                  <span className="text-[11px] font-normal text-muted-foreground">admin@local.prototype</span>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <UserCog className="h-3 w-3" /> Active prototype role
+              </DropdownMenuLabel>
+              {ROLES.map((r) => (
+                <DropdownMenuItem
+                  key={r.id}
+                  onClick={() => {
+                    setRole(r.id as Role);
+                    toast.success(`Active role: ${r.label}`);
+                  }}
+                  className="flex items-start gap-2"
+                >
+                  <Check className={cn("mt-0.5 h-4 w-4 shrink-0", role === r.id ? "opacity-100" : "opacity-0")} />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{r.label}</div>
+                    <div className="text-[11px] text-muted-foreground">{r.description}</div>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/settings" className="flex items-center">
+                  <UserCog className="mr-2 h-4 w-4" /> Open settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info("Sign-out is not available in the local prototype.")}>
+                <LogOut className="mr-2 h-4 w-4" /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </div>
-    </header>
+
+        {/* mini badge for unread used by screen readers */}
+        {unread > 0 && (
+          <Badge variant="outline" className="sr-only">{unread} unread notifications</Badge>
+        )}
+      </header>
+
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <NotificationDrawer open={notifOpen} onOpenChange={setNotifOpen} />
+    </>
   );
 }
