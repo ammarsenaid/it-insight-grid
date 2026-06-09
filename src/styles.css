@@ -104,6 +104,67 @@
   backdrop-filter: blur(8px);
 }
 
+/* Manuscript-style reading column for Knowledge pages */
+.kb-manuscript {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: oklch(0.92 0.02 240);
+}
+.kb-manuscript h1 { display: none; } /* page title already rendered in header */
+.kb-manuscript h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+.kb-manuscript h2::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+.kb-manuscript h3 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.kb-manuscript p { margin: 0.85rem 0; }
+.kb-manuscript ul, .kb-manuscript ol { margin: 0.85rem 0; padding-left: 1.25rem; }
+.kb-manuscript ul li { list-style: none; position: relative; padding-left: 1rem; }
+.kb-manuscript ul li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0.7em;
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  opacity: 0.85;
+}
+.kb-manuscript blockquote {
+  margin: 1.25rem 0;
+  padding: 1rem 1.25rem;
+  border-left: 3px solid var(--primary);
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+  border-radius: 0 0.625rem 0.625rem 0;
+  font-style: normal;
+  color: var(--foreground);
+}
+.kb-manuscript pre {
+  margin: 1.25rem 0;
+  border-radius: 0.625rem;
+}
+.kb-manuscript code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+
 @utility metric-accent-primary { color: #5B8CFF; }
 @utility metric-accent-success { color: #52D6A4; }
 @utility metric-accent-warning { color: #FFC86B; }

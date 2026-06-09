@@ -181,11 +181,19 @@ function TreeRow({
     <li>
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-md px-1 py-1 text-sm hover:bg-white/[0.04]",
+          "group relative flex items-center gap-1 rounded-md py-1 pr-1 text-sm transition-colors hover:bg-white/[0.04]",
           selected && "bg-primary/15 text-primary",
         )}
-        style={{ paddingLeft: depth * 12 + 4 }}
+        style={{ paddingLeft: depth * 14 + 4 }}
       >
+        {/* Guide line for nested rows */}
+        {depth > 0 && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-0 top-0 w-px bg-border/40"
+            style={{ left: depth * 14 - 8 }}
+          />
+        )}
         <button
           type="button"
           className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground"
@@ -203,8 +211,27 @@ function TreeRow({
           onClick={() => actions.onSelect(node.id)}
           className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
         >
-          <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" />
-          <span className="truncate">{node.title}</span>
+          <span
+            className={cn(
+              "flex h-5 w-5 shrink-0 items-center justify-center rounded",
+              node.type === "space" && "bg-primary/15 text-primary",
+              node.type === "book" && "text-foreground/70",
+              node.type === "chapter" && "text-primary/70",
+              node.type === "page" && "text-muted-foreground",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+          <span
+            className={cn(
+              "truncate",
+              node.type === "space" && "font-semibold text-foreground",
+              node.type === "book" && "text-xs font-semibold uppercase tracking-wide text-foreground/80",
+              node.type === "chapter" && "font-medium",
+            )}
+          >
+            {node.title}
+          </span>
           {node.favorite && <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />}
           {hasChildren && (
             <span className="ml-auto pl-1 text-[10px] text-muted-foreground/70">
