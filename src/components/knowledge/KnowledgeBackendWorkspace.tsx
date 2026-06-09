@@ -989,6 +989,10 @@ function ArticleView({
             </div>
           )}
           <div className="ml-auto flex items-center gap-1">
+            <Button size="sm" variant={panel === "outline" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
+              onClick={() => setPanel((p) => (p === "outline" ? "none" : "outline"))}>
+              <ListIcon className="mr-1 h-3 w-3" />Outline
+            </Button>
             <Button size="sm" variant={panel === "review" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
               onClick={() => setPanel((p) => (p === "review" ? "none" : "review"))}>
               <History className="mr-1 h-3 w-3" />Review
@@ -1008,6 +1012,7 @@ function ArticleView({
           </div>
           <AttachmentsPanel articleId={article.id} teamId={teamId} canUpdate={canUpdate} />
         </div>
+        {panel === "outline" && <ArticleTOC markdown={article.content_markdown ?? ""} />}
         {panel === "revisions" && (
           <RevisionsPanel
             articleId={article.id}
