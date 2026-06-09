@@ -79,7 +79,7 @@ function TasksPage() {
   const data = useData();
   const role = useRole();
   const writable = can("tasks.write", role);
-  const canSeeAll = role === "admin" || role === "agent";
+  const canSeeAll = can("tasks.view", role);
 
   const [scope, setScope] = useState<ScopeTab>("my");
   const [query, setQuery] = useState("");

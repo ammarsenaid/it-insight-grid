@@ -88,7 +88,7 @@ function TicketDetail() {
   const navigate = useNavigate();
   const data = useData();
   const role = useRole();
-  const internalAllowed = can("tickets.assign", role); // admins + agents
+  const internalAllowed = can("tickets.viewInternal", role);
   const canResolve = can("tickets.resolve", role);
   const isRequesterView = !internalAllowed;
   const ticket = useMemo(() => {
@@ -115,7 +115,7 @@ function TicketDetail() {
   }
 
   // Visibility guard for requester portal: only allow if it's the user's own ticket
-  if (isRequesterView && role === "user" && ticket.requester !== "alice.morgan") {
+  if (isRequesterView && role === "employee" && ticket.requester !== "alice.morgan") {
     return (
       <div>
         <PageHeader title="Access restricted" description="This ticket belongs to another requester." actions={<Link to="/my-requests"><Button variant="secondary"><ArrowLeft className="mr-1.5 h-4 w-4" /> My requests</Button></Link>} />
@@ -227,7 +227,7 @@ function TicketDetail() {
               <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder={internal ? "Add an internal note (visible only to IT)…" : "Reply to requester…"} rows={3} />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  {internalAllowed && (
+                  {can("tickets.assign", role) && (
                     <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                       <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} className="accent-primary" />
                       <Lock className="h-3 w-3" /> Internal note

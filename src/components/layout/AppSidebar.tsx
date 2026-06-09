@@ -38,6 +38,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { refreshFromStorage, useData } from "@/lib/data/store";
+import { canSeePage, useRole } from "@/lib/permissions";
 import { toast } from "sonner";
 
 const groups = [
@@ -94,7 +95,13 @@ const groups = [
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const data = useData();
+  const role = useRole();
   const ticketsCount = data.tickets.length;
+
+  const visibleGroups = groups
+    .map((g) => ({ ...g, items: g.items.filter((it) => canSeePage(it.url, role)) }))
+    .filter((g) => g.items.length > 0);
+
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -114,7 +121,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2">
-        {groups.map((g) => (
+        {visibleGroups.map((g) => (
           <SidebarGroup key={g.label}>
             <SidebarGroupLabel className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
               {g.label}

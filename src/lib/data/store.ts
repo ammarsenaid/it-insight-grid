@@ -25,6 +25,8 @@ function load(): DataState {
     if (!merged.ticketSettings) merged.ticketSettings = seeded.ticketSettings;
     if (!Array.isArray(merged.taskViews)) merged.taskViews = seeded.taskViews;
     if (!Array.isArray(merged.noteTemplates)) merged.noteTemplates = seeded.noteTemplates;
+    if (!Array.isArray(merged.users)) merged.users = seeded.users;
+    if (!Array.isArray(merged.teams)) merged.teams = seeded.teams;
     return merged;
   } catch {
     return buildSeed();
@@ -121,6 +123,8 @@ export function clearAll() {
     noteTemplates: [],
     tickets: [],
     ticketViews: [],
+    users: [],
+    teams: [],
     trash: [],
     activity: [],
     snapshots: [],
