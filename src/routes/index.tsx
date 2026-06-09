@@ -680,3 +680,25 @@ function CustomizeDrawer({
     </DetailsDrawer>
   );
 }
+
+// ---------- Protocols compact metric strip ----------
+function ProtocolsCompactStrip() {
+  const navigate = useNavigate();
+  const { runs } = useProtocolsHook();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const active = runs.filter((r) => r.status === "in_progress").length;
+  const dueToday = runs.filter((r) => r.dueDate && new Date(r.dueDate).toDateString() === new Date().toDateString()).length;
+  const failed = runs.filter((r) => r.status === "failed" || r.status === "completed_with_issues").length;
+  const awaiting = runs.filter((r) => r.status === "waiting_approval").length;
+  return (
+    <section className="mt-6">
+      <SectionTitle title="Protocols & Runbooks" caption="Live operational procedures" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <button onClick={() => navigate({ to: "/protocols" })} className="text-left"><MetricCard icon={ListChecks} label="Active Runs" value={active} accent="primary" /></button>
+        <button onClick={() => navigate({ to: "/protocols" })} className="text-left"><MetricCard icon={AlarmClock} label="Due Today" value={dueToday} accent="warning" /></button>
+        <button onClick={() => navigate({ to: "/protocols" })} className="text-left"><MetricCard icon={ShieldCheck} label="Awaiting Approval" value={awaiting} accent="warning" /></button>
+        <button onClick={() => navigate({ to: "/protocols" })} className="text-left"><MetricCard icon={AlertTriangle} label="Failed / Issues" value={failed} accent="danger" /></button>
+      </div>
+    </section>
+  );
+}
