@@ -157,7 +157,7 @@ export function TicketsPage() {
   }, []);
 
   const resetFilters = () => {
-    setQuery(""); setFStatus("all"); setFPriority("all"); setFType("all"); setFTeam("all"); setFAssignee("all"); setFCategory("all"); setFSla("all"); setPage(1);
+    setQuery(""); setFStatus("all"); setFPriority("all"); setFType("all"); setFTeam("all"); setFAssignee("all"); setFCategory("all"); setFSla("all"); setFSource("all"); setPage(1);
   };
 
   // Apply filters
