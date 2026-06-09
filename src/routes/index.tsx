@@ -234,6 +234,10 @@ function Dashboard() {
         </div>
       )}
 
+      {/* Protocols compact metrics */}
+      <ProtocolsCompactStrip />
+      </>)}
+
       {/* Service Desk Overview */}
       {prefs.serviceDesk && showServiceDesk && (
         <section className="mt-6">
