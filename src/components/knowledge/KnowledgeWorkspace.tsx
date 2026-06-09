@@ -159,7 +159,7 @@ export function KnowledgeWorkspace() {
       type,
       title: "",
       description: "",
-      templateId: type === "page" ? "tpl_blank" : "",
+      templateId: type === "page" ? "reg_kb_tpl_blank" : "",
     });
   };
 
@@ -169,13 +169,17 @@ export function KnowledgeWorkspace() {
       toast.error("Title is required");
       return;
     }
+    const tpl = createState.type === "page" && createState.templateId
+      ? pageTemplates.find((t) => t.id === createState.templateId)
+      : undefined;
     const node = createNode({
       type: createState.type,
       parentId: createState.parentId,
       title: createState.title,
       description: createState.description || undefined,
-      templateId: createState.type === "page" ? createState.templateId : undefined,
+      content: tpl?.content,
     });
+    if (tpl) incrementUsage(tpl.id);
     toast.success(`${labelType(createState.type)} created`);
     setCreateState(null);
     setSelectedId(node.id);
@@ -593,7 +597,7 @@ export function KnowledgeWorkspace() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TEMPLATES.map((t) => (
+                      {pageTemplates.map((t) => (
                         <SelectItem key={t.id} value={t.id}>
                           {t.name}
                         </SelectItem>
@@ -601,7 +605,7 @@ export function KnowledgeWorkspace() {
                     </SelectContent>
                   </Select>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    {TEMPLATES.find((t) => t.id === createState.templateId)?.description}
+                    {pageTemplates.find((t) => t.id === createState.templateId)?.description}
                   </p>
                 </div>
               )}
