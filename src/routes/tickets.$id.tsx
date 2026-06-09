@@ -88,7 +88,7 @@ function TicketDetail() {
   const navigate = useNavigate();
   const data = useData();
   const role = useRole();
-  const internalAllowed = can("tickets.assign", role); // admins + agents
+  const internalAllowed = can("tickets.viewInternal", role);
   const canResolve = can("tickets.resolve", role);
   const isRequesterView = !internalAllowed;
   const ticket = useMemo(() => {
@@ -115,7 +115,7 @@ function TicketDetail() {
   }
 
   // Visibility guard for requester portal: only allow if it's the user's own ticket
-  if (isRequesterView && role === "user" && ticket.requester !== "alice.morgan") {
+  if (isRequesterView && role === "employee" && ticket.requester !== "alice.morgan") {
     return (
       <div>
         <PageHeader title="Access restricted" description="This ticket belongs to another requester." actions={<Link to="/my-requests"><Button variant="secondary"><ArrowLeft className="mr-1.5 h-4 w-4" /> My requests</Button></Link>} />
