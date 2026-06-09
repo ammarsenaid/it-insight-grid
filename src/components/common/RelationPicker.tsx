@@ -125,10 +125,13 @@ export function RelationPicker({
 
           <PickerList
             value="ticket"
-            items={filterFn(MOCK_TICKETS, ["label"]).map((t) => ({ id: t.id, primary: t.label }))}
+            items={filterFn(data.tickets, ["number", "subject"]).map((t) => ({
+              id: t.id,
+              primary: t.number,
+              secondary: t.subject,
+            }))}
             selected={draft.ticketIds}
             onToggle={(id) => toggle("ticket", id)}
-            emptyHint="Tickets module ships in Batch 3 — these are mock records."
           />
           <PickerList
             value="asset"
