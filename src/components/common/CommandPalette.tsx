@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useData } from "@/lib/data/store";
 import { useKnowledge } from "@/lib/knowledge/store";
+import { useTeamArticles } from "@/lib/knowledge/useTeamArticles";
 import { toast } from "sonner";
 
 const NAV = [
