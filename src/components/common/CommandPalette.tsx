@@ -29,6 +29,7 @@ import {
   KeyRound,
   Sliders,
   Plus,
+  BookOpen,
 } from "lucide-react";
 import { useData } from "@/lib/data/store";
 import { useKnowledge } from "@/lib/knowledge/store";
