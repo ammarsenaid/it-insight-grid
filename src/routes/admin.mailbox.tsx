@@ -90,7 +90,7 @@ function MailboxAdmin() {
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SectionCard title="Mailbox configuration" icon={Mail}>
+        <SectionCard title="Mailbox configuration">
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-lg border border-border/40 bg-background/30 p-3">
               <div className="text-xs">
@@ -147,7 +147,7 @@ function MailboxAdmin() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Simulate inbound email" icon={Send}>
+        <SectionCard title="Simulate inbound email">
           <div className="space-y-3">
             <div className="space-y-2">
               <Label className="text-xs">From</Label>
@@ -177,7 +177,7 @@ function MailboxAdmin() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Recent email tickets" icon={Inbox} className="lg:col-span-2">
+        <SectionCard title="Recent email tickets" className="lg:col-span-2">
           {recentEmail.length === 0 ? (
             <p className="text-xs text-muted-foreground">No email-sourced tickets yet. Use the simulator above to create one.</p>
           ) : (
