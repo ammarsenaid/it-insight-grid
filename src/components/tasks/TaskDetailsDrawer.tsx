@@ -311,10 +311,8 @@ function LinkedItem({
   return (
     <li>
       <Link
-        // @ts-expect-error generic link
-        to={to}
-        // @ts-expect-error generic link
-        params={params}
+        to={to as never}
+        params={params as never}
         className="flex items-center gap-2 rounded-md border border-border/30 bg-background/30 px-2.5 py-1.5 text-xs hover:border-primary/40"
       >
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
