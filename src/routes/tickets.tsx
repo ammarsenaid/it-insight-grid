@@ -103,6 +103,7 @@ type SortKey = "number" | "subject" | "priority" | "status" | "sla" | "createdAt
 function TicketsPage() {
   const data = useData();
   const role = useRole();
+  const navigate = useNavigate();
   const tickets = useMemo(() => data.tickets.map(recomputeSla), [data.tickets]);
   const currentUser = AGENTS[0];
 
