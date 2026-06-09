@@ -15,6 +15,7 @@ import {
   UserCog,
   Command as CommandIcon,
   Check,
+  Sliders,
 } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
