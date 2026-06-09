@@ -57,7 +57,7 @@ import type {
   KnowledgeRelations,
 } from "@/lib/knowledge/types";
 import { emptyRelations } from "@/lib/knowledge/types";
-import { TEMPLATES } from "@/lib/knowledge/templates";
+import { useTemplates, incrementUsage } from "@/lib/templates/store";
 import { KnowledgeTree } from "./KnowledgeTree";
 import { KnowledgeBrowse } from "./KnowledgeBrowse";
 import { KnowledgeEditor } from "./KnowledgeEditor";
