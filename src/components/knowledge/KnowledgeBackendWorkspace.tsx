@@ -58,6 +58,8 @@ import { TagsEditorDialog } from "./dialogs/TagsEditorDialog";
 import { ArticleContentEditor } from "./ArticleContentEditor";
 import { ReviewTimelinePanel } from "./ReviewTimelinePanel";
 import { AttachmentsPanel } from "./AttachmentsPanel";
+import { ArticleTOC } from "./ArticleTOC";
+import { useRecentlyViewed } from "@/lib/knowledge/recent";
 import type {
   ArticleStatus,
   KbArticle,
