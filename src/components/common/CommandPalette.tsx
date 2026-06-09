@@ -132,9 +132,18 @@ export function CommandPalette({
           </CommandGroup>
         ))}
 
-        {(records.pages.length + records.assets.length + records.tasks.length) > 0 && (
+        {(records.pages.length + records.backendArticles.length + records.assets.length + records.tasks.length) > 0 && (
           <>
             <CommandSeparator />
+            {records.backendArticles.length > 0 && (
+              <CommandGroup heading="Knowledge Base (Live)">
+                {records.backendArticles.map((a) => (
+                  <CommandItem key={a.id} onSelect={() => goArticle(a.id)}>
+                    <BookOpen className="mr-2 h-4 w-4" /> {a.title}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
             {records.pages.length > 0 && (
               <CommandGroup heading="Knowledge Base">
                 {records.pages.map((d) => (
