@@ -307,7 +307,7 @@ export function KnowledgeWorkspace() {
 
   // ---------- Render ----------
   return (
-    <div className="grid h-[calc(100vh-220px)] min-h-[560px] gap-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
+    <div className="grid h-[calc(100vh-220px)] min-h-[560px] gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
       {/* Tree */}
       <aside className="glass-card hidden h-full min-h-0 rounded-2xl p-3 lg:flex lg:flex-col">
         <div className="mb-2">
