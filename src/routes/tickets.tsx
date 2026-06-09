@@ -181,6 +181,7 @@ export function TicketsPage() {
     if (fAssignee !== "all") list = list.filter((t) => (t.assignee ?? "") === (fAssignee === "unassigned" ? "" : fAssignee));
     if (fCategory !== "all") list = list.filter((t) => t.category === fCategory);
     if (fSla !== "all") list = list.filter((t) => t.sla === fSla);
+    if (fSource !== "all") list = list.filter((t) => (t.source ?? "manual") === fSource);
     list.sort((a, b) => {
       const av = a[sortKey] as string;
       const bv = b[sortKey] as string;
@@ -188,7 +189,7 @@ export function TicketsPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [tickets, query, fStatus, fPriority, fType, fTeam, fAssignee, fCategory, fSla, sortKey, sortDir]);
+  }, [tickets, query, fStatus, fPriority, fType, fTeam, fAssignee, fCategory, fSla, fSource, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageSafe = Math.min(page, totalPages);
