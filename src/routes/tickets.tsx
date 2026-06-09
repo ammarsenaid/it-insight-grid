@@ -382,7 +382,10 @@ export function TicketsPage() {
                         </td>
                         <td className={cellBody(density, "font-mono text-[11px] text-primary")}><Link to="/tickets/$id" params={{ id: t.id }} className="hover:underline">{t.number}</Link></td>
                         <td className={cellBody(density, "max-w-[280px]")}>
-                          <Link to="/tickets/$id" params={{ id: t.id }} className="block truncate font-medium hover:underline">{t.subject}</Link>
+                          <div className="flex items-center gap-1.5">
+                            <Link to="/tickets/$id" params={{ id: t.id }} className="block truncate font-medium hover:underline">{t.subject}</Link>
+                            <SourceBadge source={t.source} flagged={t.sourceFlagged} />
+                          </div>
                           {t.tags.length > 0 && (
                             <div className="mt-0.5 flex flex-wrap gap-1">
                               {t.tags.slice(0, 3).map((tag) => (
