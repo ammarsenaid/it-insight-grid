@@ -322,6 +322,35 @@ export interface TicketSettings {
 }
 
 
+export type UserStatus = "active" | "archived";
+
+export interface User {
+  id: ID;
+  username: string;
+  displayName: string;
+  email: string;
+  department: string;
+  team: string;
+  role: string; // Role id from permissions
+  title?: string;
+  status: UserStatus;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Team {
+  id: ID;
+  name: string;
+  description: string;
+  leadUserId?: ID;
+  memberIds: ID[];
+  queueOwnership: string[];
+  assetScopes: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DataState {
   folders: Folder[];
   documents: Document[];
@@ -335,9 +364,12 @@ export interface DataState {
   ticketViews: TicketSavedView[];
   catalog: CatalogItem[];
   ticketSettings: TicketSettings;
+  users: User[];
+  teams: Team[];
   trash: TrashItem[];
   activity: ActivityLog[];
   snapshots: LocalSnapshot[];
   notifications: NotificationItem[];
   settings: AppSettings;
 }
+
