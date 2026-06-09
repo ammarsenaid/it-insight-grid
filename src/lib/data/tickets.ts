@@ -97,7 +97,73 @@ export function createTicket(input: NewTicketInput): Ticket {
   };
   setState((s) => ({ ...s, tickets: [ticket, ...s.tickets] }));
   logActivity("ticket.create", `Created ticket ${ticket.number} — ${ticket.subject}`, "ticket", ticket.id);
+  pushNotification({ title: `New ticket ${ticket.number}`, message: ticket.subject, type: "info" });
   return ticket;
+}
+
+export function addComment(ticketId: string, author: string, body: string, internal: boolean) {
+  const trimmed = body.trim();
+  if (!trimmed) return;
+  setState((s) => ({
+    ...s,
+    tickets: s.tickets.map((t) =>
+      t.id === ticketId
+        ? {
+            ...t,
+            comments: [
+              ...t.comments,
+              { id: uid("cmt"), author, body: trimmed, internal, createdAt: new Date().toISOString() },
+            ],
+            updatedAt: new Date().toISOString(),
+          }
+        : t,
+    ),
+  }));
+  const t = getState().tickets.find((x) => x.id === ticketId);
+  if (t && !internal) {
+    pushNotification({ title: `Reply on ${t.number}`, message: trimmed.slice(0, 80), type: "info" });
+  }
+  logActivity("ticket.comment", `${internal ? "Internal note" : "Reply"} on ${t?.number ?? ticketId}`, "ticket", ticketId);
+}
+
+export function addAttachment(ticketId: string, fileName: string) {
+  setState((s) => ({
+    ...s,
+    tickets: s.tickets.map((t) =>
+      t.id === ticketId
+        ? { ...t, attachments: [...t.attachments, fileName], updatedAt: new Date().toISOString() }
+        : t,
+    ),
+  }));
+  logActivity("ticket.attach", `Attached ${fileName}`, "ticket", ticketId);
+}
+
+export function setWatchers(ticketId: string, watchers: string[]) {
+  updateTicket(ticketId, { watchers });
+}
+
+export function escalate(ticketId: string) {
+  const t = getState().tickets.find((x) => x.id === ticketId);
+  if (!t) return;
+  const next: TicketPriority = t.priority === "low" ? "normal" : t.priority === "normal" ? "high" : "critical";
+  const { hours } = slaForPriority(next);
+  updateTicket(ticketId, { priority: next, slaDueAt: new Date(Date.now() + hours * 3600_000).toISOString() });
+  pushNotification({ title: `Ticket escalated`, message: `${t.number} → ${next.toUpperCase()}`, type: "warning" });
+  logActivity("ticket.escalate", `Escalated ${t.number} to ${next}`, "ticket", ticketId);
+}
+
+export function resolveTicket(ticketId: string, resolution: string, agent: string) {
+  addComment(ticketId, agent, `Resolution: ${resolution}`, false);
+  updateTicket(ticketId, { status: "resolved", resolvedAt: new Date().toISOString() });
+  const t = getState().tickets.find((x) => x.id === ticketId);
+  if (t) pushNotification({ title: `Ticket resolved`, message: `${t.number} — ${t.subject}`, type: "success" });
+}
+
+export function reopenTicket(ticketId: string, reason: string, actor: string) {
+  addComment(ticketId, actor, `Reopened: ${reason}`, false);
+  updateTicket(ticketId, { status: "open", resolvedAt: undefined });
+  const t = getState().tickets.find((x) => x.id === ticketId);
+  if (t) pushNotification({ title: `Ticket reopened`, message: t.number, type: "warning" });
 }
 
 export function updateTicket(id: string, patch: Partial<Ticket>) {
