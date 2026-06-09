@@ -35,6 +35,8 @@ import { NotificationDrawer } from "@/components/common/NotificationDrawer";
 import { ROLES, setRole, useRole, can, type Role } from "@/lib/permissions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { useNavigate as useNav } from "@tanstack/react-router";
 
 export function TopHeader() {
   const [q, setQ] = useState("");
