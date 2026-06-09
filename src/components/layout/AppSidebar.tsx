@@ -112,8 +112,6 @@ export function AppSidebar() {
     }))
     .filter((g) => g.items.length > 0);
 
-
-
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border p-4">
@@ -185,7 +183,6 @@ export function AppSidebar() {
           </Button>
         </div>
       </SidebarFooter>
-
     </Sidebar>
   );
 }
