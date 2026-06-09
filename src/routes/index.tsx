@@ -438,6 +438,11 @@ function Dashboard() {
         </div>
       ) : null}
 
+      {/* Backend knowledge — recently published */}
+      <div className="mt-6">
+        <BackendKnowledgePanel />
+      </div>
+
       {/* Local prototype status row (preserved) */}
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard icon={Trash2} label="Recycle Bin" value={data.trash.length} sub="Recoverable items" accent="muted" />
