@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
-import { KnowledgeWorkspace } from "@/components/knowledge/KnowledgeWorkspace";
+import { KnowledgeBackendWorkspace } from "@/components/knowledge/KnowledgeBackendWorkspace";
 
 export const Route = createFileRoute("/documents")({
   head: () => ({
@@ -9,7 +9,7 @@ export const Route = createFileRoute("/documents")({
       {
         name: "description",
         content:
-          "Author and browse structured IT knowledge — spaces, books, chapters and pages with review, versions and relations.",
+          "Browse the team knowledge base — spaces, categories and articles served live from the backend.",
       },
     ],
   }),
@@ -21,9 +21,10 @@ function KnowledgeBasePage() {
     <div>
       <PageHeader
         title="Knowledge Base"
-        description="Structured internal documentation — spaces, books, chapters and pages."
+        description="Live backend-connected knowledge — spaces, categories and articles (read-only)."
       />
-      <KnowledgeWorkspace />
+      <KnowledgeBackendWorkspace />
     </div>
   );
 }
+
