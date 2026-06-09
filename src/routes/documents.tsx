@@ -21,8 +21,9 @@ function KnowledgeBasePage() {
     <div>
       <PageHeader
         title="Knowledge Base"
-        description="Live backend-connected knowledge — spaces, categories and articles (read-only)."
+        description="Spaces, categories and articles — live backend with full editing for permitted users."
       />
+
       <KnowledgeBackendWorkspace />
     </div>
   );
