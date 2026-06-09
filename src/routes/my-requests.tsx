@@ -100,7 +100,7 @@ function MyRequests() {
         </div>
 
         <div className="space-y-4">
-          <SectionCard title="Notifications" icon={Bell}>
+          <SectionCard title="Notifications">
             {myNotifications.length === 0 && <p className="text-xs text-muted-foreground">No notifications.</p>}
             <div className="space-y-2">
               {myNotifications.map((n) => (
