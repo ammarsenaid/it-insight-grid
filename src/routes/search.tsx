@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { FileText, Folder, Server, Network, CheckSquare, StickyNote, Search } from "lucide-react";
+import { FileText, Folder, Server, Network, CheckSquare, StickyNote, Search, BookOpen } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchInput } from "@/components/common/SearchInput";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/lib/data/store";
+import { useKnowledge, getAncestry } from "@/lib/knowledge/store";
 
 export const Route = createFileRoute("/search")({
   validateSearch: (s: Record<string, unknown>) => ({ q: typeof s.q === "string" ? s.q : "" }),
