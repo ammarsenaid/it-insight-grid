@@ -6,6 +6,7 @@ import type {
   IPAMEntry,
   Task,
   Note,
+  Ticket,
   ActivityLog,
   NotificationItem,
   AppSettings,
