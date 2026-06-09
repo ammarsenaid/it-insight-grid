@@ -36,20 +36,6 @@ const KIND_TO_KEY: Record<RelationKind, keyof RelationSelection> = {
   user: "userIds",
 };
 
-// Mock user directory — real one ships in Batch 7
-const MOCK_USERS = [
-  { id: "u_alice", label: "alice.it" },
-  { id: "u_bob", label: "bob.admin" },
-  { id: "u_carol", label: "carol.netops" },
-  { id: "u_david", label: "david.secops" },
-];
-
-// Mock ticket directory — real ones ship in Batch 3
-const MOCK_TICKETS = [
-  { id: "t_1001", label: "INC-1001 · Mailbox quota exceeded" },
-  { id: "t_1002", label: "INC-1002 · VPN connection drops" },
-  { id: "t_1003", label: "REQ-2007 · Laptop replacement" },
-];
 
 export function RelationPicker({
   open,
