@@ -588,8 +588,10 @@ function RowActions({ ticket, canWrite }: { ticket: Ticket; canWrite: boolean })
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel className="text-[10px] text-muted-foreground">{ticket.number}</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => toast.info(`Viewing ${ticket.number}`, { description: "Full ticket cockpit ships in Batch 4." })}>
-          <Eye className="mr-2 h-3.5 w-3.5" /> View details
+        <DropdownMenuItem asChild>
+          <Link to="/tickets/$id" params={{ id: ticket.id }}>
+            <Eye className="mr-2 h-3.5 w-3.5" /> View details
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuSub>
