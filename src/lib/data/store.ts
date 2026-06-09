@@ -10,13 +10,18 @@ const listeners = new Set<() => void>();
 function load(): DataState {
   if (typeof window === "undefined") return buildSeed();
   try {
+    const seeded = buildSeed();
     const raw = localStorage.getItem(KEY);
     if (!raw) {
-      const seeded = buildSeed();
       localStorage.setItem(KEY, JSON.stringify(seeded));
       return seeded;
     }
-    return JSON.parse(raw) as DataState;
+    const parsed = JSON.parse(raw) as Partial<DataState>;
+    // Merge in any new top-level keys added by later batches (forward-compat)
+    const merged: DataState = { ...seeded, ...parsed } as DataState;
+    if (!Array.isArray(merged.tickets)) merged.tickets = seeded.tickets;
+    if (!Array.isArray(merged.ticketViews)) merged.ticketViews = seeded.ticketViews;
+    return merged;
   } catch {
     return buildSeed();
   }
