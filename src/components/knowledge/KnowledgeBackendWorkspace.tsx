@@ -252,21 +252,6 @@ export function KnowledgeBackendWorkspace() {
   );
 }
 
-function useMemoMatched(
-  articles: KbArticle[],
-  tagsByArticle: Map<string, string[]>,
-  ql: string,
-): Set<string> | null {
-  return useMemo(() => {
-    if (!ql) return null;
-    const m = new Set<string>();
-    for (const a of articles) {
-      const hay = `${a.title} ${a.excerpt ?? ""} ${(tagsByArticle.get(a.id) ?? []).join(" ")}`.toLowerCase();
-      if (hay.includes(ql)) m.add(a.id);
-    }
-    return m;
-  }, [articles, tagsByArticle, ql]);
-}
 
 // ----------------- Tree rows -----------------
 
