@@ -412,7 +412,9 @@ export function buildSeed(): DataState {
     assets,
     ipam,
     tasks,
+    taskViews,
     notes,
+    noteTemplates,
     tickets,
     ticketViews: [
       { id: id("vw"), name: "My open tickets", query: "", filters: { assignee: owners[0], status: "open" } },
