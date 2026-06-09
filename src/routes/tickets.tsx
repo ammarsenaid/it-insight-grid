@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Outlet, createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Ticket as TicketIcon,
@@ -79,8 +79,12 @@ import { useRole, can } from "@/lib/permissions";
 
 export const Route = createFileRoute("/tickets")({
   head: () => ({ meta: [{ title: "Tickets · IT Knowledge Center" }] }),
-  component: TicketsPage,
+  component: TicketsLayout,
 });
+
+function TicketsLayout() {
+  return <Outlet />;
+}
 
 const PRIORITY_TONE: Record<TicketPriority, "muted" | "info" | "warning" | "danger"> = {
   low: "muted",
@@ -100,7 +104,7 @@ const SLA_TONE = { ok: "success", warning: "warning", breached: "danger" } as co
 
 type SortKey = "number" | "subject" | "priority" | "status" | "sla" | "createdAt" | "updatedAt";
 
-function TicketsPage() {
+export function TicketsPage() {
   const data = useData();
   const role = useRole();
   const navigate = useNavigate();
