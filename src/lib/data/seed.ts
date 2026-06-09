@@ -143,7 +143,7 @@ export function buildSeed(): DataState {
     escalated: t.prio === "critical" && t.status !== "done",
     archived: false,
     watchers: [],
-    linkedDocumentId: idx % 3 === 0 ? documents[idx % documents.length].id : undefined,
+    linkedDocumentId: undefined,
     linkedAssetId: idx % 2 === 0 ? assets[idx % assets.length].id : undefined,
     linkedTicketIds: [],
     linkedIpamIds: [],
