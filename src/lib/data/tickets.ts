@@ -86,6 +86,9 @@ export function createTicket(input: NewTicketInput): Ticket {
     tags: input.tags ?? [],
     attachments: input.attachments ?? [],
     watchers: [],
+    source: input.source ?? "manual",
+    sourceEmail: input.sourceEmail,
+    sourceFlagged: input.sourceFlagged,
     comments: [
       {
         id: uid("cmt"),
@@ -99,7 +102,7 @@ export function createTicket(input: NewTicketInput): Ticket {
     updatedAt: now,
   };
   setState((s) => ({ ...s, tickets: [ticket, ...s.tickets] }));
-  logActivity("ticket.create", `Created ticket ${ticket.number} — ${ticket.subject}`, "ticket", ticket.id);
+  logActivity("ticket.create", `Created ticket ${ticket.number} — ${ticket.subject} (source: ${ticket.source})`, "ticket", ticket.id);
   pushNotification({ title: `New ticket ${ticket.number}`, message: ticket.subject, type: "info" });
   return ticket;
 }
