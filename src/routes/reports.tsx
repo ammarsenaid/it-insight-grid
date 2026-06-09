@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { MetricCard } from "@/components/common/MetricCard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StatusBadge } from "@/components/common/StatusBadge";
+
 import { useData } from "@/lib/data/store";
 import { can } from "@/lib/permissions";
 import { toCSV, downloadCSV } from "@/lib/csv";
