@@ -17,6 +17,7 @@ import { Route as ServiceCatalogRouteImport } from './routes/service-catalog'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RecycleBinRouteImport } from './routes/recycle-bin'
+import { Route as ProtocolsRouteImport } from './routes/protocols'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MyRequestsRouteImport } from './routes/my-requests'
 import { Route as IpamRouteImport } from './routes/ipam'
@@ -26,8 +27,10 @@ import { Route as CmdbRouteImport } from './routes/cmdb'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TicketsIndexRouteImport } from './routes/tickets.index'
+import { Route as ProtocolsIndexRouteImport } from './routes/protocols.index'
 import { Route as TicketsIdRouteImport } from './routes/tickets.$id'
 import { Route as ServiceCatalogIdRouteImport } from './routes/service-catalog.$id'
+import { Route as ProtocolsIdRouteImport } from './routes/protocols.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTicketSettingsRouteImport } from './routes/admin.ticket-settings'
 import { Route as AdminTeamsRouteImport } from './routes/admin.teams'
@@ -71,6 +74,11 @@ const ReportsRoute = ReportsRouteImport.update({
 const RecycleBinRoute = RecycleBinRouteImport.update({
   id: '/recycle-bin',
   path: '/recycle-bin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProtocolsRoute = ProtocolsRouteImport.update({
+  id: '/protocols',
+  path: '/protocols',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesRoute = NotesRouteImport.update({
@@ -118,6 +126,11 @@ const TicketsIndexRoute = TicketsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TicketsRoute,
 } as any)
+const ProtocolsIndexRoute = ProtocolsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProtocolsRoute,
+} as any)
 const TicketsIdRoute = TicketsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -127,6 +140,11 @@ const ServiceCatalogIdRoute = ServiceCatalogIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => ServiceCatalogRoute,
+} as any)
+const ProtocolsIdRoute = ProtocolsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProtocolsRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
@@ -158,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/protocols': typeof ProtocolsRouteWithChildren
   '/recycle-bin': typeof RecycleBinRoute
   '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
@@ -170,8 +189,10 @@ export interface FileRoutesByFullPath {
   '/admin/teams': typeof AdminTeamsRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/protocols/$id': typeof ProtocolsIdRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/protocols/': typeof ProtocolsIndexRoute
   '/tickets/': typeof TicketsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -194,8 +215,10 @@ export interface FileRoutesByTo {
   '/admin/teams': typeof AdminTeamsRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/protocols/$id': typeof ProtocolsIdRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/protocols': typeof ProtocolsIndexRoute
   '/tickets': typeof TicketsIndexRoute
 }
 export interface FileRoutesById {
@@ -208,6 +231,7 @@ export interface FileRoutesById {
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/protocols': typeof ProtocolsRouteWithChildren
   '/recycle-bin': typeof RecycleBinRoute
   '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
@@ -220,8 +244,10 @@ export interface FileRoutesById {
   '/admin/teams': typeof AdminTeamsRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/protocols/$id': typeof ProtocolsIdRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/protocols/': typeof ProtocolsIndexRoute
   '/tickets/': typeof TicketsIndexRoute
 }
 export interface FileRouteTypes {
@@ -235,6 +261,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/my-requests'
     | '/notes'
+    | '/protocols'
     | '/recycle-bin'
     | '/reports'
     | '/search'
@@ -247,8 +274,10 @@ export interface FileRouteTypes {
     | '/admin/teams'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/protocols/$id'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/protocols/'
     | '/tickets/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -271,8 +300,10 @@ export interface FileRouteTypes {
     | '/admin/teams'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/protocols/$id'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/protocols'
     | '/tickets'
   id:
     | '__root__'
@@ -284,6 +315,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/my-requests'
     | '/notes'
+    | '/protocols'
     | '/recycle-bin'
     | '/reports'
     | '/search'
@@ -296,8 +328,10 @@ export interface FileRouteTypes {
     | '/admin/teams'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/protocols/$id'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/protocols/'
     | '/tickets/'
   fileRoutesById: FileRoutesById
 }
@@ -310,6 +344,7 @@ export interface RootRouteChildren {
   IpamRoute: typeof IpamRoute
   MyRequestsRoute: typeof MyRequestsRoute
   NotesRoute: typeof NotesRoute
+  ProtocolsRoute: typeof ProtocolsRouteWithChildren
   RecycleBinRoute: typeof RecycleBinRoute
   ReportsRoute: typeof ReportsRoute
   SearchRoute: typeof SearchRoute
@@ -382,6 +417,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecycleBinRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/protocols': {
+      id: '/protocols'
+      path: '/protocols'
+      fullPath: '/protocols'
+      preLoaderRoute: typeof ProtocolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notes': {
       id: '/notes'
       path: '/notes'
@@ -445,6 +487,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TicketsIndexRouteImport
       parentRoute: typeof TicketsRoute
     }
+    '/protocols/': {
+      id: '/protocols/'
+      path: '/'
+      fullPath: '/protocols/'
+      preLoaderRoute: typeof ProtocolsIndexRouteImport
+      parentRoute: typeof ProtocolsRoute
+    }
     '/tickets/$id': {
       id: '/tickets/$id'
       path: '/$id'
@@ -458,6 +507,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/service-catalog/$id'
       preLoaderRoute: typeof ServiceCatalogIdRouteImport
       parentRoute: typeof ServiceCatalogRoute
+    }
+    '/protocols/$id': {
+      id: '/protocols/$id'
+      path: '/$id'
+      fullPath: '/protocols/$id'
+      preLoaderRoute: typeof ProtocolsIdRouteImport
+      parentRoute: typeof ProtocolsRoute
     }
     '/admin/users': {
       id: '/admin/users'
@@ -489,6 +545,20 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ProtocolsRouteChildren {
+  ProtocolsIdRoute: typeof ProtocolsIdRoute
+  ProtocolsIndexRoute: typeof ProtocolsIndexRoute
+}
+
+const ProtocolsRouteChildren: ProtocolsRouteChildren = {
+  ProtocolsIdRoute: ProtocolsIdRoute,
+  ProtocolsIndexRoute: ProtocolsIndexRoute,
+}
+
+const ProtocolsRouteWithChildren = ProtocolsRoute._addFileChildren(
+  ProtocolsRouteChildren,
+)
 
 interface ServiceCatalogRouteChildren {
   ServiceCatalogIdRoute: typeof ServiceCatalogIdRoute
@@ -524,6 +594,7 @@ const rootRouteChildren: RootRouteChildren = {
   IpamRoute: IpamRoute,
   MyRequestsRoute: MyRequestsRoute,
   NotesRoute: NotesRoute,
+  ProtocolsRoute: ProtocolsRouteWithChildren,
   RecycleBinRoute: RecycleBinRoute,
   ReportsRoute: ReportsRoute,
   SearchRoute: SearchRoute,

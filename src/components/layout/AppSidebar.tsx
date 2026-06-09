@@ -22,6 +22,7 @@ import {
   UsersRound,
   KeyRound,
   Sliders,
+  ListChecks,
 } from "lucide-react";
 import {
   Sidebar,
@@ -65,6 +66,7 @@ const groups = [
       { title: "CMDB", url: "/cmdb", icon: Server },
       { title: "IPAM", url: "/ipam", icon: Network },
       { title: "Tasks", url: "/tasks", icon: CheckSquare },
+      { title: "Protocols", url: "/protocols", icon: ListChecks },
       { title: "Notes", url: "/notes", icon: StickyNote },
     ],
   },

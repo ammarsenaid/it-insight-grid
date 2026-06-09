@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { FileText, Server, Network, CheckSquare, StickyNote, Search, BookOpen } from "lucide-react";
+import { FileText, Server, Network, CheckSquare, StickyNote, Search, BookOpen, ListChecks, Play } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchInput } from "@/components/common/SearchInput";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/lib/data/store";
 import { useKnowledge, getAncestry } from "@/lib/knowledge/store";
+import { useProtocols } from "@/lib/protocols/store";
 
 export const Route = createFileRoute("/search")({
   validateSearch: (s: Record<string, unknown>) => ({ q: typeof s.q === "string" ? s.q : "" }),
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/search")({
 function SearchPage() {
   const data = useData();
   const knowledge = useKnowledge();
+  const protocols = useProtocols();
   const initial = Route.useSearch().q;
   const [q, setQ] = useState(initial);
   const ql = q.toLowerCase();
@@ -38,7 +40,9 @@ function SearchPage() {
     ipam: ql ? data.ipam.filter((i) => has(i.ipAddress) || has(i.hostname)) : [],
     tasks: ql ? data.tasks.filter((t) => has(t.title)) : [],
     notes: ql ? data.notes.filter((n) => has(n.title) || has(n.content)) : [],
-  }), [data, knowledge, ql]);
+    protocolTemplates: ql ? protocols.templates.filter((t) => has(t.title) || has(t.category) || t.tags.some((tg) => has(tg))) : [],
+    protocolRuns: ql ? protocols.runs.filter((r) => has(r.templateTitle) || has(r.runNumber) || has(r.assignedUser ?? "")) : [],
+  }), [data, knowledge, protocols, ql]);
 
   const total = Object.values(results).reduce((a, b) => a + b.length, 0);
 
@@ -71,6 +75,8 @@ function SearchPage() {
         <Group icon={Network} title="IP Addresses" items={results.ipam.map((i) => ({ id: i.id, title: i.ipAddress, sub: `${i.hostname} · ${i.subnet}`, to: "/ipam" }))} />
         <Group icon={CheckSquare} title="Tasks" items={results.tasks.map((t) => ({ id: t.id, title: t.title, sub: `${t.category} · ${t.status}`, to: "/tasks" }))} />
         <Group icon={StickyNote} title="Notes" items={results.notes.map((n) => ({ id: n.id, title: n.title, sub: n.category, to: "/notes" }))} />
+        <Group icon={ListChecks} title="Protocol Templates" items={results.protocolTemplates.map((t) => ({ id: t.id, title: t.title, sub: `${t.category} · ${t.steps.length} steps`, to: "/protocols" }))} />
+        <Group icon={Play} title="Protocol Runs" items={results.protocolRuns.map((r) => ({ id: r.id, title: `${r.runNumber} · ${r.templateTitle}`, sub: `${r.status} · ${r.assignedUser ?? "Unassigned"}`, to: `/protocols/${r.id}` }))} />
         <Group icon={FileText} title="Documents" items={[]} />
         {!ql && (
           <div className="grid place-items-center rounded-2xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground"><Search className="mb-2 h-6 w-6" />Start typing to search</div>
