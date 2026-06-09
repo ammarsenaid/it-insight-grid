@@ -33,6 +33,8 @@ interface AuthContextValue {
   isPlatformAdmin: boolean;
   teams: TeamRow[];
   teamsError: string | null;
+  contextLoading: boolean;
+  contextError: string | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -47,6 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [teamsError, setTeamsError] = useState<string | null>(null);
+  const [contextLoading, setContextLoading] = useState(false);
+  const [contextError, setContextError] = useState<string | null>(null);
 
   const loadUserContext = useCallback(async (current: Session | null) => {
     if (!current?.user || !supabase) {
@@ -54,9 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsPlatformAdmin(false);
       setTeams([]);
       setTeamsError(null);
+      setContextError(null);
+      setContextLoading(false);
       return;
     }
     const userId = current.user.id;
+    const failures: string[] = [];
+
+    setContextLoading(true);
+    setContextError(null);
 
     // Profile
     const { data: profileData, error: profileError } = await supabase
@@ -67,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (profileError) {
       console.error("[auth] failed to load profile", profileError);
       setProfile(null);
+      failures.push("profile");
     } else {
       setProfile((profileData as ProfileRow) ?? null);
     }
@@ -76,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (adminError) {
       console.error("[auth] is_platform_admin failed", adminError);
       setIsPlatformAdmin(false);
+      failures.push("admin status");
     } else {
       setIsPlatformAdmin(Boolean(adminData));
     }
@@ -89,10 +101,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("[auth] failed to load teams", teamsErr);
       setTeams([]);
       setTeamsError(teamsErr.message);
+      failures.push("teams");
     } else {
       setTeams((teamsData as TeamRow[]) ?? []);
       setTeamsError(null);
     }
+
+    setContextError(
+      failures.length === 0
+        ? null
+        : `Could not load ${failures.join(", ")}. Some account context is missing.`,
+    );
+    setContextLoading(false);
   }, []);
 
   useEffect(() => {
@@ -138,9 +158,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setIsPlatformAdmin(false);
     setTeams([]);
+    setTeamsError(null);
+    setContextError(null);
+    setContextLoading(false);
   }, []);
 
   const refresh = useCallback(async () => {
+    setContextError(null);
     await loadUserContext(session);
   }, [loadUserContext, session]);
 
@@ -154,11 +178,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isPlatformAdmin,
       teams,
       teamsError,
+      contextLoading,
+      contextError,
       signIn,
       signOut,
       refresh,
     }),
-    [loading, session, profile, isPlatformAdmin, teams, teamsError, signIn, signOut, refresh],
+    [
+      loading,
+      session,
+      profile,
+      isPlatformAdmin,
+      teams,
+      teamsError,
+      contextLoading,
+      contextError,
+      signIn,
+      signOut,
+      refresh,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
