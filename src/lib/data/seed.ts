@@ -206,17 +206,38 @@ export function buildSeed(): DataState {
   const tasks: Task[] = taskSeed.map((t, idx) => ({
     id: id("tsk"),
     title: t.title,
+    description: "",
     category: t.cat,
     priority: t.prio as Task["priority"],
     status: t.status as Task["status"],
+    scope: idx % 3 === 0 ? "personal" : idx % 3 === 1 ? "team" : "shared",
     dueDate: t.due,
     assignedTo: owners[idx % owners.length],
+    owner: owners[idx % owners.length],
+    team: ["Infrastructure", "Network", "Security", "Service Desk"][idx % 4],
+    tags: [t.cat.toLowerCase()],
+    recurring: idx === 8 ? { freq: "monthly", interval: 1 } : null,
+    dependencyIds: [],
+    escalated: t.prio === "critical" && t.status !== "done",
+    archived: false,
+    watchers: [],
     linkedDocumentId: idx % 3 === 0 ? documents[idx % documents.length].id : undefined,
     linkedAssetId: idx % 2 === 0 ? assets[idx % assets.length].id : undefined,
+    linkedTicketIds: [],
+    linkedIpamIds: [],
+    linkedNoteIds: [],
+    linkedUserIds: [],
+    completedAt: t.status === "done" ? daysAgo(1) : undefined,
     notes: "",
     createdAt: daysAgo(30 - idx),
     updatedAt: daysAgo(idx % 10),
   }));
+
+  const taskViews: TaskSavedView[] = [
+    { id: id("tvw"), name: "My open work", scope: "my", query: "", filters: { status: "open" } },
+    { id: id("tvw"), name: "Critical & overdue", scope: "all", query: "", filters: { priority: "critical" } },
+    { id: id("tvw"), name: "Team backlog", scope: "team", query: "", filters: { status: "open" } },
+  ];
 
   const noteSeed = [
     { title: "AD replication issue notes", cat: "Active Directory" },
