@@ -245,6 +245,7 @@ export function TicketsPage() {
     setFAssignee(filters.assignee ?? "all");
     setFCategory(filters.category ?? "all");
     setFSla(filters.sla ?? "all");
+    setFSource(filters.source ?? "all");
     setQuery(filters.q ?? "");
     setPage(1);
   };
