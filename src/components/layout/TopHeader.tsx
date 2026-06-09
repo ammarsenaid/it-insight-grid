@@ -116,8 +116,7 @@ export function TopHeader() {
                     disabled={!allowed}
                     onClick={() => {
                       if (!allowed) return;
-                      if (a.to) navigate({ to: a.to });
-                      if (a.toastMsg) toast.info(a.toastMsg);
+                      navigate({ to: a.to });
                     }}
                   >
                     <a.icon className="mr-2 h-4 w-4" />
