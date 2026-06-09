@@ -227,7 +227,7 @@ function TicketDetail() {
               <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder={internal ? "Add an internal note (visible only to IT)…" : "Reply to requester…"} rows={3} />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  {internalAllowed && (
+                  {can("tickets.assign", role) && (
                     <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                       <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} className="accent-primary" />
                       <Lock className="h-3 w-3" /> Internal note
