@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { AppShell } from "@/components/layout/AppShell";
+
 import { AuthGate } from "@/components/layout/AuthGate";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 
