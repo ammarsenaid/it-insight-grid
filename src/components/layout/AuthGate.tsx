@@ -15,17 +15,20 @@ const PUBLIC_PATHS = new Set<string>(["/auth"]);
  * - Wraps authenticated routes in the regular AppShell.
  */
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const { loading, session, configured } = useAuth();
+  const { loading, session, configured, isPlatformAdmin } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const isPublic = PUBLIC_PATHS.has(pathname);
+  const isAdminRoute = pathname.startsWith("/admin");
 
   useEffect(() => {
     if (loading) return;
     if (!session && !isPublic) {
       navigate({ to: "/auth", replace: true });
+    } else if (session && isAdminRoute && !isPlatformAdmin) {
+      navigate({ to: "/", replace: true });
     }
-  }, [loading, session, isPublic, navigate]);
+  }, [loading, session, isPublic, isAdminRoute, isPlatformAdmin, navigate]);
 
   if (loading) {
     return (
