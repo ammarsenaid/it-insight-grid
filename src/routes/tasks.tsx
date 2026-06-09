@@ -30,6 +30,8 @@ import {
   setTaskStatus, updateTask,
 } from "@/lib/data/tasks";
 import { TASK_TEMPLATES, getTaskTemplate } from "@/lib/data/task-templates";
+import { useTemplates, incrementUsage } from "@/lib/templates/store";
+import type { RegistryTemplate } from "@/lib/templates/types";
 import type { Task, TaskPriority, TaskScope, TaskSource, TaskStatus } from "@/lib/data/types";
 import { toast } from "sonner";
 import { formatDate } from "@/components/common/format";
@@ -79,21 +81,43 @@ const empty = (): FormState => ({
   recurringFreq: "none", recurringInterval: 1, notes: "",
 });
 
-function applyTemplateToForm(templateId: string, prev: FormState): FormState {
-  const tpl = getTaskTemplate(templateId);
-  if (!tpl) return prev;
+function applyTemplateToForm(templateId: string, prev: FormState, registry: RegistryTemplate[]): FormState {
+  // Try built-in by id (legacy) or via registry sourceId.
+  const reg = registry.find((t) => t.id === templateId);
+  const builtinId = reg?.sourceId ?? templateId;
+  const tpl = getTaskTemplate(builtinId);
+  if (tpl) {
+    return {
+      ...prev,
+      title: tpl.name,
+      description: tpl.description ?? prev.description,
+      category: tpl.category,
+      priority: tpl.priority,
+      team: tpl.defaultTeam ?? prev.team,
+      tags: (tpl.tags ?? []).join(", "),
+      recurringFreq: tpl.recurring?.freq ?? "none",
+      recurringInterval: tpl.recurring?.interval ?? 1,
+      source: "template",
+    };
+  }
+  if (!reg) return prev;
   return {
     ...prev,
-    title: tpl.name,
-    description: tpl.description ?? prev.description,
-    category: tpl.category,
-    priority: tpl.priority,
-    team: tpl.defaultTeam ?? prev.team,
-    tags: (tpl.tags ?? []).join(", "),
-    recurringFreq: tpl.recurring?.freq ?? "none",
-    recurringInterval: tpl.recurring?.interval ?? 1,
+    title: reg.name,
+    description: reg.description ?? prev.description,
+    category: reg.category,
+    team: reg.defaultTeam ?? prev.team,
+    tags: reg.tags.join(", "),
     source: "template",
   };
+}
+
+function resolveChecklistForTemplate(templateId: string, registry: RegistryTemplate[]) {
+  const reg = registry.find((t) => t.id === templateId);
+  const builtinId = reg?.sourceId ?? templateId;
+  const builtin = getTaskTemplate(builtinId);
+  if (builtin?.checklist?.length) return builtin.checklist;
+  return reg?.checklist ?? null;
 }
 
 function TasksPage() {
