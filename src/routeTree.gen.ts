@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrashRouteImport } from './routes/trash'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as IpamRouteImport } from './routes/ipam'
@@ -26,6 +27,11 @@ const TrashRoute = TrashRouteImport.update({
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SearchRoute = SearchRouteImport.update({
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/ipam': typeof IpamRoute
   '/notes': typeof NotesRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/trash': typeof TrashRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/ipam': typeof IpamRoute
   '/notes': typeof NotesRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/trash': typeof TrashRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/ipam': typeof IpamRoute
   '/notes': typeof NotesRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/trash': typeof TrashRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/notes'
     | '/search'
+    | '/settings'
     | '/tasks'
     | '/trash'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/notes'
     | '/search'
+    | '/settings'
     | '/tasks'
     | '/trash'
   id:
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/notes'
     | '/search'
+    | '/settings'
     | '/tasks'
     | '/trash'
   fileRoutesById: FileRoutesById
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   IpamRoute: typeof IpamRoute
   NotesRoute: typeof NotesRoute
   SearchRoute: typeof SearchRoute
+  SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
   TrashRoute: typeof TrashRoute
 }
@@ -148,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/search': {
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   IpamRoute: IpamRoute,
   NotesRoute: NotesRoute,
   SearchRoute: SearchRoute,
+  SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
   TrashRoute: TrashRoute,
 }
