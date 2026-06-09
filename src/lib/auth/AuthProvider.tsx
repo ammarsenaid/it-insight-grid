@@ -13,9 +13,8 @@ import { getSupabase, isSupabaseConfigured, supabase } from "@/integrations/supa
 export interface ProfileRow {
   id: string;
   display_name: string | null;
-  full_name?: string | null;
-  email?: string | null;
-  avatar_url?: string | null;
+  email: string | null;
+  avatar_url: string | null;
 }
 
 export interface TeamRow {
