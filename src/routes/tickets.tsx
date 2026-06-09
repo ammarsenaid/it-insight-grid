@@ -532,6 +532,24 @@ function cellBody(d: "comfortable" | "compact", extra = "") {
   return `${d === "compact" ? "px-2 py-1.5" : "px-3 py-2.5"} align-middle ${extra}`;
 }
 
+const SOURCE_TONE: Record<string, "info" | "success" | "warning" | "muted" | "danger" | "default"> = {
+  email: "info",
+  portal: "success",
+  service_catalog: "default",
+  manual: "muted",
+  internal: "muted",
+  protocol: "warning",
+  task: "warning",
+};
+function SourceBadge({ source, flagged }: { source?: import("@/lib/data/types").TicketSource; flagged?: boolean }) {
+  const s = source ?? "manual";
+  return (
+    <span className="inline-flex items-center gap-1">
+      <StatusBadge label={labelSource(s)} tone={SOURCE_TONE[s] ?? "muted"} />
+      {flagged && <StatusBadge label="Review" tone="warning" />}
+    </span>
+  );
+
 function ThSort({
   label, col, sortKey, sortDir, onSort, density,
 }: { label: string; col: SortKey; sortKey: SortKey; sortDir: "asc" | "desc"; onSort: (c: SortKey) => void; density: "comfortable" | "compact" }) {
