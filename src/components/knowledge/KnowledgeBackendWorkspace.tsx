@@ -150,6 +150,29 @@ export function KnowledgeBackendWorkspace() {
     if (!selection || selection.kind !== "article") setEditingArticle(false);
   }, [selection]);
 
+  // Track recently viewed articles
+  useEffect(() => {
+    if (!data || !activeTeamId) return;
+    if (selection?.kind !== "article") return;
+    const a = data.articles.find((x) => x.id === selection.id);
+    if (a) trackRecent({ id: a.id, title: a.title, teamId: activeTeamId });
+  }, [selection, data, activeTeamId, trackRecent]);
+
+  // Global keyboard shortcut: "/" focuses search
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      e.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+
   const toggle = (id: string) =>
     setExpanded((prev) => {
       const next = new Set(prev);
