@@ -967,6 +967,9 @@ function ArticleView({
                 <TagsIcon className="mr-1 h-3 w-3" /> Tags
               </Button>
             )}
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleCopyLink}>
+              <Link2 className="mr-1 h-3 w-3" /> Copy link
+            </Button>
             {canDelete && (
               <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={onDelete}>
                 <Trash2 className="mr-1 h-3 w-3" />
