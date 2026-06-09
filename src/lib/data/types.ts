@@ -352,6 +352,16 @@ export interface RoutingRule {
   team: string;
 }
 
+export interface MailboxSettings {
+  address: string;
+  enabled: boolean;
+  unknownFallback: UnknownRequesterFallback;
+  fallbackRequester: string;
+  defaultCategory: string;
+  defaultTeam: string;
+  defaultPriority: TicketPriority;
+}
+
 export interface TicketSettings {
   categories: string[];
   teams: string[];
@@ -359,6 +369,7 @@ export interface TicketSettings {
   priorities: TicketPriority[];
   slaPolicies: SLAPolicy[];
   routingRules: RoutingRule[];
+  mailbox: MailboxSettings;
 }
 
 
