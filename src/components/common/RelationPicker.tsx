@@ -175,10 +175,13 @@ export function RelationPicker({
           />
           <PickerList
             value="user"
-            items={filterFn(MOCK_USERS, ["label"]).map((u) => ({ id: u.id, primary: u.label }))}
+            items={filterFn(data.users, ["username", "displayName"]).map((u) => ({
+              id: u.id,
+              primary: u.displayName || u.username,
+              secondary: u.email,
+            }))}
             selected={draft.userIds}
             onToggle={(id) => toggle("user", id)}
-            emptyHint="User directory ships in Batch 7 — these are mock entries."
           />
         </Tabs>
 
