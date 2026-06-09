@@ -107,10 +107,26 @@ export interface IPAMEntry {
 export type TaskPriority = "low" | "normal" | "high" | "critical";
 export type TaskStatus = "open" | "in_progress" | "blocked" | "done";
 export type TaskScope = "personal" | "team" | "shared";
+export type TaskSource = "manual" | "ticket" | "protocol" | "note" | "template" | "maintenance";
 
 export interface TaskRecurrence {
-  freq: "daily" | "weekly" | "monthly";
+  freq: "daily" | "weekly" | "monthly" | "quarterly";
   interval: number;
+}
+
+export interface TaskChecklistItem {
+  id: ID;
+  title: string;
+  completed: boolean;
+  required: boolean;
+  notes?: string;
+}
+
+export interface TaskComment {
+  id: ID;
+  author: string;
+  body: string;
+  at: string;
 }
 
 export interface Task {
@@ -121,6 +137,7 @@ export interface Task {
   priority: TaskPriority;
   status: TaskStatus;
   scope?: TaskScope;
+  source?: TaskSource;
   dueDate?: string;
   reminderAt?: string;
   assignedTo: string;
@@ -132,17 +149,33 @@ export interface Task {
   escalated?: boolean;
   archived?: boolean;
   watchers?: string[];
+  checklist?: TaskChecklistItem[];
+  comments?: TaskComment[];
   linkedDocumentId?: ID;
   linkedAssetId?: ID;
   linkedTicketIds?: ID[];
   linkedIpamIds?: ID[];
   linkedNoteIds?: ID[];
   linkedUserIds?: ID[];
+  linkedProtocolRunIds?: ID[];
+  linkedProtocolTemplateId?: ID;
   sourceTicketId?: ID;
   completedAt?: string;
   notes: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TaskTemplate {
+  id: ID;
+  name: string;
+  category: string;
+  priority: TaskPriority;
+  defaultTeam?: string;
+  description?: string;
+  tags?: string[];
+  checklist?: Array<{ title: string; required?: boolean }>;
+  recurring?: TaskRecurrence | null;
 }
 
 export interface TaskSavedView {

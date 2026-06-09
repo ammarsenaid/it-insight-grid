@@ -2,10 +2,13 @@ import type {
   ID,
   NotificationItem,
   Task,
+  TaskChecklistItem,
+  TaskComment,
   TaskPriority,
   TaskRecurrence,
   TaskSavedView,
   TaskScope,
+  TaskSource,
   TaskStatus,
   Ticket,
 } from "./types";
@@ -26,6 +29,8 @@ export const TASK_CATEGORIES = [
   "Network",
   "Onboarding",
   "Active Directory",
+  "Maintenance",
+  "Protocol",
   "General",
 ];
 
@@ -53,6 +58,7 @@ export function createTask(input: NewTaskInput): Task {
     priority: input.priority ?? "normal",
     status: input.status ?? "open",
     scope: input.scope ?? "personal",
+    source: input.source ?? "manual",
     dueDate: input.dueDate,
     reminderAt: input.reminderAt,
     assignedTo: input.assignedTo ?? CURRENT_USER,
@@ -64,12 +70,16 @@ export function createTask(input: NewTaskInput): Task {
     escalated: input.escalated ?? false,
     archived: false,
     watchers: input.watchers ?? [],
+    checklist: input.checklist ?? [],
+    comments: input.comments ?? [],
     linkedDocumentId: input.linkedDocumentId,
     linkedAssetId: input.linkedAssetId,
     linkedTicketIds: input.linkedTicketIds ?? [],
     linkedIpamIds: input.linkedIpamIds ?? [],
     linkedNoteIds: input.linkedNoteIds ?? [],
     linkedUserIds: input.linkedUserIds ?? [],
+    linkedProtocolRunIds: input.linkedProtocolRunIds ?? [],
+    linkedProtocolTemplateId: input.linkedProtocolTemplateId,
     sourceTicketId: input.sourceTicketId,
     notes: input.notes ?? "",
     createdAt: ts,
@@ -98,6 +108,8 @@ export function duplicateTask(id: ID): Task | null {
     title: src.title + " (copy)",
     status: "open",
     completedAt: undefined,
+    checklist: (src.checklist ?? []).map((c) => ({ ...c, id: uid("ck"), completed: false })),
+    comments: [],
   });
 }
 
@@ -106,6 +118,7 @@ function nextOccurrence(dateISO: string, rec: TaskRecurrence): string {
   const n = Math.max(1, rec.interval);
   if (rec.freq === "daily") d.setDate(d.getDate() + n);
   else if (rec.freq === "weekly") d.setDate(d.getDate() + 7 * n);
+  else if (rec.freq === "quarterly") d.setMonth(d.getMonth() + 3 * n);
   else d.setMonth(d.getMonth() + n);
   return d.toISOString();
 }
@@ -121,13 +134,14 @@ export function completeTask(id: ID) {
     ),
   }));
   logActivity("task.complete", `Completed task '${t.title}'`, "task", id);
-  // Spawn next occurrence if recurring
   if (t.recurring && t.dueDate) {
     const next = createTask({
       ...t,
       title: t.title,
       status: "open",
       completedAt: undefined,
+      checklist: (t.checklist ?? []).map((c) => ({ ...c, id: uid("ck"), completed: false })),
+      comments: [],
       dueDate: nextOccurrence(t.dueDate, t.recurring),
       reminderAt: t.reminderAt ? nextOccurrence(t.reminderAt, t.recurring) : undefined,
     });
@@ -189,11 +203,7 @@ export function escalateTask(id: ID) {
   const t = getState().tasks.find((x) => x.id === id);
   if (!t) return;
   const nextPrio: TaskPriority =
-    t.priority === "low"
-      ? "normal"
-      : t.priority === "normal"
-        ? "high"
-        : "critical";
+    t.priority === "low" ? "normal" : t.priority === "normal" ? "high" : "critical";
   setState((s) => ({
     ...s,
     tasks: s.tasks.map((x) =>
@@ -225,6 +235,129 @@ export function scheduleReminder(id: ID, whenISO: string) {
   });
 }
 
+// --- Bulk ops ---
+export function bulkUpdateTasks(ids: ID[], patch: Partial<Task>) {
+  setState((s) => ({
+    ...s,
+    tasks: s.tasks.map((t) =>
+      ids.includes(t.id) ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t,
+    ),
+  }));
+  logActivity("task.bulk", `Bulk updated ${ids.length} tasks`);
+}
+
+export function bulkAddTag(ids: ID[], tag: string) {
+  const tg = tag.trim();
+  if (!tg) return;
+  setState((s) => ({
+    ...s,
+    tasks: s.tasks.map((t) =>
+      ids.includes(t.id)
+        ? {
+            ...t,
+            tags: Array.from(new Set([...(t.tags ?? []), tg])),
+            updatedAt: new Date().toISOString(),
+          }
+        : t,
+    ),
+  }));
+}
+
+export function bulkArchive(ids: ID[]) {
+  ids.forEach(archiveTask);
+}
+export function bulkDelete(ids: ID[]) {
+  ids.forEach(deleteTask);
+}
+
+// --- Checklist ---
+export function addChecklistItem(taskId: ID, title: string, required = false) {
+  const item: TaskChecklistItem = {
+    id: uid("ck"),
+    title: title.trim() || "New item",
+    completed: false,
+    required,
+  };
+  setState((s) => ({
+    ...s,
+    tasks: s.tasks.map((t) =>
+      t.id === taskId
+        ? { ...t, checklist: [...(t.checklist ?? []), item], updatedAt: new Date().toISOString() }
+        : t,
+    ),
+  }));
+}
+export function updateChecklistItem(taskId: ID, itemId: ID, patch: Partial<TaskChecklistItem>) {
+  setState((s) => ({
+    ...s,
+    tasks: s.tasks.map((t) =>
+      t.id === taskId
+        ? {
+            ...t,
+            checklist: (t.checklist ?? []).map((c) =>
+              c.id === itemId ? { ...c, ...patch } : c,
+            ),
+            updatedAt: new Date().toISOString(),
+          }
+        : t,
+    ),
+  }));
+}
+export function toggleChecklistItem(taskId: ID, itemId: ID) {
+  const t = getState().tasks.find((x) => x.id === taskId);
+  const cur = t?.checklist?.find((c) => c.id === itemId);
+  updateChecklistItem(taskId, itemId, { completed: !cur?.completed });
+}
+export function deleteChecklistItem(taskId: ID, itemId: ID) {
+  setState((s) => ({
+    ...s,
+    tasks: s.tasks.map((t) =>
+      t.id === taskId
+        ? {
+            ...t,
+            checklist: (t.checklist ?? []).filter((c) => c.id !== itemId),
+            updatedAt: new Date().toISOString(),
+          }
+        : t,
+    ),
+  }));
+}
+export function moveChecklistItem(taskId: ID, itemId: ID, dir: -1 | 1) {
+  setState((s) => ({
+    ...s,
+    tasks: s.tasks.map((t) => {
+      if (t.id !== taskId) return t;
+      const list = [...(t.checklist ?? [])];
+      const idx = list.findIndex((c) => c.id === itemId);
+      const tgt = idx + dir;
+      if (idx < 0 || tgt < 0 || tgt >= list.length) return t;
+      [list[idx], list[tgt]] = [list[tgt], list[idx]];
+      return { ...t, checklist: list, updatedAt: new Date().toISOString() };
+    }),
+  }));
+}
+
+export function checklistProgress(t: Task): { done: number; total: number; pct: number } {
+  const list = t.checklist ?? [];
+  const done = list.filter((c) => c.completed).length;
+  const total = list.length;
+  return { done, total, pct: total === 0 ? 0 : Math.round((done / total) * 100) };
+}
+
+// --- Comments ---
+export function addTaskComment(taskId: ID, author: string, body: string) {
+  const c: TaskComment = { id: uid("tcm"), author, body: body.trim(), at: new Date().toISOString() };
+  if (!c.body) return;
+  setState((s) => ({
+    ...s,
+    tasks: s.tasks.map((t) =>
+      t.id === taskId
+        ? { ...t, comments: [...(t.comments ?? []), c], updatedAt: new Date().toISOString() }
+        : t,
+    ),
+  }));
+}
+
 // --- Saved views ---
 export function saveTaskView(view: Omit<TaskSavedView, "id">): TaskSavedView {
   const v: TaskSavedView = { ...view, id: uid("tvw") };
@@ -245,6 +378,7 @@ export function convertTicketToTask(ticket: Ticket): Task {
     priority: ticket.priority as TaskPriority,
     status: "open",
     scope: "team",
+    source: "ticket",
     team: ticket.team,
     assignedTo: ticket.assignee ?? CURRENT_USER,
     owner: ticket.assignee ?? CURRENT_USER,
@@ -255,6 +389,51 @@ export function convertTicketToTask(ticket: Ticket): Task {
     sourceTicketId: ticket.id,
     tags: ["from-ticket", ...ticket.tags],
   });
+}
+
+export function createTaskFromProtocolRun(args: {
+  runId: ID;
+  runNumber: string;
+  templateId: ID;
+  templateTitle: string;
+  assignedUser?: string;
+  team?: string;
+  linkedAssetId?: ID;
+  linkedTicketId?: ID;
+}): Task {
+  return createTask({
+    title: `Follow-up: ${args.templateTitle} (${args.runNumber})`,
+    description: `Linked to protocol run ${args.runNumber}.`,
+    category: "Protocol",
+    priority: "normal",
+    scope: "team",
+    source: "protocol",
+    team: args.team,
+    assignedTo: args.assignedUser ?? CURRENT_USER,
+    owner: args.assignedUser ?? CURRENT_USER,
+    linkedProtocolRunIds: [args.runId],
+    linkedProtocolTemplateId: args.templateId,
+    linkedAssetId: args.linkedAssetId,
+    linkedTicketIds: args.linkedTicketId ? [args.linkedTicketId] : [],
+    tags: ["from-protocol"],
+  });
+}
+
+export function linkProtocolRunToTask(taskId: ID, runId: ID, templateId?: ID) {
+  setState((s) => ({
+    ...s,
+    tasks: s.tasks.map((t) => {
+      if (t.id !== taskId) return t;
+      const set = new Set([...(t.linkedProtocolRunIds ?? []), runId]);
+      return {
+        ...t,
+        linkedProtocolRunIds: Array.from(set),
+        linkedProtocolTemplateId: templateId ?? t.linkedProtocolTemplateId,
+        updatedAt: new Date().toISOString(),
+      };
+    }),
+  }));
+  logActivity("task.linkProtocol", `Linked protocol run to task`, "task", taskId);
 }
 
 export function isOverdue(t: Task): boolean {
@@ -270,3 +449,4 @@ export function blockedByOpen(t: Task, all: Task[]): boolean {
 }
 
 export const TASK_SCOPES: TaskScope[] = ["personal", "team", "shared"];
+export const TASK_SOURCES: TaskSource[] = ["manual", "ticket", "protocol", "note", "template", "maintenance"];
