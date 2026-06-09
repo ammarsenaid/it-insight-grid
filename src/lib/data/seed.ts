@@ -30,6 +30,7 @@ export function buildSeed(): DataState {
   // The structured Knowledge Base lives in a separate store (ikc.knowledge.v1).
   const folders: Folder[] = [];
   const documents: Document[] = [];
+  const owners = ["alice.it", "bob.admin", "carol.netops", "david.secops"];
 
   const assetSeed = [
     { hostname: "DC01", display: "Primary Domain Controller", type: "server", ip: "192.168.0.10", os: "Windows Server 2022", role: "Domain Controller", env: "production" },

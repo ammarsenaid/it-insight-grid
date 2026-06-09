@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { clearAll, exportJSON, importJSON, resetDemo, setState, uid, updateSettings, useData } from "@/lib/data/store";
+import { useKnowledge } from "@/lib/knowledge/store";
 import { toast } from "sonner";
 import { formatDateTime } from "@/components/common/format";
 
@@ -20,6 +21,9 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const data = useData();
+  const knowledge = useKnowledge();
+  const knowledgePageCount = knowledge.nodes.filter((n) => n.type === "page").length;
+  const spaceCount = knowledge.nodes.filter((n) => n.type === "space").length;
   const s = data.settings;
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmReset, setConfirmReset] = useState(false);
