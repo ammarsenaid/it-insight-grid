@@ -113,6 +113,8 @@ export function clearAll() {
     ipam: [],
     tasks: [],
     notes: [],
+    tickets: [],
+    ticketViews: [],
     trash: [],
     activity: [],
     snapshots: [],
