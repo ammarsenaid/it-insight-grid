@@ -307,7 +307,7 @@ export function KnowledgeWorkspace() {
 
   // ---------- Render ----------
   return (
-    <div className="grid h-[calc(100vh-220px)] min-h-[560px] gap-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
+    <div className="grid h-[calc(100vh-220px)] min-h-[560px] gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
       {/* Tree */}
       <aside className="glass-card hidden h-full min-h-0 rounded-2xl p-3 lg:flex lg:flex-col">
         <div className="mb-2">
@@ -356,12 +356,12 @@ export function KnowledgeWorkspace() {
 
       {/* Main area */}
       <section className="glass-card flex h-full min-h-0 flex-col rounded-2xl p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-2 lg:hidden">
-          <Button size="sm" variant="secondary" className="h-8" onClick={() => setTreeOpen(true)}>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="secondary" className="h-8 lg:hidden" onClick={() => setTreeOpen(true)}>
             <PanelLeft className="mr-1 h-4 w-4" /> Tree
           </Button>
           {selected && (
-            <Button size="sm" variant="secondary" className="h-8" onClick={() => setDetailsOpen(true)}>
+            <Button size="sm" variant="secondary" className="ml-auto h-8" onClick={() => setDetailsOpen(true)}>
               <PanelRight className="mr-1 h-4 w-4" /> Details
             </Button>
           )}
@@ -436,41 +436,7 @@ export function KnowledgeWorkspace() {
         </div>
       </section>
 
-      {/* Details */}
-      <aside className="glass-card hidden h-full min-h-0 rounded-2xl p-4 lg:flex lg:flex-col">
-        {selected ? (
-          <KnowledgeDetailsPanel
-            node={selected}
-            ancestry={ancestry}
-            onOpen={() => {
-              if (selected.type === "page") setMode("view");
-            }}
-            onEdit={() => setMode("edit")}
-            onPreview={() => setMode("view")}
-            onFavorite={() => toggleFavorite(selected.id)}
-            onCopyLink={() => onCopyLink(selected)}
-            onDuplicate={() => {
-              const c = duplicateNode(selected.id);
-              if (c) {
-                toast.success("Duplicated");
-                setSelectedId(c.id);
-              }
-            }}
-            onMove={() => openMove(selected)}
-            onArchive={() => setConfirmArchive(selected)}
-            onDelete={() => setConfirmDelete(selected)}
-            onRestoreVersion={(vid) => {
-              restoreVersion(selected.id, vid);
-              toast.success("Version restored");
-            }}
-            onOpenRelations={() => setRelationsTarget(selected)}
-          />
-        ) : (
-          <div className="grid h-full place-items-center text-xs text-muted-foreground">
-            Select an item to see details.
-          </div>
-        )}
-      </aside>
+      {/* Details now live in an on-demand drawer (see below) for full-width reading */}
 
       {/* Mobile tree drawer */}
       <Sheet open={treeOpen} onOpenChange={setTreeOpen}>
