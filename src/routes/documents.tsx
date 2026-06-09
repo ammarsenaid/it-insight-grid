@@ -705,6 +705,8 @@ function DocumentsPage() {
           )}
         </section>
       </div>
+      )}
+
 
       {/* Doc create/edit drawer */}
       <FormDrawer
