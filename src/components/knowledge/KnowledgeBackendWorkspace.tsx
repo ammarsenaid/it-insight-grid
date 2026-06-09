@@ -91,6 +91,31 @@ export function KnowledgeBackendWorkspace() {
       return next;
     });
 
+  // Hooks must run unconditionally — keep these BEFORE any early returns.
+  const tagsByArticle = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!data) return map;
+    const tagName = new Map(data.tags.map((t) => [t.id, t.name]));
+    for (const at of data.articleTags) {
+      const list = map.get(at.article_id) ?? [];
+      const n = tagName.get(at.tag_id);
+      if (n) list.push(n);
+      map.set(at.article_id, list);
+    }
+    return map;
+  }, [data]);
+
+  const ql = query.trim().toLowerCase();
+  const matchedArticleIds = useMemo(() => {
+    if (!ql || !data) return null;
+    const m = new Set<string>();
+    for (const a of data.articles) {
+      const hay = `${a.title} ${a.excerpt ?? ""} ${(tagsByArticle.get(a.id) ?? []).join(" ")}`.toLowerCase();
+      if (hay.includes(ql)) m.add(a.id);
+    }
+    return m;
+  }, [data, tagsByArticle, ql]);
+
   // ------- Auth/team gating -------
   if (authLoading || contextLoading) {
     return <WorkspaceSkeleton />;
@@ -118,21 +143,6 @@ export function KnowledgeBackendWorkspace() {
       </div>
     );
   }
-
-  // ------- Workspace -------
-  const tagsByArticle = new Map<string, string[]>();
-  if (data) {
-    const tagName = new Map(data.tags.map((t) => [t.id, t.name]));
-    for (const at of data.articleTags) {
-      const list = tagsByArticle.get(at.article_id) ?? [];
-      const n = tagName.get(at.tag_id);
-      if (n) list.push(n);
-      tagsByArticle.set(at.article_id, list);
-    }
-  }
-
-  const ql = query.trim().toLowerCase();
-  const matchedArticleIds = useMemoMatched(data?.articles ?? [], tagsByArticle, ql);
 
   return (
     <div className="space-y-3">
