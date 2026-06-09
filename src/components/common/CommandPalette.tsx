@@ -49,7 +49,7 @@ const NAV = [
   { label: "Users", to: "/admin/users", icon: Users, group: "Administration" },
   { label: "Teams", to: "/admin/teams", icon: UsersRound, group: "Administration" },
   { label: "Roles", to: "/admin/roles", icon: KeyRound, group: "Administration" },
-  { label: "Ticket Configuration", to: "/tickets-config", icon: Sliders, group: "Administration" },
+  { label: "Ticket Configuration", to: "/admin/ticket-settings", icon: Sliders, group: "Administration" },
   { label: "Recycle Bin", to: "/trash", icon: Trash2, group: "System" },
   { label: "Settings", to: "/settings", icon: SettingsIcon, group: "System" },
 ];
