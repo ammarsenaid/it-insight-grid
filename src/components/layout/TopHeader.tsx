@@ -32,7 +32,6 @@ import { Badge } from "@/components/ui/badge";
 import { useData, updateSettings } from "@/lib/data/store";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { NotificationDrawer } from "@/components/common/NotificationDrawer";
-import { ROLES, setRole, useRole, can, type Role } from "@/lib/permissions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -43,10 +42,14 @@ export function TopHeader() {
   const [notifOpen, setNotifOpen] = useState(false);
   const navigate = useNavigate();
   const data = useData();
-  const role = useRole();
   const { profile, user, signOut, isPlatformAdmin } = useAuth();
-  const currentRole = ROLES.find((r) => r.id === role) ?? ROLES[0];
-  const displayName = profile?.display_name || profile?.full_name || user?.email || "Signed in";
+  const meta = (user?.user_metadata ?? {}) as { display_name?: string; full_name?: string };
+  const displayName =
+    profile?.display_name ||
+    meta.display_name ||
+    meta.full_name ||
+    user?.email ||
+    "Signed in";
   const userEmail = user?.email ?? "";
   const notifs = data.notifications;
   const unread = useMemo(() => notifs.filter((n) => !n.read).length, [notifs]);
