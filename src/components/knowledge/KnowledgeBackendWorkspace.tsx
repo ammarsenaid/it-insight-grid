@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import {
   Library,
   FolderTree,
@@ -21,6 +22,9 @@ import {
   Clock,
   X,
 } from "lucide-react";
+
+const documentsRouteApi = getRouteApi("/documents");
+
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
