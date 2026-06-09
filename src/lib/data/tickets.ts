@@ -376,6 +376,9 @@ export function intakeEmail(input: EmailIntakeInput): EmailIntakeResult {
   }
 }
 
+export const REQUESTERS = ["alice.morgan", "ben.taylor", "carla.rivera", "david.kim", "evelyn.shaw", "felix.novak", "grace.huang", "henry.park", "isabella.ross"];
+
+
 // Current "logged-in" requester depends on role: end-users see their own slice.
 export function currentRequesterFor(role: string): string {
   if (role === "user" || role === "viewer") return "alice.morgan";
