@@ -25,6 +25,7 @@ function SettingsPage() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [snapshotName, setSnapshotName] = useState("");
+  const [importPreview, setImportPreview] = useState<{ json: string; summary: Record<string, number>; ok: boolean } | null>(null);
 
   const doExport = () => {
     const json = exportJSON();
@@ -34,10 +35,25 @@ function SettingsPage() {
     toast.success("Data exported");
   };
 
-  const doImport = async (f: File) => {
+  const previewImport = async (f: File) => {
     const text = await f.text();
-    if (importJSON(text)) toast.success("Data imported");
+    try {
+      const parsed = JSON.parse(text);
+      const summary: Record<string, number> = {};
+      for (const k of ["folders","documents","assets","ipam","tasks","notes","tickets","users","teams","trash","activity","snapshots","notifications"]) {
+        if (Array.isArray(parsed[k])) summary[k] = parsed[k].length;
+      }
+      setImportPreview({ json: text, summary, ok: !!parsed.settings });
+    } catch {
+      setImportPreview({ json: text, summary: {}, ok: false });
+    }
+  };
+
+  const confirmImport = () => {
+    if (!importPreview) return;
+    if (importJSON(importPreview.json)) toast.success("Data imported");
     else toast.error("Invalid JSON");
+    setImportPreview(null);
   };
 
   const createSnapshot = () => {
