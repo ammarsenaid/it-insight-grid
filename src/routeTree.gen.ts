@@ -30,6 +30,7 @@ import { Route as TicketsIndexRouteImport } from './routes/tickets.index'
 import { Route as ProtocolsIndexRouteImport } from './routes/protocols.index'
 import { Route as TicketsIdRouteImport } from './routes/tickets.$id'
 import { Route as ServiceCatalogIdRouteImport } from './routes/service-catalog.$id'
+import { Route as ProtocolsIdRouteImport } from './routes/protocols.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTicketSettingsRouteImport } from './routes/admin.ticket-settings'
 import { Route as AdminTeamsRouteImport } from './routes/admin.teams'
@@ -140,6 +141,11 @@ const ServiceCatalogIdRoute = ServiceCatalogIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ServiceCatalogRoute,
 } as any)
+const ProtocolsIdRoute = ProtocolsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProtocolsRoute,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/admin/teams': typeof AdminTeamsRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/protocols/$id': typeof ProtocolsIdRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
   '/protocols/': typeof ProtocolsIndexRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByTo {
   '/admin/teams': typeof AdminTeamsRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/protocols/$id': typeof ProtocolsIdRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
   '/protocols': typeof ProtocolsIndexRoute
@@ -236,6 +244,7 @@ export interface FileRoutesById {
   '/admin/teams': typeof AdminTeamsRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/protocols/$id': typeof ProtocolsIdRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
   '/protocols/': typeof ProtocolsIndexRoute
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/admin/teams'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/protocols/$id'
     | '/service-catalog/$id'
     | '/tickets/$id'
     | '/protocols/'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/admin/teams'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/protocols/$id'
     | '/service-catalog/$id'
     | '/tickets/$id'
     | '/protocols'
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '/admin/teams'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/protocols/$id'
     | '/service-catalog/$id'
     | '/tickets/$id'
     | '/protocols/'
@@ -496,6 +508,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServiceCatalogIdRouteImport
       parentRoute: typeof ServiceCatalogRoute
     }
+    '/protocols/$id': {
+      id: '/protocols/$id'
+      path: '/$id'
+      fullPath: '/protocols/$id'
+      preLoaderRoute: typeof ProtocolsIdRouteImport
+      parentRoute: typeof ProtocolsRoute
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/admin/users'
@@ -528,10 +547,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface ProtocolsRouteChildren {
+  ProtocolsIdRoute: typeof ProtocolsIdRoute
   ProtocolsIndexRoute: typeof ProtocolsIndexRoute
 }
 
 const ProtocolsRouteChildren: ProtocolsRouteChildren = {
+  ProtocolsIdRoute: ProtocolsIdRoute,
   ProtocolsIndexRoute: ProtocolsIndexRoute,
 }
 
@@ -590,3 +611,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
