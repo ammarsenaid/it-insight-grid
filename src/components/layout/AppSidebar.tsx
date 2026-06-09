@@ -94,8 +94,7 @@ const groups = [
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const data = useData();
-  // Tickets module ships in Batch 3 — display a deterministic mock count
-  const ticketsCount = 12;
+  const ticketsCount = data.tickets.length;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
