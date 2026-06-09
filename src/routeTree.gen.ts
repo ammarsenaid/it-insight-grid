@@ -16,6 +16,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ServiceCatalogRouteImport } from './routes/service-catalog'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as RecycleBinRouteImport } from './routes/recycle-bin'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MyRequestsRouteImport } from './routes/my-requests'
 import { Route as IpamRouteImport } from './routes/ipam'
@@ -63,6 +64,11 @@ const SearchRoute = SearchRouteImport.update({
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecycleBinRoute = RecycleBinRouteImport.update({
+  id: '/recycle-bin',
+  path: '/recycle-bin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesRoute = NotesRouteImport.update({
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/recycle-bin': typeof RecycleBinRoute
   '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
   '/service-catalog': typeof ServiceCatalogRouteWithChildren
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/recycle-bin': typeof RecycleBinRoute
   '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
   '/service-catalog': typeof ServiceCatalogRouteWithChildren
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/recycle-bin': typeof RecycleBinRoute
   '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
   '/service-catalog': typeof ServiceCatalogRouteWithChildren
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/my-requests'
     | '/notes'
+    | '/recycle-bin'
     | '/reports'
     | '/search'
     | '/service-catalog'
@@ -230,6 +240,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/my-requests'
     | '/notes'
+    | '/recycle-bin'
     | '/reports'
     | '/search'
     | '/service-catalog'
@@ -252,6 +263,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/my-requests'
     | '/notes'
+    | '/recycle-bin'
     | '/reports'
     | '/search'
     | '/service-catalog'
@@ -275,6 +287,7 @@ export interface RootRouteChildren {
   IpamRoute: typeof IpamRoute
   MyRequestsRoute: typeof MyRequestsRoute
   NotesRoute: typeof NotesRoute
+  RecycleBinRoute: typeof RecycleBinRoute
   ReportsRoute: typeof ReportsRoute
   SearchRoute: typeof SearchRoute
   ServiceCatalogRoute: typeof ServiceCatalogRouteWithChildren
@@ -337,6 +350,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recycle-bin': {
+      id: '/recycle-bin'
+      path: '/recycle-bin'
+      fullPath: '/recycle-bin'
+      preLoaderRoute: typeof RecycleBinRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes': {
@@ -464,6 +484,7 @@ const rootRouteChildren: RootRouteChildren = {
   IpamRoute: IpamRoute,
   MyRequestsRoute: MyRequestsRoute,
   NotesRoute: NotesRoute,
+  RecycleBinRoute: RecycleBinRoute,
   ReportsRoute: ReportsRoute,
   SearchRoute: SearchRoute,
   ServiceCatalogRoute: ServiceCatalogRouteWithChildren,

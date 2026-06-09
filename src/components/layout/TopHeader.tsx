@@ -59,9 +59,9 @@ export function TopHeader() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const createActions: { label: string; icon: typeof FileText; to?: string; capability: string; toastMsg?: string }[] = [
+  const createActions: { label: string; icon: typeof FileText; to: string; capability: string }[] = [
     { label: "New Document", icon: FileText, to: "/documents", capability: "documents.create" },
-    { label: "New Ticket", icon: Ticket, capability: "tickets.create", toastMsg: "Ticket creation ships in Batch 3" },
+    { label: "New Ticket", icon: Ticket, to: "/tickets", capability: "tickets.create" },
     { label: "New Asset (CMDB)", icon: Server, to: "/cmdb", capability: "cmdb.write" },
     { label: "New IP Record", icon: Network, to: "/ipam", capability: "ipam.write" },
     { label: "New Task", icon: CheckSquare, to: "/tasks", capability: "tasks.write" },
@@ -116,8 +116,7 @@ export function TopHeader() {
                     disabled={!allowed}
                     onClick={() => {
                       if (!allowed) return;
-                      if (a.to) navigate({ to: a.to });
-                      if (a.toastMsg) toast.info(a.toastMsg);
+                      navigate({ to: a.to });
                     }}
                   >
                     <a.icon className="mr-2 h-4 w-4" />
