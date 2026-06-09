@@ -181,6 +181,54 @@ export interface NotificationItem {
   read?: boolean;
 }
 
+export type TicketPriority = "low" | "normal" | "high" | "critical";
+export type TicketStatus = "open" | "in_progress" | "waiting" | "resolved" | "closed" | "cancelled";
+export type TicketSLA = "ok" | "warning" | "breached";
+export type TicketType = "incident" | "request" | "change" | "problem";
+
+export interface TicketComment {
+  id: ID;
+  author: string;
+  body: string;
+  internal: boolean;
+  createdAt: string;
+}
+
+export interface Ticket {
+  id: ID;
+  number: string;
+  subject: string;
+  description: string;
+  requester: string;
+  type: TicketType;
+  category: string;
+  subcategory?: string;
+  priority: TicketPriority;
+  status: TicketStatus;
+  sla: TicketSLA;
+  slaDueAt?: string;
+  affectedService?: string;
+  assignee?: string;
+  team?: string;
+  linkedAssetId?: ID;
+  linkedIpamId?: ID;
+  linkedDocumentId?: ID;
+  tags: string[];
+  attachments: string[];
+  watchers: string[];
+  comments: TicketComment[];
+  resolvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TicketSavedView {
+  id: ID;
+  name: string;
+  query: string;
+  filters: Record<string, string>;
+}
+
 export interface DataState {
   folders: Folder[];
   documents: Document[];
@@ -188,6 +236,8 @@ export interface DataState {
   ipam: IPAMEntry[];
   tasks: Task[];
   notes: Note[];
+  tickets: Ticket[];
+  ticketViews: TicketSavedView[];
   trash: TrashItem[];
   activity: ActivityLog[];
   snapshots: LocalSnapshot[];
