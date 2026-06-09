@@ -21,6 +21,7 @@ import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MyRequestsRouteImport } from './routes/my-requests'
 import { Route as IpamRouteImport } from './routes/ipam'
 import { Route as DocumentsRouteImport } from './routes/documents'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CmdbRouteImport } from './routes/cmdb'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
@@ -91,6 +92,11 @@ const DocumentsRoute = DocumentsRouteImport.update({
   path: '/documents',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CmdbRoute = CmdbRouteImport.update({
   id: '/cmdb',
   path: '/cmdb',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
   '/cmdb': typeof CmdbRoute
+  '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
   '/cmdb': typeof CmdbRoute
+  '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
   '/cmdb': typeof CmdbRoute
+  '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
@@ -213,6 +222,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit'
     | '/cmdb'
+    | '/dashboard'
     | '/documents'
     | '/ipam'
     | '/my-requests'
@@ -236,6 +246,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit'
     | '/cmdb'
+    | '/dashboard'
     | '/documents'
     | '/ipam'
     | '/my-requests'
@@ -259,6 +270,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit'
     | '/cmdb'
+    | '/dashboard'
     | '/documents'
     | '/ipam'
     | '/my-requests'
@@ -283,6 +295,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditRoute: typeof AuditRoute
   CmdbRoute: typeof CmdbRoute
+  DashboardRoute: typeof DashboardRoute
   DocumentsRoute: typeof DocumentsRoute
   IpamRoute: typeof IpamRoute
   MyRequestsRoute: typeof MyRequestsRoute
@@ -387,6 +400,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocumentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cmdb': {
       id: '/cmdb'
       path: '/cmdb'
@@ -480,6 +500,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditRoute: AuditRoute,
   CmdbRoute: CmdbRoute,
+  DashboardRoute: DashboardRoute,
   DocumentsRoute: DocumentsRoute,
   IpamRoute: IpamRoute,
   MyRequestsRoute: MyRequestsRoute,
@@ -500,3 +521,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
