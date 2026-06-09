@@ -25,6 +25,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CmdbRouteImport } from './routes/cmdb'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TicketsIndexRouteImport } from './routes/tickets.index'
 import { Route as TicketsIdRouteImport } from './routes/tickets.$id'
 import { Route as ServiceCatalogIdRouteImport } from './routes/service-catalog.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -112,6 +113,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TicketsIndexRoute = TicketsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TicketsRoute,
+} as any)
 const TicketsIdRoute = TicketsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/tickets/': typeof TicketsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -182,7 +189,6 @@ export interface FileRoutesByTo {
   '/service-catalog': typeof ServiceCatalogRouteWithChildren
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
-  '/tickets': typeof TicketsRouteWithChildren
   '/trash': typeof TrashRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
@@ -190,6 +196,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/tickets': typeof TicketsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -215,6 +222,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/tickets/': typeof TicketsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -241,6 +249,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/tickets/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -257,7 +266,6 @@ export interface FileRouteTypes {
     | '/service-catalog'
     | '/settings'
     | '/tasks'
-    | '/tickets'
     | '/trash'
     | '/admin/roles'
     | '/admin/teams'
@@ -265,6 +273,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/tickets'
   id:
     | '__root__'
     | '/'
@@ -289,6 +298,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/tickets/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -428,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tickets/': {
+      id: '/tickets/'
+      path: '/'
+      fullPath: '/tickets/'
+      preLoaderRoute: typeof TicketsIndexRouteImport
+      parentRoute: typeof TicketsRoute
+    }
     '/tickets/$id': {
       id: '/tickets/$id'
       path: '/$id'
@@ -487,10 +504,12 @@ const ServiceCatalogRouteWithChildren = ServiceCatalogRoute._addFileChildren(
 
 interface TicketsRouteChildren {
   TicketsIdRoute: typeof TicketsIdRoute
+  TicketsIndexRoute: typeof TicketsIndexRoute
 }
 
 const TicketsRouteChildren: TicketsRouteChildren = {
   TicketsIdRoute: TicketsIdRoute,
+  TicketsIndexRoute: TicketsIndexRoute,
 }
 
 const TicketsRouteWithChildren =
