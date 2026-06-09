@@ -1,5 +1,15 @@
-import type { Ticket, TicketPriority, TicketStatus, TicketSLA, TicketSavedView } from "./types";
+import type { CatalogItem, Ticket, TicketPriority, TicketSLA, TicketSavedView, TicketStatus, NotificationItem } from "./types";
 import { getState, setState, uid, logActivity, trashItem } from "./store";
+
+function pushNotification(n: Omit<NotificationItem, "id" | "createdAt">) {
+  const item: NotificationItem = {
+    ...n,
+    id: uid("ntf"),
+    createdAt: new Date().toISOString(),
+    read: false,
+  };
+  setState((s) => ({ ...s, notifications: [item, ...s.notifications].slice(0, 50) }));
+}
 
 export type NewTicketInput = {
   requester: string;
