@@ -1,5 +1,15 @@
-import type { Ticket, TicketPriority, TicketStatus, TicketSLA, TicketSavedView } from "./types";
+import type { CatalogItem, Ticket, TicketPriority, TicketSLA, TicketSavedView, TicketStatus, NotificationItem } from "./types";
 import { getState, setState, uid, logActivity, trashItem } from "./store";
+
+function pushNotification(n: Omit<NotificationItem, "id" | "createdAt">) {
+  const item: NotificationItem = {
+    ...n,
+    id: uid("ntf"),
+    createdAt: new Date().toISOString(),
+    read: false,
+  };
+  setState((s) => ({ ...s, notifications: [item, ...s.notifications].slice(0, 50) }));
+}
 
 export type NewTicketInput = {
   requester: string;
@@ -87,7 +97,73 @@ export function createTicket(input: NewTicketInput): Ticket {
   };
   setState((s) => ({ ...s, tickets: [ticket, ...s.tickets] }));
   logActivity("ticket.create", `Created ticket ${ticket.number} — ${ticket.subject}`, "ticket", ticket.id);
+  pushNotification({ title: `New ticket ${ticket.number}`, message: ticket.subject, type: "info" });
   return ticket;
+}
+
+export function addComment(ticketId: string, author: string, body: string, internal: boolean) {
+  const trimmed = body.trim();
+  if (!trimmed) return;
+  setState((s) => ({
+    ...s,
+    tickets: s.tickets.map((t) =>
+      t.id === ticketId
+        ? {
+            ...t,
+            comments: [
+              ...t.comments,
+              { id: uid("cmt"), author, body: trimmed, internal, createdAt: new Date().toISOString() },
+            ],
+            updatedAt: new Date().toISOString(),
+          }
+        : t,
+    ),
+  }));
+  const t = getState().tickets.find((x) => x.id === ticketId);
+  if (t && !internal) {
+    pushNotification({ title: `Reply on ${t.number}`, message: trimmed.slice(0, 80), type: "info" });
+  }
+  logActivity("ticket.comment", `${internal ? "Internal note" : "Reply"} on ${t?.number ?? ticketId}`, "ticket", ticketId);
+}
+
+export function addAttachment(ticketId: string, fileName: string) {
+  setState((s) => ({
+    ...s,
+    tickets: s.tickets.map((t) =>
+      t.id === ticketId
+        ? { ...t, attachments: [...t.attachments, fileName], updatedAt: new Date().toISOString() }
+        : t,
+    ),
+  }));
+  logActivity("ticket.attach", `Attached ${fileName}`, "ticket", ticketId);
+}
+
+export function setWatchers(ticketId: string, watchers: string[]) {
+  updateTicket(ticketId, { watchers });
+}
+
+export function escalate(ticketId: string) {
+  const t = getState().tickets.find((x) => x.id === ticketId);
+  if (!t) return;
+  const next: TicketPriority = t.priority === "low" ? "normal" : t.priority === "normal" ? "high" : "critical";
+  const { hours } = slaForPriority(next);
+  updateTicket(ticketId, { priority: next, slaDueAt: new Date(Date.now() + hours * 3600_000).toISOString() });
+  pushNotification({ title: `Ticket escalated`, message: `${t.number} → ${next.toUpperCase()}`, type: "warning" });
+  logActivity("ticket.escalate", `Escalated ${t.number} to ${next}`, "ticket", ticketId);
+}
+
+export function resolveTicket(ticketId: string, resolution: string, agent: string) {
+  addComment(ticketId, agent, `Resolution: ${resolution}`, false);
+  updateTicket(ticketId, { status: "resolved", resolvedAt: new Date().toISOString() });
+  const t = getState().tickets.find((x) => x.id === ticketId);
+  if (t) pushNotification({ title: `Ticket resolved`, message: `${t.number} — ${t.subject}`, type: "success" });
+}
+
+export function reopenTicket(ticketId: string, reason: string, actor: string) {
+  addComment(ticketId, actor, `Reopened: ${reason}`, false);
+  updateTicket(ticketId, { status: "open", resolvedAt: undefined });
+  const t = getState().tickets.find((x) => x.id === ticketId);
+  if (t) pushNotification({ title: `Ticket reopened`, message: t.number, type: "warning" });
 }
 
 export function updateTicket(id: string, patch: Partial<Ticket>) {
@@ -167,3 +243,37 @@ export const TICKET_STATUSES: TicketStatus[] = ["open", "in_progress", "waiting"
 export const TICKET_TYPES: Ticket["type"][] = ["incident", "request", "change", "problem"];
 export const SERVICES = ["Email", "Active Directory", "File Storage", "Backup", "Identity", "Remote Access", "Wi-Fi", "LAN", "Printing", "Storage", "Software", "Collaboration", "Onboarding", "Patching"];
 export const AGENTS = ["jordan.lee", "morgan.diaz", "sasha.patel", "leo.nguyen", "ivy.brooks"];
+
+export function submitCatalogRequest(item: CatalogItem, requester: string, values: Record<string, string>): Ticket {
+  const subject = `${item.name} — ${requester}`;
+  const lines = item.fields.map((f) => `- **${f.label}**: ${values[f.key] || "—"}`).join("\n");
+  const description = `Service catalog request: ${item.name}\n\n${item.description}\n\n${lines}`;
+  return createTicket({
+    requester,
+    subject,
+    description,
+    type: "request",
+    category: item.category,
+    subcategory: item.name,
+    priority: item.defaultPriority,
+    affectedService: item.category,
+    team: item.defaultTeam,
+    tags: ["catalog", item.category.toLowerCase()],
+  });
+}
+
+export const REQUESTERS = ["alice.morgan", "ben.taylor", "carla.rivera", "david.kim", "evelyn.shaw", "felix.novak", "grace.huang", "henry.park", "isabella.ross"];
+
+// Current "logged-in" requester depends on role: end-users see their own slice.
+export function currentRequesterFor(role: string): string {
+  if (role === "user" || role === "viewer") return "alice.morgan";
+  return "jordan.lee";
+}
+
+export function slaLabel(t: Ticket): { label: string; tone: "success" | "warning" | "danger" | "muted" | "info" } {
+  if (t.status === "waiting") return { label: "Paused", tone: "muted" };
+  if (t.status === "resolved" || t.status === "closed") return { label: "Resolved", tone: "info" };
+  if (t.sla === "breached") return { label: "Breached", tone: "danger" };
+  if (t.sla === "warning") return { label: "At risk", tone: "warning" };
+  return { label: "Healthy", tone: "success" };
+}

@@ -379,6 +379,72 @@ export function buildSeed(): DataState {
       { id: id("vw"), name: "SLA at risk", query: "", filters: { sla: "warning" } },
       { id: id("vw"), name: "Critical incidents", query: "", filters: { priority: "critical", type: "incident" } },
     ],
+    catalog: [
+      { id: id("cat"), name: "New laptop request", category: "Hardware", icon: "Laptop", description: "Standard issue Windows 11 laptop with imaging and software baseline.", estimatedTime: "3 business days", defaultPriority: "normal", defaultTeam: "Service Desk", fields: [
+        { key: "justification", label: "Business justification", type: "textarea", required: true, placeholder: "Why is this device required?" },
+        { key: "model", label: "Preferred model", type: "select", options: ["Standard 14\"", "Standard 15\"", "Performance 16\""], required: true },
+        { key: "deliveryDate", label: "Needed by", type: "date" },
+      ]},
+      { id: id("cat"), name: "Password reset", category: "Identity", icon: "KeyRound", description: "Reset corporate Active Directory password.", estimatedTime: "15 minutes", defaultPriority: "high", defaultTeam: "Service Desk", fields: [
+        { key: "account", label: "Account to reset", type: "text", required: true, placeholder: "samAccountName or email" },
+        { key: "reason", label: "Reason", type: "textarea" },
+      ]},
+      { id: id("cat"), name: "Software install", category: "Applications", icon: "Package", description: "Request installation of an approved software package.", estimatedTime: "1 business day", defaultPriority: "normal", defaultTeam: "Service Desk", fields: [
+        { key: "software", label: "Software name", type: "text", required: true },
+        { key: "device", label: "Device hostname", type: "text", required: true },
+      ]},
+      { id: id("cat"), name: "VPN access", category: "Network", icon: "Globe", description: "Provision remote VPN access for a corporate account.", estimatedTime: "2 business days", defaultPriority: "normal", defaultTeam: "Network", fields: [
+        { key: "duration", label: "Access duration", type: "select", options: ["Permanent", "30 days", "90 days"], required: true },
+        { key: "reason", label: "Reason for access", type: "textarea", required: true },
+      ]},
+      { id: id("cat"), name: "New user onboarding", category: "Onboarding", icon: "UserPlus", description: "Provision account, mailbox, group memberships, and device.", estimatedTime: "5 business days", defaultPriority: "high", defaultTeam: "Service Desk", fields: [
+        { key: "fullName", label: "Full name", type: "text", required: true },
+        { key: "manager", label: "Reporting manager", type: "text", required: true },
+        { key: "startDate", label: "Start date", type: "date", required: true },
+        { key: "department", label: "Department", type: "select", options: ["Finance", "HR", "Engineering", "Sales", "Operations"], required: true },
+      ]},
+      { id: id("cat"), name: "Shared mailbox", category: "Applications", icon: "Mail", description: "Create a new shared mailbox in Microsoft 365.", estimatedTime: "1 business day", defaultPriority: "normal", defaultTeam: "Applications", fields: [
+        { key: "name", label: "Mailbox name", type: "text", required: true },
+        { key: "members", label: "Initial members", type: "textarea", placeholder: "One per line" },
+      ]},
+      { id: id("cat"), name: "Distribution group", category: "Identity", icon: "Users", description: "Create a new email distribution group.", estimatedTime: "4 hours", defaultPriority: "low", defaultTeam: "Service Desk", fields: [
+        { key: "groupName", label: "Group name", type: "text", required: true },
+        { key: "owner", label: "Group owner", type: "text", required: true },
+      ]},
+      { id: id("cat"), name: "Printer setup", category: "Hardware", icon: "Printer", description: "Configure or install an office printer.", estimatedTime: "1 business day", defaultPriority: "low", defaultTeam: "Service Desk", fields: [
+        { key: "location", label: "Office location", type: "text", required: true },
+        { key: "model", label: "Printer model", type: "text" },
+      ]},
+      { id: id("cat"), name: "Conference room AV", category: "Hardware", icon: "Tv", description: "Report or request audio/visual setup for a meeting room.", estimatedTime: "Same day", defaultPriority: "high", defaultTeam: "Service Desk", fields: [
+        { key: "room", label: "Conference room", type: "text", required: true },
+        { key: "issue", label: "Issue or request", type: "textarea", required: true },
+      ]},
+      { id: id("cat"), name: "Security incident report", category: "Security", icon: "ShieldAlert", description: "Report a suspected phishing, malware, or unauthorized access event.", estimatedTime: "Immediate", defaultPriority: "critical", defaultTeam: "Security", fields: [
+        { key: "summary", label: "What happened?", type: "textarea", required: true },
+        { key: "affectedAccounts", label: "Affected accounts or devices", type: "text" },
+      ]},
+    ],
+    ticketSettings: {
+      categories: ["Network", "Applications", "Hardware", "Storage", "Infrastructure", "Identity", "Security", "Backup", "Other"],
+      teams: ["Service Desk", "Network", "Infrastructure", "Security", "Applications"],
+      statuses: ["open", "in_progress", "waiting", "resolved", "closed", "cancelled"],
+      priorities: ["low", "normal", "high", "critical"],
+      slaPolicies: [
+        { id: id("sla"), priority: "critical", responseMinutes: 15, resolveMinutes: 240 },
+        { id: id("sla"), priority: "high", responseMinutes: 60, resolveMinutes: 480 },
+        { id: id("sla"), priority: "normal", responseMinutes: 240, resolveMinutes: 1440 },
+        { id: id("sla"), priority: "low", responseMinutes: 480, resolveMinutes: 4320 },
+      ],
+      routingRules: [
+        { id: id("rr"), category: "Network", team: "Network" },
+        { id: id("rr"), category: "Security", team: "Security" },
+        { id: id("rr"), category: "Infrastructure", team: "Infrastructure" },
+        { id: id("rr"), category: "Applications", team: "Applications" },
+        { id: id("rr"), category: "Hardware", team: "Service Desk" },
+        { id: id("rr"), category: "Identity", team: "Service Desk" },
+        { id: id("rr"), category: "Backup", team: "Infrastructure" },
+      ],
+    },
     trash,
     activity,
     snapshots: [],

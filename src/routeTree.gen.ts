@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrashRouteImport } from './routes/trash'
-import { Route as TicketsConfigRouteImport } from './routes/tickets-config'
 import { Route as TicketsRouteImport } from './routes/tickets'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -24,18 +23,16 @@ import { Route as DocumentsRouteImport } from './routes/documents'
 import { Route as CmdbRouteImport } from './routes/cmdb'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TicketsIdRouteImport } from './routes/tickets.$id'
+import { Route as ServiceCatalogIdRouteImport } from './routes/service-catalog.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminTicketSettingsRouteImport } from './routes/admin.ticket-settings'
 import { Route as AdminTeamsRouteImport } from './routes/admin.teams'
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 
 const TrashRoute = TrashRouteImport.update({
   id: '/trash',
   path: '/trash',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TicketsConfigRoute = TicketsConfigRouteImport.update({
-  id: '/tickets-config',
-  path: '/tickets-config',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TicketsRoute = TicketsRouteImport.update({
@@ -103,9 +100,24 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TicketsIdRoute = TicketsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => TicketsRoute,
+} as any)
+const ServiceCatalogIdRoute = ServiceCatalogIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ServiceCatalogRoute,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTicketSettingsRoute = AdminTicketSettingsRouteImport.update({
+  id: '/admin/ticket-settings',
+  path: '/admin/ticket-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminTeamsRoute = AdminTeamsRouteImport.update({
@@ -129,15 +141,17 @@ export interface FileRoutesByFullPath {
   '/notes': typeof NotesRoute
   '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
-  '/service-catalog': typeof ServiceCatalogRoute
+  '/service-catalog': typeof ServiceCatalogRouteWithChildren
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
-  '/tickets': typeof TicketsRoute
-  '/tickets-config': typeof TicketsConfigRoute
+  '/tickets': typeof TicketsRouteWithChildren
   '/trash': typeof TrashRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
+  '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/service-catalog/$id': typeof ServiceCatalogIdRoute
+  '/tickets/$id': typeof TicketsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -149,15 +163,17 @@ export interface FileRoutesByTo {
   '/notes': typeof NotesRoute
   '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
-  '/service-catalog': typeof ServiceCatalogRoute
+  '/service-catalog': typeof ServiceCatalogRouteWithChildren
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
-  '/tickets': typeof TicketsRoute
-  '/tickets-config': typeof TicketsConfigRoute
+  '/tickets': typeof TicketsRouteWithChildren
   '/trash': typeof TrashRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
+  '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/service-catalog/$id': typeof ServiceCatalogIdRoute
+  '/tickets/$id': typeof TicketsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -170,15 +186,17 @@ export interface FileRoutesById {
   '/notes': typeof NotesRoute
   '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
-  '/service-catalog': typeof ServiceCatalogRoute
+  '/service-catalog': typeof ServiceCatalogRouteWithChildren
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
-  '/tickets': typeof TicketsRoute
-  '/tickets-config': typeof TicketsConfigRoute
+  '/tickets': typeof TicketsRouteWithChildren
   '/trash': typeof TrashRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
+  '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/service-catalog/$id': typeof ServiceCatalogIdRoute
+  '/tickets/$id': typeof TicketsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -196,11 +214,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tasks'
     | '/tickets'
-    | '/tickets-config'
     | '/trash'
     | '/admin/roles'
     | '/admin/teams'
+    | '/admin/ticket-settings'
     | '/admin/users'
+    | '/service-catalog/$id'
+    | '/tickets/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -216,11 +236,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tasks'
     | '/tickets'
-    | '/tickets-config'
     | '/trash'
     | '/admin/roles'
     | '/admin/teams'
+    | '/admin/ticket-settings'
     | '/admin/users'
+    | '/service-catalog/$id'
+    | '/tickets/$id'
   id:
     | '__root__'
     | '/'
@@ -236,11 +258,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tasks'
     | '/tickets'
-    | '/tickets-config'
     | '/trash'
     | '/admin/roles'
     | '/admin/teams'
+    | '/admin/ticket-settings'
     | '/admin/users'
+    | '/service-catalog/$id'
+    | '/tickets/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -253,14 +277,14 @@ export interface RootRouteChildren {
   NotesRoute: typeof NotesRoute
   ReportsRoute: typeof ReportsRoute
   SearchRoute: typeof SearchRoute
-  ServiceCatalogRoute: typeof ServiceCatalogRoute
+  ServiceCatalogRoute: typeof ServiceCatalogRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
-  TicketsRoute: typeof TicketsRoute
-  TicketsConfigRoute: typeof TicketsConfigRoute
+  TicketsRoute: typeof TicketsRouteWithChildren
   TrashRoute: typeof TrashRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminTeamsRoute: typeof AdminTeamsRoute
+  AdminTicketSettingsRoute: typeof AdminTicketSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
 
@@ -271,13 +295,6 @@ declare module '@tanstack/react-router' {
       path: '/trash'
       fullPath: '/trash'
       preLoaderRoute: typeof TrashRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tickets-config': {
-      id: '/tickets-config'
-      path: '/tickets-config'
-      fullPath: '/tickets-config'
-      preLoaderRoute: typeof TicketsConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tickets': {
@@ -371,11 +388,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tickets/$id': {
+      id: '/tickets/$id'
+      path: '/$id'
+      fullPath: '/tickets/$id'
+      preLoaderRoute: typeof TicketsIdRouteImport
+      parentRoute: typeof TicketsRoute
+    }
+    '/service-catalog/$id': {
+      id: '/service-catalog/$id'
+      path: '/$id'
+      fullPath: '/service-catalog/$id'
+      preLoaderRoute: typeof ServiceCatalogIdRouteImport
+      parentRoute: typeof ServiceCatalogRoute
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/admin/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/ticket-settings': {
+      id: '/admin/ticket-settings'
+      path: '/admin/ticket-settings'
+      fullPath: '/admin/ticket-settings'
+      preLoaderRoute: typeof AdminTicketSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/teams': {
@@ -395,6 +433,29 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ServiceCatalogRouteChildren {
+  ServiceCatalogIdRoute: typeof ServiceCatalogIdRoute
+}
+
+const ServiceCatalogRouteChildren: ServiceCatalogRouteChildren = {
+  ServiceCatalogIdRoute: ServiceCatalogIdRoute,
+}
+
+const ServiceCatalogRouteWithChildren = ServiceCatalogRoute._addFileChildren(
+  ServiceCatalogRouteChildren,
+)
+
+interface TicketsRouteChildren {
+  TicketsIdRoute: typeof TicketsIdRoute
+}
+
+const TicketsRouteChildren: TicketsRouteChildren = {
+  TicketsIdRoute: TicketsIdRoute,
+}
+
+const TicketsRouteWithChildren =
+  TicketsRoute._addFileChildren(TicketsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditRoute: AuditRoute,
@@ -405,14 +466,14 @@ const rootRouteChildren: RootRouteChildren = {
   NotesRoute: NotesRoute,
   ReportsRoute: ReportsRoute,
   SearchRoute: SearchRoute,
-  ServiceCatalogRoute: ServiceCatalogRoute,
+  ServiceCatalogRoute: ServiceCatalogRouteWithChildren,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
-  TicketsRoute: TicketsRoute,
-  TicketsConfigRoute: TicketsConfigRoute,
+  TicketsRoute: TicketsRouteWithChildren,
   TrashRoute: TrashRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminTeamsRoute: AdminTeamsRoute,
+  AdminTicketSettingsRoute: AdminTicketSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
 }
 export const routeTree = rootRouteImport

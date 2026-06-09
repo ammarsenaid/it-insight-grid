@@ -333,9 +333,9 @@ function TicketsPage() {
                         <td className={cellBody(density)}>
                           <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleOne(t.id)} aria-label={`Select ${t.number}`} />
                         </td>
-                        <td className={cellBody(density, "font-mono text-[11px] text-primary")}>{t.number}</td>
+                        <td className={cellBody(density, "font-mono text-[11px] text-primary")}><Link to="/tickets/$id" params={{ id: t.id }} className="hover:underline">{t.number}</Link></td>
                         <td className={cellBody(density, "max-w-[280px]")}>
-                          <div className="truncate font-medium">{t.subject}</div>
+                          <Link to="/tickets/$id" params={{ id: t.id }} className="block truncate font-medium hover:underline">{t.subject}</Link>
                           {t.tags.length > 0 && (
                             <div className="mt-0.5 flex flex-wrap gap-1">
                               {t.tags.slice(0, 3).map((tag) => (
@@ -588,8 +588,10 @@ function RowActions({ ticket, canWrite }: { ticket: Ticket; canWrite: boolean })
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel className="text-[10px] text-muted-foreground">{ticket.number}</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => toast.info(`Viewing ${ticket.number}`, { description: "Full ticket cockpit ships in Batch 4." })}>
-          <Eye className="mr-2 h-3.5 w-3.5" /> View details
+        <DropdownMenuItem asChild>
+          <Link to="/tickets/$id" params={{ id: ticket.id }}>
+            <Eye className="mr-2 h-3.5 w-3.5" /> View details
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuSub>
