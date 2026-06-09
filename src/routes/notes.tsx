@@ -353,7 +353,7 @@ function NotesPage() {
                   </div>
                   <div className="rounded-xl border border-border/40 bg-background/40 p-3">
                     <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Activity</h4>
-                    <ActivityTimeline items={noteActivity.map((a) => ({ id: a.id, title: a.message, timestamp: a.createdAt }))} emptyHint="No recent activity for this note." />
+                    <ActivityTimeline entries={noteActivity.map((a) => ({ id: a.id, title: a.message, timestamp: a.createdAt }))} emptyLabel="No recent activity for this note." />
                   </div>
                 </div>
               </>
