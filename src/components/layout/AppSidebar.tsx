@@ -79,7 +79,7 @@ const groups = [
       { title: "Users", url: "/admin/users", icon: Users },
       { title: "Teams", url: "/admin/teams", icon: UsersRound },
       { title: "Roles", url: "/admin/roles", icon: KeyRound },
-      { title: "Ticket Configuration", url: "/tickets-config", icon: Sliders },
+      { title: "Ticket Configuration", url: "/admin/ticket-settings", icon: Sliders },
     ],
   },
   {
