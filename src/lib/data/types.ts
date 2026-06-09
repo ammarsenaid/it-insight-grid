@@ -328,7 +328,9 @@ export interface DataState {
   assets: CMDBAsset[];
   ipam: IPAMEntry[];
   tasks: Task[];
+  taskViews: TaskSavedView[];
   notes: Note[];
+  noteTemplates: NoteTemplate[];
   tickets: Ticket[];
   ticketViews: TicketSavedView[];
   catalog: CatalogItem[];
