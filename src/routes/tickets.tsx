@@ -1,5 +1,6 @@
 import { Outlet, createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { consumePendingTicketFilters } from "@/lib/dashboard-prefs";
 import {
   Ticket as TicketIcon,
   Inbox,
@@ -137,6 +138,20 @@ export function TicketsPage() {
   const [tagValue, setTagValue] = useState("");
   const [saveViewOpen, setSaveViewOpen] = useState(false);
   const [viewName, setViewName] = useState("");
+
+  // Honor a one-shot filter handoff from the Dashboard
+  useEffect(() => {
+    const pending = consumePendingTicketFilters();
+    if (!pending) return;
+    if (pending.status) setFStatus(pending.status);
+    if (pending.sla) setFSla(pending.sla);
+    if (pending.assignee) setFAssignee(pending.assignee);
+    if (pending.scope === "mine") setFAssignee(currentUser);
+    if (pending.scope === "unassigned") setFAssignee("unassigned");
+    if (pending.scope === "resolvedToday") setFStatus("resolved");
+    setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resetFilters = () => {
     setQuery(""); setFStatus("all"); setFPriority("all"); setFType("all"); setFTeam("all"); setFAssignee("all"); setFCategory("all"); setFSla("all"); setPage(1);
