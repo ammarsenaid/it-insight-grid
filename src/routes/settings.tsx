@@ -164,6 +164,26 @@ function SettingsPage() {
         onConfirm={() => { resetDemo(); toast.success("Demo data restored"); setConfirmReset(false); }} />
       <ConfirmDialog open={confirmClear} onOpenChange={setConfirmClear} title="Clear all local data?" description="Everything will be removed. This cannot be undone." destructive confirmLabel="Clear"
         onConfirm={() => { clearAll(); toast.success("All data cleared"); setConfirmClear(false); }} />
+      <ConfirmDialog
+        open={!!importPreview}
+        onOpenChange={(o) => !o && setImportPreview(null)}
+        title={importPreview?.ok ? "Replace local data with import?" : "Invalid import file"}
+        description={importPreview?.ok ? "Review the contents below — your current data will be replaced." : "The selected file does not appear to be a valid prototype backup."}
+        destructive={importPreview?.ok}
+        confirmLabel={importPreview?.ok ? "Replace data" : "OK"}
+        onConfirm={() => importPreview?.ok ? confirmImport() : setImportPreview(null)}
+      >
+        {importPreview?.ok && (
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+            {Object.entries(importPreview.summary).map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between rounded-md border border-border/40 bg-background/40 px-2 py-1">
+                <span className="capitalize text-muted-foreground">{k}</span>
+                <span className="font-mono">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }
