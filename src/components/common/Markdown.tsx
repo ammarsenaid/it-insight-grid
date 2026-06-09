@@ -67,7 +67,13 @@ function renderMarkdown(src: string): string {
       closeList();
       const lvl = h[1].length;
       const size = ["text-xl", "text-lg", "text-base", "text-sm", "text-sm", "text-sm"][lvl - 1];
-      out.push(`<h${lvl} class="${size} mt-3 mb-1 font-semibold text-foreground">${inline(h[2])}</h${lvl}>`);
+      const slug = h[2]
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+        .slice(0, 80);
+      out.push(`<h${lvl} id="${slug}" class="${size} mt-3 mb-1 scroll-mt-4 font-semibold text-foreground">${inline(h[2])}</h${lvl}>`);
       continue;
     }
     if (/^(\-{3,}|\*{3,})$/.test(line.trim())) {

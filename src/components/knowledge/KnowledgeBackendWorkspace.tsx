@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Library,
   FolderTree,
@@ -16,6 +16,10 @@ import {
   Trash2,
   Tags as TagsIcon,
   Filter,
+  List as ListIcon,
+  Link2,
+  Clock,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -54,6 +58,8 @@ import { TagsEditorDialog } from "./dialogs/TagsEditorDialog";
 import { ArticleContentEditor } from "./ArticleContentEditor";
 import { ReviewTimelinePanel } from "./ReviewTimelinePanel";
 import { AttachmentsPanel } from "./AttachmentsPanel";
+import { ArticleTOC } from "./ArticleTOC";
+import { useRecentlyViewed } from "@/lib/knowledge/recent";
 import type {
   ArticleStatus,
   KbArticle,
@@ -101,6 +107,10 @@ export function KnowledgeBackendWorkspace() {
   const [showArchived, setShowArchived] = useState(false);
   const [tagFilter, setTagFilter] = useState<string | "">("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { items: recent, track: trackRecent, forget: forgetRecent } = useRecentlyViewed(activeTeamId);
+
+
 
   // Dialogs
   const [spaceDialog, setSpaceDialog] = useState<{ open: boolean; initial: KbSpace | null }>({
@@ -139,6 +149,29 @@ export function KnowledgeBackendWorkspace() {
   useEffect(() => {
     if (!selection || selection.kind !== "article") setEditingArticle(false);
   }, [selection]);
+
+  // Track recently viewed articles
+  useEffect(() => {
+    if (!data || !activeTeamId) return;
+    if (selection?.kind !== "article") return;
+    const a = data.articles.find((x) => x.id === selection.id);
+    if (a) trackRecent({ id: a.id, title: a.title, teamId: activeTeamId });
+  }, [selection, data, activeTeamId, trackRecent]);
+
+  // Global keyboard shortcut: "/" focuses search
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      e.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
 
   const toggle = (id: string) =>
     setExpanded((prev) => {
@@ -317,7 +350,8 @@ export function KnowledgeBackendWorkspace() {
           <div className="relative mb-2">
             <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search…"
+              ref={searchInputRef}
+              placeholder="Search…  (press /)"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="h-8 pl-8 text-xs"
@@ -414,6 +448,8 @@ export function KnowledgeBackendWorkspace() {
               onDeleteArticle={handleDeleteArticle}
               onEditArticleTags={(a) => setTagsDialog({ open: true, articleId: a.id })}
               onReload={reload}
+              recent={recent}
+              onForgetRecent={forgetRecent}
             />
           )}
         </section>
@@ -631,6 +667,8 @@ interface SelectionViewProps {
   onDeleteArticle: (a: KbArticle) => void;
   onEditArticleTags: (a: KbArticle) => void;
   onReload: () => void;
+  recent: Array<{ id: string; title: string; teamId: string; at: number }>;
+  onForgetRecent: (id: string) => void;
 }
 
 function SelectionView(p: SelectionViewProps) {
@@ -638,16 +676,51 @@ function SelectionView(p: SelectionViewProps) {
 
   if (!selection) {
     return (
-      <div className="grid h-full place-items-center text-center text-sm text-muted-foreground">
+      <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-muted-foreground">
         <div>
           <FileText className="mx-auto mb-2 h-6 w-6 opacity-60" />
           Select a Space, Category, or Article on the left.
+          <div className="mt-1 text-[11px] text-muted-foreground/70">Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search.</div>
           {perms.manageTeam && data.spaces.length === 0 && (
             <div className="mt-3">
               <Button size="sm" onClick={p.onNewSpace}><Plus className="mr-1 h-3 w-3" /> Create first space</Button>
             </div>
           )}
         </div>
+        {p.recent.length > 0 && (
+          <div className="w-full max-w-sm rounded-xl border border-border/40 bg-white/[0.02] p-3 text-left">
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <Clock className="h-3 w-3" /> Recently viewed
+            </div>
+            <ul className="space-y-1 text-xs">
+              {p.recent.map((r) => {
+                const exists = data.articles.some((a) => a.id === r.id);
+                return (
+                  <li key={r.id} className="group flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={!exists}
+                      onClick={() => exists && onOpenArticle(r.id)}
+                      className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-foreground/80 hover:bg-white/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      title={exists ? r.title : "No longer accessible"}
+                    >
+                      <FileText className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{r.title}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
+                      onClick={() => p.onForgetRecent(r.id)}
+                      aria-label="Remove"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </div>
     );
   }
@@ -857,8 +930,18 @@ function ArticleView({
   onEditContent: () => void; onEditMeta: () => void; onEditTags: () => void;
   onDelete: () => void; onReload: () => void;
 }) {
-  type SidePanel = "none" | "revisions" | "review";
-  const [panel, setPanel] = useState<SidePanel>("none");
+  type SidePanel = "none" | "revisions" | "review" | "outline";
+  const [panel, setPanel] = useState<SidePanel>("outline");
+  const handleCopyLink = async () => {
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const url = `${base}/documents?article=${article.id}`;
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard.");
+    } catch {
+      toast.error("Could not copy link.");
+    }
+  };
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
       <div>
@@ -884,6 +967,9 @@ function ArticleView({
                 <TagsIcon className="mr-1 h-3 w-3" /> Tags
               </Button>
             )}
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleCopyLink}>
+              <Link2 className="mr-1 h-3 w-3" /> Copy link
+            </Button>
             {canDelete && (
               <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={onDelete}>
                 <Trash2 className="mr-1 h-3 w-3" />
@@ -903,6 +989,10 @@ function ArticleView({
             </div>
           )}
           <div className="ml-auto flex items-center gap-1">
+            <Button size="sm" variant={panel === "outline" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
+              onClick={() => setPanel((p) => (p === "outline" ? "none" : "outline"))}>
+              <ListIcon className="mr-1 h-3 w-3" />Outline
+            </Button>
             <Button size="sm" variant={panel === "review" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
               onClick={() => setPanel((p) => (p === "review" ? "none" : "review"))}>
               <History className="mr-1 h-3 w-3" />Review
@@ -922,6 +1012,7 @@ function ArticleView({
           </div>
           <AttachmentsPanel articleId={article.id} teamId={teamId} canUpdate={canUpdate} />
         </div>
+        {panel === "outline" && <ArticleTOC markdown={article.content_markdown ?? ""} />}
         {panel === "revisions" && (
           <RevisionsPanel
             articleId={article.id}
