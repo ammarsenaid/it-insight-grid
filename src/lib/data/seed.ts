@@ -181,7 +181,7 @@ export function buildSeed(): DataState {
     isTemplate: false,
     owner: owners[idx % owners.length],
     content: `# ${n.title}\n\nQuick reference note. Add details here.\n\n- Item 1\n- Item 2\n- Item 3\n\n## Notes\nUse **bold** or *italic* and \`inline code\` to organize ideas.`,
-    linkedDocumentId: idx % 2 === 0 ? documents[idx % documents.length].id : undefined,
+    linkedDocumentId: undefined,
     linkedTicketIds: [],
     linkedAssetIds: [],
     linkedIpamIds: [],
