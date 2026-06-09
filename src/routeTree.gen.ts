@@ -9,8 +9,56 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TrashRouteImport } from './routes/trash'
+import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as NotesRouteImport } from './routes/notes'
+import { Route as IpamRouteImport } from './routes/ipam'
+import { Route as DocumentsRouteImport } from './routes/documents'
+import { Route as CmdbRouteImport } from './routes/cmdb'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TrashRoute = TrashRouteImport.update({
+  id: '/trash',
+  path: '/trash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesRoute = NotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IpamRoute = IpamRouteImport.update({
+  id: '/ipam',
+  path: '/ipam',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentsRoute = DocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CmdbRoute = CmdbRouteImport.update({
+  id: '/cmdb',
+  path: '/cmdb',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +67,144 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cmdb': typeof CmdbRoute
+  '/documents': typeof DocumentsRoute
+  '/ipam': typeof IpamRoute
+  '/notes': typeof NotesRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
+  '/trash': typeof TrashRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cmdb': typeof CmdbRoute
+  '/documents': typeof DocumentsRoute
+  '/ipam': typeof IpamRoute
+  '/notes': typeof NotesRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
+  '/trash': typeof TrashRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cmdb': typeof CmdbRoute
+  '/documents': typeof DocumentsRoute
+  '/ipam': typeof IpamRoute
+  '/notes': typeof NotesRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
+  '/tasks': typeof TasksRoute
+  '/trash': typeof TrashRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/cmdb'
+    | '/documents'
+    | '/ipam'
+    | '/notes'
+    | '/search'
+    | '/settings'
+    | '/tasks'
+    | '/trash'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/cmdb'
+    | '/documents'
+    | '/ipam'
+    | '/notes'
+    | '/search'
+    | '/settings'
+    | '/tasks'
+    | '/trash'
+  id:
+    | '__root__'
+    | '/'
+    | '/cmdb'
+    | '/documents'
+    | '/ipam'
+    | '/notes'
+    | '/search'
+    | '/settings'
+    | '/tasks'
+    | '/trash'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CmdbRoute: typeof CmdbRoute
+  DocumentsRoute: typeof DocumentsRoute
+  IpamRoute: typeof IpamRoute
+  NotesRoute: typeof NotesRoute
+  SearchRoute: typeof SearchRoute
+  SettingsRoute: typeof SettingsRoute
+  TasksRoute: typeof TasksRoute
+  TrashRoute: typeof TrashRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/trash': {
+      id: '/trash'
+      path: '/trash'
+      fullPath: '/trash'
+      preLoaderRoute: typeof TrashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes': {
+      id: '/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ipam': {
+      id: '/ipam'
+      path: '/ipam'
+      fullPath: '/ipam'
+      preLoaderRoute: typeof IpamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documents': {
+      id: '/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof DocumentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cmdb': {
+      id: '/cmdb'
+      path: '/cmdb'
+      fullPath: '/cmdb'
+      preLoaderRoute: typeof CmdbRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,17 +217,15 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CmdbRoute: CmdbRoute,
+  DocumentsRoute: DocumentsRoute,
+  IpamRoute: IpamRoute,
+  NotesRoute: NotesRoute,
+  SearchRoute: SearchRoute,
+  SettingsRoute: SettingsRoute,
+  TasksRoute: TasksRoute,
+  TrashRoute: TrashRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
