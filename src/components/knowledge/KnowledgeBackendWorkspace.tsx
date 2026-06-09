@@ -53,6 +53,7 @@ import { ArticleFormDialog } from "./dialogs/ArticleFormDialog";
 import { TagsEditorDialog } from "./dialogs/TagsEditorDialog";
 import { ArticleContentEditor } from "./ArticleContentEditor";
 import { ReviewTimelinePanel } from "./ReviewTimelinePanel";
+import { AttachmentsPanel } from "./AttachmentsPanel";
 import type {
   ArticleStatus,
   KbArticle,
