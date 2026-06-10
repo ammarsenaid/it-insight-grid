@@ -1,5 +1,5 @@
 -- =====================================================================
--- IT KNOWLEDGE CENTER — RC1.1 STATIC SECURITY CHECKS
+-- IT KNOWLEDGE CENTER — RC1.2 STATIC SECURITY CHECKS
 -- =====================================================================
 -- Read-only assertions. Run against a STAGING database that has every
 -- RC1 + RC1.1 migration applied. Each block raises an exception on
@@ -19,7 +19,7 @@ do $$
 declare
   required text[] := array[
     'knowledge_spaces','knowledge_categories','knowledge_articles',
-    'knowledge_tags','knowledge_article_tags','knowledge_revisions',
+    'knowledge_tags','knowledge_article_tags','knowledge_article_revisions',
     'knowledge_review_events','knowledge_attachments','knowledge_audit_log'
   ];
   t text;
@@ -182,11 +182,15 @@ end$$;
 
 \if :{?article_a}
 
+select set_config('app.qa.article_a', :'article_a', false);
+select set_config('app.qa.article_b', :'article_b', false);
+select set_config('app.qa.member_a', :'member_a', false);
+
 -- 9. Direct status change is rejected (workflow bypass blocked)
 do $$
 begin
   begin
-    update public.knowledge_articles set status = 'in_review' where id = :'article_a';
+    update public.knowledge_articles set status = 'in_review' where id = current_setting('app.qa.article_a')::uuid;
     raise exception 'Bypass test failed: direct status change was permitted';
   exception when insufficient_privilege then
     -- expected
@@ -202,14 +206,14 @@ declare
   new_status text;
 begin
   select count(*) into before_count
-    from public.knowledge_review_events where article_id = :'article_a';
-  perform public.knowledge_transition_article_status(:'article_a', 'submit', 'qa: submit');
-  select status into new_status from public.knowledge_articles where id = :'article_a';
+    from public.knowledge_review_events where article_id = current_setting('app.qa.article_a')::uuid;
+  perform public.knowledge_transition_article_status(current_setting('app.qa.article_a')::uuid, 'submit', 'qa: submit');
+  select status into new_status from public.knowledge_articles where id = current_setting('app.qa.article_a')::uuid;
   if new_status <> 'in_review' then
     raise exception 'Transition succeeded but status did not change';
   end if;
   select count(*) into after_count
-    from public.knowledge_review_events where article_id = :'article_a';
+    from public.knowledge_review_events where article_id = current_setting('app.qa.article_a')::uuid;
   if after_count <> before_count + 1 then
     raise exception 'Transition did not write exactly one review event';
   end if;
@@ -217,12 +221,18 @@ end$$;
 
 -- 11. Invalid transition rejected (publish from in_review)
 do $$
+declare
+  v_blocked boolean := false;
 begin
   begin
-    perform public.knowledge_transition_article_status(:'article_a', 'publish', null);
-    raise exception 'Invalid transition (publish from in_review) was accepted';
-  exception when others then null;
+    perform public.knowledge_transition_article_status(current_setting('app.qa.article_a')::uuid, 'publish', null);
+  exception when sqlstate '22023' then
+    v_blocked := true;
   end;
+
+  if not v_blocked then
+    raise exception 'Invalid transition (publish from in_review) was accepted';
+  end if;
 end$$;
 
 -- 12. Cross-team article access is denied
@@ -232,8 +242,8 @@ declare
 begin
   -- Acting as a member of team_a, team_b's article must be invisible.
   set local role authenticated;
-  perform set_config('request.jwt.claim.sub', :'member_a', true);
-  select count(*) into v from public.knowledge_articles where id = :'article_b';
+  perform set_config('request.jwt.claim.sub', current_setting('app.qa.member_a'), true);
+  select count(*) into v from public.knowledge_articles where id = current_setting('app.qa.article_b')::uuid;
   if v <> 0 then
     raise exception 'Cross-team article access leaked (% rows)', v;
   end if;
@@ -245,59 +255,65 @@ end$$;
 -- =====================================================================
 -- RC1.2 INSERT-GUARD BEHAVIORAL CHECKS
 -- Require fixture vars: team_a (uuid), space_a (uuid), member_a (uuid).
--- All inserts are wrapped in savepoints and rolled back so the database
--- is left untouched. Run as the `authenticated` role so RLS + triggers
+-- All inserts use nested exception blocks and are rolled back so the
+-- database is left untouched. Run as the `authenticated` role so RLS + triggers
 -- evaluate the same way they do for a browser caller.
 -- =====================================================================
 
 \if :{?space_a}
 
+select set_config('app.qa.team_a', :'team_a', false);
+select set_config('app.qa.space_a', :'space_a', false);
+select set_config('app.qa.member_a', :'member_a', false);
+
 do $$
 declare
   v_id uuid;
-  v_bad text;
+  v_blocked boolean;
   v_statuses text[] := array['in_review','approved','published','archived'];
   v_status text;
 begin
   set local role authenticated;
-  perform set_config('request.jwt.claim.sub', :'member_a', true);
+  perform set_config('request.jwt.claim.sub', current_setting('app.qa.member_a'), true);
 
-  -- 13. Normal draft insert succeeds, then rolled back.
+  -- 13. Normal draft insert succeeds inside a nested rollback block.
   begin
-    savepoint sp_draft_ok;
     insert into public.knowledge_articles
       (team_id, space_id, title, slug, content_markdown,
        status, visibility, created_by, updated_by)
     values
-      (:'team_a', :'space_a', 'rc12-qa-draft', 'rc12-qa-draft-' || gen_random_uuid()::text,
-       '', 'draft', 'team', :'member_a', :'member_a')
+      (current_setting('app.qa.team_a')::uuid, current_setting('app.qa.space_a')::uuid, 'rc12-qa-draft', 'rc12-qa-draft-' || gen_random_uuid()::text,
+       '', 'draft', 'team', current_setting('app.qa.member_a')::uuid, current_setting('app.qa.member_a')::uuid)
     returning id into v_id;
+
     if v_id is null then
       raise exception 'Draft insert did not return an id';
     end if;
-    rollback to savepoint sp_draft_ok;
+
+    raise exception 'qa_nested_rollback'
+      using errcode = 'P0001';
+  exception when sqlstate 'P0001' then
+    null;
   end;
 
   -- 14. Every non-draft initial status is rejected.
   foreach v_status in array v_statuses loop
+    v_blocked := false;
+
     begin
-      savepoint sp_bad;
-      begin
-        insert into public.knowledge_articles
-          (team_id, space_id, title, slug, content_markdown,
-           status, visibility, created_by, updated_by)
-        values
-          (:'team_a', :'space_a', 'rc12-qa-bad', 'rc12-qa-bad-' || v_status || '-' || gen_random_uuid()::text,
-           '', v_status, 'team', :'member_a', :'member_a');
-        v_bad := v_status;
-      exception when insufficient_privilege then
-        v_bad := null; -- expected
-      end;
-      rollback to savepoint sp_bad;
-      if v_bad is not null then
-        raise exception 'Insert with status=% was accepted but should have been rejected', v_bad;
-      end if;
+      insert into public.knowledge_articles
+        (team_id, space_id, title, slug, content_markdown,
+         status, visibility, created_by, updated_by)
+      values
+        (current_setting('app.qa.team_a')::uuid, current_setting('app.qa.space_a')::uuid, 'rc12-qa-bad', 'rc12-qa-bad-' || v_status || '-' || gen_random_uuid()::text,
+         '', v_status, 'team', current_setting('app.qa.member_a')::uuid, current_setting('app.qa.member_a')::uuid);
+    exception when insufficient_privilege then
+      v_blocked := true;
     end;
+
+    if not v_blocked then
+      raise exception 'Insert with status=% was accepted but should have been rejected', v_status;
+    end if;
   end loop;
 
   reset role;
