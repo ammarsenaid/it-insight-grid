@@ -60,6 +60,27 @@ function SearchPage() {
       </div>
 
       <div className="mt-6 space-y-6">
+        {results.backendArticles.length > 0 && (
+          <div className="glass-card rounded-2xl p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold"><BookOpen className="h-4 w-4 text-primary" /> Knowledge Base (Live)</div>
+              <StatusBadge tone="info" label={String(results.backendArticles.length)} />
+            </div>
+            <div className="space-y-1">
+              {results.backendArticles.slice(0, 8).map((a) => (
+                <div key={a.id} className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-white/[0.03]">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{a.title}</div>
+                    <div className="truncate text-xs text-muted-foreground">{a.excerpt ?? "—"} · {a.status}</div>
+                  </div>
+                  <Link to="/documents" search={{ article: a.id }}>
+                    <Button size="sm" variant="ghost">Open</Button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <Group
           icon={BookOpen}
           title="Knowledge Base"
