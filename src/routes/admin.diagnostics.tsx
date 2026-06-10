@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Database, FileText, Inbox, RefreshCw, Ticket, Trash2, Wrench } from "lucide-react";
+import { Database, FileText, Inbox, RefreshCw, Ticket, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/common/PageHeader";

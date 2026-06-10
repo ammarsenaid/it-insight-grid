@@ -38,6 +38,7 @@ import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminTeamsRouteImport } from './routes/admin.teams'
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 import { Route as AdminMailboxRouteImport } from './routes/admin.mailbox'
+import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
 
 const TrashRoute = TrashRouteImport.update({
   id: '/trash',
@@ -184,6 +185,11 @@ const AdminMailboxRoute = AdminMailboxRouteImport.update({
   path: '/admin/mailbox',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDiagnosticsRoute = AdminDiagnosticsRouteImport.update({
+  id: '/admin/diagnostics',
+  path: '/admin/diagnostics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -204,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/tickets': typeof TicketsRouteWithChildren
   '/trash': typeof TrashRoute
+  '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/mailbox': typeof AdminMailboxRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
@@ -233,6 +240,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/trash': typeof TrashRoute
+  '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/mailbox': typeof AdminMailboxRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
@@ -265,6 +273,7 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/tickets': typeof TicketsRouteWithChildren
   '/trash': typeof TrashRoute
+  '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/mailbox': typeof AdminMailboxRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
@@ -298,6 +307,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/tickets'
     | '/trash'
+    | '/admin/diagnostics'
     | '/admin/mailbox'
     | '/admin/roles'
     | '/admin/teams'
@@ -327,6 +337,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tasks'
     | '/trash'
+    | '/admin/diagnostics'
     | '/admin/mailbox'
     | '/admin/roles'
     | '/admin/teams'
@@ -358,6 +369,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/tickets'
     | '/trash'
+    | '/admin/diagnostics'
     | '/admin/mailbox'
     | '/admin/roles'
     | '/admin/teams'
@@ -390,6 +402,7 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRoute
   TicketsRoute: typeof TicketsRouteWithChildren
   TrashRoute: typeof TrashRoute
+  AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
   AdminMailboxRoute: typeof AdminMailboxRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminTeamsRoute: typeof AdminTeamsRoute
@@ -603,6 +616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMailboxRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/diagnostics': {
+      id: '/admin/diagnostics'
+      path: '/admin/diagnostics'
+      fullPath: '/admin/diagnostics'
+      preLoaderRoute: typeof AdminDiagnosticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -664,6 +684,7 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRoute,
   TicketsRoute: TicketsRouteWithChildren,
   TrashRoute: TrashRoute,
+  AdminDiagnosticsRoute: AdminDiagnosticsRoute,
   AdminMailboxRoute: AdminMailboxRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminTeamsRoute: AdminTeamsRoute,
@@ -674,13 +695,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
