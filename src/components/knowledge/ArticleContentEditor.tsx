@@ -92,19 +92,27 @@ const PROMPT_META: Record<Exclude<NonNullable<CommentPrompt>["kind"], never>, { 
  */
 export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, onClose }: Props) {
   const [content, setContent] = useState(article.content_markdown ?? "");
+  const [title, setTitle] = useState(article.title ?? "");
   const [busy, setBusy] = useState(false);
   const [prompt, setPrompt] = useState<CommentPrompt>(null);
   const [comment, setComment] = useState("");
   const initialRef = useRef(article.content_markdown ?? "");
+  const initialTitleRef = useRef(article.title ?? "");
   const dirtyRef = useRef(false);
 
   useEffect(() => {
     initialRef.current = article.content_markdown ?? "";
+    initialTitleRef.current = article.title ?? "";
     setContent(article.content_markdown ?? "");
+    setTitle(article.title ?? "");
     dirtyRef.current = false;
-  }, [article.id, article.content_markdown]);
+  }, [article.id, article.content_markdown, article.title]);
 
-  const dirty = content !== initialRef.current;
+  const trimmedTitle = title.trim();
+  const titleInvalid = trimmedTitle.length === 0;
+  const titleDirty = trimmedTitle !== initialTitleRef.current.trim();
+  const contentDirty = content !== initialRef.current;
+  const dirty = contentDirty || titleDirty;
   dirtyRef.current = dirty;
 
   useEffect(() => {
@@ -120,11 +128,20 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
 
   async function saveDraft() {
     if (busy || !dirty) return;
+    if (titleInvalid) {
+      toast.error("Title cannot be empty.");
+      return;
+    }
     setBusy(true);
-    const res = await updateArticle({ id: article.id, contentMarkdown: content });
+    const patch: { id: string; contentMarkdown?: string; title?: string } = { id: article.id };
+    if (contentDirty) patch.contentMarkdown = content;
+    if (titleDirty) patch.title = trimmedTitle;
+    const res = await updateArticle(patch);
     setBusy(false);
     if (res.error) { toast.error(res.error); return; }
     initialRef.current = content;
+    initialTitleRef.current = trimmedTitle;
+    setTitle(trimmedTitle);
     toast.success("Draft saved.");
     onSaved();
   }
