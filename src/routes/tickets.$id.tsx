@@ -233,9 +233,6 @@ function TicketDetail() {
                       <Lock className="h-3 w-3" /> Internal note
                     </label>
                   )}
-                  <Button size="sm" variant="ghost" onClick={() => { addAttachment(ticket.id, `evidence-${ticket.attachments.length + 1}.png`); toast.success("Mock attachment added"); }}>
-                    <Paperclip className="mr-1 h-3.5 w-3.5" /> Attach (mock)
-                  </Button>
                 </div>
                 <Button size="sm" onClick={handleReply}>
                   <Send className="mr-1 h-3.5 w-3.5" /> Send
