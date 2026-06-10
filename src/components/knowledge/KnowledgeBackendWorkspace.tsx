@@ -620,6 +620,7 @@ export function KnowledgeBackendWorkspace() {
               onNewArticle={(spaceId, categoryId) => setArticleDialog({ open: true, initial: null, spaceId, categoryId })}
               onEditArticleMeta={(a) => setArticleDialog({ open: true, initial: a })}
               onDeleteArticle={handleDeleteArticle}
+              onArchiveArticle={handleArchiveArticle}
               onEditArticleTags={(a) => setTagsDialog({ open: true, articleId: a.id })}
               onReload={reload}
               recent={recent}
