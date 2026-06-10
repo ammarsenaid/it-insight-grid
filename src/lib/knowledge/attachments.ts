@@ -111,6 +111,14 @@ export async function uploadAttachment(input: {
     const path = `${input.teamId}/${input.articleId}/${id}-${fname}`;
     const mime = input.file.type || "application/octet-stream";
 
+    if (!isAllowedMime(mime)) {
+      return {
+        data: null,
+        error:
+          "This file type isn't allowed. Supported: PNG, JPEG, WebP, PDF, plain text, Markdown, DOCX, XLSX.",
+      };
+    }
+
     const up = await sb.storage.from(ATTACHMENTS_BUCKET).upload(path, input.file, {
       contentType: mime,
       cacheControl: "3600",
