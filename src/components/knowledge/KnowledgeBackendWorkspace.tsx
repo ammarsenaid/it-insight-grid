@@ -22,7 +22,6 @@ import {
   Clock,
   X,
   MoreHorizontal,
-  Library as LibraryIcon,
 } from "lucide-react";
 
 import {
