@@ -1101,6 +1101,7 @@ function SelectionView(p: SelectionViewProps) {
       onEditMeta={() => p.onEditArticleMeta(art)}
       onEditTags={() => p.onEditArticleTags(art)}
       onDelete={() => p.onDeleteArticle(art)}
+      onArchive={() => p.onArchiveArticle(art)}
       onReload={p.onReload}
     />
   );
