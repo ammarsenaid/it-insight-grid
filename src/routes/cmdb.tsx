@@ -359,14 +359,18 @@ function CMDBPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <MetricCard icon={Server} label="Total Assets" value={data.assets.length} accent="primary" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <MetricCard icon={Server} label="Total assets" value={data.assets.length} accent="primary" />
         <MetricCard icon={Activity} label="Active" value={active} accent="success" />
-        <MetricCard icon={Wrench} label="Maintenance" value={maint} accent="warning" />
-        <MetricCard icon={Archive} label="Retired" value={retired} accent="muted" />
+        <MetricCard icon={Wrench} label="In maintenance" value={maint} accent="warning" />
         <MetricCard icon={AlertCircle} label="Without IP" value={withoutIP} accent="danger" />
-        <MetricCard icon={FileText} label="Linked Docs" value={linkedDocs} accent="primary" />
+        <MetricCard icon={Archive} label="Retired" value={retired} accent="muted" />
       </div>
+      {linkedDocs > 0 && (
+        <div className="mt-2 px-1 text-[11px] text-muted-foreground">
+          <FileText className="mr-1 inline h-3 w-3" /> {linkedDocs} linked document{linkedDocs === 1 ? "" : "s"}
+        </div>
+      )}
 
       <div className="mt-6 glass-card rounded-2xl p-4">
         <div className="flex flex-wrap items-center gap-2">
