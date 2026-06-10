@@ -13,15 +13,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
-import {
-  archiveArticle,
-  restoreArticleToDraft,
-  updateArticle,
-} from "@/lib/knowledge/mutations";
+import { updateArticle } from "@/lib/knowledge/mutations";
 import {
   approveForPublication,
+  archiveArticle,
   publishApproved,
   requestChanges,
+  restoreArticleToDraft,
   submitForReview,
   withdrawFromReview,
 } from "@/lib/knowledge/review";
@@ -131,7 +129,7 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
 
   async function doArchive() {
     setBusy(true);
-    const res = await archiveArticle(article.id);
+    const res = await archiveArticle(article);
     setBusy(false);
     if (res.error) { toast.error(res.error); return; }
     toast.success("Article archived.");
@@ -140,7 +138,7 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
 
   async function doRestore() {
     setBusy(true);
-    const res = await restoreArticleToDraft(article.id);
+    const res = await restoreArticleToDraft(article);
     setBusy(false);
     if (res.error) { toast.error(res.error); return; }
     toast.success("Article restored to draft.");

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Send, RotateCcw, XCircle, Upload, ArrowLeftCircle } from "lucide-react";
+import { CheckCircle2, Send, RotateCcw, XCircle, Upload, ArrowLeftCircle, Archive } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/components/common/format";
@@ -11,6 +11,8 @@ const ACTION_LABEL: Record<ReviewAction, string> = {
   request_changes: "Changes requested",
   publish: "Published",
   withdraw: "Withdrawn",
+  archive: "Archived",
+  restore: "Restored to draft",
 };
 
 function ActionIcon({ action }: { action: ReviewAction }) {
@@ -21,6 +23,8 @@ function ActionIcon({ action }: { action: ReviewAction }) {
     case "request_changes": return <XCircle className={cls + " text-amber-300"} />;
     case "publish": return <Upload className={cls + " text-primary"} />;
     case "withdraw": return <ArrowLeftCircle className={cls + " text-muted-foreground"} />;
+    case "archive": return <Archive className={cls + " text-muted-foreground"} />;
+    case "restore": return <RotateCcw className={cls + " text-muted-foreground"} />;
     default: return <RotateCcw className={cls} />;
   }
 }
