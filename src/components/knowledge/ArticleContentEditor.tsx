@@ -180,13 +180,22 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
 
     // Persist any pending body changes first so reviewers see the latest content.
     if (dirty && (prompt.kind === "submit" || prompt.kind === "publish")) {
-      const saveRes = await updateArticle({ id: article.id, contentMarkdown: content });
+      if (titleInvalid) {
+        setBusy(false);
+        toast.error("Title cannot be empty.");
+        return;
+      }
+      const patch: { id: string; contentMarkdown?: string; title?: string } = { id: article.id };
+      if (contentDirty) patch.contentMarkdown = content;
+      if (titleDirty) patch.title = trimmedTitle;
+      const saveRes = await updateArticle(patch);
       if (saveRes.error) {
         setBusy(false);
         toast.error(saveRes.error);
         return;
       }
       initialRef.current = content;
+      initialTitleRef.current = trimmedTitle;
     }
 
     let res;
