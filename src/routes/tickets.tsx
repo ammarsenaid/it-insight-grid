@@ -13,14 +13,23 @@ import {
   Plus,
   MoreHorizontal,
   ChevronDown,
-  Save,
+  RefreshCw,
   Trash2,
   Tag,
   Users as UsersIcon,
   ArrowUpDown,
   Eye,
+  X,
+  Check,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { MetricCard } from "@/components/common/MetricCard";
