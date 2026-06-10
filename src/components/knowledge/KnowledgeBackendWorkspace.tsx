@@ -755,17 +755,45 @@ function SelectionView(p: SelectionViewProps) {
   const { data, selection, tagsByArticle, teamId, perms, onOpenArticle } = p;
 
   if (!selection) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-muted-foreground">
-        <div>
-          <FileText className="mx-auto mb-2 h-6 w-6 opacity-60" />
-          Select a Space, Category, or Article on the left.
-          <div className="mt-1 text-[11px] text-muted-foreground/70">Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search.</div>
-          {perms.manageTeam && data.spaces.length === 0 && (
-            <div className="mt-3">
-              <Button size="sm" onClick={p.onNewSpace}><Plus className="mr-1 h-3 w-3" /> Create first space</Button>
+    const noSpaces = data.spaces.length === 0;
+    if (noSpaces) {
+      return (
+        <div className="flex h-full items-center justify-center p-6">
+          <div className="w-full max-w-md rounded-2xl border border-border/40 bg-white/[0.02] p-8 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Library className="h-6 w-6" />
             </div>
-          )}
+            <h3 className="text-base font-semibold text-foreground">Create your first knowledge space</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Organize your documentation into spaces, categories and articles.
+            </p>
+            {perms.manageTeam ? (
+              <Button size="sm" className="mt-5" onClick={p.onNewSpace}>
+                <Plus className="mr-1 h-3 w-3" /> Create space
+              </Button>
+            ) : (
+              <p className="mt-5 text-xs text-muted-foreground/80">
+                Ask a team manager to create the first space.
+              </p>
+            )}
+            <p className="mt-4 text-[11px] text-muted-foreground/70">
+              Example: Infrastructure, Applications, Security or Service Desk.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted-foreground">
+        <div className="w-full max-w-sm rounded-2xl border border-border/40 bg-white/[0.02] p-6">
+          <FileText className="mx-auto mb-3 h-6 w-6 opacity-60" />
+          <h3 className="text-base font-semibold text-foreground">Select an article</h3>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Choose an article from the explorer or create a new one.
+          </p>
+          <div className="mt-1 text-[11px] text-muted-foreground/70">
+            Tip: press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search.
+          </div>
         </div>
         {p.recent.length > 0 && (
           <div className="w-full max-w-sm rounded-xl border border-border/40 bg-white/[0.02] p-3 text-left">
@@ -804,6 +832,7 @@ function SelectionView(p: SelectionViewProps) {
       </div>
     );
   }
+
 
   if (selection.kind === "space") {
     const space = data.spaces.find((s) => s.id === selection.id);
