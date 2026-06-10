@@ -527,7 +527,7 @@ function TasksPage() {
         ) : (
           <div className="mt-3 overflow-hidden rounded-xl border border-border/40">
             {filtered.length === 0 ? (
-              {(query || fCat !== "all" || fPrio !== "all" || fStatus !== "all" || fTeam !== "all" || fAssignee !== "all" || fSource !== "all" || fDue !== "all") ? (
+              (query || fCat !== "all" || fPrio !== "all" || fStatus !== "all" || fTeam !== "all" || fAssignee !== "all" || fSource !== "all" || fDue !== "all") ? (
                 <EmptyState
                   icon={CheckSquare}
                   title="No matching records"
@@ -541,8 +541,7 @@ function TasksPage() {
                   description="Create the first task to begin tracking operational work."
                   action={writable ? <Button size="sm" onClick={() => openCreate()}><Plus className="mr-1.5 h-3.5 w-3.5" /> Create task</Button> : undefined}
                 />
-              )}
-
+              )
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
