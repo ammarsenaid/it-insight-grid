@@ -16,7 +16,7 @@ import { useData } from "@/lib/data/store";
 import { roleLabel } from "@/lib/data/users";
 
 export const Route = createFileRoute("/admin/roles")({
-  head: () => ({ meta: [{ title: "Roles & Permissions · IT Knowledge Center" }] }),
+  head: () => ({ meta: [{ title: "Roles and Permissions · IT Knowledge Center" }] }),
   component: AdminRolesPage,
 });
 
@@ -49,7 +49,7 @@ function AdminRolesPage() {
   if (!allowed) {
     return (
       <div>
-        <PageHeader title="Roles & Permissions" description="Role definitions and permission matrix." />
+        <PageHeader title="Roles and Permissions" description="Control workspace capabilities and access levels." />
         <EmptyState icon={Lock} title="Admin access required" description="Switch to the IT Administrator role via the profile menu to view the permission matrix." />
       </div>
     );
