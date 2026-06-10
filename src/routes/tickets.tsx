@@ -86,7 +86,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+
 import { useRole, can } from "@/lib/permissions";
 
 export const Route = createFileRoute("/tickets")({
