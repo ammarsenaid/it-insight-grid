@@ -65,6 +65,7 @@ import {
   updateCategory,
   updateSpace,
 } from "@/lib/knowledge/mutations";
+import { archiveArticle as reviewArchiveArticle, restoreArticleToDraft } from "@/lib/knowledge/review";
 import { SpaceFormDialog } from "./dialogs/SpaceFormDialog";
 import { CategoryFormDialog } from "./dialogs/CategoryFormDialog";
 import { ArticleFormDialog } from "./dialogs/ArticleFormDialog";
@@ -337,6 +338,92 @@ export function KnowledgeBackendWorkspace() {
       },
     });
 
+  const handleArchiveArticle = (a: KbArticle) =>
+    setConfirm({
+      open: true,
+      title: a.status === "archived" ? "Restore article" : "Archive article",
+      description: a.status === "archived"
+        ? `Restore "${a.title}" to draft so it can be edited again.`
+        : `Archive "${a.title}". It will be hidden from the default view; content and history are preserved.`,
+      onConfirm: async () => {
+        const r = a.status === "archived"
+          ? await restoreArticleToDraft(a)
+          : await reviewArchiveArticle(a);
+        if (r.error) toast.error(r.error);
+        else { toast.success(a.status === "archived" ? "Article restored." : "Article archived."); reload(); }
+      },
+    });
+
+  // ----- Row context menu factories -----
+  const renderSpaceMenu = (s: KbSpace) => {
+    const items: React.ReactNode[] = [];
+    if (perms.update && !s.is_archived) {
+      items.push(
+        <DropdownMenuItem key="newcat" onClick={() => setCategoryDialog({ open: true, initial: null, spaceId: s.id })}>
+          <FolderTree className="mr-2 h-3.5 w-3.5" /> New category
+        </DropdownMenuItem>,
+      );
+    }
+    if (perms.manageTeam) {
+      items.push(
+        <DropdownMenuItem key="rename" onClick={() => setSpaceDialog({ open: true, initial: s })}>
+          <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
+        </DropdownMenuItem>,
+      );
+      items.push(
+        <DropdownMenuItem key="arch" onClick={() => handleArchiveSpace(s)}>
+          {s.is_archived ? <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</> : <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>}
+        </DropdownMenuItem>,
+      );
+    }
+    return items.length ? <>{items}</> : null;
+  };
+  const renderCategoryMenu = (c: KbCategory) => {
+    const items: React.ReactNode[] = [];
+    if (perms.create && !c.is_archived) {
+      items.push(
+        <DropdownMenuItem key="newart" onClick={() => setArticleDialog({ open: true, initial: null, spaceId: c.space_id, categoryId: c.id })}>
+          <FileText className="mr-2 h-3.5 w-3.5" /> New article
+        </DropdownMenuItem>,
+      );
+    }
+    if (perms.update) {
+      items.push(
+        <DropdownMenuItem key="rename" onClick={() => setCategoryDialog({ open: true, initial: c, spaceId: c.space_id })}>
+          <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
+        </DropdownMenuItem>,
+      );
+      items.push(
+        <DropdownMenuItem key="arch" onClick={() => handleArchiveCategory(c)}>
+          {c.is_archived ? <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</> : <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>}
+        </DropdownMenuItem>,
+      );
+    }
+    return items.length ? <>{items}</> : null;
+  };
+  const renderArticleMenu = (a: KbArticle) => {
+    const items: React.ReactNode[] = [];
+    items.push(
+      <DropdownMenuItem key="open" onClick={() => { setSelection({ kind: "article", id: a.id }); setEditingArticle(false); }}>
+        <FileText className="mr-2 h-3.5 w-3.5" /> Open
+      </DropdownMenuItem>,
+    );
+    if (perms.update) {
+      items.push(
+        <DropdownMenuItem key="rename" onClick={() => setArticleDialog({ open: true, initial: a })}>
+          <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
+        </DropdownMenuItem>,
+      );
+      items.push(
+        <DropdownMenuItem key="arch" onClick={() => handleArchiveArticle(a)}>
+          {a.status === "archived" ? <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</> : <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>}
+        </DropdownMenuItem>,
+      );
+    }
+    return <>{items}</>;
+  };
+
+
   return (
     <div className="space-y-3">
       {/* Header / status bar */}
@@ -494,6 +581,9 @@ export function KnowledgeBackendWorkspace() {
                       onSelect={setSelection}
                       matched={filteredArticleIds}
                       filterActive={!!ql || statusFilter !== "all" || !!tagFilter}
+                      renderSpaceMenu={renderSpaceMenu}
+                      renderCategoryMenu={renderCategoryMenu}
+                      renderArticleMenu={renderArticleMenu}
                     />
                   ))}
               </ul>
@@ -530,6 +620,7 @@ export function KnowledgeBackendWorkspace() {
               onNewArticle={(spaceId, categoryId) => setArticleDialog({ open: true, initial: null, spaceId, categoryId })}
               onEditArticleMeta={(a) => setArticleDialog({ open: true, initial: a })}
               onDeleteArticle={handleDeleteArticle}
+              onArchiveArticle={handleArchiveArticle}
               onEditArticleTags={(a) => setTagsDialog({ open: true, articleId: a.id })}
               onReload={reload}
               recent={recent}
@@ -603,8 +694,29 @@ export function KnowledgeBackendWorkspace() {
 
 // ----------------- Tree rows -----------------
 
+function RowMenu({ children }: { children: React.ReactNode }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="More actions"
+          onClick={(e) => e.stopPropagation()}
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/70 opacity-0 hover:bg-white/[0.06] hover:text-foreground focus:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+        >
+          <MoreHorizontal className="h-3.5 w-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function SpaceRow({
   space, categories, articles, expanded, toggle, selection, onSelect, matched, filterActive,
+  renderSpaceMenu, renderCategoryMenu, renderArticleMenu,
 }: {
   space: KbSpace;
   categories: KbCategory[];
@@ -615,6 +727,9 @@ function SpaceRow({
   onSelect: (s: Selection) => void;
   matched: Set<string> | null;
   filterActive: boolean;
+  renderSpaceMenu?: (s: KbSpace) => React.ReactNode;
+  renderCategoryMenu?: (c: KbCategory) => React.ReactNode;
+  renderArticleMenu?: (a: KbArticle) => React.ReactNode;
 }) {
   const isOpen = expanded.has(space.id) || filterActive;
   const isSelected = selection?.kind === "space" && selection.id === space.id;
@@ -622,20 +737,22 @@ function SpaceRow({
   const uncategorized = visibleArticles.filter((a) => !a.category_id);
 
   if (filterActive && visibleArticles.length === 0 && !space.name.toLowerCase().includes("")) {
-    // never matches filter; keep tree clean
     return null;
   }
 
+  const menu = renderSpaceMenu?.(space);
+
   return (
     <li>
-      <div className={cn("group flex items-center gap-1 rounded-md py-1 pr-1 text-sm", isSelected && "bg-primary/15 text-primary")}>
+      <div className={cn("group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]", isSelected && "bg-primary/15 text-primary")}>
         <button type="button" onClick={() => toggle(space.id)} className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground">
           {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
-        <button type="button" onClick={() => onSelect({ kind: "space", id: space.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
-          <Library className={cn("h-3.5 w-3.5", space.is_archived ? "text-muted-foreground" : "text-primary")} />
+        <button type="button" onClick={() => onSelect({ kind: "space", id: space.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title={space.name}>
+          <Library className={cn("h-3.5 w-3.5 shrink-0", space.is_archived ? "text-muted-foreground" : "text-primary")} />
           <span className={cn("truncate font-semibold", space.is_archived && "italic text-muted-foreground")}>{space.name}</span>
         </button>
+        {menu && <RowMenu>{menu}</RowMenu>}
       </div>
 
       {isOpen && (
@@ -650,10 +767,12 @@ function SpaceRow({
               selection={selection}
               onSelect={onSelect}
               filterActive={filterActive}
+              renderCategoryMenu={renderCategoryMenu}
+              renderArticleMenu={renderArticleMenu}
             />
           ))}
           {uncategorized.map((a) => (
-            <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} />
+            <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} renderArticleMenu={renderArticleMenu} />
           ))}
           {categories.length === 0 && uncategorized.length === 0 && (
             <li className="px-2 py-1 text-[11px] text-muted-foreground/70">Empty space</li>
@@ -666,6 +785,7 @@ function SpaceRow({
 
 function CategoryRow({
   category, articles, expanded, toggle, selection, onSelect, filterActive,
+  renderCategoryMenu, renderArticleMenu,
 }: {
   category: KbCategory;
   articles: KbArticle[];
@@ -674,26 +794,31 @@ function CategoryRow({
   selection: Selection;
   onSelect: (s: Selection) => void;
   filterActive: boolean;
+  renderCategoryMenu?: (c: KbCategory) => React.ReactNode;
+  renderArticleMenu?: (a: KbArticle) => React.ReactNode;
 }) {
   const isOpen = expanded.has(category.id) || filterActive;
   const isSelected = selection?.kind === "category" && selection.id === category.id;
   if (filterActive && articles.length === 0) return null;
 
+  const menu = renderCategoryMenu?.(category);
+
   return (
     <li>
-      <div className={cn("group flex items-center gap-1 rounded-md py-1 pr-1 text-sm", isSelected && "bg-primary/15 text-primary")}>
+      <div className={cn("group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]", isSelected && "bg-primary/15 text-primary")}>
         <button type="button" onClick={() => toggle(category.id)} className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground">
           {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
-        <button type="button" onClick={() => onSelect({ kind: "category", id: category.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
-          <FolderTree className={cn("h-3.5 w-3.5", category.is_archived ? "text-muted-foreground" : "text-primary/70")} />
+        <button type="button" onClick={() => onSelect({ kind: "category", id: category.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title={category.name}>
+          <FolderTree className={cn("h-3.5 w-3.5 shrink-0", category.is_archived ? "text-muted-foreground" : "text-primary/70")} />
           <span className={cn("truncate font-medium", category.is_archived && "italic text-muted-foreground")}>{category.name}</span>
-          <span className="ml-auto text-[10px] text-muted-foreground/70">{articles.length}</span>
+          <span className="ml-1 text-[10px] text-muted-foreground/70">{articles.length}</span>
         </button>
+        {menu && <RowMenu>{menu}</RowMenu>}
       </div>
       {isOpen && (
         <ul className="ml-3 space-y-0.5 border-l border-border/30 pl-2">
-          {articles.map((a) => <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} />)}
+          {articles.map((a) => <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} renderArticleMenu={renderArticleMenu} />)}
           {articles.length === 0 && <li className="px-2 py-1 text-[11px] text-muted-foreground/70">No articles</li>}
         </ul>
       )}
@@ -701,30 +826,39 @@ function CategoryRow({
   );
 }
 
-function ArticleRow({ article, selection, onSelect }: {
+function ArticleRow({ article, selection, onSelect, renderArticleMenu }: {
   article: KbArticle; selection: Selection; onSelect: (s: Selection) => void;
+  renderArticleMenu?: (a: KbArticle) => React.ReactNode;
 }) {
   const isSelected = selection?.kind === "article" && selection.id === article.id;
   const dim = article.status === "archived";
+  const menu = renderArticleMenu?.(article);
   return (
     <li>
-      <button
-        type="button"
-        onClick={() => onSelect({ kind: "article", id: article.id })}
+      <div
         className={cn(
-          "flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-white/[0.04]",
+          "group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-white/[0.04]",
           isSelected && "bg-primary/15 text-primary",
           dim && "opacity-60",
         )}
       >
-        <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        <span className="truncate">{article.title}</span>
-        {article.status === "draft" && <Badge variant="outline" className="ml-auto h-4 text-[9px]">Draft</Badge>}
-        {article.status === "archived" && <Badge variant="outline" className="ml-auto h-4 text-[9px]">Arch</Badge>}
-      </button>
+        <button
+          type="button"
+          onClick={() => onSelect({ kind: "article", id: article.id })}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          title={article.title}
+        >
+          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate">{article.title}</span>
+        </button>
+        {article.status === "draft" && <Badge variant="outline" className="h-4 text-[9px]">Draft</Badge>}
+        {article.status === "archived" && <Badge variant="outline" className="h-4 text-[9px]">Arch</Badge>}
+        {menu && <RowMenu>{menu}</RowMenu>}
+      </div>
     </li>
   );
 }
+
 
 // ----------------- Main content -----------------
 
@@ -749,6 +883,7 @@ interface SelectionViewProps {
   onNewArticle: (spaceId: string, categoryId: string | null) => void;
   onEditArticleMeta: (a: KbArticle) => void;
   onDeleteArticle: (a: KbArticle) => void;
+  onArchiveArticle: (a: KbArticle) => void;
   onEditArticleTags: (a: KbArticle) => void;
   onReload: () => void;
   recent: Array<{ id: string; title: string; teamId: string; at: number }>;
@@ -966,6 +1101,7 @@ function SelectionView(p: SelectionViewProps) {
       onEditMeta={() => p.onEditArticleMeta(art)}
       onEditTags={() => p.onEditArticleTags(art)}
       onDelete={() => p.onDeleteArticle(art)}
+      onArchive={() => p.onArchiveArticle(art)}
       onReload={p.onReload}
     />
   );
@@ -1036,15 +1172,15 @@ function ArticleTable({ articles, categories, onOpen }: {
 
 function ArticleView({
   article, tags, breadcrumb, teamId, canUpdate, canDelete,
-  onEditContent, onEditMeta, onEditTags, onDelete, onReload,
+  onEditContent, onEditMeta, onEditTags, onDelete, onArchive, onReload,
 }: {
   article: KbArticle; tags: string[]; breadcrumb: string; teamId: string;
   canUpdate: boolean; canDelete: boolean;
   onEditContent: () => void; onEditMeta: () => void; onEditTags: () => void;
-  onDelete: () => void; onReload: () => void;
+  onDelete: () => void; onArchive: () => void; onReload: () => void;
 }) {
-  type SidePanel = "none" | "revisions" | "review" | "outline" | "audit";
-  const [panel, setPanel] = useState<SidePanel>("outline");
+  type Tab = "content" | "outline" | "review" | "revisions" | "audit";
+  const [tab, setTab] = useState<Tab>("content");
   const handleCopyLink = async () => {
     try {
       const base = typeof window !== "undefined" ? window.location.origin : "";
@@ -1055,39 +1191,95 @@ function ArticleView({
       toast.error("Could not copy link.");
     }
   };
+
+  const breadcrumbParts = breadcrumb
+    ? [...breadcrumb.split(" / "), article.title]
+    : [article.title];
+
+  const TABS: Array<{ id: Tab; label: string; icon: typeof ListIcon }> = [
+    { id: "content", label: "Content", icon: FileText },
+    { id: "outline", label: "Outline", icon: ListIcon },
+    { id: "review", label: "Review", icon: History },
+    { id: "revisions", label: "Revisions", icon: History },
+    { id: "audit", label: "Audit", icon: History },
+  ];
+
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
+      {/* Header */}
       <div>
-        <div className="flex items-start gap-2">
-          <Header
-            icon={<FileText className="h-4 w-4 text-muted-foreground" />}
-            label="Article"
-            title={article.title}
-            subtitle={article.excerpt ?? undefined}
-            breadcrumb={breadcrumb || undefined}
-          />
+        <nav className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground" aria-label="Breadcrumb">
+          {breadcrumbParts.map((p, i) => (
+            <span key={`${p}-${i}`} className="flex items-center gap-1">
+              {i > 0 && <ChevronRight className="h-3 w-3 opacity-60" />}
+              <span className={cn("truncate", i === breadcrumbParts.length - 1 && "text-foreground/80")}>{p}</span>
+            </span>
+          ))}
+        </nav>
+        <div className="mt-1 flex items-start gap-2">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold">{article.title}</h2>
+            {article.excerpt && (
+              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{article.excerpt}</p>
+            )}
+          </div>
           <div className="ml-auto flex flex-wrap items-center gap-1">
             {canUpdate && (
-              <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onEditContent}>
-                <Pencil className="mr-1 h-3 w-3" /> Edit content
+              <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onEditContent} title="Open the editor">
+                <Pencil className="mr-1 h-3 w-3" /> Write
               </Button>
             )}
-            {canUpdate && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onEditMeta}>Metadata</Button>
-            )}
-            {canUpdate && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onEditTags}>
-                <TagsIcon className="mr-1 h-3 w-3" /> Tags
-              </Button>
-            )}
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleCopyLink}>
-              <Link2 className="mr-1 h-3 w-3" /> Copy link
+            <Button
+              size="sm"
+              variant={tab === "content" ? "secondary" : "ghost"}
+              className="h-7 text-xs"
+              onClick={() => setTab("content")}
+              title="Read the published content"
+            >
+              <FileText className="mr-1 h-3 w-3" /> Preview
             </Button>
-            {canDelete && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={onDelete}>
-                <Trash2 className="mr-1 h-3 w-3" />
-              </Button>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="More actions" title="More actions">
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {canUpdate && (
+                  <DropdownMenuItem onClick={onEditMeta}>
+                    <Pencil className="mr-2 h-3.5 w-3.5" /> Edit details
+                  </DropdownMenuItem>
+                )}
+                {canUpdate && (
+                  <DropdownMenuItem onClick={onEditTags}>
+                    <TagsIcon className="mr-2 h-3.5 w-3.5" /> Edit tags
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleCopyLink}>
+                  <Link2 className="mr-2 h-3.5 w-3.5" /> Copy link
+                </DropdownMenuItem>
+                {canUpdate && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onArchive}>
+                      {article.status === "archived" ? (
+                        <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</>
+                      ) : (
+                        <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>
+                      )}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {canDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                      <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete…
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
@@ -1101,59 +1293,80 @@ function ArticleView({
               {tags.map((t) => <Badge key={t} variant="secondary" className="h-5 text-[10px]">#{t}</Badge>)}
             </div>
           )}
-          <div className="ml-auto flex items-center gap-1">
-            <Button size="sm" variant={panel === "outline" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
-              onClick={() => setPanel((p) => (p === "outline" ? "none" : "outline"))}>
-              <ListIcon className="mr-1 h-3 w-3" />Outline
-            </Button>
-            <Button size="sm" variant={panel === "review" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
-              onClick={() => setPanel((p) => (p === "review" ? "none" : "review"))}>
-              <History className="mr-1 h-3 w-3" />Review
-            </Button>
-            <Button size="sm" variant={panel === "revisions" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
-              onClick={() => setPanel((p) => (p === "revisions" ? "none" : "revisions"))}>
-              <History className="mr-1 h-3 w-3" />Revisions
-            </Button>
-            <Button size="sm" variant={panel === "audit" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
-              onClick={() => setPanel((p) => (p === "audit" ? "none" : "audit"))}>
-              <History className="mr-1 h-3 w-3" />Audit
-            </Button>
-          </div>
         </div>
       </div>
 
-      <div className={cn("grid min-h-0 gap-3", panel !== "none" && "lg:grid-cols-[minmax(0,1fr)_300px]")}>
-        <div className="min-h-0 space-y-3 overflow-y-auto">
-          <div className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
-            {article.content_markdown ? <Markdown source={article.content_markdown} /> : <p className="text-sm text-muted-foreground">This article has no content yet.</p>}
+      {/* Tab bar */}
+      <div className="-mb-px flex flex-wrap items-center gap-1 overflow-x-auto border-b border-border/40">
+        {TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-1.5 text-xs font-medium transition-colors",
+                active
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <t.icon className="h-3 w-3" /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Body */}
+      <div className="min-h-0 overflow-y-auto">
+        {tab === "content" && (
+          <div className="space-y-3">
+            <article className="prose-knowledge mx-auto max-w-3xl rounded-xl border border-border/40 bg-white/[0.02] p-6">
+              {article.content_markdown
+                ? <Markdown source={article.content_markdown} />
+                : <p className="text-sm text-muted-foreground">This article has no content yet.</p>}
+            </article>
+            <div className="mx-auto max-w-3xl">
+              <AttachmentsPanel articleId={article.id} teamId={teamId} canUpdate={canUpdate} />
+            </div>
           </div>
-          <AttachmentsPanel articleId={article.id} teamId={teamId} canUpdate={canUpdate} />
-        </div>
-        {panel === "outline" && <ArticleTOC markdown={article.content_markdown ?? ""} />}
-        {panel === "revisions" && (
-          <RevisionsPanel
-            articleId={article.id}
-            teamId={teamId}
-            canRestore={canUpdate}
-            currentRev={article.revision_number}
-            onRestored={onReload}
-          />
         )}
-        {panel === "review" && (
-          <ReviewTimelinePanel
-            articleId={article.id}
-            teamId={teamId}
-            refreshKey={`${article.revision_number}:${article.status}`}
-          />
+        {tab === "outline" && (
+          <div className="mx-auto max-w-3xl">
+            <ArticleTOC markdown={article.content_markdown ?? ""} />
+          </div>
         )}
-        {panel === "audit" && (
-          <AuditLogPanel
-            teamId={teamId}
-            entityType="article"
-            entityId={article.id}
-            title="Article audit"
-            limit={50}
-          />
+        {tab === "review" && (
+          <div className="mx-auto max-w-3xl">
+            <ReviewTimelinePanel
+              articleId={article.id}
+              teamId={teamId}
+              refreshKey={`${article.revision_number}:${article.status}`}
+            />
+          </div>
+        )}
+        {tab === "revisions" && (
+          <div className="mx-auto max-w-3xl">
+            <RevisionsPanel
+              articleId={article.id}
+              teamId={teamId}
+              canRestore={canUpdate}
+              currentRev={article.revision_number}
+              onRestored={onReload}
+            />
+          </div>
+        )}
+        {tab === "audit" && (
+          <div className="mx-auto max-w-3xl">
+            <AuditLogPanel
+              teamId={teamId}
+              entityType="article"
+              entityId={article.id}
+              title="Article audit"
+              limit={50}
+            />
+          </div>
         )}
       </div>
     </div>
