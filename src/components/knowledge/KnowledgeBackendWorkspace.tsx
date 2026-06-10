@@ -1172,15 +1172,15 @@ function ArticleTable({ articles, categories, onOpen }: {
 
 function ArticleView({
   article, tags, breadcrumb, teamId, canUpdate, canDelete,
-  onEditContent, onEditMeta, onEditTags, onDelete, onReload,
+  onEditContent, onEditMeta, onEditTags, onDelete, onArchive, onReload,
 }: {
   article: KbArticle; tags: string[]; breadcrumb: string; teamId: string;
   canUpdate: boolean; canDelete: boolean;
   onEditContent: () => void; onEditMeta: () => void; onEditTags: () => void;
-  onDelete: () => void; onReload: () => void;
+  onDelete: () => void; onArchive: () => void; onReload: () => void;
 }) {
-  type SidePanel = "none" | "revisions" | "review" | "outline" | "audit";
-  const [panel, setPanel] = useState<SidePanel>("outline");
+  type Tab = "content" | "outline" | "review" | "revisions" | "audit";
+  const [tab, setTab] = useState<Tab>("content");
   const handleCopyLink = async () => {
     try {
       const base = typeof window !== "undefined" ? window.location.origin : "";
@@ -1191,39 +1191,95 @@ function ArticleView({
       toast.error("Could not copy link.");
     }
   };
+
+  const breadcrumbParts = breadcrumb
+    ? [...breadcrumb.split(" / "), article.title]
+    : [article.title];
+
+  const TABS: Array<{ id: Tab; label: string; icon: typeof ListIcon }> = [
+    { id: "content", label: "Content", icon: FileText },
+    { id: "outline", label: "Outline", icon: ListIcon },
+    { id: "review", label: "Review", icon: History },
+    { id: "revisions", label: "Revisions", icon: History },
+    { id: "audit", label: "Audit", icon: History },
+  ];
+
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
+      {/* Header */}
       <div>
-        <div className="flex items-start gap-2">
-          <Header
-            icon={<FileText className="h-4 w-4 text-muted-foreground" />}
-            label="Article"
-            title={article.title}
-            subtitle={article.excerpt ?? undefined}
-            breadcrumb={breadcrumb || undefined}
-          />
+        <nav className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground" aria-label="Breadcrumb">
+          {breadcrumbParts.map((p, i) => (
+            <span key={`${p}-${i}`} className="flex items-center gap-1">
+              {i > 0 && <ChevronRight className="h-3 w-3 opacity-60" />}
+              <span className={cn("truncate", i === breadcrumbParts.length - 1 && "text-foreground/80")}>{p}</span>
+            </span>
+          ))}
+        </nav>
+        <div className="mt-1 flex items-start gap-2">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold">{article.title}</h2>
+            {article.excerpt && (
+              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{article.excerpt}</p>
+            )}
+          </div>
           <div className="ml-auto flex flex-wrap items-center gap-1">
             {canUpdate && (
-              <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onEditContent}>
-                <Pencil className="mr-1 h-3 w-3" /> Edit content
+              <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onEditContent} title="Open the editor">
+                <Pencil className="mr-1 h-3 w-3" /> Write
               </Button>
             )}
-            {canUpdate && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onEditMeta}>Metadata</Button>
-            )}
-            {canUpdate && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onEditTags}>
-                <TagsIcon className="mr-1 h-3 w-3" /> Tags
-              </Button>
-            )}
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleCopyLink}>
-              <Link2 className="mr-1 h-3 w-3" /> Copy link
+            <Button
+              size="sm"
+              variant={tab === "content" ? "secondary" : "ghost"}
+              className="h-7 text-xs"
+              onClick={() => setTab("content")}
+              title="Read the published content"
+            >
+              <FileText className="mr-1 h-3 w-3" /> Preview
             </Button>
-            {canDelete && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={onDelete}>
-                <Trash2 className="mr-1 h-3 w-3" />
-              </Button>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="More actions" title="More actions">
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {canUpdate && (
+                  <DropdownMenuItem onClick={onEditMeta}>
+                    <Pencil className="mr-2 h-3.5 w-3.5" /> Edit details
+                  </DropdownMenuItem>
+                )}
+                {canUpdate && (
+                  <DropdownMenuItem onClick={onEditTags}>
+                    <TagsIcon className="mr-2 h-3.5 w-3.5" /> Edit tags
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleCopyLink}>
+                  <Link2 className="mr-2 h-3.5 w-3.5" /> Copy link
+                </DropdownMenuItem>
+                {canUpdate && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onArchive}>
+                      {article.status === "archived" ? (
+                        <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</>
+                      ) : (
+                        <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>
+                      )}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {canDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                      <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete…
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
@@ -1237,59 +1293,80 @@ function ArticleView({
               {tags.map((t) => <Badge key={t} variant="secondary" className="h-5 text-[10px]">#{t}</Badge>)}
             </div>
           )}
-          <div className="ml-auto flex items-center gap-1">
-            <Button size="sm" variant={panel === "outline" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
-              onClick={() => setPanel((p) => (p === "outline" ? "none" : "outline"))}>
-              <ListIcon className="mr-1 h-3 w-3" />Outline
-            </Button>
-            <Button size="sm" variant={panel === "review" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
-              onClick={() => setPanel((p) => (p === "review" ? "none" : "review"))}>
-              <History className="mr-1 h-3 w-3" />Review
-            </Button>
-            <Button size="sm" variant={panel === "revisions" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
-              onClick={() => setPanel((p) => (p === "revisions" ? "none" : "revisions"))}>
-              <History className="mr-1 h-3 w-3" />Revisions
-            </Button>
-            <Button size="sm" variant={panel === "audit" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
-              onClick={() => setPanel((p) => (p === "audit" ? "none" : "audit"))}>
-              <History className="mr-1 h-3 w-3" />Audit
-            </Button>
-          </div>
         </div>
       </div>
 
-      <div className={cn("grid min-h-0 gap-3", panel !== "none" && "lg:grid-cols-[minmax(0,1fr)_300px]")}>
-        <div className="min-h-0 space-y-3 overflow-y-auto">
-          <div className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
-            {article.content_markdown ? <Markdown source={article.content_markdown} /> : <p className="text-sm text-muted-foreground">This article has no content yet.</p>}
+      {/* Tab bar */}
+      <div className="-mb-px flex flex-wrap items-center gap-1 overflow-x-auto border-b border-border/40">
+        {TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-1.5 text-xs font-medium transition-colors",
+                active
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <t.icon className="h-3 w-3" /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Body */}
+      <div className="min-h-0 overflow-y-auto">
+        {tab === "content" && (
+          <div className="space-y-3">
+            <article className="prose-knowledge mx-auto max-w-3xl rounded-xl border border-border/40 bg-white/[0.02] p-6">
+              {article.content_markdown
+                ? <Markdown source={article.content_markdown} />
+                : <p className="text-sm text-muted-foreground">This article has no content yet.</p>}
+            </article>
+            <div className="mx-auto max-w-3xl">
+              <AttachmentsPanel articleId={article.id} teamId={teamId} canUpdate={canUpdate} />
+            </div>
           </div>
-          <AttachmentsPanel articleId={article.id} teamId={teamId} canUpdate={canUpdate} />
-        </div>
-        {panel === "outline" && <ArticleTOC markdown={article.content_markdown ?? ""} />}
-        {panel === "revisions" && (
-          <RevisionsPanel
-            articleId={article.id}
-            teamId={teamId}
-            canRestore={canUpdate}
-            currentRev={article.revision_number}
-            onRestored={onReload}
-          />
         )}
-        {panel === "review" && (
-          <ReviewTimelinePanel
-            articleId={article.id}
-            teamId={teamId}
-            refreshKey={`${article.revision_number}:${article.status}`}
-          />
+        {tab === "outline" && (
+          <div className="mx-auto max-w-3xl">
+            <ArticleTOC markdown={article.content_markdown ?? ""} />
+          </div>
         )}
-        {panel === "audit" && (
-          <AuditLogPanel
-            teamId={teamId}
-            entityType="article"
-            entityId={article.id}
-            title="Article audit"
-            limit={50}
-          />
+        {tab === "review" && (
+          <div className="mx-auto max-w-3xl">
+            <ReviewTimelinePanel
+              articleId={article.id}
+              teamId={teamId}
+              refreshKey={`${article.revision_number}:${article.status}`}
+            />
+          </div>
+        )}
+        {tab === "revisions" && (
+          <div className="mx-auto max-w-3xl">
+            <RevisionsPanel
+              articleId={article.id}
+              teamId={teamId}
+              canRestore={canUpdate}
+              currentRev={article.revision_number}
+              onRestored={onReload}
+            />
+          </div>
+        )}
+        {tab === "audit" && (
+          <div className="mx-auto max-w-3xl">
+            <AuditLogPanel
+              teamId={teamId}
+              entityType="article"
+              entityId={article.id}
+              title="Article audit"
+              limit={50}
+            />
+          </div>
         )}
       </div>
     </div>
