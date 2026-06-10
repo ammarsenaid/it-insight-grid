@@ -93,8 +93,8 @@ function AdminTeamsPage() {
     <div>
       <PageHeader
         title="Teams"
-        description="Service desk and operations teams — queue ownership, membership and asset scopes."
-        actions={<Button size="sm" onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" /> New team</Button>}
+        description="Manage team ownership, membership and workspace access."
+        actions={<Button size="sm" onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" /> Add team</Button>}
       />
 
       <div className="mb-4 flex items-center justify-end">

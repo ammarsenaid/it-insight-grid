@@ -91,7 +91,7 @@ function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="Settings" description="Configure application preferences and manage local prototype data." />
+      <PageHeader title="Settings" description="Configure application preferences and manage local data." />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card title="General">
@@ -120,7 +120,7 @@ function SettingsPage() {
           <Row label="Sidebar collapsed by default"><Switch checked={s.sidebarCollapsed} onCheckedChange={(v) => updateSettings({ sidebarCollapsed: v })} /></Row>
         </Card>
 
-        <Card title="Local Prototype Storage" className="lg:col-span-2">
+        <Card title="Local Data" className="lg:col-span-2">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Storage" value="Active" tone="success" />
             <Stat label="Knowledge Pages" value={knowledgePageCount} />
@@ -135,12 +135,12 @@ function SettingsPage() {
             <Button onClick={doExport}><Download className="mr-1.5 h-4 w-4" /> Export JSON</Button>
             <Button variant="secondary" onClick={() => fileRef.current?.click()}><Upload className="mr-1.5 h-4 w-4" /> Import JSON</Button>
             <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) previewImport(f); e.target.value = ""; }} />
-            <Button variant="secondary" onClick={() => setConfirmReset(true)}><RotateCcw className="mr-1.5 h-4 w-4" /> Reset demo data</Button>
+            <Button variant="secondary" onClick={() => setConfirmReset(true)}><RotateCcw className="mr-1.5 h-4 w-4" /> Reset to defaults</Button>
             <Button variant="destructive" onClick={() => setConfirmClear(true)}><Trash2 className="mr-1.5 h-4 w-4" /> Clear all</Button>
           </div>
         </Card>
 
-        <Card title="Mock Backup Snapshots" className="lg:col-span-2">
+        <Card title="Backup Snapshots" className="lg:col-span-2">
           <div className="flex flex-wrap items-end gap-2">
             <div className="flex-1 min-w-48 space-y-1.5"><Label className="text-xs text-muted-foreground">Snapshot name</Label><Input value={snapshotName} onChange={(e) => setSnapshotName(e.target.value)} placeholder="Optional name" /></div>
             <Button onClick={createSnapshot}><Plus className="mr-1.5 h-4 w-4" /> Create Snapshot</Button>
@@ -164,15 +164,15 @@ function SettingsPage() {
         </Card>
       </div>
 
-      <ConfirmDialog open={confirmReset} onOpenChange={setConfirmReset} title="Reset demo data?" description="All current data will be replaced with the original sample dataset." destructive confirmLabel="Reset"
-        onConfirm={() => { resetDemo(); toast.success("Demo data restored"); setConfirmReset(false); }} />
+      <ConfirmDialog open={confirmReset} onOpenChange={setConfirmReset} title="Reset to defaults?" description="All current data will be replaced with the default dataset." destructive confirmLabel="Reset"
+        onConfirm={() => { resetDemo(); toast.success("Data restored to defaults"); setConfirmReset(false); }} />
       <ConfirmDialog open={confirmClear} onOpenChange={setConfirmClear} title="Clear all local data?" description="Everything will be removed. This cannot be undone." destructive confirmLabel="Clear"
         onConfirm={() => { clearAll(); toast.success("All data cleared"); setConfirmClear(false); }} />
       <ConfirmDialog
         open={!!importPreview}
         onOpenChange={(o) => !o && setImportPreview(null)}
         title={importPreview?.ok ? "Replace local data with import?" : "Invalid import file"}
-        description={importPreview?.ok ? "Review the contents below — your current data will be replaced." : "The selected file does not appear to be a valid prototype backup."}
+        description={importPreview?.ok ? "Review the contents below — your current data will be replaced." : "The selected file does not appear to be a valid backup."}
         destructive={importPreview?.ok}
         confirmLabel={importPreview?.ok ? "Replace data" : "OK"}
         onConfirm={() => importPreview?.ok ? confirmImport() : setImportPreview(null)}

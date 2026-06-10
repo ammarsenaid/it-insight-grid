@@ -110,8 +110,8 @@ function AdminUsersPage() {
     <div>
       <PageHeader
         title="Users"
-        description="Internal directory of users with department, team and role assignments. Backend identity provider sync will be added later — edits are currently local."
-        actions={<Button size="sm" onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" /> New user</Button>}
+        description="Manage workspace users and access."
+        actions={<Button size="sm" onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" /> Add user</Button>}
       />
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -182,7 +182,7 @@ function AdminUsersPage() {
       </SectionCard>
 
       {/* Create */}
-      <FormDrawer open={createOpen} onOpenChange={setCreateOpen} title="New user" description="Mock user record stored locally." onSubmit={submitCreate} submitLabel="Create user">
+      <FormDrawer open={createOpen} onOpenChange={setCreateOpen} title="Add user" onSubmit={submitCreate} submitLabel="Save user">
         <UserForm draft={draft} setDraft={setDraft} teams={data.teams.map((t) => t.name)} />
       </FormDrawer>
 

@@ -86,7 +86,7 @@ function ReportsPage() {
     <div>
       <PageHeader
         title="Reports"
-        description="Operational metrics, SLA performance, and inventory health."
+        description="Monitor service performance and operational trends."
         actions={
           <div className="flex items-center gap-2">
             <Select value={range} onValueChange={setRange}>

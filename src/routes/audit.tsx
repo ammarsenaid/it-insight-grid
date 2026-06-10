@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DetailsDrawer } from "@/components/common/DetailsDrawer";
 import { useData } from "@/lib/data/store";
-import { can, useRole } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
 import { formatDateTime, timeAgo } from "@/components/common/format";
 import { toCSV, downloadCSV } from "@/lib/csv";
 import type { ActivityLog } from "@/lib/data/types";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/audit")({
 
 function AuditPage() {
   const data = useData();
-  const role = useRole();
+  
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -94,7 +94,7 @@ function AuditPage() {
     <div>
       <PageHeader
         title="Audit Log"
-        description="Immutable record of administrative and operational events. Role-aware visibility."
+        description="Review important activity across the workspace."
         actions={<Button onClick={doExport} variant="secondary"><Download className="mr-1.5 h-4 w-4" /> Export CSV</Button>}
       />
 
@@ -136,7 +136,11 @@ function AuditPage() {
           data={filtered}
           columns={columns}
           pageSize={data.settings.tablePageSize}
-          emptyState={<EmptyState icon={ShieldCheck} title="No audit events" description={role === "auditor" ? "No events match the current filters." : "Activity will appear here as you operate the prototype."} />}
+          emptyState={
+            (q || from || to || actor !== "__all" || mod !== "__all" || action !== "__all")
+              ? <EmptyState icon={ShieldCheck} title="No matching events" description="Try adjusting filters or clearing them to see all activity." actionLabel="Clear filters" onAction={reset} />
+              : <EmptyState icon={ShieldCheck} title="No audit events" description="Activity will appear here as users work across the platform." />
+          }
         />
       </div>
 

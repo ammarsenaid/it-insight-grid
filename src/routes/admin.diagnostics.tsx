@@ -43,7 +43,7 @@ function DiagnosticsPage() {
             </li>
             <li className="flex items-center justify-between text-muted-foreground">
               <span className="flex items-center gap-2">
-                <Ticket className="h-3.5 w-3.5" /> Tickets (local sample data)
+                <Ticket className="h-3.5 w-3.5" /> Tickets in local store
               </span>
               <span className="font-mono text-foreground/80">{data.tickets.length}</span>
             </li>
@@ -60,10 +60,10 @@ function DiagnosticsPage() {
             className="mt-4"
             onClick={() => {
               refreshFromStorage();
-              toast.success("Local sample data refreshed");
+              toast.success("Local data refreshed");
             }}
           >
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh local sample data
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh local data
           </Button>
         </SectionCard>
 
