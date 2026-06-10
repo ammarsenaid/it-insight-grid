@@ -21,7 +21,18 @@ import {
   Link2,
   Clock,
   X,
+  MoreHorizontal,
+  Library as LibraryIcon,
 } from "lucide-react";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const documentsRouteApi = getRouteApi("/documents");
 
