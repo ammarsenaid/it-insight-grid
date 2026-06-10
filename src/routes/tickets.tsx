@@ -655,24 +655,40 @@ function SelectFilter({
   );
 }
 
-function SavedViewsMenu({ views, onApply, onDelete }: { views: { id: string; name: string; query: string; filters: Record<string, string> }[]; onApply: (f: Record<string, string>) => void; onDelete: (id: string) => void }) {
+function SavedViewsMenu({ views, onApply, onDelete, onSaveCurrent }: { views: { id: string; name: string; query: string; filters: Record<string, string> }[]; onApply: (f: Record<string, string>) => void; onDelete: (id: string) => void; onSaveCurrent?: () => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="secondary"><Eye className="mr-1.5 h-4 w-4" /> Saved views <ChevronDown className="ml-1 h-3 w-3" /></Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>Saved views</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {views.length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No saved views yet</div>}
         {views.map((v) => (
-          <DropdownMenuItem key={v.id} onClick={() => onApply(v.filters)} className="flex items-center justify-between">
+          <DropdownMenuItem key={v.id} onClick={() => onApply(v.filters)} className="flex items-center justify-between gap-2">
             <span className="truncate">{v.name}</span>
             <button onClick={(e) => { e.stopPropagation(); onDelete(v.id); }} className="ml-2 text-[10px] text-muted-foreground hover:text-[#FF7C91]">remove</button>
           </DropdownMenuItem>
         ))}
+        {onSaveCurrent && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onSaveCurrent}>
+              <Check className="mr-2 h-3.5 w-3.5" /> Save current view…
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function MetricButton({ icon, label, value, accent, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; value: number; accent: "primary" | "success" | "warning" | "danger" | "muted"; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-2xl">
+      <MetricCard icon={icon as never} label={label} value={value} accent={accent} />
+    </button>
   );
 }
 
