@@ -86,7 +86,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+
 import { useRole, can } from "@/lib/permissions";
 
 export const Route = createFileRoute("/tickets")({
@@ -911,26 +911,7 @@ function CreateTicketDrawer({
           <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="comma, separated" />
         </Row>
       </div>
-      <Row label="Attachments (prototype)">
-        <div className="rounded-xl border border-dashed border-border/60 bg-background/30 p-3 text-xs text-muted-foreground">
-          <div className="flex items-center justify-between gap-2">
-            <span>Drop files or click to attach (mock).</span>
-            <Button type="button" size="sm" variant="secondary" onClick={() => { const name = `evidence-${attachments.length + 1}.png`; setAttachments((a) => [...a, name]); toast.success(`Attached ${name}`); }}>
-              Add mock file
-            </Button>
-          </div>
-          {attachments.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {attachments.map((f, i) => (
-                <Badge key={i} variant="outline" className="font-mono text-[10px]">
-                  {f}
-                  <button onClick={() => setAttachments((a) => a.filter((_, j) => j !== i))} className="ml-1 text-muted-foreground hover:text-foreground">×</button>
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-      </Row>
+
     </FormDrawer>
   );
 }
