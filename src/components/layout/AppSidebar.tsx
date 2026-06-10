@@ -35,8 +35,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
-import { useData } from "@/lib/data/store";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
 
