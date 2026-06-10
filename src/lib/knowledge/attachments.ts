@@ -13,6 +13,30 @@ export const ATTACHMENTS_BUCKET = "knowledge-attachments";
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25 MiB
 export const SIGNED_URL_TTL_SECONDS = 60 * 10; // 10 minutes
 
+/**
+ * Conservative MIME allowlist. The same allowlist is enforced
+ * server-side by a CHECK constraint on `knowledge_attachments.mime_type`
+ * (migration 20260610011000_harden_knowledge_attachments.sql) and SHOULD
+ * also be configured on the private storage bucket
+ * (`allowed_mime_types`) so rejected uploads fail fast.
+ */
+export const ALLOWED_ATTACHMENT_MIME_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+] as const;
+
+export type AllowedAttachmentMime = typeof ALLOWED_ATTACHMENT_MIME_TYPES[number];
+
+export function isAllowedMime(mime: string): mime is AllowedAttachmentMime {
+  return (ALLOWED_ATTACHMENT_MIME_TYPES as readonly string[]).includes(mime);
+}
+
 export interface KbAttachment {
   id: string;
   article_id: string;
