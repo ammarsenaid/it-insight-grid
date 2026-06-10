@@ -1,31 +1,39 @@
 import { useSyncExternalStore } from "react";
 
 export type DashboardSection =
-  | "docMetrics"
-  | "serviceDesk"
+  // Default-enabled (control center)
+  | "attentionRequired"
   | "myWork"
   | "quickActions"
   | "alerts"
   | "activity"
-  | "docsChart"
+  | "operationalOverview"
   | "ticketsChart"
-  | "slaHealth";
+  // Default-disabled (optional)
+  | "knowledgeMetrics"
+  | "infrastructureMetrics"
+  | "docsChart"
+  | "recentKnowledge"
+  | "recycleBinSummary";
 
 export type DashboardPrefs = Record<DashboardSection, boolean>;
 
 const DEFAULTS: DashboardPrefs = {
-  docMetrics: true,
-  serviceDesk: true,
+  attentionRequired: true,
   myWork: true,
   quickActions: true,
   alerts: true,
   activity: true,
-  docsChart: true,
+  operationalOverview: true,
   ticketsChart: true,
-  slaHealth: true,
+  knowledgeMetrics: false,
+  infrastructureMetrics: false,
+  docsChart: false,
+  recentKnowledge: false,
+  recycleBinSummary: false,
 };
 
-const KEY = "ikc.dashboard.prefs.v1";
+const KEY = "ikc.dashboard.prefs.v2";
 const PENDING_KEY = "ikc.tickets.pendingFilters";
 
 let prefs: DashboardPrefs = load();
@@ -73,7 +81,7 @@ export type PendingTicketFilters = Partial<{
   status: string;
   sla: string;
   assignee: string;
-  scope: "mine" | "unassigned" | "resolvedToday";
+  scope: "mine" | "unassigned" | "resolvedToday" | "waiting" | "dueToday";
 }>;
 
 export function setPendingTicketFilters(f: PendingTicketFilters) {
