@@ -170,9 +170,39 @@ function ProtocolsPage() {
         title="Protocols"
         description="Run repeatable IT procedures with clear execution history."
         actions={canWrite && (
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="mr-1.5 h-4 w-4" /> New template
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowCreate(true)}>
+              <Plus className="mr-1.5 h-4 w-4" /> New template
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <Play className="mr-1.5 h-4 w-4" /> Start protocol run
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-h-[60vh] w-[280px] overflow-y-auto">
+                {templates.filter((t) => !t.archived).length === 0 ? (
+                  <DropdownMenuItem disabled>No templates available</DropdownMenuItem>
+                ) : (
+                  templates.filter((t) => !t.archived).map((t) => (
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => {
+                        const run = startRun(t.id, { assignedUser: me });
+                        if (run) {
+                          toast.success(`Started ${run.runNumber}`);
+                          navigate({ to: "/protocols/$id", params: { id: run.id } });
+                        }
+                      }}
+                    >
+                      <span className="truncate">{t.title}</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground">{t.category}</span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
       />
 
