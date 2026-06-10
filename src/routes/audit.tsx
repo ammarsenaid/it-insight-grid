@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DetailsDrawer } from "@/components/common/DetailsDrawer";
 import { useData } from "@/lib/data/store";
-import { can, useRole } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
 import { formatDateTime, timeAgo } from "@/components/common/format";
 import { toCSV, downloadCSV } from "@/lib/csv";
 import type { ActivityLog } from "@/lib/data/types";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/audit")({
 
 function AuditPage() {
   const data = useData();
-  void useRole();
+  
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
