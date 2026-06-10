@@ -82,7 +82,7 @@ const groups = [
       { title: "Roles", url: "/admin/roles", icon: KeyRound },
       { title: "Templates", url: "/admin/templates", icon: FileCode },
       { title: "Ticket Configuration", url: "/admin/ticket-settings", icon: Sliders },
-      { title: "Mailbox Simulator", url: "/admin/mailbox", icon: Inbox },
+      { title: "Diagnostics", url: "/admin/diagnostics", icon: Wrench },
     ],
   },
   {
