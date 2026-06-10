@@ -214,14 +214,14 @@ function ProtocolsPage() {
           data={filteredTemplates}
           columns={templateCols}
           onRowClick={(t) => setEditingTemplate(t)}
-          emptyState={<EmptyState icon={ListChecks} title="No templates" description="Create your first protocol template." />}
+          emptyState={<EmptyState icon={ListChecks} title={q ? "No matching records" : "No templates yet"} description={q ? "No records match the selected filters." : "Create the first protocol template to standardise repeatable procedures."} />}
         />
       ) : (
         <DataTable
           data={filteredRuns}
           columns={runCols}
           onRowClick={(r) => navigate({ to: "/protocols/$id", params: { id: r.id } })}
-          emptyState={<EmptyState icon={Play} title="No protocol runs" description="Start a run from a template." />}
+          emptyState={<EmptyState icon={Play} title={(q || statusFilter !== "all") ? "No matching records" : "No protocol runs yet"} description={(q || statusFilter !== "all") ? "No records match the selected filters." : "Start a protocol run to track repeatable IT procedures."} />}
         />
       )}
 
