@@ -345,7 +345,7 @@ function CMDBPage() {
     <div>
       <PageHeader
         title="CMDB"
-        description="Manage servers, virtual machines, computers, applications, and network devices."
+        description="Track assets, ownership and lifecycle status."
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} disabled={!writable}>
