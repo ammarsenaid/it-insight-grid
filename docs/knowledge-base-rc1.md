@@ -65,6 +65,16 @@ before enabling RC1.1 in prod.
 - `20260610011000_harden_knowledge_attachments.sql`
 - `20260610012000_harden_knowledge_audit_log.sql`
 
+### RC1.2 (new)
+
+- `20260610013000_harden_knowledge_article_creation.sql` — extends
+  `knowledge_articles_block_status_change()` to handle INSERT as well as
+  UPDATE, and recreates `trg_knowledge_articles_status_guard` as
+  `BEFORE INSERT OR UPDATE`. New articles must start with
+  `status = 'draft'`; any other initial status is rejected with `42501`.
+  `createArticle()` in `src/lib/knowledge/mutations.ts` no longer accepts
+  a `status` field and always inserts `'draft'`.
+
 ## Private bucket configuration
 
 The `knowledge-attachments` bucket must be created out-of-band before
