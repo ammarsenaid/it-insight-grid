@@ -271,10 +271,9 @@ export function KnowledgeBackendWorkspace() {
     return (
       <div className="glass-card rounded-2xl p-10 text-center text-sm text-muted-foreground">
         <Library className="mx-auto mb-3 h-8 w-8 opacity-60" />
-        <div className="text-base font-medium text-foreground">No accessible team was found</div>
+        <div className="text-base font-medium text-foreground">No accessible team found</div>
         <p className="mx-auto mt-2 max-w-md">
-          You don&apos;t have visibility on any team yet. Ask an administrator to grant your
-          account access to a team before browsing the knowledge base.
+          Ask an administrator to grant access to a team before browsing the knowledge base.
         </p>
       </div>
     );
