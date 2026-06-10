@@ -98,9 +98,8 @@ function CatalogItemPage() {
               </div>
             </div>
             <KV k="Default priority" v={item.defaultPriority} icon={CheckCircle2} />
-            <KV k="Routed to" v={item.defaultTeam} icon={UsersIcon} />
             <KV k="Estimated time" v={item.estimatedTime} icon={Clock} />
-            <KV k="Requester" v={requester} />
+            <KV k="Requester" v={requester} icon={UsersIcon} />
           </SectionCard>
 
           <SectionCard title="What happens next">
