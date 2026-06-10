@@ -394,16 +394,16 @@ export function TicketsPage() {
             <EmptyState
               icon={TicketIcon}
               title="No tickets yet"
-              description="Open your first request to populate the queue."
+              description="Create the first request to start tracking service work."
               actionLabel={canCreate ? "Create ticket" : undefined}
               onAction={canCreate ? () => setCreateOpen(true) : undefined}
             />
           ) : (
             <EmptyState
               icon={Eye}
-              title="No tickets match your filters"
-              description="Try adjusting your filters or clearing the search."
-              actionLabel="Reset filters"
+              title="No tickets found"
+              description="No tickets match the current filters."
+              actionLabel="Clear filters"
               onAction={resetFilters}
             />
           )
