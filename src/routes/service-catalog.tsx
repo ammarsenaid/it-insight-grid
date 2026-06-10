@@ -1,17 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import * as Lucide from "lucide-react";
-import { ShoppingBag, Search } from "lucide-react";
+import { ShoppingBag, Search, Inbox, Clock } from "lucide-react";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
-import { FilterBar } from "@/components/common/FilterBar";
-import { StatusBadge } from "@/components/common/StatusBadge";
 import { useData } from "@/lib/data/store";
 import type { CatalogItem } from "@/lib/data/types";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/service-catalog")({
   head: () => ({ meta: [{ title: "Service Catalog · IT Knowledge Center" }] }),
