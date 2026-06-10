@@ -117,9 +117,6 @@ export function AppSidebar() {
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <div className="truncate text-sm font-semibold tracking-tight">IT Knowledge Center</div>
             <div className="truncate text-[11px] text-muted-foreground">Operations & documentation</div>
-            <Badge variant="outline" className="mt-1 h-5 border-primary/30 bg-primary/10 px-1.5 text-[10px] font-medium text-primary">
-              v{data.settings.version}
-            </Badge>
           </div>
         </div>
       </SidebarHeader>
