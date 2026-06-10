@@ -95,13 +95,3 @@ git diff --check
 ```
 
 All three must be clean.
-
-## 4. CI / local sanity
-
-```bash
-bunx tsc --noEmit
-bun run build
-git diff --check
-```
-
-All three must be clean.
