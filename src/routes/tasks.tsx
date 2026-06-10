@@ -527,7 +527,22 @@ function TasksPage() {
         ) : (
           <div className="mt-3 overflow-hidden rounded-xl border border-border/40">
             {filtered.length === 0 ? (
-              <EmptyState icon={CheckSquare} title="No tasks match" description="Try clearing filters or change the active tab." />
+              {(query || fCat !== "all" || fPrio !== "all" || fStatus !== "all" || fTeam !== "all" || fAssignee !== "all" || fSource !== "all" || fDue !== "all") ? (
+                <EmptyState
+                  icon={CheckSquare}
+                  title="No matching records"
+                  description="No records match the selected filters."
+                  action={<Button size="sm" variant="secondary" onClick={resetFilters}>Clear filters</Button>}
+                />
+              ) : (
+                <EmptyState
+                  icon={CheckSquare}
+                  title="No tasks yet"
+                  description="Create the first task to begin tracking operational work."
+                  action={writable ? <Button size="sm" onClick={() => openCreate()}><Plus className="mr-1.5 h-3.5 w-3.5" /> Create task</Button> : undefined}
+                />
+              )}
+
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
