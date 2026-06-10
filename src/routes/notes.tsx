@@ -233,7 +233,7 @@ function NotesPage() {
               </Select>
             </div>
             <div className="max-h-[65vh] space-y-1 overflow-y-auto">
-              {visible.length === 0 && <div className="px-3 py-6 text-center text-xs text-muted-foreground">No notes</div>}
+              {visible.length === 0 && <div className="px-3 py-6 text-center text-xs text-muted-foreground">{(q || fCat !== "all" || fTag !== "all") ? "No matching notes" : "No notes yet"}</div>}
               {visible.map((n) => (
                 <button key={n.id} onClick={() => setSelectedId(n.id)}
                   className={cn("w-full rounded-lg px-3 py-2 text-left transition", selected?.id === n.id ? "bg-primary/15 text-primary" : "hover:bg-white/[0.03]")}>
