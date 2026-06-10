@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import {
   Library,
   FolderTree,
@@ -21,6 +22,9 @@ import {
   Clock,
   X,
 } from "lucide-react";
+
+const documentsRouteApi = getRouteApi("/documents");
+
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -144,6 +148,28 @@ export function KnowledgeBackendWorkspace() {
       setExpanded(new Set(data.spaces.filter((s) => !s.is_archived).map((s) => s.id)));
     }
   }, [data, expanded.size]);
+
+  // Deep link: /documents?article=<id> selects that article when data loads.
+  const search = documentsRouteApi.useSearch();
+  const navigate = useNavigate();
+  const deepLinkAppliedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = search.article;
+    if (!id || !data) return;
+    if (deepLinkAppliedRef.current === id) return;
+    const article = data.articles.find((a) => a.id === id);
+    if (!article) return;
+    if (activeTeamId && article.team_id !== activeTeamId) {
+      setActiveTeamId(article.team_id);
+      return; // wait for next data load under the correct team
+    }
+    deepLinkAppliedRef.current = id;
+    setSelection({ kind: "article", id });
+    setEditingArticle(false);
+    // clear the search param so subsequent state changes don't re-trigger
+    navigate({ to: "/documents", search: {}, replace: true });
+  }, [search.article, data, activeTeamId, navigate]);
+
 
   // Leave edit mode when switching to a non-article selection
   useEffect(() => {

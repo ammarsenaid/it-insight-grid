@@ -54,6 +54,7 @@ import {
 import { recomputeSla, AGENTS } from "@/lib/data/tickets";
 import { DetailsDrawer } from "@/components/common/DetailsDrawer";
 import { Switch } from "@/components/ui/switch";
+import { BackendKnowledgePanel } from "@/components/knowledge/BackendKnowledgePanel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -437,6 +438,11 @@ function Dashboard() {
           )}
         </div>
       ) : null}
+
+      {/* Backend knowledge — recently published */}
+      <div className="mt-6">
+        <BackendKnowledgePanel />
+      </div>
 
       {/* Local prototype status row (preserved) */}
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">

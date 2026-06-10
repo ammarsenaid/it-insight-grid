@@ -29,9 +29,11 @@ import {
   KeyRound,
   Sliders,
   Plus,
+  BookOpen,
 } from "lucide-react";
 import { useData } from "@/lib/data/store";
 import { useKnowledge } from "@/lib/knowledge/store";
+import { useTeamArticles } from "@/lib/knowledge/useTeamArticles";
 import { toast } from "sonner";
 
 const NAV = [
@@ -65,6 +67,7 @@ export function CommandPalette({
   const navigate = useNavigate();
   const data = useData();
   const knowledge = useKnowledge();
+  const backend = useTeamArticles();
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -73,19 +76,27 @@ export function CommandPalette({
 
   const records = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return { pages: [], assets: [], tasks: [] };
+    if (!q) return { pages: [], backendArticles: [], assets: [], tasks: [] };
     return {
       pages: knowledge.nodes
         .filter((n) => n.type === "page" && n.title.toLowerCase().includes(q))
         .slice(0, 5),
+      backendArticles: backend.articles
+        .filter((a) => a.title.toLowerCase().includes(q) || (a.excerpt ?? "").toLowerCase().includes(q))
+        .slice(0, 6),
       assets: data.assets.filter((a) => a.hostname.toLowerCase().includes(q) || a.displayName.toLowerCase().includes(q)).slice(0, 5),
       tasks: data.tasks.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 5),
     };
-  }, [query, data, knowledge]);
+  }, [query, data, knowledge, backend]);
 
   const go = (to: string) => {
     onOpenChange(false);
     navigate({ to });
+  };
+
+  const goArticle = (id: string) => {
+    onOpenChange(false);
+    navigate({ to: "/documents", search: { article: id } });
   };
 
   const groups = useMemo(() => {
@@ -122,9 +133,18 @@ export function CommandPalette({
           </CommandGroup>
         ))}
 
-        {(records.pages.length + records.assets.length + records.tasks.length) > 0 && (
+        {(records.pages.length + records.backendArticles.length + records.assets.length + records.tasks.length) > 0 && (
           <>
             <CommandSeparator />
+            {records.backendArticles.length > 0 && (
+              <CommandGroup heading="Knowledge Base (Live)">
+                {records.backendArticles.map((a) => (
+                  <CommandItem key={a.id} onSelect={() => goArticle(a.id)}>
+                    <BookOpen className="mr-2 h-4 w-4" /> {a.title}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
             {records.pages.length > 0 && (
               <CommandGroup heading="Knowledge Base">
                 {records.pages.map((d) => (
