@@ -348,6 +348,25 @@ export function TicketsPage() {
           <SelectFilter value={fSource} onChange={setFSource} placeholder="Source" options={[{ value: "all", label: "All Sources" }, ...TICKET_SOURCES.map((s) => ({ value: s, label: labelSource(s) }))]} />
         </FilterBar>
 
+        {activeFilters.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Active filters</span>
+            {activeFilters.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => { f.clear(); setPage(1); }}
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/40 px-2.5 py-0.5 text-[11px] text-foreground/80 hover:bg-white/[0.04] hover:text-foreground"
+              >
+                {f.label}
+                <X className="h-3 w-3" />
+              </button>
+            ))}
+            <button onClick={resetFilters} className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+              Clear all
+            </button>
+          </div>
+        )}
+
         {selected.size > 0 && (
           <div className="glass-card mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl p-3">
             <div className="text-xs">
