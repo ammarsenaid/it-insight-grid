@@ -89,17 +89,26 @@ begin
 end$$;
 
 -- ---------------------------------------------------------------------
--- 5. Status-change guard trigger present
+-- 5. Status-change guard trigger present and fires on INSERT + UPDATE
 -- ---------------------------------------------------------------------
+-- pg_trigger.tgtype is a bitmask; bit 2 = INSERT, bit 4 = UPDATE
+-- (BEFORE is bit 1). RC1.2 requires the guard to cover both events.
 do $$
+declare
+  v_tgtype int2;
 begin
-  if not exists (
-    select 1 from pg_trigger
-     where tgrelid = 'public.knowledge_articles'::regclass
-       and tgname = 'trg_knowledge_articles_status_guard'
-       and not tgisinternal
-  ) then
+  select tgtype into v_tgtype from pg_trigger
+   where tgrelid = 'public.knowledge_articles'::regclass
+     and tgname = 'trg_knowledge_articles_status_guard'
+     and not tgisinternal;
+  if v_tgtype is null then
     raise exception 'Missing trigger trg_knowledge_articles_status_guard on knowledge_articles';
+  end if;
+  if (v_tgtype & 4) = 0 then
+    raise exception 'trg_knowledge_articles_status_guard must fire on INSERT (RC1.2)';
+  end if;
+  if (v_tgtype & 16) = 0 then
+    raise exception 'trg_knowledge_articles_status_guard must fire on UPDATE';
   end if;
 end$$;
 
@@ -233,4 +242,67 @@ end$$;
 
 \endif
 
-\echo 'RC1.1 security checks passed.'
+-- =====================================================================
+-- RC1.2 INSERT-GUARD BEHAVIORAL CHECKS
+-- Require fixture vars: team_a (uuid), space_a (uuid), member_a (uuid).
+-- All inserts are wrapped in savepoints and rolled back so the database
+-- is left untouched. Run as the `authenticated` role so RLS + triggers
+-- evaluate the same way they do for a browser caller.
+-- =====================================================================
+
+\if :{?space_a}
+
+do $$
+declare
+  v_id uuid;
+  v_bad text;
+  v_statuses text[] := array['in_review','approved','published','archived'];
+  v_status text;
+begin
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub', :'member_a', true);
+
+  -- 13. Normal draft insert succeeds, then rolled back.
+  begin
+    savepoint sp_draft_ok;
+    insert into public.knowledge_articles
+      (team_id, space_id, title, slug, content_markdown,
+       status, visibility, created_by, updated_by)
+    values
+      (:'team_a', :'space_a', 'rc12-qa-draft', 'rc12-qa-draft-' || gen_random_uuid()::text,
+       '', 'draft', 'team', :'member_a', :'member_a')
+    returning id into v_id;
+    if v_id is null then
+      raise exception 'Draft insert did not return an id';
+    end if;
+    rollback to savepoint sp_draft_ok;
+  end;
+
+  -- 14. Every non-draft initial status is rejected.
+  foreach v_status in array v_statuses loop
+    begin
+      savepoint sp_bad;
+      begin
+        insert into public.knowledge_articles
+          (team_id, space_id, title, slug, content_markdown,
+           status, visibility, created_by, updated_by)
+        values
+          (:'team_a', :'space_a', 'rc12-qa-bad', 'rc12-qa-bad-' || v_status || '-' || gen_random_uuid()::text,
+           '', v_status, 'team', :'member_a', :'member_a');
+        v_bad := v_status;
+      exception when insufficient_privilege then
+        v_bad := null; -- expected
+      end;
+      rollback to savepoint sp_bad;
+      if v_bad is not null then
+        raise exception 'Insert with status=% was accepted but should have been rejected', v_bad;
+      end if;
+    end;
+  end loop;
+
+  reset role;
+end$$;
+
+\endif
+
+\echo 'RC1.2 security checks passed.'
