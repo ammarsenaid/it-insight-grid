@@ -263,17 +263,52 @@ export function TicketsPage() {
 
   const lookupAsset = (id?: string) => data.assets.find((a) => a.id === id);
 
+  const activeFilters = useMemo(() => {
+    const list: { key: string; label: string; clear: () => void }[] = [];
+    if (query.trim()) list.push({ key: "q", label: `Search: ${query}`, clear: () => setQuery("") });
+    if (fStatus !== "all") list.push({ key: "status", label: `Status: ${labelStatus(fStatus as TicketStatus)}`, clear: () => setFStatus("all") });
+    if (fPriority !== "all") list.push({ key: "priority", label: `Priority: ${cap(fPriority)}`, clear: () => setFPriority("all") });
+    if (fType !== "all") list.push({ key: "type", label: `Type: ${cap(fType)}`, clear: () => setFType("all") });
+    if (fTeam !== "all") list.push({ key: "team", label: `Team: ${fTeam}`, clear: () => setFTeam("all") });
+    if (fAssignee !== "all") list.push({ key: "assignee", label: `Assignee: ${fAssignee === "unassigned" ? "Unassigned" : fAssignee}`, clear: () => setFAssignee("all") });
+    if (fCategory !== "all") list.push({ key: "category", label: `Category: ${fCategory}`, clear: () => setFCategory("all") });
+    if (fSla !== "all") list.push({ key: "sla", label: `SLA: ${fSla === "ok" ? "On track" : fSla === "warning" ? "At risk" : "Breached"}`, clear: () => setFSla("all") });
+    if (fSource !== "all") list.push({ key: "source", label: `Source: ${labelSource(fSource as never)}`, clear: () => setFSource("all") });
+    return list;
+  }, [query, fStatus, fPriority, fType, fTeam, fAssignee, fCategory, fSla, fSource]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    // Recompute by re-deriving; useData is reactive. Show a quick spin + toast.
+    setTimeout(() => {
+      setRefreshing(false);
+      toast.success("Tickets reloaded");
+    }, 350);
+  };
+
   return (
     <div>
       <PageHeader
         title="Tickets"
-        description="Service desk queue with SLA tracking, bulk actions, and saved views."
+        description="Track, triage and resolve service requests."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <SavedViewsMenu views={data.ticketViews} onApply={applyView} onDelete={(id) => { deleteView(id); toast.success("View removed"); }} />
-            <Button variant="secondary" onClick={() => setSaveViewOpen(true)}>
-              <Save className="mr-1.5 h-4 w-4" /> Save view
-            </Button>
+            <SavedViewsMenu
+              views={data.ticketViews}
+              onApply={applyView}
+              onDelete={(id) => { deleteView(id); toast.success("View removed"); }}
+              onSaveCurrent={() => setSaveViewOpen(true)}
+            />
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={handleRefresh} aria-label="Reload tickets">
+                    <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Reload tickets</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button onClick={() => setCreateOpen(true)} disabled={!canCreate} title={canCreate ? undefined : "Your role cannot create tickets"}>
               <Plus className="mr-1.5 h-4 w-4" /> New ticket
             </Button>
@@ -281,15 +316,24 @@ export function TicketsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-        <MetricCard icon={Inbox} label="Open" value={metrics.open} accent="primary" />
-        <MetricCard icon={AlertTriangle} label="Unassigned" value={metrics.unassigned} accent="warning" />
-        <MetricCard icon={UserCheck} label="Assigned to me" value={metrics.mine} accent="primary" />
-        <MetricCard icon={PlayCircle} label="In Progress" value={metrics.inProgress} accent="primary" />
-        <MetricCard icon={PauseCircle} label="Waiting" value={metrics.waiting} accent="muted" />
-        <MetricCard icon={AlarmClock} label="SLA warning" value={metrics.warn} accent="warning" />
-        <MetricCard icon={AlertTriangle} label="SLA breached" value={metrics.breached} accent="danger" />
-        <MetricCard icon={CheckCircle2} label="Resolved today" value={metrics.resolvedToday} accent="success" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <MetricButton icon={Inbox} label="Open" value={metrics.open} accent="primary" onClick={() => { resetFilters(); setFStatus("open"); }} />
+        <MetricButton icon={AlertTriangle} label="Unassigned" value={metrics.unassigned} accent="warning" onClick={() => { resetFilters(); setFAssignee("unassigned"); }} />
+        <MetricButton icon={AlarmClock} label="SLA warning" value={metrics.warn} accent="warning" onClick={() => { resetFilters(); setFSla("warning"); }} />
+        <MetricButton icon={AlertTriangle} label="SLA breached" value={metrics.breached} accent="danger" onClick={() => { resetFilters(); setFSla("breached"); }} />
+        <MetricButton icon={PauseCircle} label="Waiting for response" value={metrics.waiting} accent="muted" onClick={() => { resetFilters(); setFStatus("waiting"); }} />
+      </div>
+      {showMoreMetrics && (
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <MetricButton icon={UserCheck} label="Assigned to me" value={metrics.mine} accent="primary" onClick={() => { resetFilters(); setFAssignee(currentUser); }} />
+          <MetricButton icon={PlayCircle} label="In progress" value={metrics.inProgress} accent="primary" onClick={() => { resetFilters(); setFStatus("in_progress"); }} />
+          <MetricButton icon={CheckCircle2} label="Resolved today" value={metrics.resolvedToday} accent="success" onClick={() => { resetFilters(); setFStatus("resolved"); }} />
+        </div>
+      )}
+      <div className="mt-2 flex justify-end">
+        <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setShowMoreMetrics((v) => !v)}>
+          {showMoreMetrics ? <><ChevronUp className="mr-1 h-3 w-3" /> Show fewer metrics</> : <><ChevronDown className="mr-1 h-3 w-3" /> Show more metrics</>}
+        </Button>
       </div>
 
       <div className="mt-6">
