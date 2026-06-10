@@ -140,7 +140,9 @@ export function CommandPalette({
               <CommandGroup heading="Knowledge Base (Live)">
                 {records.backendArticles.map((a) => (
                   <CommandItem key={a.id} onSelect={() => goArticle(a.id)}>
-                    <BookOpen className="mr-2 h-4 w-4" /> {a.title}
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    <span className="truncate">{a.title}</span>
+                    <span className="ml-2 truncate text-xs text-muted-foreground">{a.team_name}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
