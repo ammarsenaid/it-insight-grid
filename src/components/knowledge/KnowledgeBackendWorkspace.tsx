@@ -604,8 +604,29 @@ export function KnowledgeBackendWorkspace() {
 
 // ----------------- Tree rows -----------------
 
+function RowMenu({ children }: { children: React.ReactNode }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="More actions"
+          onClick={(e) => e.stopPropagation()}
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/70 opacity-0 hover:bg-white/[0.06] hover:text-foreground focus:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+        >
+          <MoreHorizontal className="h-3.5 w-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function SpaceRow({
   space, categories, articles, expanded, toggle, selection, onSelect, matched, filterActive,
+  renderSpaceMenu, renderCategoryMenu, renderArticleMenu,
 }: {
   space: KbSpace;
   categories: KbCategory[];
@@ -616,6 +637,9 @@ function SpaceRow({
   onSelect: (s: Selection) => void;
   matched: Set<string> | null;
   filterActive: boolean;
+  renderSpaceMenu?: (s: KbSpace) => React.ReactNode;
+  renderCategoryMenu?: (c: KbCategory) => React.ReactNode;
+  renderArticleMenu?: (a: KbArticle) => React.ReactNode;
 }) {
   const isOpen = expanded.has(space.id) || filterActive;
   const isSelected = selection?.kind === "space" && selection.id === space.id;
@@ -623,20 +647,22 @@ function SpaceRow({
   const uncategorized = visibleArticles.filter((a) => !a.category_id);
 
   if (filterActive && visibleArticles.length === 0 && !space.name.toLowerCase().includes("")) {
-    // never matches filter; keep tree clean
     return null;
   }
 
+  const menu = renderSpaceMenu?.(space);
+
   return (
     <li>
-      <div className={cn("group flex items-center gap-1 rounded-md py-1 pr-1 text-sm", isSelected && "bg-primary/15 text-primary")}>
+      <div className={cn("group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]", isSelected && "bg-primary/15 text-primary")}>
         <button type="button" onClick={() => toggle(space.id)} className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground">
           {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
-        <button type="button" onClick={() => onSelect({ kind: "space", id: space.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
-          <Library className={cn("h-3.5 w-3.5", space.is_archived ? "text-muted-foreground" : "text-primary")} />
+        <button type="button" onClick={() => onSelect({ kind: "space", id: space.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title={space.name}>
+          <Library className={cn("h-3.5 w-3.5 shrink-0", space.is_archived ? "text-muted-foreground" : "text-primary")} />
           <span className={cn("truncate font-semibold", space.is_archived && "italic text-muted-foreground")}>{space.name}</span>
         </button>
+        {menu && <RowMenu>{menu}</RowMenu>}
       </div>
 
       {isOpen && (
@@ -651,10 +677,12 @@ function SpaceRow({
               selection={selection}
               onSelect={onSelect}
               filterActive={filterActive}
+              renderCategoryMenu={renderCategoryMenu}
+              renderArticleMenu={renderArticleMenu}
             />
           ))}
           {uncategorized.map((a) => (
-            <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} />
+            <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} renderArticleMenu={renderArticleMenu} />
           ))}
           {categories.length === 0 && uncategorized.length === 0 && (
             <li className="px-2 py-1 text-[11px] text-muted-foreground/70">Empty space</li>
@@ -667,6 +695,7 @@ function SpaceRow({
 
 function CategoryRow({
   category, articles, expanded, toggle, selection, onSelect, filterActive,
+  renderCategoryMenu, renderArticleMenu,
 }: {
   category: KbCategory;
   articles: KbArticle[];
@@ -675,26 +704,31 @@ function CategoryRow({
   selection: Selection;
   onSelect: (s: Selection) => void;
   filterActive: boolean;
+  renderCategoryMenu?: (c: KbCategory) => React.ReactNode;
+  renderArticleMenu?: (a: KbArticle) => React.ReactNode;
 }) {
   const isOpen = expanded.has(category.id) || filterActive;
   const isSelected = selection?.kind === "category" && selection.id === category.id;
   if (filterActive && articles.length === 0) return null;
 
+  const menu = renderCategoryMenu?.(category);
+
   return (
     <li>
-      <div className={cn("group flex items-center gap-1 rounded-md py-1 pr-1 text-sm", isSelected && "bg-primary/15 text-primary")}>
+      <div className={cn("group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]", isSelected && "bg-primary/15 text-primary")}>
         <button type="button" onClick={() => toggle(category.id)} className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground">
           {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
-        <button type="button" onClick={() => onSelect({ kind: "category", id: category.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
-          <FolderTree className={cn("h-3.5 w-3.5", category.is_archived ? "text-muted-foreground" : "text-primary/70")} />
+        <button type="button" onClick={() => onSelect({ kind: "category", id: category.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title={category.name}>
+          <FolderTree className={cn("h-3.5 w-3.5 shrink-0", category.is_archived ? "text-muted-foreground" : "text-primary/70")} />
           <span className={cn("truncate font-medium", category.is_archived && "italic text-muted-foreground")}>{category.name}</span>
-          <span className="ml-auto text-[10px] text-muted-foreground/70">{articles.length}</span>
+          <span className="ml-1 text-[10px] text-muted-foreground/70">{articles.length}</span>
         </button>
+        {menu && <RowMenu>{menu}</RowMenu>}
       </div>
       {isOpen && (
         <ul className="ml-3 space-y-0.5 border-l border-border/30 pl-2">
-          {articles.map((a) => <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} />)}
+          {articles.map((a) => <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} renderArticleMenu={renderArticleMenu} />)}
           {articles.length === 0 && <li className="px-2 py-1 text-[11px] text-muted-foreground/70">No articles</li>}
         </ul>
       )}
@@ -702,30 +736,39 @@ function CategoryRow({
   );
 }
 
-function ArticleRow({ article, selection, onSelect }: {
+function ArticleRow({ article, selection, onSelect, renderArticleMenu }: {
   article: KbArticle; selection: Selection; onSelect: (s: Selection) => void;
+  renderArticleMenu?: (a: KbArticle) => React.ReactNode;
 }) {
   const isSelected = selection?.kind === "article" && selection.id === article.id;
   const dim = article.status === "archived";
+  const menu = renderArticleMenu?.(article);
   return (
     <li>
-      <button
-        type="button"
-        onClick={() => onSelect({ kind: "article", id: article.id })}
+      <div
         className={cn(
-          "flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-white/[0.04]",
+          "group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-white/[0.04]",
           isSelected && "bg-primary/15 text-primary",
           dim && "opacity-60",
         )}
       >
-        <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        <span className="truncate">{article.title}</span>
-        {article.status === "draft" && <Badge variant="outline" className="ml-auto h-4 text-[9px]">Draft</Badge>}
-        {article.status === "archived" && <Badge variant="outline" className="ml-auto h-4 text-[9px]">Arch</Badge>}
-      </button>
+        <button
+          type="button"
+          onClick={() => onSelect({ kind: "article", id: article.id })}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          title={article.title}
+        >
+          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate">{article.title}</span>
+        </button>
+        {article.status === "draft" && <Badge variant="outline" className="h-4 text-[9px]">Draft</Badge>}
+        {article.status === "archived" && <Badge variant="outline" className="h-4 text-[9px]">Arch</Badge>}
+        {menu && <RowMenu>{menu}</RowMenu>}
+      </div>
     </li>
   );
 }
+
 
 // ----------------- Main content -----------------
 
