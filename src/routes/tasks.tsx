@@ -532,14 +532,16 @@ function TasksPage() {
                   icon={CheckSquare}
                   title="No matching records"
                   description="No records match the selected filters."
-                  action={<Button size="sm" variant="secondary" onClick={resetFilters}>Clear filters</Button>}
+                  actionLabel="Clear filters"
+                  onAction={resetFilters}
                 />
               ) : (
                 <EmptyState
                   icon={CheckSquare}
                   title="No tasks yet"
                   description="Create the first task to begin tracking operational work."
-                  action={writable ? <Button size="sm" onClick={() => openCreate()}><Plus className="mr-1.5 h-3.5 w-3.5" /> Create task</Button> : undefined}
+                  actionLabel={writable ? "Create task" : undefined}
+                  onAction={writable ? () => openCreate() : undefined}
                 />
               )
             ) : (
