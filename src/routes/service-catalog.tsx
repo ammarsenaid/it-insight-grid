@@ -123,19 +123,21 @@ function CatalogCard({ item }: { item: CatalogItem }) {
   const Icon = (Lucide as unknown as Record<string, React.ComponentType<{ className?: string }>>)[item.icon] ?? ShoppingBag;
   return (
     <Link to="/service-catalog/$id" params={{ id: item.id }} className="glass-card group flex h-full flex-col gap-3 rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:border-white/10 hover:shadow-lg hover:shadow-primary/10">
-      <div className="flex items-start justify-between gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+      <div className="flex items-center gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
           <Icon className="h-5 w-5" />
         </div>
-        <StatusBadge label={item.defaultPriority} tone={item.defaultPriority === "critical" ? "danger" : item.defaultPriority === "high" ? "warning" : "muted"} />
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold tracking-tight">{item.name}</h3>
+          <p className="truncate text-[11px] text-muted-foreground">{item.category}</p>
+        </div>
       </div>
-      <div>
-        <h3 className="text-sm font-semibold tracking-tight">{item.name}</h3>
-        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
-      </div>
+      <p className="line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
       <div className="mt-auto flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>{item.category}</span>
-        <span>{item.estimatedTime}</span>
+        {item.estimatedTime ? (
+          <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> {item.estimatedTime}</span>
+        ) : <span />}
+        <span className="text-primary opacity-0 transition-opacity group-hover:opacity-100">Request →</span>
       </div>
     </Link>
   );
