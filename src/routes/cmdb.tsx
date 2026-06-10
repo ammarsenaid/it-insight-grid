@@ -412,7 +412,11 @@ function CMDBPage() {
           columns={columns}
           pageSize={data.settings.tablePageSize}
           onRowClick={openDetails}
-          emptyState={<EmptyState icon={Server} title="No assets found" description="Try a different filter or create a new asset." actionLabel="Add Asset" onAction={openCreate} />}
+          emptyState={
+            (query || filterType !== "all" || filterStatus !== "all" || filterEnv !== "all" || filterOwner !== "all" || filterLocation !== "all")
+              ? <EmptyState icon={Server} title="No matching assets" description="No assets match the selected filters." actionLabel="Clear filters" onAction={() => { setQuery(""); setFilterType("all"); setFilterStatus("all"); setFilterEnv("all"); setFilterOwner("all"); setFilterLocation("all"); }} />
+              : <EmptyState icon={Server} title="No assets yet" description="Add the first asset to start tracking your IT inventory." actionLabel="Add asset" onAction={openCreate} />
+          }
         />
       </div>
 
