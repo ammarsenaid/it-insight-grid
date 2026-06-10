@@ -60,17 +60,18 @@ function AdminRolesPage() {
   return (
     <div>
       <PageHeader
-        title="Roles & Permissions"
-        description="Permission matrix used by the frontend. Backend enforcement (database row-level security) will be added when Lovable Cloud is enabled — these visibility rules are a prototype preview only."
+        title="Roles and Permissions"
+        description="Control workspace capabilities and access levels."
       />
 
-      <div className="mb-4 flex items-start gap-3 rounded-xl border border-[#5B8CFF]/30 bg-[#5B8CFF]/10 p-3 text-xs text-foreground">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#5B8CFF]" />
+      <div className="mb-4 flex items-start gap-3 rounded-xl border border-border/40 bg-card/40 p-3 text-xs text-muted-foreground">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <div>
-          <p className="font-medium">Frontend-only permission preview</p>
-          <p className="mt-0.5 text-muted-foreground">All page visibility and action gating below is client-side. Switching role from the profile menu — or using the preview switcher in this page — updates sidebar routes, action buttons and record scopes immediately. Real authentication and database row-level security will be added in a later batch.</p>
+          <p className="font-medium text-foreground">Read-only permission matrix</p>
+          <p className="mt-0.5">Switching role from the profile menu — or using the role preview tab — updates sidebar routes, action buttons and record scopes immediately. Permission changes are not available in this version.</p>
         </div>
       </div>
+
 
       <Tabs defaultValue="roles" className="space-y-4">
         <TabsList>
@@ -104,7 +105,7 @@ function AdminRolesPage() {
         </TabsContent>
 
         <TabsContent value="capabilities">
-          <SectionCard title="Capability matrix" description="Action-level visibility by role. Backend enforcement still pending.">
+          <SectionCard title="Capability matrix" description="Action-level visibility by role.">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] text-xs">
                 <thead>
