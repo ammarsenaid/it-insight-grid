@@ -465,7 +465,7 @@ export function KnowledgeBackendWorkspace() {
             </label>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1 text-sm">
+          <div className="kb-scroll min-h-0 flex-1 overflow-y-auto pr-1 text-sm">
             {loading && !data ? (
               <TreeSkeleton />
             ) : error ? (
@@ -473,6 +473,10 @@ export function KnowledgeBackendWorkspace() {
             ) : !data || data.spaces.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
                 {perms.manageTeam ? "No spaces yet — create the first one to begin." : "No spaces in this team yet."}
+              </div>
+            ) : filteredArticleIds && filteredArticleIds.size === 0 && (!!ql || statusFilter !== "all" || !!tagFilter) ? (
+              <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
+                No matching articles
               </div>
             ) : (
               <ul className="space-y-0.5">
@@ -496,6 +500,7 @@ export function KnowledgeBackendWorkspace() {
             )}
           </div>
         </aside>
+
 
         {/* Main */}
         <section className="glass-card flex h-[calc(100vh-280px)] min-h-[480px] flex-col overflow-hidden rounded-2xl p-4">
