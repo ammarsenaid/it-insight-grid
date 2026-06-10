@@ -94,7 +94,7 @@ const groups = [
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const data = useData();
+  
   const { isPlatformAdmin } = useAuth();
 
   // Only admin links are gated, by the real is_platform_admin() result.
