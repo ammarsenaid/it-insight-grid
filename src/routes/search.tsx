@@ -44,7 +44,10 @@ function SearchPage() {
     notes: ql ? data.notes.filter((n) => has(n.title) || has(n.content)) : [],
     protocolTemplates: ql ? protocols.templates.filter((t) => has(t.title) || has(t.category) || t.tags.some((tg) => has(tg))) : [],
     protocolRuns: ql ? protocols.runs.filter((r) => has(r.templateTitle) || has(r.runNumber) || has(r.assignedUser ?? "")) : [],
-  }), [data, knowledge, protocols, ql]);
+    backendArticles: ql
+      ? backend.articles.filter((a) => has(a.title) || has(a.excerpt ?? "") || has(a.status))
+      : [],
+  }), [data, knowledge, protocols, backend, ql]);
 
   const total = Object.values(results).reduce((a, b) => a + b.length, 0);
 
