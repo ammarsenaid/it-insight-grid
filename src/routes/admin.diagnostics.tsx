@@ -33,7 +33,6 @@ function DiagnosticsPage() {
       <PageHeader
         title="Diagnostics"
         description="Internal developer and operations tools."
-        icon={Wrench}
       />
 
       <div className="grid gap-4 md:grid-cols-2">
