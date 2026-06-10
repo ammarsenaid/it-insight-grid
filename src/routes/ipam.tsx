@@ -368,7 +368,7 @@ function IPAMPage() {
     <div>
       <PageHeader
         title="IPAM"
-        description="Track IP addresses, subnets, VLANs, and links to CMDB assets."
+        description="Manage subnets, IP addresses and reservations."
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} disabled={!writable}>
