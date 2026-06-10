@@ -111,7 +111,7 @@ function TrashPage() {
     <div>
       <PageHeader
         title="Recycle Bin"
-        description="Restore or permanently delete recently removed items. Items remain recoverable until purged."
+        description="Review archived items and restore records when needed."
         actions={
           <div className="flex gap-2">
             <Button variant="secondary" onClick={doExport} disabled={filtered.length === 0}>
@@ -144,7 +144,7 @@ function TrashPage() {
             data={filtered}
             columns={columns}
             pageSize={data.settings.tablePageSize}
-            emptyState={<EmptyState icon={Trash2} title={data.trash.length === 0 ? "Recycle bin is empty" : "No matching items"} description={data.trash.length === 0 ? "Deleted items will appear here." : "Try adjusting filters."} />}
+            emptyState={<EmptyState icon={Trash2} title={data.trash.length === 0 ? "Recycle Bin is empty" : "No matching items"} description={data.trash.length === 0 ? "Archived records will appear here." : "Try adjusting filters."} />}
           />
         </div>
         <aside className="glass-card rounded-2xl p-4">

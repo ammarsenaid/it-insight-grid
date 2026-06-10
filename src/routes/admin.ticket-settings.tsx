@@ -42,7 +42,7 @@ function TicketSettings() {
     <div>
       <PageHeader
         title="Ticket Configuration"
-        description="Statuses, priorities, categories, SLA policies, and routing rules. This is a frontend prototype — edits are locally mocked."
+        description="Configure statuses, priorities, categories and routing rules."
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -129,7 +129,7 @@ function TicketSettings() {
       </div>
 
       <p className="mt-4 text-[11px] text-muted-foreground">
-        <Sliders className="mr-1 inline h-3 w-3" /> Inline editing of these tables ships in a later batch — the data model and routing are wired and used by the queue today.
+        <Sliders className="mr-1 inline h-3 w-3" /> Read-only configuration. Inline editing is not available in this version.
       </p>
     </div>
   );

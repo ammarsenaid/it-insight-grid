@@ -208,7 +208,7 @@ function TemplatesAdminPage() {
     <div>
       <PageHeader
         title="Templates"
-        description="Central registry for knowledge, protocol, task, ticket-reply and resolution templates."
+        description="Manage reusable content and operational templates."
         actions={writable ? (
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload className="mr-1.5 h-4 w-4" /> Import</Button>
