@@ -354,19 +354,23 @@ function CMDBPage() {
             <Button variant="outline" size="sm" onClick={exportCSV}>
               <Download className="mr-1.5 h-4 w-4" /> Export
             </Button>
-            <Button onClick={openCreate} disabled={!writable}><Plus className="mr-1.5 h-4 w-4" /> Add Asset</Button>
+            <Button onClick={openCreate} disabled={!writable}><Plus className="mr-1.5 h-4 w-4" /> Add asset</Button>
           </div>
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <MetricCard icon={Server} label="Total Assets" value={data.assets.length} accent="primary" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <MetricCard icon={Server} label="Total assets" value={data.assets.length} accent="primary" />
         <MetricCard icon={Activity} label="Active" value={active} accent="success" />
-        <MetricCard icon={Wrench} label="Maintenance" value={maint} accent="warning" />
-        <MetricCard icon={Archive} label="Retired" value={retired} accent="muted" />
+        <MetricCard icon={Wrench} label="In maintenance" value={maint} accent="warning" />
         <MetricCard icon={AlertCircle} label="Without IP" value={withoutIP} accent="danger" />
-        <MetricCard icon={FileText} label="Linked Docs" value={linkedDocs} accent="primary" />
+        <MetricCard icon={Archive} label="Retired" value={retired} accent="muted" />
       </div>
+      {linkedDocs > 0 && (
+        <div className="mt-2 px-1 text-[11px] text-muted-foreground">
+          <FileText className="mr-1 inline h-3 w-3" /> {linkedDocs} linked document{linkedDocs === 1 ? "" : "s"}
+        </div>
+      )}
 
       <div className="mt-6 glass-card rounded-2xl p-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -408,7 +412,11 @@ function CMDBPage() {
           columns={columns}
           pageSize={data.settings.tablePageSize}
           onRowClick={openDetails}
-          emptyState={<EmptyState icon={Server} title="No assets found" description="Try a different filter or create a new asset." actionLabel="Add Asset" onAction={openCreate} />}
+          emptyState={
+            (query || filterType !== "all" || filterStatus !== "all" || filterEnv !== "all" || filterOwner !== "all" || filterLocation !== "all")
+              ? <EmptyState icon={Server} title="No matching assets" description="No assets match the selected filters." actionLabel="Clear filters" onAction={() => { setQuery(""); setFilterType("all"); setFilterStatus("all"); setFilterEnv("all"); setFilterOwner("all"); setFilterLocation("all"); }} />
+              : <EmptyState icon={Server} title="No assets yet" description="Add the first asset to start tracking your IT inventory." actionLabel="Add asset" onAction={openCreate} />
+          }
         />
       </div>
 
