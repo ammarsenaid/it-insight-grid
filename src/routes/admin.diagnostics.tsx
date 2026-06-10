@@ -128,7 +128,7 @@ function DiagnosticsPage() {
         <SectionCard title="Workspace status" description="Local environment health">
           <ul className="space-y-2 text-sm">
             <li className="flex items-center gap-2 text-emerald-300">
-              <FileText className="h-3.5 w-3.5" /> Knowledge backend connected
+              <FileText className="h-3.5 w-3.5" /> Knowledge module ready
             </li>
             <li className="flex items-center justify-between text-muted-foreground">
               <span className="flex items-center gap-2">
