@@ -308,7 +308,7 @@ export function buildSeed(): DataState {
 
   const settings: AppSettings = {
     appName: "IT Knowledge Center",
-    version: "2.0 Prototype",
+    version: "2.0",
     compactMode: false,
     tablePageSize: 10,
     showNotifications: true,
