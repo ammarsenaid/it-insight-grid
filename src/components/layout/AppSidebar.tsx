@@ -138,9 +138,9 @@ export function AppSidebar() {
                         asChild
                         isActive={active}
                         tooltip={item.title}
-                        className="h-9 rounded-lg px-2.5 text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground"
+                        className="h-9 rounded-lg px-2.5 text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground group-data-[collapsible=icon]:!h-8 group-data-[collapsible=icon]:!w-8 group-data-[collapsible=icon]:!px-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:mx-auto"
                       >
-                        <Link to={item.url} className="flex items-center gap-3">
+                        <Link to={item.url} className="flex w-full items-center gap-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0">
                           <item.icon className="h-4 w-4 shrink-0 opacity-80" />
                           <span className="flex-1 truncate group-data-[collapsible=icon]:hidden">{item.title}</span>
                         </Link>
@@ -156,7 +156,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border px-4 py-3 group-data-[collapsible=icon]:hidden">
         <p className="text-[10px] text-muted-foreground/60">
-          IT Knowledge Center · v{data.settings.version}
+          IT Knowledge Center · v2.0
         </p>
       </SidebarFooter>
     </Sidebar>
