@@ -338,6 +338,92 @@ export function KnowledgeBackendWorkspace() {
       },
     });
 
+  const handleArchiveArticle = (a: KbArticle) =>
+    setConfirm({
+      open: true,
+      title: a.status === "archived" ? "Restore article" : "Archive article",
+      description: a.status === "archived"
+        ? `Restore "${a.title}" to draft so it can be edited again.`
+        : `Archive "${a.title}". It will be hidden from the default view; content and history are preserved.`,
+      onConfirm: async () => {
+        const r = a.status === "archived"
+          ? await restoreArticleToDraft(a)
+          : await reviewArchiveArticle(a);
+        if (r.error) toast.error(r.error);
+        else { toast.success(a.status === "archived" ? "Article restored." : "Article archived."); reload(); }
+      },
+    });
+
+  // ----- Row context menu factories -----
+  const renderSpaceMenu = (s: KbSpace) => {
+    const items: React.ReactNode[] = [];
+    if (perms.update && !s.is_archived) {
+      items.push(
+        <DropdownMenuItem key="newcat" onClick={() => setCategoryDialog({ open: true, initial: null, spaceId: s.id })}>
+          <FolderTree className="mr-2 h-3.5 w-3.5" /> New category
+        </DropdownMenuItem>,
+      );
+    }
+    if (perms.manageTeam) {
+      items.push(
+        <DropdownMenuItem key="rename" onClick={() => setSpaceDialog({ open: true, initial: s })}>
+          <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
+        </DropdownMenuItem>,
+      );
+      items.push(
+        <DropdownMenuItem key="arch" onClick={() => handleArchiveSpace(s)}>
+          {s.is_archived ? <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</> : <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>}
+        </DropdownMenuItem>,
+      );
+    }
+    return items.length ? <>{items}</> : null;
+  };
+  const renderCategoryMenu = (c: KbCategory) => {
+    const items: React.ReactNode[] = [];
+    if (perms.create && !c.is_archived) {
+      items.push(
+        <DropdownMenuItem key="newart" onClick={() => setArticleDialog({ open: true, initial: null, spaceId: c.space_id, categoryId: c.id })}>
+          <FileText className="mr-2 h-3.5 w-3.5" /> New article
+        </DropdownMenuItem>,
+      );
+    }
+    if (perms.update) {
+      items.push(
+        <DropdownMenuItem key="rename" onClick={() => setCategoryDialog({ open: true, initial: c, spaceId: c.space_id })}>
+          <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
+        </DropdownMenuItem>,
+      );
+      items.push(
+        <DropdownMenuItem key="arch" onClick={() => handleArchiveCategory(c)}>
+          {c.is_archived ? <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</> : <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>}
+        </DropdownMenuItem>,
+      );
+    }
+    return items.length ? <>{items}</> : null;
+  };
+  const renderArticleMenu = (a: KbArticle) => {
+    const items: React.ReactNode[] = [];
+    items.push(
+      <DropdownMenuItem key="open" onClick={() => { setSelection({ kind: "article", id: a.id }); setEditingArticle(false); }}>
+        <FileText className="mr-2 h-3.5 w-3.5" /> Open
+      </DropdownMenuItem>,
+    );
+    if (perms.update) {
+      items.push(
+        <DropdownMenuItem key="rename" onClick={() => setArticleDialog({ open: true, initial: a })}>
+          <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
+        </DropdownMenuItem>,
+      );
+      items.push(
+        <DropdownMenuItem key="arch" onClick={() => handleArchiveArticle(a)}>
+          {a.status === "archived" ? <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</> : <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>}
+        </DropdownMenuItem>,
+      );
+    }
+    return <>{items}</>;
+  };
+
+
   return (
     <div className="space-y-3">
       {/* Header / status bar */}
