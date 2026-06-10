@@ -357,14 +357,16 @@ function NotesPage() {
                   </div>
                 </div>
               </>
+            ) : data.notes.length === 0 ? (
+              <EmptyState icon={StickyNote} title="No notes yet" description="Create a note to capture quick information." actionLabel={writable ? "Create note" : undefined} onAction={writable ? () => openCreate() : undefined} />
             ) : (
-              <EmptyState icon={StickyNote} title="No note selected" description="Pick a note from the list or create a new one." actionLabel={writable ? "New Note" : undefined} onAction={writable ? () => openCreate() : undefined} />
+              <EmptyState icon={StickyNote} title="Select a note" description="Choose a note from the list or create a new one." actionLabel={writable ? "Create note" : undefined} onAction={writable ? () => openCreate() : undefined} />
             )}
           </section>
         </div>
       )}
 
-      <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit Note" : "New Note"} onSubmit={save}>
+      <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit note" : "New note"} onSubmit={save}>
         <div className="space-y-3">
           <div className="space-y-1.5"><Label className="text-xs">Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
           <div className="grid grid-cols-2 gap-3">
