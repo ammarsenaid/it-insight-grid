@@ -220,10 +220,15 @@ function TasksPage() {
     const days = (new Date(t.dueDate).getTime() - Date.now()) / 86400000;
     return days >= 0 && days <= 3;
   }).length;
+  const dueToday = all.filter((t) => {
+    if (t.status === "done" || !t.dueDate) return false;
+    return new Date(t.dueDate).toDateString() === new Date().toDateString();
+  }).length;
   const blocked = all.filter((t) => t.status === "blocked").length;
   const critical = all.filter((t) => t.priority === "critical" && t.status !== "done").length;
   const weekAgo = Date.now() - 7 * 86400_000;
   const completedThisWeek = data.tasks.filter((t) => t.status === "done" && t.completedAt && new Date(t.completedAt).getTime() >= weekAgo).length;
+  const [showMoreMetrics, setShowMoreMetrics] = useState(false);
 
   const allowedTabs: { value: ScopeTab; label: string; show: boolean }[] = [
     { value: "my", label: "My Tasks", show: true },
