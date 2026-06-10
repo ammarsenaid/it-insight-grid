@@ -220,10 +220,15 @@ function TasksPage() {
     const days = (new Date(t.dueDate).getTime() - Date.now()) / 86400000;
     return days >= 0 && days <= 3;
   }).length;
+  const dueToday = all.filter((t) => {
+    if (t.status === "done" || !t.dueDate) return false;
+    return new Date(t.dueDate).toDateString() === new Date().toDateString();
+  }).length;
   const blocked = all.filter((t) => t.status === "blocked").length;
   const critical = all.filter((t) => t.priority === "critical" && t.status !== "done").length;
   const weekAgo = Date.now() - 7 * 86400_000;
   const completedThisWeek = data.tasks.filter((t) => t.status === "done" && t.completedAt && new Date(t.completedAt).getTime() >= weekAgo).length;
+  const [showMoreMetrics, setShowMoreMetrics] = useState(false);
 
   const allowedTabs: { value: ScopeTab; label: string; show: boolean }[] = [
     { value: "my", label: "My Tasks", show: true },
@@ -347,7 +352,7 @@ function TasksPage() {
     <div>
       <PageHeader
         title="Tasks"
-        description="Track IT operational work, maintenance, recurring jobs, tickets, and protocols."
+        description="Plan, assign and track operational work."
         actions={writable ? (
           <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu>
@@ -364,37 +369,49 @@ function TasksPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button onClick={() => openCreate()}><Plus className="mr-1.5 h-4 w-4" /> New Task</Button>
+            <Button onClick={() => openCreate()}><Plus className="mr-1.5 h-4 w-4" /> New task</Button>
           </div>
         ) : null}
       />
 
-      {/* Metric cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+      {/* Metric cards — five primary, with reveal for the rest */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <button onClick={() => { setScope("all"); setFStatus("open"); }} className="text-left">
-          <MetricCard icon={CheckSquare} label="Open" value={open} accent="primary" />
+          <MetricCard icon={CheckSquare} label="Open tasks" value={open} accent="primary" />
         </button>
         <button onClick={() => setScope("my")} className="text-left">
           <MetricCard icon={Users} label="Assigned to me" value={mine} accent="primary" />
         </button>
-        <button onClick={() => setScope("team")} className="text-left">
-          <MetricCard icon={Users} label="Team tasks" value={teamTasks} accent="primary" />
+        <button onClick={() => { setScope("all"); setFDue("today"); }} className="text-left">
+          <MetricCard icon={CalendarIcon} label="Due today" value={dueToday} accent="warning" />
         </button>
         <button onClick={() => { setScope("all"); setFDue("overdue"); }} className="text-left">
           <MetricCard icon={AlertTriangle} label="Overdue" value={overdue} accent="danger" />
         </button>
-        <button onClick={() => { setScope("all"); setFDue("week"); }} className="text-left">
-          <MetricCard icon={CalendarIcon} label="Due soon" value={dueSoon} accent="warning" />
-        </button>
-        <button onClick={() => { setScope("all"); setFStatus("blocked"); }} className="text-left">
-          <MetricCard icon={Layers} label="Blocked" value={blocked} accent="warning" />
-        </button>
-        <button onClick={() => { setScope("all"); setFPrio("critical"); }} className="text-left">
-          <MetricCard icon={Flame} label="Critical" value={critical} accent="danger" />
-        </button>
         <button onClick={() => setScope("completed")} className="text-left">
-          <MetricCard icon={CheckCircle2} label="Done / week" value={completedThisWeek} accent="success" />
+          <MetricCard icon={CheckCircle2} label="Completed this week" value={completedThisWeek} accent="success" />
         </button>
+      </div>
+      {showMoreMetrics && (
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <button onClick={() => setScope("team")} className="text-left">
+            <MetricCard icon={Users} label="Team tasks" value={teamTasks} accent="primary" />
+          </button>
+          <button onClick={() => { setScope("all"); setFDue("week"); }} className="text-left">
+            <MetricCard icon={CalendarIcon} label="Due soon" value={dueSoon} accent="warning" />
+          </button>
+          <button onClick={() => { setScope("all"); setFStatus("blocked"); }} className="text-left">
+            <MetricCard icon={Layers} label="Blocked" value={blocked} accent="warning" />
+          </button>
+          <button onClick={() => { setScope("all"); setFPrio("critical"); }} className="text-left">
+            <MetricCard icon={Flame} label="Critical" value={critical} accent="danger" />
+          </button>
+        </div>
+      )}
+      <div className="mt-2">
+        <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setShowMoreMetrics((v) => !v)}>
+          {showMoreMetrics ? "Hide extra metrics" : "Show more metrics"}
+        </Button>
       </div>
 
       <div className="mt-6 glass-card rounded-2xl p-4">
@@ -510,7 +527,23 @@ function TasksPage() {
         ) : (
           <div className="mt-3 overflow-hidden rounded-xl border border-border/40">
             {filtered.length === 0 ? (
-              <EmptyState icon={CheckSquare} title="No tasks match" description="Try clearing filters or change the active tab." />
+              (query || fCat !== "all" || fPrio !== "all" || fStatus !== "all" || fTeam !== "all" || fAssignee !== "all" || fSource !== "all" || fDue !== "all") ? (
+                <EmptyState
+                  icon={CheckSquare}
+                  title="No matching records"
+                  description="No records match the selected filters."
+                  actionLabel="Clear filters"
+                  onAction={resetFilters}
+                />
+              ) : (
+                <EmptyState
+                  icon={CheckSquare}
+                  title="No tasks yet"
+                  description="Create the first task to begin tracking operational work."
+                  actionLabel={writable ? "Create task" : undefined}
+                  onAction={writable ? () => openCreate() : undefined}
+                />
+              )
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

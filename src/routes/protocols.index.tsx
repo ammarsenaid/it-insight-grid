@@ -167,24 +167,21 @@ function ProtocolsPage() {
   return (
     <div>
       <PageHeader
-        title="Protocols & Runbooks"
-        description="Reusable operational procedures and live execution runs."
+        title="Protocols"
+        description="Run repeatable IT procedures with clear execution history."
         actions={canWrite && (
           <Button onClick={() => setShowCreate(true)}>
-            <Plus className="mr-1.5 h-4 w-4" /> New Template
+            <Plus className="mr-1.5 h-4 w-4" /> New template
           </Button>
         )}
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-        <button onClick={() => setTab("active")} className="text-left"><MetricCard icon={Play} label="Active" value={metrics.active} accent="primary" /></button>
-        <button onClick={() => { setTab("mine"); }} className="text-left"><MetricCard icon={User} label="Assigned to Me" value={metrics.assignedToMe} accent="primary" /></button>
-        <button onClick={() => setTab("scheduled")} className="text-left"><MetricCard icon={Calendar} label="Scheduled" value={metrics.scheduled} accent="muted" /></button>
-        <button onClick={() => { setTab("active"); setStatusFilter("in_progress"); }} className="text-left"><MetricCard icon={Clock} label="Due Today" value={metrics.dueToday} accent="warning" /></button>
-        <button onClick={() => setTab("active")} className="text-left"><MetricCard icon={AlertTriangle} label="Overdue" value={metrics.overdue} accent="danger" /></button>
-        <button onClick={() => { setTab("active"); setStatusFilter("waiting_approval"); }} className="text-left"><MetricCard icon={ShieldCheck} label="Awaiting Approval" value={metrics.awaitingApproval} accent="warning" /></button>
-        <button onClick={() => setTab("completed")} className="text-left"><MetricCard icon={CheckCircle2} label="Completed (mo)" value={metrics.completedThisMonth} accent="success" /></button>
-        <button onClick={() => setTab("failed")} className="text-left"><MetricCard icon={AlertTriangle} label="Failed/Issues" value={metrics.failed} accent="danger" /></button>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <button onClick={() => setTab("active")} className="text-left"><MetricCard icon={Play} label="Active runs" value={metrics.active} accent="primary" /></button>
+        <button onClick={() => { setTab("active"); setStatusFilter("in_progress"); }} className="text-left"><MetricCard icon={Clock} label="Due today" value={metrics.dueToday} accent="warning" /></button>
+        <button onClick={() => { setTab("active"); setStatusFilter("waiting_approval"); }} className="text-left"><MetricCard icon={ShieldCheck} label="Awaiting approval" value={metrics.awaitingApproval} accent="warning" /></button>
+        <button onClick={() => setTab("completed")} className="text-left"><MetricCard icon={CheckCircle2} label="Completed" value={metrics.completedThisMonth} accent="success" /></button>
+        <button onClick={() => setTab("failed")} className="text-left"><MetricCard icon={AlertTriangle} label="Issues" value={metrics.failed} accent="danger" /></button>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="mb-4">
@@ -217,14 +214,14 @@ function ProtocolsPage() {
           data={filteredTemplates}
           columns={templateCols}
           onRowClick={(t) => setEditingTemplate(t)}
-          emptyState={<EmptyState icon={ListChecks} title="No templates" description="Create your first protocol template." />}
+          emptyState={<EmptyState icon={ListChecks} title={q ? "No matching records" : "No templates yet"} description={q ? "No records match the selected filters." : "Create the first protocol template to standardise repeatable procedures."} />}
         />
       ) : (
         <DataTable
           data={filteredRuns}
           columns={runCols}
           onRowClick={(r) => navigate({ to: "/protocols/$id", params: { id: r.id } })}
-          emptyState={<EmptyState icon={Play} title="No protocol runs" description="Start a run from a template." />}
+          emptyState={<EmptyState icon={Play} title={(q || statusFilter !== "all") ? "No matching records" : "No protocol runs yet"} description={(q || statusFilter !== "all") ? "No records match the selected filters." : "Start a protocol run to track repeatable IT procedures."} />}
         />
       )}
 

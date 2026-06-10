@@ -186,9 +186,9 @@ function NotesPage() {
     <div>
       <PageHeader
         title="Notes"
-        description="Quick internal notes, runbooks, and reference snippets."
+        description="Capture quick information and turn it into actionable work."
         actions={writable ? (
-          <Button onClick={() => openCreate()}><Plus className="mr-1.5 h-4 w-4" /> New Note</Button>
+          <Button onClick={() => openCreate()}><Plus className="mr-1.5 h-4 w-4" /> New note</Button>
         ) : null}
       />
 
@@ -233,7 +233,7 @@ function NotesPage() {
               </Select>
             </div>
             <div className="max-h-[65vh] space-y-1 overflow-y-auto">
-              {visible.length === 0 && <div className="px-3 py-6 text-center text-xs text-muted-foreground">No notes</div>}
+              {visible.length === 0 && <div className="px-3 py-6 text-center text-xs text-muted-foreground">{(q || fCat !== "all" || fTag !== "all") ? "No matching notes" : "No notes yet"}</div>}
               {visible.map((n) => (
                 <button key={n.id} onClick={() => setSelectedId(n.id)}
                   className={cn("w-full rounded-lg px-3 py-2 text-left transition", selected?.id === n.id ? "bg-primary/15 text-primary" : "hover:bg-white/[0.03]")}>
@@ -357,14 +357,16 @@ function NotesPage() {
                   </div>
                 </div>
               </>
+            ) : data.notes.length === 0 ? (
+              <EmptyState icon={StickyNote} title="No notes yet" description="Create a note to capture quick information." actionLabel={writable ? "Create note" : undefined} onAction={writable ? () => openCreate() : undefined} />
             ) : (
-              <EmptyState icon={StickyNote} title="No note selected" description="Pick a note from the list or create a new one." actionLabel={writable ? "New Note" : undefined} onAction={writable ? () => openCreate() : undefined} />
+              <EmptyState icon={StickyNote} title="Select a note" description="Choose a note from the list or create a new one." actionLabel={writable ? "Create note" : undefined} onAction={writable ? () => openCreate() : undefined} />
             )}
           </section>
         </div>
       )}
 
-      <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit Note" : "New Note"} onSubmit={save}>
+      <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit note" : "New note"} onSubmit={save}>
         <div className="space-y-3">
           <div className="space-y-1.5"><Label className="text-xs">Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
           <div className="grid grid-cols-2 gap-3">
