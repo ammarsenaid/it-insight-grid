@@ -150,6 +150,8 @@ export function TicketsPage() {
   const [tagValue, setTagValue] = useState("");
   const [saveViewOpen, setSaveViewOpen] = useState(false);
   const [viewName, setViewName] = useState("");
+  const [showMoreMetrics, setShowMoreMetrics] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Honor a one-shot filter handoff from the Dashboard
   useEffect(() => {
