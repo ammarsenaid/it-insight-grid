@@ -354,7 +354,7 @@ function CMDBPage() {
             <Button variant="outline" size="sm" onClick={exportCSV}>
               <Download className="mr-1.5 h-4 w-4" /> Export
             </Button>
-            <Button onClick={openCreate} disabled={!writable}><Plus className="mr-1.5 h-4 w-4" /> Add Asset</Button>
+            <Button onClick={openCreate} disabled={!writable}><Plus className="mr-1.5 h-4 w-4" /> Add asset</Button>
           </div>
         }
       />
