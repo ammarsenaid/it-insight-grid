@@ -1060,6 +1060,15 @@ function ArticleView({
             refreshKey={`${article.revision_number}:${article.status}`}
           />
         )}
+        {panel === "audit" && (
+          <AuditLogPanel
+            teamId={teamId}
+            entityType="article"
+            entityId={article.id}
+            title="Article audit"
+            limit={50}
+          />
+        )}
       </div>
     </div>
   );
