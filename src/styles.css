@@ -104,6 +104,52 @@
   backdrop-filter: blur(8px);
 }
 
+/* Subtle dark-theme scrollbar (used by sidebar and other internal scroll areas) */
+@utility kb-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+.kb-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.kb-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kb-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.kb-scroll:hover::-webkit-scrollbar-thumb,
+.kb-scroll:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.18);
+  background-clip: padding-box;
+}
+
+/* Apply the same subtle scrollbar to the shadcn sidebar content by default */
+[data-sidebar="content"] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+[data-sidebar="content"]::-webkit-scrollbar {
+  width: 8px;
+}
+[data-sidebar="content"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-sidebar="content"]::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+[data-sidebar="content"]:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  background-clip: padding-box;
+}
+
 /* Manuscript-style reading column for Knowledge pages */
 .kb-manuscript {
   font-size: 0.95rem;
