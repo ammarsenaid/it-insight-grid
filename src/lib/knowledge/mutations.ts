@@ -210,6 +210,12 @@ export async function createArticle(input: {
   }
 }
 
+/**
+ * Update article content / metadata only. Status transitions MUST go
+ * through `knowledge_transition_article_status` (see lib/knowledge/review.ts);
+ * a database trigger rejects any direct status change made through this
+ * generic update path.
+ */
 export async function updateArticle(input: {
   id: string;
   title?: string;
@@ -217,7 +223,6 @@ export async function updateArticle(input: {
   excerpt?: string | null;
   contentMarkdown?: string;
   categoryId?: string | null;
-  status?: ArticleStatus;
   visibility?: string;
 }): Promise<Result<KbArticle>> {
   try {
@@ -227,7 +232,6 @@ export async function updateArticle(input: {
     if (input.excerpt !== undefined) patch.excerpt = input.excerpt?.toString().trim() || null;
     if (input.contentMarkdown !== undefined) patch.content_markdown = input.contentMarkdown;
     if (input.categoryId !== undefined) patch.category_id = input.categoryId;
-    if (input.status !== undefined) patch.status = input.status;
     if (input.visibility !== undefined) patch.visibility = input.visibility;
 
     const sb = getSupabase();
@@ -244,18 +248,6 @@ export async function updateArticle(input: {
   } catch (e) {
     return { data: null, error: msg("Update article", e) };
   }
-}
-
-export async function publishArticle(id: string): Promise<Result<KbArticle>> {
-  return updateArticle({ id, status: "published" });
-}
-
-export async function archiveArticle(id: string): Promise<Result<KbArticle>> {
-  return updateArticle({ id, status: "archived" });
-}
-
-export async function restoreArticleToDraft(id: string): Promise<Result<KbArticle>> {
-  return updateArticle({ id, status: "draft" });
 }
 
 export async function deleteArticle(id: string): Promise<Result<true>> {
