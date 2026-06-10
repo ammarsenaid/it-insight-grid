@@ -65,6 +65,7 @@ import {
   updateCategory,
   updateSpace,
 } from "@/lib/knowledge/mutations";
+import { archiveArticle as reviewArchiveArticle, restoreArticleToDraft } from "@/lib/knowledge/review";
 import { SpaceFormDialog } from "./dialogs/SpaceFormDialog";
 import { CategoryFormDialog } from "./dialogs/CategoryFormDialog";
 import { ArticleFormDialog } from "./dialogs/ArticleFormDialog";
