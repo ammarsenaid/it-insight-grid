@@ -358,25 +358,68 @@ export function KnowledgeBackendWorkspace() {
           )}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {perms.manageTeam && (
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setSpaceDialog({ open: true, initial: null })}>
-              <Plus className="mr-1 h-3 w-3" /> New space
-            </Button>
-          )}
-          {perms.create && data && data.spaces.some((s) => !s.is_archived) && (
-            <Button size="sm" variant="secondary" className="h-7 text-xs"
-              onClick={() => setArticleDialog({ open: true, initial: null, spaceId: data.spaces.find((s) => !s.is_archived)!.id, categoryId: null })}>
-              <Plus className="mr-1 h-3 w-3" /> New article
-            </Button>
-          )}
+          {(() => {
+            const selectedSpaceId =
+              selection?.kind === "space" ? selection.id :
+              selection?.kind === "category" ? data?.categories.find((c) => c.id === selection.id)?.space_id ?? null :
+              selection?.kind === "article" ? data?.articles.find((a) => a.id === selection.id)?.space_id ?? null :
+              null;
+            const selectedCategoryId =
+              selection?.kind === "category" ? selection.id :
+              selection?.kind === "article" ? data?.articles.find((a) => a.id === selection.id)?.category_id ?? null :
+              null;
+            const canNewSpace = perms.manageTeam;
+            const canNewCategory = perms.update && !!selectedSpaceId;
+            const canNewArticle = perms.create && !!selectedSpaceId;
+            const anyAllowed = canNewSpace || canNewCategory || canNewArticle;
+            if (!anyAllowed) return null;
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" className="h-7 text-xs">
+                    <Plus className="mr-1 h-3 w-3" /> New
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">Create</DropdownMenuLabel>
+                  {canNewSpace && (
+                    <DropdownMenuItem onClick={() => setSpaceDialog({ open: true, initial: null })}>
+                      <Library className="mr-2 h-3.5 w-3.5" /> New space
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    disabled={!canNewCategory}
+                    title={!selectedSpaceId ? "Select a space first" : undefined}
+                    onClick={() => selectedSpaceId && setCategoryDialog({ open: true, initial: null, spaceId: selectedSpaceId })}
+                  >
+                    <FolderTree className="mr-2 h-3.5 w-3.5" /> New category
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!canNewArticle}
+                    title={!selectedSpaceId ? "Select a space or category first" : undefined}
+                    onClick={() => selectedSpaceId && setArticleDialog({ open: true, initial: null, spaceId: selectedSpaceId, categoryId: selectedCategoryId })}
+                  >
+                    <FileText className="mr-2 h-3.5 w-3.5" /> New article
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })()}
           {perms.update && (
             <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setTagsDialog({ open: true })}>
               <TagsIcon className="mr-1 h-3 w-3" /> Tags
             </Button>
           )}
-          <Badge className="h-6 border-emerald-500/40 bg-emerald-500/10 text-emerald-300">Backend connected</Badge>
-          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => void reload()} disabled={loading}>
-            <RefreshCw className={cn("mr-1 h-3 w-3", loading && "animate-spin")} /> Reload
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => void reload()}
+            disabled={loading}
+            title="Reload knowledge base"
+            aria-label="Reload knowledge base"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
           </Button>
         </div>
       </div>
