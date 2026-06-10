@@ -21,7 +21,17 @@ import {
   Link2,
   Clock,
   X,
+  MoreHorizontal,
 } from "lucide-react";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const documentsRouteApi = getRouteApi("/documents");
 
@@ -261,10 +271,9 @@ export function KnowledgeBackendWorkspace() {
     return (
       <div className="glass-card rounded-2xl p-10 text-center text-sm text-muted-foreground">
         <Library className="mx-auto mb-3 h-8 w-8 opacity-60" />
-        <div className="text-base font-medium text-foreground">No accessible team was found</div>
+        <div className="text-base font-medium text-foreground">No accessible team found</div>
         <p className="mx-auto mt-2 max-w-md">
-          You don&apos;t have visibility on any team yet. Ask an administrator to grant your
-          account access to a team before browsing the knowledge base.
+          Ask an administrator to grant access to a team before browsing the knowledge base.
         </p>
       </div>
     );
@@ -348,25 +357,68 @@ export function KnowledgeBackendWorkspace() {
           )}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {perms.manageTeam && (
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setSpaceDialog({ open: true, initial: null })}>
-              <Plus className="mr-1 h-3 w-3" /> New space
-            </Button>
-          )}
-          {perms.create && data && data.spaces.some((s) => !s.is_archived) && (
-            <Button size="sm" variant="secondary" className="h-7 text-xs"
-              onClick={() => setArticleDialog({ open: true, initial: null, spaceId: data.spaces.find((s) => !s.is_archived)!.id, categoryId: null })}>
-              <Plus className="mr-1 h-3 w-3" /> New article
-            </Button>
-          )}
+          {(() => {
+            const selectedSpaceId =
+              selection?.kind === "space" ? selection.id :
+              selection?.kind === "category" ? data?.categories.find((c) => c.id === selection.id)?.space_id ?? null :
+              selection?.kind === "article" ? data?.articles.find((a) => a.id === selection.id)?.space_id ?? null :
+              null;
+            const selectedCategoryId =
+              selection?.kind === "category" ? selection.id :
+              selection?.kind === "article" ? data?.articles.find((a) => a.id === selection.id)?.category_id ?? null :
+              null;
+            const canNewSpace = perms.manageTeam;
+            const canNewCategory = perms.update && !!selectedSpaceId;
+            const canNewArticle = perms.create && !!selectedSpaceId;
+            const anyAllowed = canNewSpace || canNewCategory || canNewArticle;
+            if (!anyAllowed) return null;
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" className="h-7 text-xs">
+                    <Plus className="mr-1 h-3 w-3" /> New
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">Create</DropdownMenuLabel>
+                  {canNewSpace && (
+                    <DropdownMenuItem onClick={() => setSpaceDialog({ open: true, initial: null })}>
+                      <Library className="mr-2 h-3.5 w-3.5" /> New space
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    disabled={!canNewCategory}
+                    title={!selectedSpaceId ? "Select a space first" : undefined}
+                    onClick={() => selectedSpaceId && setCategoryDialog({ open: true, initial: null, spaceId: selectedSpaceId })}
+                  >
+                    <FolderTree className="mr-2 h-3.5 w-3.5" /> New category
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!canNewArticle}
+                    title={!selectedSpaceId ? "Select a space or category first" : undefined}
+                    onClick={() => selectedSpaceId && setArticleDialog({ open: true, initial: null, spaceId: selectedSpaceId, categoryId: selectedCategoryId })}
+                  >
+                    <FileText className="mr-2 h-3.5 w-3.5" /> New article
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })()}
           {perms.update && (
             <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setTagsDialog({ open: true })}>
               <TagsIcon className="mr-1 h-3 w-3" /> Tags
             </Button>
           )}
-          <Badge className="h-6 border-emerald-500/40 bg-emerald-500/10 text-emerald-300">Backend connected</Badge>
-          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => void reload()} disabled={loading}>
-            <RefreshCw className={cn("mr-1 h-3 w-3", loading && "animate-spin")} /> Reload
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => void reload()}
+            disabled={loading}
+            title="Reload knowledge base"
+            aria-label="Reload knowledge base"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
           </Button>
         </div>
       </div>
@@ -413,7 +465,7 @@ export function KnowledgeBackendWorkspace() {
             </label>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1 text-sm">
+          <div className="kb-scroll min-h-0 flex-1 overflow-y-auto pr-1 text-sm">
             {loading && !data ? (
               <TreeSkeleton />
             ) : error ? (
@@ -421,6 +473,10 @@ export function KnowledgeBackendWorkspace() {
             ) : !data || data.spaces.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
                 {perms.manageTeam ? "No spaces yet — create the first one to begin." : "No spaces in this team yet."}
+              </div>
+            ) : filteredArticleIds && filteredArticleIds.size === 0 && (!!ql || statusFilter !== "all" || !!tagFilter) ? (
+              <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
+                No matching articles
               </div>
             ) : (
               <ul className="space-y-0.5">
@@ -444,6 +500,7 @@ export function KnowledgeBackendWorkspace() {
             )}
           </div>
         </aside>
+
 
         {/* Main */}
         <section className="glass-card flex h-[calc(100vh-280px)] min-h-[480px] flex-col overflow-hidden rounded-2xl p-4">
@@ -702,17 +759,45 @@ function SelectionView(p: SelectionViewProps) {
   const { data, selection, tagsByArticle, teamId, perms, onOpenArticle } = p;
 
   if (!selection) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-muted-foreground">
-        <div>
-          <FileText className="mx-auto mb-2 h-6 w-6 opacity-60" />
-          Select a Space, Category, or Article on the left.
-          <div className="mt-1 text-[11px] text-muted-foreground/70">Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search.</div>
-          {perms.manageTeam && data.spaces.length === 0 && (
-            <div className="mt-3">
-              <Button size="sm" onClick={p.onNewSpace}><Plus className="mr-1 h-3 w-3" /> Create first space</Button>
+    const noSpaces = data.spaces.length === 0;
+    if (noSpaces) {
+      return (
+        <div className="flex h-full items-center justify-center p-6">
+          <div className="w-full max-w-md rounded-2xl border border-border/40 bg-white/[0.02] p-8 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Library className="h-6 w-6" />
             </div>
-          )}
+            <h3 className="text-base font-semibold text-foreground">Create your first knowledge space</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Organize your documentation into spaces, categories and articles.
+            </p>
+            {perms.manageTeam ? (
+              <Button size="sm" className="mt-5" onClick={p.onNewSpace}>
+                <Plus className="mr-1 h-3 w-3" /> Create space
+              </Button>
+            ) : (
+              <p className="mt-5 text-xs text-muted-foreground/80">
+                Ask a team manager to create the first space.
+              </p>
+            )}
+            <p className="mt-4 text-[11px] text-muted-foreground/70">
+              Example: Infrastructure, Applications, Security or Service Desk.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted-foreground">
+        <div className="w-full max-w-sm rounded-2xl border border-border/40 bg-white/[0.02] p-6">
+          <FileText className="mx-auto mb-3 h-6 w-6 opacity-60" />
+          <h3 className="text-base font-semibold text-foreground">Select an article</h3>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Choose an article from the explorer or create a new one.
+          </p>
+          <div className="mt-1 text-[11px] text-muted-foreground/70">
+            Tip: press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search.
+          </div>
         </div>
         {p.recent.length > 0 && (
           <div className="w-full max-w-sm rounded-xl border border-border/40 bg-white/[0.02] p-3 text-left">
@@ -751,6 +836,7 @@ function SelectionView(p: SelectionViewProps) {
       </div>
     );
   }
+
 
   if (selection.kind === "space") {
     const space = data.spaces.find((s) => s.id === selection.id);
