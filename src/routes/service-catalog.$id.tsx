@@ -104,7 +104,7 @@ function CatalogItemPage() {
 
           <SectionCard title="What happens next">
             <ol className="space-y-1.5 text-xs text-muted-foreground">
-              <li>1. Your request becomes a ticket and is routed to the {item.defaultTeam} team.</li>
+              <li>1. Your request is submitted to the IT team for review.</li>
               <li>2. You will receive notifications inside the portal as it progresses.</li>
               <li>3. Track status anytime under <Link to="/my-requests" className="text-primary hover:underline">My Requests</Link>.</li>
             </ol>
