@@ -62,6 +62,7 @@ import { TagsEditorDialog } from "./dialogs/TagsEditorDialog";
 import { ArticleContentEditor } from "./ArticleContentEditor";
 import { ReviewTimelinePanel } from "./ReviewTimelinePanel";
 import { AttachmentsPanel } from "./AttachmentsPanel";
+import { AuditLogPanel } from "./AuditLogPanel";
 import { ArticleTOC } from "./ArticleTOC";
 import { useRecentlyViewed } from "@/lib/knowledge/recent";
 import type {
@@ -956,7 +957,7 @@ function ArticleView({
   onEditContent: () => void; onEditMeta: () => void; onEditTags: () => void;
   onDelete: () => void; onReload: () => void;
 }) {
-  type SidePanel = "none" | "revisions" | "review" | "outline";
+  type SidePanel = "none" | "revisions" | "review" | "outline" | "audit";
   const [panel, setPanel] = useState<SidePanel>("outline");
   const handleCopyLink = async () => {
     try {
@@ -1027,6 +1028,10 @@ function ArticleView({
               onClick={() => setPanel((p) => (p === "revisions" ? "none" : "revisions"))}>
               <History className="mr-1 h-3 w-3" />Revisions
             </Button>
+            <Button size="sm" variant={panel === "audit" ? "secondary" : "ghost"} className="h-7 px-2 text-xs"
+              onClick={() => setPanel((p) => (p === "audit" ? "none" : "audit"))}>
+              <History className="mr-1 h-3 w-3" />Audit
+            </Button>
           </div>
         </div>
       </div>
@@ -1053,6 +1058,15 @@ function ArticleView({
             articleId={article.id}
             teamId={teamId}
             refreshKey={`${article.revision_number}:${article.status}`}
+          />
+        )}
+        {panel === "audit" && (
+          <AuditLogPanel
+            teamId={teamId}
+            entityType="article"
+            entityId={article.id}
+            title="Article audit"
+            limit={50}
           />
         )}
       </div>
