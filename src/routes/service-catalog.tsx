@@ -41,34 +41,62 @@ function ServiceCatalog() {
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [filtered]);
 
+  const clearFilters = () => { setQuery(""); setCategory("all"); };
+  const filtersActive = query.trim() !== "" || category !== "all";
+
   return (
     <div>
       <PageHeader
         title="Service Catalog"
-        description="Browse standard IT services and submit a structured request in a few clicks."
+        description="Request common IT services and support."
+        actions={
+          <Link to="/my-requests">
+            <Button variant="secondary" size="sm"><Inbox className="mr-1.5 h-4 w-4" /> My requests</Button>
+          </Link>
+        }
       />
 
-      <FilterBar query={query} onQueryChange={setQuery} placeholder="Search services…">
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="h-9 w-[180px] text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </FilterBar>
+      <div className="glass-card mb-4 rounded-2xl p-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search services"
+            className="h-10 pl-9"
+          />
+        </div>
+        {categories.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <CategoryChip label="All" active={category === "all"} onClick={() => setCategory("all")} />
+            {categories.map((c) => (
+              <CategoryChip key={c} label={c} active={category === c} onClick={() => setCategory(c)} />
+            ))}
+          </div>
+        )}
+      </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={Search} title="No services match" description="Try a different category or search term." />
+        data.catalog.length === 0 ? (
+          <EmptyState icon={ShoppingBag} title="No services available" description="The service catalog has not been configured yet." />
+        ) : (
+          <EmptyState
+            icon={Search}
+            title="No services found"
+            description="Try another search term or category."
+            actionLabel={filtersActive ? "Clear filters" : undefined}
+            onAction={filtersActive ? clearFilters : undefined}
+          />
+        )
       ) : (
         <div className="space-y-6">
           {grouped.map(([cat, items]) => (
             <section key={cat}>
               <div className="mb-2 flex items-center gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{cat}</h2>
-                <StatusBadge label={String(items.length)} tone="muted" />
+                <span className="text-[11px] text-muted-foreground">({items.length})</span>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {items.map((c) => <CatalogCard key={c.id} item={c} />)}
               </div>
             </section>
@@ -76,6 +104,18 @@ function ServiceCatalog() {
         </div>
       )}
     </div>
+  );
+}
+
+function CategoryChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1 text-xs transition-colors ${active ? "border-primary/60 bg-primary/15 text-primary" : "border-border/60 bg-background/40 text-muted-foreground hover:bg-white/[0.04]"}`}
+    >
+      {label}
+    </button>
   );
 }
 
