@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Save, Send, Archive, RotateCcw, X, CheckCircle2, XCircle, Upload, ArrowLeftCircle } from "lucide-react";
+import { Save, Send, RotateCcw, X, CheckCircle2, XCircle, Upload, ArrowLeftCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +18,7 @@ import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { updateArticle } from "@/lib/knowledge/mutations";
 import {
   approveForPublication,
-  archiveArticle,
+  
   publishApproved,
   requestChanges,
   restoreArticleToDraft,
@@ -90,19 +92,27 @@ const PROMPT_META: Record<Exclude<NonNullable<CommentPrompt>["kind"], never>, { 
  */
 export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, onClose }: Props) {
   const [content, setContent] = useState(article.content_markdown ?? "");
+  const [title, setTitle] = useState(article.title ?? "");
   const [busy, setBusy] = useState(false);
   const [prompt, setPrompt] = useState<CommentPrompt>(null);
   const [comment, setComment] = useState("");
   const initialRef = useRef(article.content_markdown ?? "");
+  const initialTitleRef = useRef(article.title ?? "");
   const dirtyRef = useRef(false);
 
   useEffect(() => {
     initialRef.current = article.content_markdown ?? "";
+    initialTitleRef.current = article.title ?? "";
     setContent(article.content_markdown ?? "");
+    setTitle(article.title ?? "");
     dirtyRef.current = false;
-  }, [article.id, article.content_markdown]);
+  }, [article.id, article.content_markdown, article.title]);
 
-  const dirty = content !== initialRef.current;
+  const trimmedTitle = title.trim();
+  const titleInvalid = trimmedTitle.length === 0;
+  const titleDirty = trimmedTitle !== initialTitleRef.current.trim();
+  const contentDirty = content !== initialRef.current;
+  const dirty = contentDirty || titleDirty;
   dirtyRef.current = dirty;
 
   useEffect(() => {
@@ -118,23 +128,24 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
 
   async function saveDraft() {
     if (busy || !dirty) return;
+    if (titleInvalid) {
+      toast.error("Title cannot be empty.");
+      return;
+    }
     setBusy(true);
-    const res = await updateArticle({ id: article.id, contentMarkdown: content });
+    const patch: { id: string; contentMarkdown?: string; title?: string } = { id: article.id };
+    if (contentDirty) patch.contentMarkdown = content;
+    if (titleDirty) patch.title = trimmedTitle;
+    const res = await updateArticle(patch);
     setBusy(false);
     if (res.error) { toast.error(res.error); return; }
     initialRef.current = content;
+    initialTitleRef.current = trimmedTitle;
+    setTitle(trimmedTitle);
     toast.success("Draft saved.");
     onSaved();
   }
 
-  async function doArchive() {
-    setBusy(true);
-    const res = await archiveArticle(article);
-    setBusy(false);
-    if (res.error) { toast.error(res.error); return; }
-    toast.success("Article archived.");
-    onSaved();
-  }
 
   async function doRestore() {
     setBusy(true);
@@ -161,13 +172,22 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
 
     // Persist any pending body changes first so reviewers see the latest content.
     if (dirty && (prompt.kind === "submit" || prompt.kind === "publish")) {
-      const saveRes = await updateArticle({ id: article.id, contentMarkdown: content });
+      if (titleInvalid) {
+        setBusy(false);
+        toast.error("Title cannot be empty.");
+        return;
+      }
+      const patch: { id: string; contentMarkdown?: string; title?: string } = { id: article.id };
+      if (contentDirty) patch.contentMarkdown = content;
+      if (titleDirty) patch.title = trimmedTitle;
+      const saveRes = await updateArticle(patch);
       if (saveRes.error) {
         setBusy(false);
         toast.error(saveRes.error);
         return;
       }
       initialRef.current = content;
+      initialTitleRef.current = trimmedTitle;
     }
 
     let res;
@@ -211,7 +231,6 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
     <div className="flex h-full min-h-0 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Editing</span>
-        <span className="truncate text-sm font-semibold">{article.title}</span>
         <Badge variant="outline" className="h-5">{STATUS_LABEL[status] ?? status}</Badge>
         <Badge variant="outline" className="h-5">rev {article.revision_number}</Badge>
         <div className="ml-auto flex items-center gap-2 text-xs">
@@ -221,6 +240,25 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
             <span className="text-muted-foreground">Up to date</span>
           )}
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="kb-article-title" className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          Article title
+        </Label>
+        <Input
+          id="kb-article-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Untitled article"
+          maxLength={200}
+          disabled={!canUpdate || status === "archived" || busy}
+          aria-invalid={titleInvalid}
+          className={`h-9 text-base font-semibold ${titleInvalid ? "border-destructive focus-visible:ring-destructive" : ""}`}
+        />
+        {titleInvalid && (
+          <p className="text-xs text-destructive">Title is required.</p>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
@@ -233,14 +271,14 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
         </Button>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {canUpdate && status !== "archived" && (
-            <Button variant="secondary" size="sm" onClick={() => void saveDraft()} disabled={!dirty || busy}>
+            <Button variant="secondary" size="sm" onClick={() => void saveDraft()} disabled={!dirty || busy || titleInvalid}>
               <Save className="mr-1 h-3.5 w-3.5" /> Save draft
             </Button>
           )}
 
           {/* Workflow actions */}
           {canUpdate && status === "draft" && (
-            <Button size="sm" onClick={() => openPrompt({ kind: "submit", required: false })} disabled={busy}>
+            <Button size="sm" onClick={() => openPrompt({ kind: "submit", required: false })} disabled={busy || titleInvalid}>
               <Send className="mr-1 h-3.5 w-3.5" /> Submit for review
             </Button>
           )}
@@ -265,16 +303,11 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
             </Button>
           )}
           {canUpdate && status === "approved" && (
-            <Button size="sm" onClick={() => openPrompt({ kind: "publish", required: false })} disabled={busy}>
+            <Button size="sm" onClick={() => openPrompt({ kind: "publish", required: false })} disabled={busy || titleInvalid}>
               <Upload className="mr-1 h-3.5 w-3.5" /> Publish
             </Button>
           )}
 
-          {canUpdate && status !== "archived" && status !== "in_review" && (
-            <Button variant="ghost" size="sm" onClick={() => void doArchive()} disabled={busy}>
-              <Archive className="mr-1 h-3.5 w-3.5" /> Archive
-            </Button>
-          )}
           {canUpdate && status === "archived" && (
             <Button variant="ghost" size="sm" onClick={() => void doRestore()} disabled={busy}>
               <RotateCcw className="mr-1 h-3.5 w-3.5" /> Restore to draft
@@ -282,6 +315,7 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
           )}
         </div>
       </div>
+
 
       <Dialog open={!!prompt} onOpenChange={(o) => { if (!o) setPrompt(null); }}>
         <DialogContent className="sm:max-w-md">
