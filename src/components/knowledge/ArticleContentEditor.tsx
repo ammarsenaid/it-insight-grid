@@ -18,7 +18,7 @@ import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { updateArticle } from "@/lib/knowledge/mutations";
 import {
   approveForPublication,
-  archiveArticle,
+  
   publishApproved,
   requestChanges,
   restoreArticleToDraft,
