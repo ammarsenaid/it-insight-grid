@@ -28,7 +28,7 @@ export const Route = createFileRoute("/audit")({
 
 function AuditPage() {
   const data = useData();
-  const role = useRole();
+  void useRole();
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
