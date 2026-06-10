@@ -581,6 +581,9 @@ export function KnowledgeBackendWorkspace() {
                       onSelect={setSelection}
                       matched={filteredArticleIds}
                       filterActive={!!ql || statusFilter !== "all" || !!tagFilter}
+                      renderSpaceMenu={renderSpaceMenu}
+                      renderCategoryMenu={renderCategoryMenu}
+                      renderArticleMenu={renderArticleMenu}
                     />
                   ))}
               </ul>
