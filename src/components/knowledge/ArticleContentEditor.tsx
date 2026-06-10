@@ -146,14 +146,6 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
     onSaved();
   }
 
-  async function doArchive() {
-    setBusy(true);
-    const res = await archiveArticle(article);
-    setBusy(false);
-    if (res.error) { toast.error(res.error); return; }
-    toast.success("Article archived.");
-    onSaved();
-  }
 
   async function doRestore() {
     setBusy(true);
