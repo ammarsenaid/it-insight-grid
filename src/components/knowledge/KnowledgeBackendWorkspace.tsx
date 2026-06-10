@@ -883,6 +883,7 @@ interface SelectionViewProps {
   onNewArticle: (spaceId: string, categoryId: string | null) => void;
   onEditArticleMeta: (a: KbArticle) => void;
   onDeleteArticle: (a: KbArticle) => void;
+  onArchiveArticle: (a: KbArticle) => void;
   onEditArticleTags: (a: KbArticle) => void;
   onReload: () => void;
   recent: Array<{ id: string; title: string; teamId: string; at: number }>;
