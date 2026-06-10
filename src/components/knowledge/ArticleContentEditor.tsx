@@ -239,7 +239,6 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
     <div className="flex h-full min-h-0 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Editing</span>
-        <span className="truncate text-sm font-semibold">{article.title}</span>
         <Badge variant="outline" className="h-5">{STATUS_LABEL[status] ?? status}</Badge>
         <Badge variant="outline" className="h-5">rev {article.revision_number}</Badge>
         <div className="ml-auto flex items-center gap-2 text-xs">
@@ -249,6 +248,25 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
             <span className="text-muted-foreground">Up to date</span>
           )}
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="kb-article-title" className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          Article title
+        </Label>
+        <Input
+          id="kb-article-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Untitled article"
+          maxLength={200}
+          disabled={!canUpdate || status === "archived" || busy}
+          aria-invalid={titleInvalid}
+          className={`h-9 text-base font-semibold ${titleInvalid ? "border-destructive focus-visible:ring-destructive" : ""}`}
+        />
+        {titleInvalid && (
+          <p className="text-xs text-destructive">Title is required.</p>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
@@ -261,14 +279,14 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
         </Button>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {canUpdate && status !== "archived" && (
-            <Button variant="secondary" size="sm" onClick={() => void saveDraft()} disabled={!dirty || busy}>
+            <Button variant="secondary" size="sm" onClick={() => void saveDraft()} disabled={!dirty || busy || titleInvalid}>
               <Save className="mr-1 h-3.5 w-3.5" /> Save draft
             </Button>
           )}
 
           {/* Workflow actions */}
           {canUpdate && status === "draft" && (
-            <Button size="sm" onClick={() => openPrompt({ kind: "submit", required: false })} disabled={busy}>
+            <Button size="sm" onClick={() => openPrompt({ kind: "submit", required: false })} disabled={busy || titleInvalid}>
               <Send className="mr-1 h-3.5 w-3.5" /> Submit for review
             </Button>
           )}
@@ -293,16 +311,11 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
             </Button>
           )}
           {canUpdate && status === "approved" && (
-            <Button size="sm" onClick={() => openPrompt({ kind: "publish", required: false })} disabled={busy}>
+            <Button size="sm" onClick={() => openPrompt({ kind: "publish", required: false })} disabled={busy || titleInvalid}>
               <Upload className="mr-1 h-3.5 w-3.5" /> Publish
             </Button>
           )}
 
-          {canUpdate && status !== "archived" && status !== "in_review" && (
-            <Button variant="ghost" size="sm" onClick={() => void doArchive()} disabled={busy}>
-              <Archive className="mr-1 h-3.5 w-3.5" /> Archive
-            </Button>
-          )}
           {canUpdate && status === "archived" && (
             <Button variant="ghost" size="sm" onClick={() => void doRestore()} disabled={busy}>
               <RotateCcw className="mr-1 h-3.5 w-3.5" /> Restore to draft
@@ -310,6 +323,7 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
           )}
         </div>
       </div>
+
 
       <Dialog open={!!prompt} onOpenChange={(o) => { if (!o) setPrompt(null); }}>
         <DialogContent className="sm:max-w-md">
