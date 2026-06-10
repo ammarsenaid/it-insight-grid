@@ -9,7 +9,6 @@
 
 import { getSupabase } from "@/integrations/supabase/client";
 import type {
-  ArticleStatus,
   KbArticle,
   KbCategory,
   KbRevision,
@@ -175,7 +174,6 @@ export async function createArticle(input: {
   slug: string;
   excerpt?: string | null;
   contentMarkdown?: string;
-  status?: ArticleStatus;
   visibility?: string;
 }): Promise<Result<KbArticle>> {
   try {
@@ -193,7 +191,10 @@ export async function createArticle(input: {
         slug: input.slug,
         excerpt: input.excerpt?.trim() || null,
         content_markdown: input.contentMarkdown ?? "",
-        status: input.status ?? "draft",
+        // New articles MUST start as draft. Workflow transitions go through
+        // public.knowledge_transition_article_status (see lib/knowledge/review.ts);
+        // a BEFORE INSERT trigger rejects any other initial status server-side.
+        status: "draft",
         visibility: input.visibility ?? "team",
         // Insert policy requires created_by = updated_by = auth.uid()
         created_by: uid,
