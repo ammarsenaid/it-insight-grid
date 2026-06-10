@@ -186,9 +186,9 @@ function NotesPage() {
     <div>
       <PageHeader
         title="Notes"
-        description="Quick internal notes, runbooks, and reference snippets."
+        description="Capture quick information and turn it into actionable work."
         actions={writable ? (
-          <Button onClick={() => openCreate()}><Plus className="mr-1.5 h-4 w-4" /> New Note</Button>
+          <Button onClick={() => openCreate()}><Plus className="mr-1.5 h-4 w-4" /> New note</Button>
         ) : null}
       />
 
