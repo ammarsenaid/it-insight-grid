@@ -10,8 +10,6 @@ import {
   Trash2,
   Settings as SettingsIcon,
   Brain,
-  RefreshCw,
-  Database,
   Ticket,
   Inbox,
   ShoppingBag,
@@ -23,6 +21,7 @@ import {
   Sliders,
   ListChecks,
   FileCode,
+  Wrench,
 } from "lucide-react";
 import {
   Sidebar,
@@ -37,11 +36,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { refreshFromStorage, useData } from "@/lib/data/store";
+import { useData } from "@/lib/data/store";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { toast } from "sonner";
 
 const groups = [
   {
