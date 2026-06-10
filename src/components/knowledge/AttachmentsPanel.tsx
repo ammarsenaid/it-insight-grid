@@ -6,8 +6,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/components/common/format";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import {
+  ALLOWED_ATTACHMENT_MIME_TYPES,
   deleteAttachment,
   getAttachmentDownloadUrl,
+  isAllowedMime,
   listAttachments,
   MAX_ATTACHMENT_BYTES,
   uploadAttachment,
@@ -49,6 +51,11 @@ export function AttachmentsPanel({ articleId, teamId, canUpdate }: Props) {
       toast.error(`File exceeds ${(MAX_ATTACHMENT_BYTES / (1024 * 1024)).toFixed(0)} MB limit.`);
       return;
     }
+    const mime = file.type || "application/octet-stream";
+    if (!isAllowedMime(mime)) {
+      toast.error("Unsupported file type.");
+      return;
+    }
     setBusy(true);
     const res = await uploadAttachment({ teamId, articleId, file });
     setBusy(false);
@@ -87,6 +94,7 @@ export function AttachmentsPanel({ articleId, teamId, canUpdate }: Props) {
               ref={fileRef}
               type="file"
               className="hidden"
+              accept={ALLOWED_ATTACHMENT_MIME_TYPES.join(",")}
               onChange={(e) => void onPick(e.target.files?.[0])}
             />
             <Button

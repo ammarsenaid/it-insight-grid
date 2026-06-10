@@ -62,5 +62,8 @@ export function summarizeAuditChange(entry: KbAuditEntry): string {
   if (entry.action === "delete") return "Deleted";
   const keys = Object.keys(entry.changes ?? {});
   if (keys.length === 0) return "Updated";
-  return `Updated ${keys.slice(0, 3).join(", ")}${keys.length > 3 ? "…" : ""}`;
+  // Render content_markdown as a redacted body change so the panel
+  // never implies that the full body is stored.
+  const friendly = keys.map((k) => (k === "content_markdown" ? "body (redacted)" : k));
+  return `Updated ${friendly.slice(0, 3).join(", ")}${friendly.length > 3 ? "…" : ""}`;
 }
