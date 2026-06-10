@@ -382,19 +382,20 @@ function IPAMPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-        <MetricCard icon={Network} label="Total" value={data.ipam.length} accent="primary" />
-        <MetricCard icon={CheckCircle2} label="Used" value={used} accent="success" />
-        <MetricCard icon={Network} label="Free" value={free} accent="muted" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <MetricCard icon={Network} label="Total addresses" value={data.ipam.length} accent="primary" />
+        <MetricCard icon={Network} label="Available" value={free} accent="muted" />
+        <MetricCard icon={CheckCircle2} label="Assigned" value={used} accent="success" />
         <MetricCard icon={Lock} label="Reserved" value={reserved} accent="warning" />
-        <MetricCard icon={Layers} label="Subnets" value={subnets.length} accent="primary" />
-        <MetricCard icon={Network} label="VLANs" value={vlans} accent="primary" />
         <MetricCard
           icon={AlertTriangle}
           label="Conflicts"
           value={duplicates.size}
           accent={duplicates.size > 0 ? "danger" : "success"}
         />
+      </div>
+      <div className="mt-2 px-1 text-[11px] text-muted-foreground">
+        <Layers className="mr-1 inline h-3 w-3" /> {subnets.length} subnet{subnets.length === 1 ? "" : "s"} · {vlans} VLAN{vlans === 1 ? "" : "s"} · {linkedAssets} linked asset{linkedAssets === 1 ? "" : "s"}
       </div>
 
       {duplicates.size > 0 && (
