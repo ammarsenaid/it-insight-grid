@@ -518,7 +518,11 @@ function IPAMPage() {
           data={filtered}
           columns={columns}
           pageSize={data.settings.tablePageSize}
-          emptyState={<EmptyState icon={Network} title="No IP records" description="Add an IP to start managing addresses." actionLabel="Add IP" onAction={openCreate} />}
+          emptyState={
+            (query || filterSubnet !== "all" || filterStatus !== "all" || filterType !== "all" || filterVlan !== "all")
+              ? <EmptyState icon={Network} title="No matching records" description="No records match the selected filters." actionLabel="Clear filters" onAction={() => { setQuery(""); setFilterSubnet("all"); setFilterStatus("all"); setFilterType("all"); setFilterVlan("all"); }} />
+              : <EmptyState icon={Network} title="No IP records yet" description="Add the first IP record to start managing your network inventory." actionLabel="Add IP record" onAction={openCreate} />
+          }
         />
       </div>
 
