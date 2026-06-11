@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { ROLES, CAPS, CAPABILITY_GROUPS, PAGE_VISIBILITY, can, useRole, setRole, type Role } from "@/lib/permissions";
 import { useData } from "@/lib/data/store";
 import { roleLabel } from "@/lib/data/users";
+import { useAuth } from "@/lib/auth/AuthProvider";
+
 
 export const Route = createFileRoute("/admin/roles")({
   head: () => ({ meta: [{ title: "Roles and Permissions · IT Knowledge Center" }] }),
@@ -44,7 +46,10 @@ function AdminRolesPage() {
   const role = useRole();
   const allowed = can("admin.roles", role);
   const data = useData();
+  const { session } = useAuth();
+  const isSignedIn = Boolean(session);
   const [preview, setPreview] = useState<Role>(role);
+
 
   if (!allowed) {
     return (
@@ -153,7 +158,9 @@ function AdminRolesPage() {
 
         <TabsContent value="preview">
           <SectionCard title="Role preview"
-            description="Inspect what a role can see and do, then optionally activate it."
+            description={isSignedIn
+              ? "Inspect what each role can see and do. The active role comes from your account; the prototype switcher is disabled while signed in."
+              : "Inspect what a role can see and do, then optionally activate it."}
             actions={
               <div className="flex items-center gap-2">
                 <select
@@ -163,10 +170,13 @@ function AdminRolesPage() {
                 >
                   {ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </select>
-                <Button size="sm" onClick={() => setRole(preview)}>Activate role</Button>
+                {!isSignedIn && (
+                  <Button size="sm" onClick={() => setRole(preview)}>Activate role</Button>
+                )}
               </div>
             }
           >
+
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Visible pages</h3>

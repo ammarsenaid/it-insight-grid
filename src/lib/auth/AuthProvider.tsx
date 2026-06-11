@@ -9,6 +9,8 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { getSupabase, isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
+import { setSessionRole } from "@/lib/permissions";
+
 
 export interface ProfileRow {
   id: string;
@@ -116,10 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTeamsError(null);
       setRoleKeys([]);
       setRoleState(null);
+      setSessionRole(null);
       setContextError(null);
       setContextLoading(false);
       return;
     }
+
     const userId = current.user.id;
     const failures: string[] = [];
 
@@ -174,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("[auth] failed to load roles", rolesErr);
       setRoleKeys([]);
       setRoleState(null);
+      setSessionRole(null);
       failures.push("roles");
     } else {
       const keys = ((rolesData ?? []) as unknown as Array<{
@@ -182,8 +187,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .map((r) => r.roles?.role_key ?? null)
         .filter((k): k is string => Boolean(k));
       setRoleKeys(keys);
-      setRoleState(pickHighestRole(keys));
+      const highest = pickHighestRole(keys);
+      setRoleState(highest);
+      setSessionRole(highest);
     }
+
 
     setContextError(
       failures.length === 0
@@ -239,9 +247,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTeamsError(null);
     setRoleKeys([]);
     setRoleState(null);
+    setSessionRole(null);
     setContextError(null);
     setContextLoading(false);
   }, []);
+
 
   const refresh = useCallback(async () => {
     setContextError(null);

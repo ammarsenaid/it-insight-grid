@@ -41,6 +41,10 @@ const LEGACY_MAP: Record<string, Role> = {
 
 const listeners = new Set<() => void>();
 let role: Role = load();
+// When a Supabase session is active, AuthProvider pushes the DB-derived role
+// here. It takes precedence over the localStorage role, which is kept only as
+// an unauthenticated preview fallback.
+let sessionRole: Role | null = null;
 
 function load(): Role {
   if (typeof window === "undefined") return "super_admin";
@@ -58,10 +62,30 @@ function load(): Role {
 
 function notify() { listeners.forEach((l) => l()); }
 
+function currentRole(): Role {
+  return sessionRole ?? role;
+}
+
 export function setRole(next: Role) {
   role = next;
   if (typeof window !== "undefined") localStorage.setItem(KEY, next);
   notify();
+}
+
+/**
+ * Push the authenticated DB role into the permissions store. Pass `null`
+ * to clear (sign-out / unauthenticated preview). While a non-null session
+ * role is set, it overrides the localStorage role returned by `useRole()`.
+ */
+export function setSessionRole(next: Role | null) {
+  if (next !== null && !ROLES.some((r) => r.id === next)) return;
+  if (sessionRole === next) return;
+  sessionRole = next;
+  notify();
+}
+
+export function hasSessionRole(): boolean {
+  return sessionRole !== null;
 }
 
 function subscribe(cb: () => void) {
@@ -70,8 +94,9 @@ function subscribe(cb: () => void) {
 }
 
 export function useRole(): Role {
-  return useSyncExternalStore(subscribe, () => role, () => role);
+  return useSyncExternalStore(subscribe, currentRole, currentRole);
 }
+
 
 // ---------- Capability matrix ----------
 // Frontend-only. Backend enforcement will be added later via Lovable Cloud / RLS.
@@ -158,18 +183,19 @@ export const PAGE_VISIBILITY: Record<string, Role[]> = {
 void REQUESTER_PAGES;
 
 export function canSeePage(path: string, current?: Role): boolean {
-  const r = current ?? role;
+  const r = current ?? currentRole();
   const list = PAGE_VISIBILITY[path];
   if (!list) return true;
   return list.includes(r);
 }
 
 export function can(capability: string, current?: Role): boolean {
-  const r = current ?? role;
+  const r = current ?? currentRole();
   const list = CAPS[capability];
   if (!list) return true;
   return list.includes(r);
 }
+
 
 // Friendly capability groups for the permission matrix UI
 export const CAPABILITY_GROUPS: { label: string; caps: { key: string; label: string }[] }[] = [
