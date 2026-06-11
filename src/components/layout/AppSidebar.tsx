@@ -102,17 +102,20 @@ export function AppSidebar() {
   const { isPlatformAdmin } = useAuth();
   const role = useRole();
 
-  // Admin links are gated by the real is_platform_admin() result,
-  // with role-based exceptions for prototype-only admin pages
-  // (e.g. /admin/catalog is also available to sd_lead).
+  // Every item is gated by canSeePage (role-based PAGE_VISIBILITY).
+  // Admin items additionally require the real is_platform_admin() flag,
+  // except for the prototype-only admin pages that allow non-admin roles
+  // listed in PAGE_VISIBILITY (e.g. /admin/catalog also allows sd_lead).
   const visibleGroups = groups
     .map((g) => ({
       ...g,
       items: g.items.filter((it) => {
-        if (!it.url.startsWith("/admin")) return true;
-        if (isPlatformAdmin) return true;
-        if (it.url === "/admin/catalog") return canSeePage("/admin/catalog", role);
-        return false;
+        if (!canSeePage(it.url, role)) return false;
+        if (it.url.startsWith("/admin")) {
+          if (isPlatformAdmin) return true;
+          return canSeePage(it.url, role);
+        }
+        return true;
       }),
     }))
     .filter((g) => g.items.length > 0);
