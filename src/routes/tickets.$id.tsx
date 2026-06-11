@@ -182,6 +182,11 @@ function TicketDetail() {
                 </Button>
               </>
             )}
+            {isRequesterView && (ticket.status === "resolved" || ticket.status === "closed") && (
+              <Button variant="secondary" onClick={() => setReopenOpen(true)}>
+                <RotateCcw className="mr-1.5 h-4 w-4" /> Reopen request
+              </Button>
+            )}
           </div>
         }
       />
