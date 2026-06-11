@@ -231,22 +231,28 @@ function TicketDetail() {
               </TabsContent>
             </Tabs>
 
-            <div className="mt-4 rounded-xl border border-border/60 bg-background/30 p-3">
-              <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder={internal ? "Add an internal note (visible only to IT)…" : "Reply to requester…"} rows={3} />
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  {can("tickets.assign", role) && (
-                    <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} className="accent-primary" />
-                      <Lock className="h-3 w-3" /> Internal note
-                    </label>
-                  )}
+            {can("tickets.create", role) ? (
+              <div className="mt-4 rounded-xl border border-border/60 bg-background/30 p-3">
+                <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder={internal ? "Add an internal note (visible only to IT)…" : "Reply to requester…"} rows={3} />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {can("tickets.assign", role) && (
+                      <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} className="accent-primary" />
+                        <Lock className="h-3 w-3" /> Internal note
+                      </label>
+                    )}
+                  </div>
+                  <Button size="sm" onClick={handleReply}>
+                    <Send className="mr-1 h-3.5 w-3.5" /> Send
+                  </Button>
                 </div>
-                <Button size="sm" onClick={handleReply}>
-                  <Send className="mr-1 h-3.5 w-3.5" /> Send
-                </Button>
               </div>
-            </div>
+            ) : (
+              <p className="mt-4 rounded-xl border border-border/60 bg-background/20 p-3 text-xs text-muted-foreground">
+                Read-only access — you cannot post replies or notes on this ticket.
+              </p>
+            )}
           </SectionCard>
 
           {ticket.attachments.length > 0 && (
