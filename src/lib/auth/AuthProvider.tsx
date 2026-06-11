@@ -183,7 +183,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("[auth] failed to load roles", rolesErr);
       setRoleKeys([]);
       setRoleState(null);
-      setSessionRole(null);
+      // Authenticated: degrade to least-privilege, never to localStorage.
+      setSessionRole("employee");
       failures.push("roles");
     } else {
       const keys = ((rolesData ?? []) as unknown as Array<{
@@ -194,8 +195,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRoleKeys(keys);
       const highest = pickHighestRole(keys);
       setRoleState(highest);
-      setSessionRole(highest);
+      // No known/recognised role → least-privilege employee.
+      setSessionRole(highest ?? "employee");
     }
+
 
 
     setContextError(
