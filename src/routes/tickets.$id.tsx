@@ -49,13 +49,20 @@ import {
   ticketCommentsQuery,
   ticketStatusEventsQuery,
   ticketAssignmentHistoryQuery,
+  ticketAttachmentsQuery,
 } from "@/lib/service-desk/queries";
 import {
   updateTicket,
 } from "@/lib/service-desk/tickets";
 import { addTicketComment } from "@/lib/service-desk/comments";
+import {
+  uploadTicketAttachment,
+  deleteTicketAttachment,
+  getAttachmentSignedUrl,
+} from "@/lib/service-desk/attachments";
 import { nameOf, profileMap } from "@/lib/service-desk/profiles";
 import type {
+  TicketAttachment,
   TicketPriority,
   TicketStatus,
 } from "@/lib/service-desk/types";
