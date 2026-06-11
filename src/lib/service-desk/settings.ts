@@ -91,3 +91,62 @@ export async function listMailboxConfigs(): Promise<TicketMailboxConfig[]> {
   if (error) throw error;
   return asRows<SbRow>(data).map(mapMailboxConfig);
 }
+
+// ---------- Canned response CRUD (RLS gates writes to tickets.config) ----------
+
+const CANNED_COLS =
+  "id, shortcut, title, body, is_internal, created_by, created_at, updated_at";
+
+export interface CannedResponseInput {
+  shortcut: string;
+  title: string;
+  body: string;
+  isInternal: boolean;
+}
+
+export async function createCannedResponse(
+  userId: string,
+  input: CannedResponseInput,
+): Promise<TicketCannedResponse> {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from("ticket_canned_responses")
+    .insert({
+      shortcut: input.shortcut,
+      title: input.title,
+      body: input.body,
+      is_internal: input.isInternal,
+      created_by: userId,
+    })
+    .select(CANNED_COLS)
+    .single();
+  if (error) throw error;
+  return mapCannedResponse(data as SbRow);
+}
+
+export async function updateCannedResponse(
+  id: string,
+  patch: Partial<CannedResponseInput>,
+): Promise<TicketCannedResponse> {
+  const sb = getSupabase();
+  const row: Record<string, unknown> = {};
+  if (patch.shortcut !== undefined) row.shortcut = patch.shortcut;
+  if (patch.title !== undefined) row.title = patch.title;
+  if (patch.body !== undefined) row.body = patch.body;
+  if (patch.isInternal !== undefined) row.is_internal = patch.isInternal;
+  const { data, error } = await sb
+    .from("ticket_canned_responses")
+    .update(row)
+    .eq("id", id)
+    .select(CANNED_COLS)
+    .single();
+  if (error) throw error;
+  return mapCannedResponse(data as SbRow);
+}
+
+export async function deleteCannedResponse(id: string): Promise<void> {
+  const sb = getSupabase();
+  const { error } = await sb.from("ticket_canned_responses").delete().eq("id", id);
+  if (error) throw error;
+}
+
