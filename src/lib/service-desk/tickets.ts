@@ -3,6 +3,7 @@
  */
 import { getSupabase } from "@/integrations/supabase/client";
 import { mapAssignmentEvent, mapStatusEvent, mapTicket } from "./mappers";
+import { asRow, asRows } from "./sb";
 import type {
   Ticket,
   TicketAssignmentEvent,
@@ -27,7 +28,7 @@ export async function listTickets(): Promise<Ticket[]> {
     .select(T_COLS)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return ((data ?? []) as Row[]).map(mapTicket);
+  return asRows<Row>(data).map(mapTicket);
 }
 
 /** Tickets where the current user is the requester (employee /my-requests). */
@@ -39,14 +40,14 @@ export async function listMyTickets(userId: string): Promise<Ticket[]> {
     .eq("requester_id", userId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return ((data ?? []) as Row[]).map(mapTicket);
+  return asRows<Row>(data).map(mapTicket);
 }
 
 export async function getTicket(id: string): Promise<Ticket | null> {
   const sb = getSupabase();
   const { data, error } = await sb.from("tickets").select(T_COLS).eq("id", id).maybeSingle();
   if (error) throw error;
-  return data ? mapTicket(data as Row) : null;
+  return data ? mapTicket(asRow<Row>(data)) : null;
 }
 
 export interface CreateTicketInput {
@@ -86,7 +87,7 @@ export async function createTicket(
     .select(T_COLS)
     .single();
   if (error) throw error;
-  return mapTicket(data as Row);
+  return mapTicket(asRow<Row>(data));
 }
 
 export interface UpdateTicketInput {
@@ -124,7 +125,7 @@ export async function updateTicket(id: string, patch: UpdateTicketInput): Promis
     .select(T_COLS)
     .single();
   if (error) throw error;
-  return mapTicket(data as Row);
+  return mapTicket(asRow<Row>(data));
 }
 
 export async function setTicketStatus(id: string, status: TicketStatus): Promise<Ticket> {
@@ -147,7 +148,7 @@ export async function listStatusEvents(ticketId: string): Promise<TicketStatusEv
     .eq("ticket_id", ticketId)
     .order("changed_at", { ascending: true });
   if (error) throw error;
-  return ((data ?? []) as Row[]).map(mapStatusEvent);
+  return asRows<Row>(data).map(mapStatusEvent);
 }
 
 export async function listAssignmentHistory(
@@ -162,5 +163,5 @@ export async function listAssignmentHistory(
     .eq("ticket_id", ticketId)
     .order("changed_at", { ascending: true });
   if (error) throw error;
-  return ((data ?? []) as Row[]).map(mapAssignmentEvent);
+  return asRows<Row>(data).map(mapAssignmentEvent);
 }

@@ -4,6 +4,7 @@
  */
 import { getSupabase } from "@/integrations/supabase/client";
 import { mapCatalogItem } from "./mappers";
+import { asRow, asRows } from "./sb";
 import type { CatalogItem, CatalogItemStatus, CatalogItemVisibility } from "./types";
 
 const SELECT_COLS =
@@ -19,7 +20,7 @@ export async function listPublishedCatalog(): Promise<CatalogItem[]> {
     .order("category", { ascending: true })
     .order("name", { ascending: true });
   if (error) throw error;
-  return ((data ?? []) as Record<string, unknown>[]).map(mapCatalogItem);
+  return asRows(data).map(mapCatalogItem);
 }
 
 export async function listAllCatalogForManagers(): Promise<CatalogItem[]> {
@@ -31,7 +32,7 @@ export async function listAllCatalogForManagers(): Promise<CatalogItem[]> {
     .order("category", { ascending: true })
     .order("name", { ascending: true });
   if (error) throw error;
-  return ((data ?? []) as Record<string, unknown>[]).map(mapCatalogItem);
+  return asRows(data).map(mapCatalogItem);
 }
 
 export async function getCatalogItem(id: string): Promise<CatalogItem | null> {
@@ -42,7 +43,7 @@ export async function getCatalogItem(id: string): Promise<CatalogItem | null> {
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
-  return data ? mapCatalogItem(data as Record<string, unknown>) : null;
+  return data ? mapCatalogItem(asRow(data)) : null;
 }
 
 export interface CatalogItemInput {
@@ -81,7 +82,7 @@ export async function createCatalogItem(input: CatalogItemInput): Promise<Catalo
     .select(SELECT_COLS)
     .single();
   if (error) throw error;
-  return mapCatalogItem(data as Record<string, unknown>);
+  return mapCatalogItem(asRow(data));
 }
 
 export async function updateCatalogItem(
@@ -107,7 +108,7 @@ export async function updateCatalogItem(
     .select(SELECT_COLS)
     .single();
   if (error) throw error;
-  return mapCatalogItem(data as Record<string, unknown>);
+  return mapCatalogItem(asRow(data));
 }
 
 export async function deleteCatalogItem(id: string): Promise<void> {
