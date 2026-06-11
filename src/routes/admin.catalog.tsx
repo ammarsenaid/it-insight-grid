@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Lucide from "lucide-react";
 import {
   ShoppingBag, Plus, Pencil, Eye, EyeOff, Archive, Trash2, Search,
-  MoreHorizontal, ExternalLink, X, Lock,
+  MoreHorizontal, ExternalLink, X, Lock, AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,15 +16,23 @@ import { FormDrawer } from "@/components/common/FormDrawer";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { timeAgo } from "@/components/common/format";
 
-import { useData } from "@/lib/data/store";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { can, useRole } from "@/lib/permissions";
+import { catalogManagedQuery, sdKeys } from "@/lib/service-desk/queries";
 import {
-  CATALOG_ICON_OPTIONS, CATALOG_PRIORITIES,
-  archiveCatalogItem, createCatalogItem, deleteCatalogItem,
-  publishCatalogItem, unpublishCatalogItem, updateCatalogItem,
-} from "@/lib/data/catalog";
-import { TICKET_CATEGORIES, TICKET_TEAMS } from "@/lib/data/tickets";
-import type { CatalogField, CatalogItem, CatalogItemStatus, TicketPriority } from "@/lib/data/types";
+  createCatalogItem,
+  deleteCatalogItem,
+  setCatalogStatus,
+  updateCatalogItem,
+  type CatalogItemInput,
+} from "@/lib/service-desk/catalog";
+import type {
+  CatalogFieldSchema,
+  CatalogItem,
+  CatalogItemStatus,
+  CatalogItemVisibility,
+  TicketPriority,
+} from "@/lib/service-desk/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,9 +56,21 @@ const STATUS_TONE: Record<CatalogItemStatus, "success" | "warning" | "muted"> = 
   archived: "muted",
 };
 
+const CATALOG_PRIORITIES: TicketPriority[] = ["low", "normal", "high", "critical"];
+const CATALOG_VISIBILITIES: CatalogItemVisibility[] = ["internal", "restricted"];
+// Suggested categories / teams — actual values are free-form text on the server.
+const SUGGESTED_CATEGORIES = ["Hardware", "Software", "Account & Access", "Networking", "Email", "Other"];
+const SUGGESTED_TEAMS = ["Service Desk", "Field Ops", "Network", "Infrastructure"];
+const CATALOG_ICON_OPTIONS = [
+  "ShoppingBag", "Laptop", "Monitor", "Smartphone", "Headphones", "Mouse",
+  "Keyboard", "Wifi", "Network", "Server", "Database", "Cloud", "Lock",
+  "Key", "Mail", "MessageSquare", "FileText", "User", "Users", "Calendar",
+];
+
 function CatalogAdmin() {
-  const data = useData();
+  const { session, loading: authLoading } = useAuth();
   const role = useRole();
+  const qc = useQueryClient();
   const allowed = can("tickets.config", role);
 
   const [tab, setTab] = useState<StatusTab>("all");
@@ -59,15 +80,42 @@ function CatalogAdmin() {
   const [confirmDelete, setConfirmDelete] = useState<CatalogItem | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<CatalogItem | null>(null);
 
+  const enabled = Boolean(session?.user) && allowed;
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    ...catalogManagedQuery(),
+    enabled,
+  });
+  const items = data ?? [];
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: sdKeys.catalogManaged() });
+    qc.invalidateQueries({ queryKey: sdKeys.catalogPublished() });
+  };
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: CatalogItemStatus }) =>
+      setCatalogStatus(id, status),
+    onSuccess: () => invalidate(),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteCatalogItem(id),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Service deleted");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
   const counts = useMemo(() => ({
-    all: data.catalog.length,
-    published: data.catalog.filter((c) => c.status === "published").length,
-    draft: data.catalog.filter((c) => c.status === "draft").length,
-    archived: data.catalog.filter((c) => c.status === "archived").length,
-  }), [data.catalog]);
+    all: items.length,
+    published: items.filter((c) => c.status === "published").length,
+    draft: items.filter((c) => c.status === "draft").length,
+    archived: items.filter((c) => c.status === "archived").length,
+  }), [items]);
 
   const filtered = useMemo(() => {
-    let list = data.catalog.slice().sort((a, b) =>
+    let list = items.slice().sort((a, b) =>
       (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""),
     );
     if (tab !== "all") list = list.filter((c) => c.status === tab);
@@ -78,16 +126,34 @@ function CatalogAdmin() {
       c.description.toLowerCase().includes(q),
     );
     return list;
-  }, [data.catalog, tab, query]);
+  }, [items, tab, query]);
 
+  if (authLoading) {
+    return <div className="glass-card rounded-2xl p-6 text-sm text-muted-foreground">Loading…</div>;
+  }
+  if (!session) {
+    return (
+      <EmptyState
+        icon={Lock}
+        title="Sign in required"
+        description="You must be signed in to manage the catalog."
+        actionLabel="Sign in"
+        onAction={() => window.location.assign("/auth")}
+      />
+    );
+  }
   if (!allowed) {
     return (
       <div>
         <PageHeader title="Service Catalog" description="Manage catalog services available to employees." />
-        <EmptyState icon={Lock} title="Admin access required" description="Switch to an administrator role to manage the service catalog." />
+        <EmptyState icon={Lock} title="Admin access required" description="Your role cannot manage the service catalog." />
       </div>
     );
   }
+
+  const setStatus = (c: CatalogItem, status: CatalogItemStatus, msg: string) => {
+    statusMutation.mutate({ id: c.id, status }, { onSuccess: () => toast.success(msg) });
+  };
 
   return (
     <div>
@@ -119,13 +185,23 @@ function CatalogAdmin() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="glass-card rounded-2xl p-6 text-sm text-muted-foreground">Loading services…</div>
+      ) : isError ? (
+        <EmptyState
+          icon={AlertCircle}
+          title="Could not load services"
+          description={error instanceof Error ? error.message : "Unexpected error."}
+          actionLabel="Retry"
+          onAction={() => refetch()}
+        />
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={ShoppingBag}
-          title={data.catalog.length === 0 ? "No services yet" : "No matching services"}
-          description={data.catalog.length === 0 ? "Create your first catalog service to get started." : "Try a different search or status filter."}
-          actionLabel={data.catalog.length === 0 ? "New service" : undefined}
-          onAction={data.catalog.length === 0 ? () => setCreating(true) : undefined}
+          title={items.length === 0 ? "No services yet" : "No matching services"}
+          description={items.length === 0 ? "Create your first catalog service to get started." : "Try a different search or status filter."}
+          actionLabel={items.length === 0 ? "New service" : undefined}
+          onAction={items.length === 0 ? () => setCreating(true) : undefined}
         />
       ) : (
         <SectionCard title={`Services (${filtered.length})`}>
@@ -160,9 +236,9 @@ function CatalogAdmin() {
                         </div>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{c.category}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{c.defaultTeam}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{c.defaultTeam ?? "—"}</td>
                       <td className="px-3 py-2 capitalize">{c.defaultPriority}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{c.estimatedTime}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{c.estimatedTime ?? "—"}</td>
                       <td className="px-3 py-2"><StatusBadge label={cap(c.status)} tone={STATUS_TONE[c.status]} /></td>
                       <td className="px-3 py-2 text-muted-foreground" suppressHydrationWarning>{c.updatedAt ? timeAgo(c.updatedAt) : "—"}</td>
                       <td className="px-3 py-2">
@@ -178,12 +254,12 @@ function CatalogAdmin() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                               {c.status !== "published" && (
-                                <DropdownMenuItem onClick={() => { publishCatalogItem(c.id); toast.success("Service published"); }}>
+                                <DropdownMenuItem onClick={() => setStatus(c, "published", "Service published")}>
                                   <Eye className="mr-2 h-4 w-4" /> Publish
                                 </DropdownMenuItem>
                               )}
                               {c.status === "published" && (
-                                <DropdownMenuItem onClick={() => { unpublishCatalogItem(c.id); toast.success("Service unpublished"); }}>
+                                <DropdownMenuItem onClick={() => setStatus(c, "draft", "Service unpublished")}>
                                   <EyeOff className="mr-2 h-4 w-4" /> Unpublish
                                 </DropdownMenuItem>
                               )}
@@ -193,7 +269,7 @@ function CatalogAdmin() {
                                 </DropdownMenuItem>
                               )}
                               {c.status === "archived" && (
-                                <DropdownMenuItem onClick={() => { unpublishCatalogItem(c.id); toast.success("Service restored to draft"); }}>
+                                <DropdownMenuItem onClick={() => setStatus(c, "draft", "Service restored to draft")}>
                                   <Eye className="mr-2 h-4 w-4" /> Restore to draft
                                 </DropdownMenuItem>
                               )}
@@ -218,6 +294,7 @@ function CatalogAdmin() {
         open={creating || editing !== null}
         item={editing}
         onOpenChange={(o) => { if (!o) { setCreating(false); setEditing(null); } }}
+        onSaved={invalidate}
       />
 
       <ConfirmDialog
@@ -228,8 +305,7 @@ function CatalogAdmin() {
         confirmLabel="Archive"
         onConfirm={() => {
           if (confirmArchive) {
-            archiveCatalogItem(confirmArchive.id);
-            toast.success("Service archived");
+            setStatus(confirmArchive, "archived", "Service archived");
             setConfirmArchive(null);
           }
         }}
@@ -238,13 +314,12 @@ function CatalogAdmin() {
         open={confirmDelete !== null}
         onOpenChange={(o) => { if (!o) setConfirmDelete(null); }}
         title="Delete this service permanently?"
-        description={confirmDelete ? `“${confirmDelete.name}” will be removed from the catalog. Existing tickets created from it are not affected. This cannot be undone from the UI.` : ""}
+        description={confirmDelete ? `“${confirmDelete.name}” will be removed from the catalog. Existing tickets created from it are not affected. This cannot be undone.` : ""}
         confirmLabel="Delete"
         destructive
         onConfirm={() => {
           if (confirmDelete) {
-            deleteCatalogItem(confirmDelete.id);
-            toast.success("Service deleted");
+            deleteMutation.mutate(confirmDelete.id);
             setConfirmDelete(null);
           }
         }}
@@ -255,70 +330,78 @@ function CatalogAdmin() {
 
 function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-// ---------- Editor drawer ----------
-
 function CatalogEditor({
-  open, item, onOpenChange,
+  open, item, onOpenChange, onSaved,
 }: {
   open: boolean;
   item: CatalogItem | null;
   onOpenChange: (o: boolean) => void;
+  onSaved: () => void;
 }) {
   const isEdit = item !== null;
   const [name, setName] = useState(item?.name ?? "");
-  const [category, setCategory] = useState(item?.category ?? TICKET_CATEGORIES[0]);
+  const [category, setCategory] = useState(item?.category ?? SUGGESTED_CATEGORIES[0]);
   const [description, setDescription] = useState(item?.description ?? "");
   const [icon, setIcon] = useState<string>(item?.icon ?? CATALOG_ICON_OPTIONS[0]);
   const [priority, setPriority] = useState<TicketPriority>(item?.defaultPriority ?? "normal");
-  const [team, setTeam] = useState(item?.defaultTeam ?? TICKET_TEAMS[0]);
+  const [team, setTeam] = useState(item?.defaultTeam ?? SUGGESTED_TEAMS[0]);
   const [estimatedTime, setEstimatedTime] = useState(item?.estimatedTime ?? "1 business day");
   const [status, setStatus] = useState<CatalogItemStatus>(item?.status ?? "draft");
-  const [fields, setFields] = useState<CatalogField[]>(item?.fields ?? []);
+  const [visibility, setVisibility] = useState<CatalogItemVisibility>(item?.visibility ?? "internal");
+  const [fields, setFields] = useState<CatalogFieldSchema[]>(item?.fieldsSchema ?? []);
 
-  // Sync form when switching between items / create vs edit
   const itemKey = item?.id ?? "__new__";
   const [lastKey, setLastKey] = useState(itemKey);
   if (open && lastKey !== itemKey) {
     setLastKey(itemKey);
     setName(item?.name ?? "");
-    setCategory(item?.category ?? TICKET_CATEGORIES[0]);
+    setCategory(item?.category ?? SUGGESTED_CATEGORIES[0]);
     setDescription(item?.description ?? "");
     setIcon(item?.icon ?? CATALOG_ICON_OPTIONS[0]);
     setPriority(item?.defaultPriority ?? "normal");
-    setTeam(item?.defaultTeam ?? TICKET_TEAMS[0]);
+    setTeam(item?.defaultTeam ?? SUGGESTED_TEAMS[0]);
     setEstimatedTime(item?.estimatedTime ?? "1 business day");
     setStatus(item?.status ?? "draft");
-    setFields(item?.fields ?? []);
+    setVisibility(item?.visibility ?? "internal");
+    setFields(item?.fieldsSchema ?? []);
   }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const cleanFields = fields
+        .map((f) => ({ ...f, key: f.key.trim(), label: f.label.trim() }))
+        .filter((f) => f.key && f.label);
+      const payload: CatalogItemInput = {
+        name: name.trim(),
+        category,
+        description: description.trim(),
+        icon,
+        defaultPriority: priority,
+        defaultTeam: team,
+        estimatedTime: estimatedTime.trim() || null,
+        visibility,
+        fieldsSchema: cleanFields,
+        status,
+      };
+      return isEdit && item
+        ? updateCatalogItem(item.id, payload)
+        : createCatalogItem(payload);
+    },
+    onSuccess: () => {
+      toast.success(isEdit ? "Service updated" : `Service ${status === "published" ? "published" : "saved as draft"}`);
+      onSaved();
+      onOpenChange(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
+  });
 
   const submit = () => {
     if (name.trim().length < 2) return toast.error("Title is required");
     if (description.trim().length < 4) return toast.error("Description is required");
-    const cleanFields = fields
-      .map((f) => ({ ...f, key: f.key.trim(), label: f.label.trim() }))
-      .filter((f) => f.key && f.label);
-    const payload = {
-      name: name.trim(),
-      category,
-      description: description.trim(),
-      icon,
-      defaultPriority: priority,
-      defaultTeam: team,
-      estimatedTime: estimatedTime.trim() || "1 business day",
-      fields: cleanFields,
-      status,
-    };
-    if (isEdit && item) {
-      updateCatalogItem(item.id, payload);
-      toast.success("Service updated");
-    } else {
-      createCatalogItem(payload);
-      toast.success(`Service ${status === "published" ? "published" : "saved as draft"}`);
-    }
-    onOpenChange(false);
+    saveMutation.mutate();
   };
 
-  const updateField = (idx: number, patch: Partial<CatalogField>) => {
+  const updateField = (idx: number, patch: Partial<CatalogFieldSchema>) => {
     setFields((arr) => arr.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
   };
   const removeField = (idx: number) => setFields((arr) => arr.filter((_, i) => i !== idx));
@@ -330,7 +413,7 @@ function CatalogEditor({
       onOpenChange={onOpenChange}
       title={isEdit ? "Edit service" : "New service"}
       description="Configure how this service appears in the employee catalog."
-      submitLabel={isEdit ? "Save changes" : "Create service"}
+      submitLabel={saveMutation.isPending ? "Saving…" : isEdit ? "Save changes" : "Create service"}
       onSubmit={submit}
     >
       <div className="space-y-2">
@@ -343,7 +426,7 @@ function CatalogEditor({
           <Label className="text-xs">Category</Label>
           <Select value={category} onValueChange={setCategory}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{TICKET_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+            <SelectContent>{SUGGESTED_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
@@ -372,7 +455,7 @@ function CatalogEditor({
           <Label className="text-xs">Assigned team</Label>
           <Select value={team} onValueChange={setTeam}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{TICKET_TEAMS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+            <SelectContent>{SUGGESTED_TEAMS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
@@ -381,6 +464,17 @@ function CatalogEditor({
         </div>
         <div className="space-y-2">
           <Label className="text-xs">Visibility</Label>
+          <Select value={visibility} onValueChange={(v) => setVisibility(v as CatalogItemVisibility)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {CATALOG_VISIBILITIES.map((v) => (
+                <SelectItem key={v} value={v} className="capitalize">{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2 col-span-2">
+          <Label className="text-xs">Status</Label>
           <Select value={status} onValueChange={(v) => setStatus(v as CatalogItemStatus)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -414,7 +508,7 @@ function CatalogEditor({
                 <div className="grid grid-cols-2 gap-2">
                   <Input value={f.label} onChange={(e) => updateField(idx, { label: e.target.value })} placeholder="Label" className="h-8 text-xs" />
                   <Input value={f.key} onChange={(e) => updateField(idx, { key: e.target.value })} placeholder="key (no spaces)" className="h-8 font-mono text-xs" />
-                  <Select value={f.type} onValueChange={(v) => updateField(idx, { type: v as CatalogField["type"] })}>
+                  <Select value={f.type} onValueChange={(v) => updateField(idx, { type: v as CatalogFieldSchema["type"] })}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="text">Short text</SelectItem>
