@@ -103,6 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [teamsError, setTeamsError] = useState<string | null>(null);
+  const [roleKeys, setRoleKeys] = useState<string[]>([]);
+  const [role, setRoleState] = useState<SdRoleKey | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
 
