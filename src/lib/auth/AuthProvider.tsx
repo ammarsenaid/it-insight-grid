@@ -54,13 +54,14 @@ const ROLE_PRECEDENCE: SdRoleKey[] = [
   "super_admin",
   "it_admin",
   "sd_lead",
-  "network_admin",
-  "technician",
-  "doc_editor",
   "helpdesk",
+  "technician",
+  "network_admin",
+  "doc_editor",
   "auditor",
   "employee",
 ];
+
 
 function pickHighestRole(roleKeys: string[]): SdRoleKey | null {
   if (roleKeys.length === 0) return null;
