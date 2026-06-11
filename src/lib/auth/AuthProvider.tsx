@@ -178,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("[auth] failed to load roles", rolesErr);
       setRoleKeys([]);
       setRoleState(null);
+      setSessionRole(null);
       failures.push("roles");
     } else {
       const keys = ((rolesData ?? []) as unknown as Array<{
@@ -186,8 +187,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .map((r) => r.roles?.role_key ?? null)
         .filter((k): k is string => Boolean(k));
       setRoleKeys(keys);
-      setRoleState(pickHighestRole(keys));
+      const highest = pickHighestRole(keys);
+      setRoleState(highest);
+      setSessionRole(highest);
     }
+
 
     setContextError(
       failures.length === 0
