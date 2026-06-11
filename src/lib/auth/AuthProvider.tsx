@@ -127,8 +127,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userId = current.user.id;
     const failures: string[] = [];
 
+    // Authenticated sessions must NEVER fall back to the localStorage role.
+    // Pin to least-privilege "employee" up front; we'll upgrade once roles load.
+    setSessionRole("employee");
+
     setContextLoading(true);
     setContextError(null);
+
 
     // Profile
     const { data: profileData, error: profileError } = await supabase
