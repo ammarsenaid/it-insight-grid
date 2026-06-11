@@ -118,17 +118,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTeamsError(null);
       setRoleKeys([]);
       setRoleState(null);
-      setSessionRole(null);
+      // If a session exists but the client is missing, still deny the
+      // localStorage fallback by pinning to least-privilege.
+      setSessionRole(current?.user ? "employee" : null);
       setContextError(null);
       setContextLoading(false);
       return;
     }
 
+
     const userId = current.user.id;
     const failures: string[] = [];
 
+    // Authenticated sessions must NEVER fall back to the localStorage role.
+    // Pin to least-privilege "employee" up front; we'll upgrade once roles load.
+    setSessionRole("employee");
+
     setContextLoading(true);
     setContextError(null);
+
 
     // Profile
     const { data: profileData, error: profileError } = await supabase
@@ -178,7 +186,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("[auth] failed to load roles", rolesErr);
       setRoleKeys([]);
       setRoleState(null);
-      setSessionRole(null);
+      // Authenticated: degrade to least-privilege, never to localStorage.
+      setSessionRole("employee");
       failures.push("roles");
     } else {
       const keys = ((rolesData ?? []) as unknown as Array<{
@@ -189,8 +198,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRoleKeys(keys);
       const highest = pickHighestRole(keys);
       setRoleState(highest);
-      setSessionRole(highest);
+      // No known/recognised role → least-privilege employee.
+      setSessionRole(highest ?? "employee");
     }
+
 
 
     setContextError(
