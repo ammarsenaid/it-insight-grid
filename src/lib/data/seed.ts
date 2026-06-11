@@ -14,6 +14,7 @@ import type {
   AppSettings,
   User,
   Team,
+  CatalogItem,
 } from "./types";
 
 
@@ -382,7 +383,7 @@ export function buildSeed(): DataState {
       { id: id("vw"), name: "SLA at risk", query: "", filters: { sla: "warning" } },
       { id: id("vw"), name: "Critical incidents", query: "", filters: { priority: "critical", type: "incident" } },
     ],
-    catalog: [
+    catalog: ([
       { id: id("cat"), name: "New laptop request", category: "Hardware", icon: "Laptop", description: "Standard issue Windows 11 laptop with imaging and software baseline.", estimatedTime: "3 business days", defaultPriority: "normal", defaultTeam: "Service Desk", fields: [
         { key: "justification", label: "Business justification", type: "textarea", required: true, placeholder: "Why is this device required?" },
         { key: "model", label: "Preferred model", type: "select", options: ["Standard 14\"", "Standard 15\"", "Performance 16\""], required: true },
@@ -426,7 +427,7 @@ export function buildSeed(): DataState {
         { key: "summary", label: "What happened?", type: "textarea", required: true },
         { key: "affectedAccounts", label: "Affected accounts or devices", type: "text" },
       ]},
-    ],
+    ] as Omit<CatalogItem, "status" | "updatedAt">[]).map<CatalogItem>((c) => ({ ...c, status: "published", updatedAt: new Date().toISOString() })),
     ticketSettings: {
       categories: ["Network", "Applications", "Hardware", "Storage", "Infrastructure", "Identity", "Security", "Backup", "Other"],
       teams: ["Service Desk", "Network", "Infrastructure", "Security", "Applications"],

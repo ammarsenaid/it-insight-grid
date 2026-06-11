@@ -318,6 +318,8 @@ export interface TicketSavedView {
   filters: Record<string, string>;
 }
 
+export type CatalogItemStatus = "draft" | "published" | "archived";
+
 export interface CatalogItem {
   id: ID;
   name: string;
@@ -327,6 +329,8 @@ export interface CatalogItem {
   estimatedTime: string;
   defaultPriority: TicketPriority;
   defaultTeam: string;
+  status: CatalogItemStatus;
+  updatedAt?: string;
   fields: CatalogField[];
 }
 

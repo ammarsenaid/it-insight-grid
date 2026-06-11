@@ -20,16 +20,17 @@ function ServiceCatalog() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
 
-  const categories = useMemo(() => Array.from(new Set(data.catalog.map((c) => c.category))).sort(), [data.catalog]);
+  const published = useMemo(() => data.catalog.filter((c) => c.status === "published"), [data.catalog]);
+  const categories = useMemo(() => Array.from(new Set(published.map((c) => c.category))).sort(), [published]);
   const filtered = useMemo(() => {
-    let list = data.catalog.slice();
+    let list = published.slice();
     if (category !== "all") list = list.filter((c) => c.category === category);
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter((c) => c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q) || c.category.toLowerCase().includes(q));
     }
     return list;
-  }, [data.catalog, category, query]);
+  }, [published, category, query]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, CatalogItem[]>();
@@ -77,7 +78,7 @@ function ServiceCatalog() {
       </div>
 
       {filtered.length === 0 ? (
-        data.catalog.length === 0 ? (
+        data.catalog.filter((c) => c.status === "published").length === 0 ? (
           <EmptyState icon={ShoppingBag} title="No services available" description="The service catalog has not been configured yet." />
         ) : (
           <EmptyState
