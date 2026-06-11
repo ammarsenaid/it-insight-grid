@@ -62,8 +62,6 @@ values
 on conflict (id) do nothing;
 
 insert into public.user_global_roles (user_id, role_id)
-select 'b1'::text::uuid_placeholder, id from public.roles where false; -- noop
-insert into public.user_global_roles (user_id, role_id)
 select '00000000-0000-0000-0000-0000000000b1'::uuid, id
   from public.roles where role_key = 'employee'
 on conflict do nothing;
