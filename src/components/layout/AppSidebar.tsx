@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/sidebar";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { canSeePage, useRole } from "@/lib/permissions";
 
 const groups = [
   {
