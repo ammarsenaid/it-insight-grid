@@ -399,6 +399,66 @@ function TicketDetail() {
             )}
           </SectionCard>
 
+          <SectionCard title={`Attachments (${attachments.length})`}>
+            {attLoading ? (
+              <p className="text-xs text-muted-foreground">Loading attachments…</p>
+            ) : attError ? (
+              <p className="text-xs text-[#FF7C91]">{attErrorObj instanceof Error ? attErrorObj.message : "Failed to load attachments"}</p>
+            ) : attachments.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No attachments.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {attachments.map((a) => (
+                  <li key={a.id} className="flex items-center gap-2 rounded-lg border border-border/40 bg-background/30 p-2 text-xs">
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{a.fileName}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {(a.sizeBytes / 1024).toFixed(1)} KB · {a.visibility === "internal" ? "Internal" : "Public"} · {nameOf(a.uploadedBy, pmap)}
+                      </div>
+                    </div>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDownload(a)} title="Download">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    {!isRequesterView && a.uploadedBy === userId && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-[#FF7C91]"
+                        onClick={() => deleteAttMut.mutate(a)}
+                        disabled={deleteAttMut.isPending}
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canCreate && (
+              <div className="mt-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleFilePick}
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadMut.isPending}
+                >
+                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                  {uploadMut.isPending ? "Uploading…" : "Upload file"}
+                </Button>
+                <span className="ml-2 text-[10px] text-muted-foreground">Max 50 MB</span>
+              </div>
+            )}
+          </SectionCard>
+
+
           {internalAllowed && (
             <SectionCard title="Activity timeline">
               <ol className="relative space-y-3 border-l border-border/40 pl-4">
