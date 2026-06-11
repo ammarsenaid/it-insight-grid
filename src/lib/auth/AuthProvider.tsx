@@ -118,10 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTeamsError(null);
       setRoleKeys([]);
       setRoleState(null);
+      setSessionRole(null);
       setContextError(null);
       setContextLoading(false);
       return;
     }
+
     const userId = current.user.id;
     const failures: string[] = [];
 
