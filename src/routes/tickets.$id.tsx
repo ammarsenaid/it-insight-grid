@@ -41,7 +41,9 @@ import {
   addComment,
   archiveTickets,
   assignTickets,
+  currentRequesterFor,
   escalate,
+  isRequesterRole,
   recomputeSla,
   reopenTicket,
   resolveTicket,
@@ -114,8 +116,9 @@ function TicketDetail() {
     );
   }
 
-  // Visibility guard for requester portal: only allow if it's the user's own ticket
-  if (isRequesterView && role === "employee" && ticket.requester !== "alice.morgan") {
+  // Visibility guard for requester portal: only allow if it's the user's own ticket.
+  // Auditor read-only access is preserved (they are not a requester role).
+  if (isRequesterRole(role) && ticket.requester !== currentRequesterFor(role)) {
     return (
       <div>
         <PageHeader title="Access restricted" description="This ticket belongs to another requester." actions={<Link to="/my-requests"><Button variant="secondary"><ArrowLeft className="mr-1.5 h-4 w-4" /> My requests</Button></Link>} />

@@ -387,9 +387,17 @@ export function intakeEmail(input: EmailIntakeInput): EmailIntakeResult {
 export const REQUESTERS = ["alice.morgan", "ben.taylor", "carla.rivera", "david.kim", "evelyn.shaw", "felix.novak", "grace.huang", "henry.park", "isabella.ross"];
 
 
-// Current "logged-in" requester depends on role: end-users see their own slice.
+// Requester-style roles see only their own tickets. Today only "employee"
+// is a true requester; everyone else (IT roles, auditor) acts as IT staff
+// or has read-only access via separate guards.
+export function isRequesterRole(role: string): boolean {
+  return role === "employee";
+}
+
+// Current "logged-in" requester depends on role: end-users see their own slice,
+// IT roles act as a deterministic IT identity for demo data.
 export function currentRequesterFor(role: string): string {
-  if (role === "user" || role === "viewer") return "alice.morgan";
+  if (isRequesterRole(role)) return "alice.morgan";
   return "jordan.lee";
 }
 
