@@ -42,6 +42,7 @@ export const sdKeys = {
   ticketAssignments: (id: string) => [...sdKeys.all, "ticket", id, "assignments"] as const,
   notifications: () => [...sdKeys.all, "notifications"] as const,
   notificationsUnread: () => [...sdKeys.all, "notifications", "unread-count"] as const,
+  profiles: () => [...sdKeys.all, "profiles"] as const,
   settings: {
     categories: () => [...sdKeys.all, "settings", "categories"] as const,
     priorities: () => [...sdKeys.all, "settings", "priorities"] as const,
@@ -51,6 +52,13 @@ export const sdKeys = {
     mailbox: () => [...sdKeys.all, "settings", "mailbox"] as const,
   },
 };
+
+export const profilesQuery = () =>
+  queryOptions({
+    queryKey: sdKeys.profiles(),
+    queryFn: () => listProfiles(),
+  });
+
 
 export const catalogPublishedQuery = () =>
   queryOptions({
