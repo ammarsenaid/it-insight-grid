@@ -9,6 +9,8 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { getSupabase, isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
+import { setSessionRole } from "@/lib/permissions";
+
 
 export interface ProfileRow {
   id: string;
