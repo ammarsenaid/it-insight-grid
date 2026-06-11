@@ -24,6 +24,55 @@ export interface TeamRow {
   description: string | null;
 }
 
+/**
+ * Service-Desk role identity. The DB stores role_key strings on
+ * `roles` (joined via `user_global_roles`). We expose the highest-ranked
+ * one to the frontend so `useRole()` can resolve permissions without
+ * having to inspect every key.
+ */
+export type SdRoleKey =
+  | "super_admin"
+  | "it_admin"
+  | "sd_lead"
+  | "helpdesk"
+  | "technician"
+  | "network_admin"
+  | "doc_editor"
+  | "auditor"
+  | "employee";
+
+// Map DB role_key -> frontend Role enum.
+const DB_ROLE_ALIASES: Record<string, SdRoleKey> = {
+  platform_admin: "super_admin",
+  platform_auditor: "auditor",
+};
+
+// Highest -> lowest precedence.
+const ROLE_PRECEDENCE: SdRoleKey[] = [
+  "super_admin",
+  "it_admin",
+  "sd_lead",
+  "network_admin",
+  "technician",
+  "doc_editor",
+  "helpdesk",
+  "auditor",
+  "employee",
+];
+
+function pickHighestRole(roleKeys: string[]): SdRoleKey | null {
+  if (roleKeys.length === 0) return null;
+  const mapped = new Set<SdRoleKey>();
+  for (const k of roleKeys) {
+    const m = (DB_ROLE_ALIASES[k] ?? (k as SdRoleKey));
+    if (ROLE_PRECEDENCE.includes(m)) mapped.add(m);
+  }
+  for (const r of ROLE_PRECEDENCE) {
+    if (mapped.has(r)) return r;
+  }
+  return null;
+}
+
 interface AuthContextValue {
   configured: boolean;
   loading: boolean;
@@ -31,6 +80,10 @@ interface AuthContextValue {
   user: User | null;
   profile: ProfileRow | null;
   isPlatformAdmin: boolean;
+  /** All DB role_key strings currently granted globally to the user. */
+  roleKeys: string[];
+  /** Highest-ranked role mapped to the frontend Role enum, or null. */
+  role: SdRoleKey | null;
   teams: TeamRow[];
   teamsError: string | null;
   contextLoading: boolean;
@@ -39,6 +92,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
+
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -49,6 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [teamsError, setTeamsError] = useState<string | null>(null);
+  const [roleKeys, setRoleKeys] = useState<string[]>([]);
+  const [role, setRoleState] = useState<SdRoleKey | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
 
@@ -58,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsPlatformAdmin(false);
       setTeams([]);
       setTeamsError(null);
+      setRoleKeys([]);
+      setRoleState(null);
       setContextError(null);
       setContextLoading(false);
       return;
@@ -105,6 +163,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setTeams((teamsData as TeamRow[]) ?? []);
       setTeamsError(null);
+    }
+
+    // Global role keys for this user → highest-ranked frontend Role.
+    const { data: rolesData, error: rolesErr } = await supabase
+      .from("user_global_roles")
+      .select("role_id, roles!inner(role_key, role_scope)")
+      .eq("user_id", userId);
+    if (rolesErr) {
+      console.error("[auth] failed to load roles", rolesErr);
+      setRoleKeys([]);
+      setRoleState(null);
+      failures.push("roles");
+    } else {
+      const keys = ((rolesData ?? []) as unknown as Array<{
+        roles: { role_key: string; role_scope: string } | null;
+      }>)
+        .map((r) => r.roles?.role_key ?? null)
+        .filter((k): k is string => Boolean(k));
+      setRoleKeys(keys);
+      setRoleState(pickHighestRole(keys));
     }
 
     setContextError(
@@ -159,6 +237,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsPlatformAdmin(false);
     setTeams([]);
     setTeamsError(null);
+    setRoleKeys([]);
+    setRoleState(null);
     setContextError(null);
     setContextLoading(false);
   }, []);
@@ -176,6 +256,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       profile,
       isPlatformAdmin,
+      roleKeys,
+      role,
       teams,
       teamsError,
       contextLoading,
@@ -189,6 +271,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       profile,
       isPlatformAdmin,
+      roleKeys,
+      role,
       teams,
       teamsError,
       contextLoading,
