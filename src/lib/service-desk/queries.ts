@@ -25,6 +25,8 @@ import {
   listRoutingRules,
   listSlaPolicies,
 } from "./settings";
+import { listProfiles } from "./profiles";
+
 
 export const sdKeys = {
   all: ["service-desk"] as const,
