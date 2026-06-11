@@ -114,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsPlatformAdmin(false);
       setTeams([]);
       setTeamsError(null);
+      setRoleKeys([]);
+      setRoleState(null);
       setContextError(null);
       setContextLoading(false);
       return;
