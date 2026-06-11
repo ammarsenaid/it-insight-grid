@@ -237,6 +237,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsPlatformAdmin(false);
     setTeams([]);
     setTeamsError(null);
+    setRoleKeys([]);
+    setRoleState(null);
     setContextError(null);
     setContextLoading(false);
   }, []);
@@ -254,6 +256,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       profile,
       isPlatformAdmin,
+      roleKeys,
+      role,
       teams,
       teamsError,
       contextLoading,
@@ -267,6 +271,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       profile,
       isPlatformAdmin,
+      roleKeys,
+      role,
       teams,
       teamsError,
       contextLoading,
