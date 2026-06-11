@@ -247,9 +247,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTeamsError(null);
     setRoleKeys([]);
     setRoleState(null);
+    setSessionRole(null);
     setContextError(null);
     setContextLoading(false);
   }, []);
+
 
   const refresh = useCallback(async () => {
     setContextError(null);
