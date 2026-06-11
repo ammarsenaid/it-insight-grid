@@ -24,6 +24,55 @@ export interface TeamRow {
   description: string | null;
 }
 
+/**
+ * Service-Desk role identity. The DB stores role_key strings on
+ * `roles` (joined via `user_global_roles`). We expose the highest-ranked
+ * one to the frontend so `useRole()` can resolve permissions without
+ * having to inspect every key.
+ */
+export type SdRoleKey =
+  | "super_admin"
+  | "it_admin"
+  | "sd_lead"
+  | "helpdesk"
+  | "technician"
+  | "network_admin"
+  | "doc_editor"
+  | "auditor"
+  | "employee";
+
+// Map DB role_key -> frontend Role enum.
+const DB_ROLE_ALIASES: Record<string, SdRoleKey> = {
+  platform_admin: "super_admin",
+  platform_auditor: "auditor",
+};
+
+// Highest -> lowest precedence.
+const ROLE_PRECEDENCE: SdRoleKey[] = [
+  "super_admin",
+  "it_admin",
+  "sd_lead",
+  "network_admin",
+  "technician",
+  "doc_editor",
+  "helpdesk",
+  "auditor",
+  "employee",
+];
+
+function pickHighestRole(roleKeys: string[]): SdRoleKey | null {
+  if (roleKeys.length === 0) return null;
+  const mapped = new Set<SdRoleKey>();
+  for (const k of roleKeys) {
+    const m = (DB_ROLE_ALIASES[k] ?? (k as SdRoleKey));
+    if (ROLE_PRECEDENCE.includes(m)) mapped.add(m);
+  }
+  for (const r of ROLE_PRECEDENCE) {
+    if (mapped.has(r)) return r;
+  }
+  return null;
+}
+
 interface AuthContextValue {
   configured: boolean;
   loading: boolean;
@@ -31,6 +80,10 @@ interface AuthContextValue {
   user: User | null;
   profile: ProfileRow | null;
   isPlatformAdmin: boolean;
+  /** All DB role_key strings currently granted globally to the user. */
+  roleKeys: string[];
+  /** Highest-ranked role mapped to the frontend Role enum, or null. */
+  role: SdRoleKey | null;
   teams: TeamRow[];
   teamsError: string | null;
   contextLoading: boolean;
@@ -39,6 +92,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
+
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
