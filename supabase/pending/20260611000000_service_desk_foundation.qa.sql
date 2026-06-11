@@ -68,21 +68,50 @@ from public.roles r
 where r.role_key = 'helpdesk'
 on conflict do nothing;
 
--- Seed three catalog items: published / draft / archived.
+-- Seed four catalog items: published-internal / published-restricted /
+-- draft / archived.
 insert into public.catalog_items (id, name, category, description,
-                                  default_priority, status, fields_schema)
+                                  default_priority, status, visibility,
+                                  fields_schema)
 values
   ('00000000-0000-0000-0000-0000000000c1',
    'QA Published Service', 'Access', 'A published service for QA.',
-   'normal', 'published',
+   'normal', 'published', 'internal',
    '[{"key":"reason","label":"Reason","type":"text","required":true}]'::jsonb),
   ('00000000-0000-0000-0000-0000000000c2',
    'QA Draft Service', 'Access', 'A draft service for QA.',
-   'normal', 'draft', '[]'::jsonb),
+   'normal', 'draft', 'internal', '[]'::jsonb),
   ('00000000-0000-0000-0000-0000000000c3',
    'QA Archived Service', 'Access', 'An archived service for QA.',
-   'normal', 'archived', '[]'::jsonb)
+   'normal', 'archived', 'internal', '[]'::jsonb),
+  ('00000000-0000-0000-0000-0000000000c4',
+   'QA Restricted Service', 'Access', 'A restricted published service for QA.',
+   'normal', 'published', 'restricted', '[]'::jsonb)
 on conflict (id) do nothing;
+
+-- Grant a second helpdesk-like user the catalog.manage permission via sd_lead
+-- (sd_lead already has catalog.manage in the migration).
+insert into auth.users (id, email, instance_id, aud, role,
+                        encrypted_password, email_confirmed_at,
+                        created_at, updated_at)
+values
+  ('00000000-0000-0000-0000-0000000000a4',
+   'qa-catalog-manager@example.com',
+   '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', '', now(), now(), now())
+on conflict (id) do nothing;
+
+insert into public.profiles (id, email, display_name)
+values
+  ('00000000-0000-0000-0000-0000000000a4',
+   'qa-catalog-manager@example.com', 'QA Catalog Manager')
+on conflict (id) do nothing;
+
+insert into public.user_global_roles (user_id, role_id)
+select '00000000-0000-0000-0000-0000000000a4', r.id
+from public.roles r
+where r.role_key = 'sd_lead'
+on conflict do nothing;
 
 
 -- ------------------------------------------------------------
