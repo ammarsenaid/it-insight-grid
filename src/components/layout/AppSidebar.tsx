@@ -98,12 +98,20 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   
   const { isPlatformAdmin } = useAuth();
+  const role = useRole();
 
-  // Only admin links are gated, by the real is_platform_admin() result.
+  // Admin links are gated by the real is_platform_admin() result,
+  // with role-based exceptions for prototype-only admin pages
+  // (e.g. /admin/catalog is also available to sd_lead).
   const visibleGroups = groups
     .map((g) => ({
       ...g,
-      items: g.items.filter((it) => !(it.url.startsWith("/admin") && !isPlatformAdmin)),
+      items: g.items.filter((it) => {
+        if (!it.url.startsWith("/admin")) return true;
+        if (isPlatformAdmin) return true;
+        if (it.url === "/admin/catalog") return canSeePage("/admin/catalog", role);
+        return false;
+      }),
     }))
     .filter((g) => g.items.length > 0);
 
