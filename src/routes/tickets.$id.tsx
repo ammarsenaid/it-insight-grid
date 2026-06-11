@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -14,6 +14,10 @@ import {
   UserCheck,
   PlayCircle,
   Tag,
+  Paperclip,
+  Trash2,
+  Download,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -45,13 +49,20 @@ import {
   ticketCommentsQuery,
   ticketStatusEventsQuery,
   ticketAssignmentHistoryQuery,
+  ticketAttachmentsQuery,
 } from "@/lib/service-desk/queries";
 import {
   updateTicket,
 } from "@/lib/service-desk/tickets";
 import { addTicketComment } from "@/lib/service-desk/comments";
+import {
+  uploadTicketAttachment,
+  deleteTicketAttachment,
+  getAttachmentSignedUrl,
+} from "@/lib/service-desk/attachments";
 import { nameOf, profileMap } from "@/lib/service-desk/profiles";
 import type {
+  TicketAttachment,
   TicketPriority,
   TicketStatus,
 } from "@/lib/service-desk/types";
@@ -103,21 +114,34 @@ function TicketDetail() {
   const { data: profiles = [] } = useQuery({ ...profilesQuery(), enabled });
   const pmap = useMemo(() => profileMap(profiles), [profiles]);
 
+  // Attachments: employees see only public; agents see public + internal.
+  const { data: rawAttachments = [], isLoading: attLoading, isError: attError, error: attErrorObj } = useQuery({
+    ...ticketAttachmentsQuery(id),
+    enabled: enabled && Boolean(ticket),
+  });
+  const attachments = useMemo<TicketAttachment[]>(
+    () => rawAttachments.filter((a) => (isRequesterView ? a.visibility !== "internal" : true)),
+    [rawAttachments, isRequesterView],
+  );
+
   const [reply, setReply] = useState("");
   const [internal, setInternal] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
   const [resolution, setResolution] = useState("");
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const invalidateTicket = () => {
     qc.invalidateQueries({ queryKey: sdKeys.ticket(id) });
     qc.invalidateQueries({ queryKey: sdKeys.ticketComments(id) });
     qc.invalidateQueries({ queryKey: sdKeys.ticketStatus(id) });
     qc.invalidateQueries({ queryKey: sdKeys.ticketAssignments(id) });
+    qc.invalidateQueries({ queryKey: sdKeys.ticketAttachments(id) });
     qc.invalidateQueries({ queryKey: sdKeys.tickets() });
     qc.invalidateQueries({ queryKey: sdKeys.ticketsMine(userId) });
   };
+
 
   const updateMut = useMutation({
     mutationFn: (patch: Parameters<typeof updateTicket>[1]) => updateTicket(id, patch),
@@ -136,6 +160,47 @@ function TicketDetail() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Send failed"),
   });
+
+  const uploadMut = useMutation({
+    mutationFn: (file: File) =>
+      uploadTicketAttachment({
+        ticketId: id,
+        uploadedBy: userId,
+        file,
+        visibility: isRequesterView ? "public" : internal ? "internal" : "public",
+      }),
+    onSuccess: () => {
+      toast.success("Attachment uploaded");
+      qc.invalidateQueries({ queryKey: sdKeys.ticketAttachments(id) });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Upload failed"),
+  });
+
+  const deleteAttMut = useMutation({
+    mutationFn: (att: TicketAttachment) => deleteTicketAttachment(att),
+    onSuccess: () => {
+      toast.success("Attachment removed");
+      qc.invalidateQueries({ queryKey: sdKeys.ticketAttachments(id) });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
+  });
+
+  const handleDownload = async (att: TicketAttachment) => {
+    try {
+      const url = await getAttachmentSignedUrl(att.storagePath, 300);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Download link failed");
+    }
+  };
+
+  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    uploadMut.mutate(f);
+    e.target.value = "";
+  };
+
 
   if (!enabled) {
     return (
@@ -333,6 +398,66 @@ function TicketDetail() {
               </p>
             )}
           </SectionCard>
+
+          <SectionCard title={`Attachments (${attachments.length})`}>
+            {attLoading ? (
+              <p className="text-xs text-muted-foreground">Loading attachments…</p>
+            ) : attError ? (
+              <p className="text-xs text-[#FF7C91]">{attErrorObj instanceof Error ? attErrorObj.message : "Failed to load attachments"}</p>
+            ) : attachments.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No attachments.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {attachments.map((a) => (
+                  <li key={a.id} className="flex items-center gap-2 rounded-lg border border-border/40 bg-background/30 p-2 text-xs">
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{a.fileName}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {(a.sizeBytes / 1024).toFixed(1)} KB · {a.visibility === "internal" ? "Internal" : "Public"} · {nameOf(a.uploadedBy, pmap)}
+                      </div>
+                    </div>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDownload(a)} title="Download">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    {!isRequesterView && a.uploadedBy === userId && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-[#FF7C91]"
+                        onClick={() => deleteAttMut.mutate(a)}
+                        disabled={deleteAttMut.isPending}
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canCreate && (
+              <div className="mt-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleFilePick}
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadMut.isPending}
+                >
+                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                  {uploadMut.isPending ? "Uploading…" : "Upload file"}
+                </Button>
+                <span className="ml-2 text-[10px] text-muted-foreground">Max 50 MB</span>
+              </div>
+            )}
+          </SectionCard>
+
 
           {internalAllowed && (
             <SectionCard title="Activity timeline">

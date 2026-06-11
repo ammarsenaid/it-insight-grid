@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Bell,
@@ -28,6 +28,8 @@ import { NotificationDrawer } from "@/components/common/NotificationDrawer";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { useQuery } from "@tanstack/react-query";
+import { unreadNotificationsQuery } from "@/lib/service-desk/queries";
 
 export function TopHeader() {
   const [q, setQ] = useState("");
@@ -35,7 +37,7 @@ export function TopHeader() {
   const [notifOpen, setNotifOpen] = useState(false);
   const navigate = useNavigate();
   const data = useData();
-  const { profile, user, signOut, isPlatformAdmin } = useAuth();
+  const { profile, user, session, signOut, isPlatformAdmin } = useAuth();
   const meta = (user?.user_metadata ?? {}) as { display_name?: string; full_name?: string };
   const displayName =
     profile?.display_name ||
@@ -44,8 +46,11 @@ export function TopHeader() {
     user?.email ||
     "Signed in";
   const userEmail = user?.email ?? "";
-  const notifs = data.notifications;
-  const unread = useMemo(() => notifs.filter((n) => !n.read).length, [notifs]);
+  const { data: unread = 0 } = useQuery({
+    ...unreadNotificationsQuery(),
+    enabled: Boolean(session?.user?.id),
+  });
+
 
   // Cmd+K / Ctrl+K opens the command palette
   useEffect(() => {
