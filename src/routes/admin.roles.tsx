@@ -158,7 +158,9 @@ function AdminRolesPage() {
 
         <TabsContent value="preview">
           <SectionCard title="Role preview"
-            description="Inspect what a role can see and do, then optionally activate it."
+            description={isSignedIn
+              ? "Inspect what each role can see and do. The active role comes from your account; the prototype switcher is disabled while signed in."
+              : "Inspect what a role can see and do, then optionally activate it."}
             actions={
               <div className="flex items-center gap-2">
                 <select
@@ -168,10 +170,13 @@ function AdminRolesPage() {
                 >
                   {ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </select>
-                <Button size="sm" onClick={() => setRole(preview)}>Activate role</Button>
+                {!isSignedIn && (
+                  <Button size="sm" onClick={() => setRole(preview)}>Activate role</Button>
+                )}
               </div>
             }
           >
+
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Visible pages</h3>
