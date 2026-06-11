@@ -469,8 +469,8 @@ $$;
 -- 12. ATOMIC CATALOG SUBMIT RPC
 -- ------------------------------------------------------------
 create or replace function public.submit_catalog_request(
-  catalog_item_id uuid,
-  values jsonb default '{}'::jsonb
+  p_catalog_item_id uuid,
+  p_values jsonb default '{}'::jsonb
 )
 returns public.tickets
 language plpgsql
@@ -489,7 +489,9 @@ begin
     raise exception 'Authentication required' using errcode = '42501';
   end if;
 
-  select * into item from public.catalog_items where id = catalog_item_id;
+  select * into item
+    from public.catalog_items
+   where id = p_catalog_item_id;
 
   if item.id is null then
     raise exception 'Catalog item not found' using errcode = 'P0002';
@@ -499,13 +501,19 @@ begin
     raise exception 'Catalog item is not published' using errcode = '42501';
   end if;
 
+  -- Restricted items require catalog.manage to submit
+  if item.visibility = 'restricted'
+     and not public.has_permission('catalog.manage') then
+    raise exception 'Catalog item is restricted' using errcode = '42501';
+  end if;
+
   -- Required-field validation against fields_schema
   for field in
     select * from jsonb_array_elements(coalesce(item.fields_schema, '[]'::jsonb))
   loop
     if coalesce((field ->> 'required')::boolean, false) then
       fkey := field ->> 'key';
-      fval := trim(coalesce(values ->> fkey, ''));
+      fval := trim(coalesce(p_values ->> fkey, ''));
       if fval = '' then
         raise exception 'Missing required field: %', coalesce(field ->> 'label', fkey)
           using errcode = '22023';
@@ -521,7 +529,7 @@ begin
   values (
     caller, item.id, item.name, coalesce(item.description, ''), 'request',
     item.category, item.name, item.default_priority, 'service_catalog', item.category,
-    item.default_team, array['catalog', lower(item.category)], coalesce(values, '{}'::jsonb)
+    item.default_team, array['catalog', lower(item.category)], coalesce(p_values, '{}'::jsonb)
   )
   returning *
   into result;
