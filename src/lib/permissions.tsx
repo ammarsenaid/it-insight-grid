@@ -125,13 +125,17 @@ export const CAPS: Record<string, Role[]> = {
 };
 
 // Page visibility — drives sidebar and direct-route gating
+const REQUESTER_PAGES: Role[] = ["employee"];
+const NON_REQUESTER: Role[] = ROLES.map((r) => r.id).filter((r) => r !== "employee");
+
 export const PAGE_VISIBILITY: Record<string, Role[]> = {
-  "/": ROLES.map((r) => r.id),
+  "/": NON_REQUESTER,
   "/documents": ROLES.map((r) => r.id),
-  "/search": ROLES.map((r) => r.id),
+  "/search": NON_REQUESTER,
   "/tickets": [...IT_OPS, "auditor"],
   "/my-requests": ROLES.map((r) => r.id),
   "/service-catalog": ROLES.map((r) => r.id),
+  "/notifications": ROLES.map((r) => r.id),
   "/cmdb": [...ALL_IT],
   "/ipam": [...ALL_IT],
   "/tasks": [...ALL_IT],
@@ -149,6 +153,9 @@ export const PAGE_VISIBILITY: Record<string, Role[]> = {
   "/trash": ADMINS,
   "/settings": ROLES.map((r) => r.id),
 };
+
+// Silence unused-warning while keeping the named constant for clarity.
+void REQUESTER_PAGES;
 
 export function canSeePage(path: string, current?: Role): boolean {
   const r = current ?? role;
