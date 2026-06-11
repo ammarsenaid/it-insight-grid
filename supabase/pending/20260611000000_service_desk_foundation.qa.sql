@@ -133,9 +133,10 @@ select set_config(
 
 do $$
 declare
-  visible_published int;
-  visible_draft     int;
-  visible_archived  int;
+  visible_published  int;
+  visible_draft      int;
+  visible_archived   int;
+  visible_restricted int;
 begin
   select count(*) into visible_published
     from public.catalog_items
@@ -146,10 +147,14 @@ begin
   select count(*) into visible_archived
     from public.catalog_items
    where id = '00000000-0000-0000-0000-0000000000c3';
+  select count(*) into visible_restricted
+    from public.catalog_items
+   where id = '00000000-0000-0000-0000-0000000000c4';
 
-  assert visible_published = 1, 'Employee MUST see the published catalog item';
-  assert visible_draft     = 0, 'Employee MUST NOT see draft catalog items';
-  assert visible_archived  = 0, 'Employee MUST NOT see archived catalog items';
+  assert visible_published  = 1, 'Employee MUST see the published+internal catalog item';
+  assert visible_draft      = 0, 'Employee MUST NOT see draft catalog items';
+  assert visible_archived   = 0, 'Employee MUST NOT see archived catalog items';
+  assert visible_restricted = 0, 'Employee MUST NOT see restricted catalog items';
 end$$;
 
 -- Employee cannot manage the catalog
@@ -163,6 +168,63 @@ begin
     null;
   end;
 end$$;
+
+-- Employee cannot submit a restricted catalog item via the RPC either.
+do $$
+begin
+  begin
+    perform public.submit_catalog_request(
+      '00000000-0000-0000-0000-0000000000c4',
+      '{}'::jsonb
+    );
+    raise exception 'submit_catalog_request must reject restricted items for normal employees';
+  exception when others then
+    null;
+  end;
+end$$;
+
+
+-- ============================================================
+-- CHECK 2b: catalog manager (sd_lead) sees every catalog item
+-- ============================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}',
+  true);
+
+do $$
+declare
+  visible_published  int;
+  visible_draft      int;
+  visible_archived   int;
+  visible_restricted int;
+begin
+  select count(*) into visible_published
+    from public.catalog_items
+   where id = '00000000-0000-0000-0000-0000000000c1';
+  select count(*) into visible_draft
+    from public.catalog_items
+   where id = '00000000-0000-0000-0000-0000000000c2';
+  select count(*) into visible_archived
+    from public.catalog_items
+   where id = '00000000-0000-0000-0000-0000000000c3';
+  select count(*) into visible_restricted
+    from public.catalog_items
+   where id = '00000000-0000-0000-0000-0000000000c4';
+
+  assert visible_published  = 1, 'Catalog manager MUST see published items';
+  assert visible_draft      = 1, 'Catalog manager MUST see draft items';
+  assert visible_archived   = 1, 'Catalog manager MUST see archived items';
+  assert visible_restricted = 1, 'Catalog manager MUST see restricted items';
+end$$;
+
+-- Re-enter the original employee context for the rest of the script.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
+  true);
 
 
 -- ============================================================
