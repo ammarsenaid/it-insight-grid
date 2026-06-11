@@ -18,6 +18,7 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RecycleBinRouteImport } from './routes/recycle-bin'
 import { Route as ProtocolsRouteImport } from './routes/protocols'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MyRequestsRouteImport } from './routes/my-requests'
 import { Route as IpamRouteImport } from './routes/ipam'
@@ -84,6 +85,11 @@ const RecycleBinRoute = RecycleBinRouteImport.update({
 const ProtocolsRoute = ProtocolsRouteImport.update({
   id: '/protocols',
   path: '/protocols',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesRoute = NotesRouteImport.update({
@@ -207,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/notifications': typeof NotificationsRoute
   '/protocols': typeof ProtocolsRouteWithChildren
   '/recycle-bin': typeof RecycleBinRoute
   '/reports': typeof ReportsRoute
@@ -240,6 +247,7 @@ export interface FileRoutesByTo {
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/notifications': typeof NotificationsRoute
   '/recycle-bin': typeof RecycleBinRoute
   '/reports': typeof ReportsRoute
   '/search': typeof SearchRoute
@@ -272,6 +280,7 @@ export interface FileRoutesById {
   '/ipam': typeof IpamRoute
   '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
+  '/notifications': typeof NotificationsRoute
   '/protocols': typeof ProtocolsRouteWithChildren
   '/recycle-bin': typeof RecycleBinRoute
   '/reports': typeof ReportsRoute
@@ -307,6 +316,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/my-requests'
     | '/notes'
+    | '/notifications'
     | '/protocols'
     | '/recycle-bin'
     | '/reports'
@@ -340,6 +350,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/my-requests'
     | '/notes'
+    | '/notifications'
     | '/recycle-bin'
     | '/reports'
     | '/search'
@@ -371,6 +382,7 @@ export interface FileRouteTypes {
     | '/ipam'
     | '/my-requests'
     | '/notes'
+    | '/notifications'
     | '/protocols'
     | '/recycle-bin'
     | '/reports'
@@ -405,6 +417,7 @@ export interface RootRouteChildren {
   IpamRoute: typeof IpamRoute
   MyRequestsRoute: typeof MyRequestsRoute
   NotesRoute: typeof NotesRoute
+  NotificationsRoute: typeof NotificationsRoute
   ProtocolsRoute: typeof ProtocolsRouteWithChildren
   RecycleBinRoute: typeof RecycleBinRoute
   ReportsRoute: typeof ReportsRoute
@@ -487,6 +500,13 @@ declare module '@tanstack/react-router' {
       path: '/protocols'
       fullPath: '/protocols'
       preLoaderRoute: typeof ProtocolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes': {
@@ -695,6 +715,7 @@ const rootRouteChildren: RootRouteChildren = {
   IpamRoute: IpamRoute,
   MyRequestsRoute: MyRequestsRoute,
   NotesRoute: NotesRoute,
+  NotificationsRoute: NotificationsRoute,
   ProtocolsRoute: ProtocolsRouteWithChildren,
   RecycleBinRoute: RecycleBinRoute,
   ReportsRoute: ReportsRoute,
@@ -716,3 +737,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
