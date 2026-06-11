@@ -114,21 +114,34 @@ function TicketDetail() {
   const { data: profiles = [] } = useQuery({ ...profilesQuery(), enabled });
   const pmap = useMemo(() => profileMap(profiles), [profiles]);
 
+  // Attachments: employees see only public; agents see public + internal.
+  const { data: rawAttachments = [], isLoading: attLoading, isError: attError, error: attErrorObj } = useQuery({
+    ...ticketAttachmentsQuery(id),
+    enabled: enabled && Boolean(ticket),
+  });
+  const attachments = useMemo<TicketAttachment[]>(
+    () => rawAttachments.filter((a) => (isRequesterView ? a.visibility !== "internal" : true)),
+    [rawAttachments, isRequesterView],
+  );
+
   const [reply, setReply] = useState("");
   const [internal, setInternal] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
   const [resolution, setResolution] = useState("");
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const invalidateTicket = () => {
     qc.invalidateQueries({ queryKey: sdKeys.ticket(id) });
     qc.invalidateQueries({ queryKey: sdKeys.ticketComments(id) });
     qc.invalidateQueries({ queryKey: sdKeys.ticketStatus(id) });
     qc.invalidateQueries({ queryKey: sdKeys.ticketAssignments(id) });
+    qc.invalidateQueries({ queryKey: sdKeys.ticketAttachments(id) });
     qc.invalidateQueries({ queryKey: sdKeys.tickets() });
     qc.invalidateQueries({ queryKey: sdKeys.ticketsMine(userId) });
   };
+
 
   const updateMut = useMutation({
     mutationFn: (patch: Parameters<typeof updateTicket>[1]) => updateTicket(id, patch),
