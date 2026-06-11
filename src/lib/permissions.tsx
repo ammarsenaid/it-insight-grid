@@ -183,18 +183,19 @@ export const PAGE_VISIBILITY: Record<string, Role[]> = {
 void REQUESTER_PAGES;
 
 export function canSeePage(path: string, current?: Role): boolean {
-  const r = current ?? role;
+  const r = current ?? currentRole();
   const list = PAGE_VISIBILITY[path];
   if (!list) return true;
   return list.includes(r);
 }
 
 export function can(capability: string, current?: Role): boolean {
-  const r = current ?? role;
+  const r = current ?? currentRole();
   const list = CAPS[capability];
   if (!list) return true;
   return list.includes(r);
 }
+
 
 // Friendly capability groups for the permission matrix UI
 export const CAPABILITY_GROUPS: { label: string; caps: { key: string; label: string }[] }[] = [
