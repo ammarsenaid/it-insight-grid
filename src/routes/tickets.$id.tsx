@@ -1,24 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   AlertTriangle,
   CheckCircle2,
   RotateCcw,
-  Trash2,
   Send,
   Lock,
-  Paperclip,
-  Eye,
   Users as UsersIcon,
-  Server,
-  Network,
-  FileText,
-  CheckSquare,
-  StickyNote,
   User as UserIcon,
   Clock,
-  TrendingUp,
   UserCheck,
   PlayCircle,
   Tag,
@@ -28,35 +20,10 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { FormDrawer } from "@/components/common/FormDrawer";
 import { formatDateTime, timeAgo } from "@/components/common/format";
-import { useData } from "@/lib/data/store";
-import {
-  AGENTS,
-  TICKET_PRIORITIES,
-  TICKET_STATUSES,
-  TICKET_TEAMS,
-  addAttachment,
-  addComment,
-  archiveTickets,
-  assignTickets,
-  currentRequesterFor,
-  escalate,
-  isRequesterRole,
-  recomputeSla,
-  reopenTicket,
-  resolveTicket,
-  setPriority,
-  setStatus,
-  setTeam,
-  setWatchers,
-  slaLabel,
-} from "@/lib/data/tickets";
-import type { Ticket, TicketPriority, TicketStatus } from "@/lib/data/types";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -68,35 +35,73 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useRole, can } from "@/lib/permissions";
+import {
+  profilesQuery,
+  sdKeys,
+  ticketQuery,
+  ticketCommentsQuery,
+  ticketStatusEventsQuery,
+  ticketAssignmentHistoryQuery,
+} from "@/lib/service-desk/queries";
+import {
+  updateTicket,
+} from "@/lib/service-desk/tickets";
+import { addTicketComment } from "@/lib/service-desk/comments";
+import { nameOf, profileMap } from "@/lib/service-desk/profiles";
+import type {
+  TicketPriority,
+  TicketStatus,
+} from "@/lib/service-desk/types";
 
 export const Route = createFileRoute("/tickets/$id")({
   head: () => ({ meta: [{ title: "Ticket · IT Knowledge Center" }] }),
   component: TicketDetail,
 });
 
+const TICKET_STATUSES: TicketStatus[] = ["open", "in_progress", "on_hold", "resolved", "closed", "reopened"];
+const TICKET_PRIORITIES: TicketPriority[] = ["low", "normal", "high", "critical"];
+const SUGGESTED_TEAMS = ["Service Desk", "Field Ops", "Network", "Infrastructure"];
+
 const PRIORITY_TONE: Record<TicketPriority, "muted" | "info" | "warning" | "danger"> = {
   low: "muted", normal: "info", high: "warning", critical: "danger",
 };
 const STATUS_TONE: Record<TicketStatus, "info" | "warning" | "success" | "muted" | "danger" | "default"> = {
-  open: "info", in_progress: "warning", waiting: "muted", resolved: "success", closed: "muted", cancelled: "danger",
+  open: "info", in_progress: "warning", on_hold: "muted", resolved: "success", closed: "muted", reopened: "danger",
 };
 
 function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1).replace("_", " "); }
-function labelStatus(s: TicketStatus) { return s === "in_progress" ? "In progress" : cap(s); }
+function labelStatus(s: TicketStatus) { return s === "in_progress" ? "In progress" : s === "on_hold" ? "On hold" : cap(s); }
 
 function TicketDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const data = useData();
+  const qc = useQueryClient();
+  const { session } = useAuth();
   const role = useRole();
+  const userId = session?.user?.id ?? "";
+
   const internalAllowed = can("tickets.viewInternal", role);
+  const canAssign = can("tickets.assign", role);
   const canResolve = can("tickets.resolve", role);
-  const isRequesterView = !internalAllowed;
-  const ticket = useMemo(() => {
-    const t = data.tickets.find((x) => x.id === id);
-    return t ? recomputeSla(t) : undefined;
-  }, [data.tickets, id]);
+  const canCreate = can("tickets.create", role);
+  const isRequesterView = !internalAllowed; // employee-style portal view
+  const enabled = Boolean(userId);
+
+  const { data: ticket, isLoading, isError, error } = useQuery({ ...ticketQuery(id), enabled });
+  const { data: comments = [] } = useQuery({ ...ticketCommentsQuery(id), enabled: enabled && Boolean(ticket) });
+  const { data: statusEvents = [] } = useQuery({
+    ...ticketStatusEventsQuery(id),
+    enabled: enabled && Boolean(ticket) && internalAllowed,
+  });
+  const { data: assignEvents = [] } = useQuery({
+    ...ticketAssignmentHistoryQuery(id),
+    enabled: enabled && Boolean(ticket) && internalAllowed,
+  });
+  const { data: profiles = [] } = useQuery({ ...profilesQuery(), enabled });
+  const pmap = useMemo(() => profileMap(profiles), [profiles]);
 
   const [reply, setReply] = useState("");
   const [internal, setInternal] = useState(false);
@@ -104,49 +109,117 @@ function TicketDetail() {
   const [resolution, setResolution] = useState("");
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
-  const [archiveOpen, setArchiveOpen] = useState(false);
-  const [watchersOpen, setWatchersOpen] = useState(false);
-  const [watcherInput, setWatcherInput] = useState("");
 
-  if (!ticket) {
+  const invalidateTicket = () => {
+    qc.invalidateQueries({ queryKey: sdKeys.ticket(id) });
+    qc.invalidateQueries({ queryKey: sdKeys.ticketComments(id) });
+    qc.invalidateQueries({ queryKey: sdKeys.ticketStatus(id) });
+    qc.invalidateQueries({ queryKey: sdKeys.ticketAssignments(id) });
+    qc.invalidateQueries({ queryKey: sdKeys.tickets() });
+    qc.invalidateQueries({ queryKey: sdKeys.ticketsMine(userId) });
+  };
+
+  const updateMut = useMutation({
+    mutationFn: (patch: Parameters<typeof updateTicket>[1]) => updateTicket(id, patch),
+    onSuccess: () => invalidateTicket(),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+  });
+
+  const commentMut = useMutation({
+    mutationFn: (input: { body: string; internal: boolean }) =>
+      addTicketComment({ ticketId: id, authorId: userId, body: input.body, internal: input.internal }),
+    onSuccess: (_d, vars) => {
+      setReply("");
+      setInternal(false);
+      toast.success(vars.internal ? "Internal note added" : "Reply sent");
+      invalidateTicket();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Send failed"),
+  });
+
+  if (!enabled) {
     return (
       <div>
-        <PageHeader title="Ticket not found" description="The ticket may have been archived or its link is incorrect." actions={<Link to="/tickets"><Button variant="secondary"><ArrowLeft className="mr-1.5 h-4 w-4" /> Back to queue</Button></Link>} />
+        <PageHeader title="Sign in required" description="Authenticate to view this ticket." />
       </div>
     );
   }
 
-  // Visibility guard for requester portal: only allow if it's the user's own ticket.
-  // Auditor read-only access is preserved (they are not a requester role).
-  if (isRequesterRole(role) && ticket.requester !== currentRequesterFor(role)) {
+  if (isLoading) {
     return (
       <div>
-        <PageHeader title="Access restricted" description="This ticket belongs to another requester." actions={<Link to="/my-requests"><Button variant="secondary"><ArrowLeft className="mr-1.5 h-4 w-4" /> My requests</Button></Link>} />
+        <PageHeader title="Loading ticket…" description="Fetching the latest details." />
       </div>
     );
   }
 
-  const sla = slaLabel(ticket);
-  const linkedAsset = data.assets.find((a) => a.id === ticket.linkedAssetId);
-  const linkedIp = data.ipam.find((p) => p.id === ticket.linkedIpamId);
-  const linkedDoc = data.documents.find((d) => d.id === ticket.linkedDocumentId);
-  // Related tickets: same category, exclude self
-  const relatedTickets = data.tickets.filter((t) => t.id !== ticket.id && t.category === ticket.category).slice(0, 5);
-  // Related tasks / notes: linked to same asset
-  const relatedTasks = data.tasks.filter((t) => t.linkedAssetId && t.linkedAssetId === ticket.linkedAssetId);
-  const relatedNotes = data.notes.filter((n) => n.linkedDocumentId && n.linkedDocumentId === ticket.linkedDocumentId);
+  if (isError || !ticket) {
+    return (
+      <div>
+        <PageHeader
+          title="Ticket not found"
+          description={isError ? (error instanceof Error ? error.message : "Unable to load ticket.") : "The ticket may have been removed or you do not have access."}
+          actions={<Link to="/tickets"><Button variant="secondary"><ArrowLeft className="mr-1.5 h-4 w-4" /> Back to queue</Button></Link>}
+        />
+      </div>
+    );
+  }
 
-  const conversation = ticket.comments.filter((c) => isRequesterView ? !c.internal : true);
+  // Employee own-ticket isolation. RLS is the real guard; this is a UX guard.
+  if (isRequesterView && ticket.requesterId !== userId) {
+    return (
+      <div>
+        <PageHeader
+          title="Access restricted"
+          description="This ticket belongs to another requester."
+          actions={<Link to="/my-requests"><Button variant="secondary"><ArrowLeft className="mr-1.5 h-4 w-4" /> My requests</Button></Link>}
+        />
+      </div>
+    );
+  }
 
-  const currentActor = isRequesterView ? ticket.requester : AGENTS[0];
+  const requesterName = nameOf(ticket.requesterId, pmap);
+  const assigneeName = ticket.assigneeId ? nameOf(ticket.assigneeId, pmap) : null;
+  const visibleComments = comments.filter((c) => (isRequesterView ? !c.internal : true));
+  const isClosedLike = ticket.status === "resolved" || ticket.status === "closed";
 
   const handleReply = () => {
-    if (!reply.trim()) return toast.error("Type a message before sending");
-    addComment(ticket.id, currentActor, reply.trim(), internal && internalAllowed);
-    setReply("");
-    setInternal(false);
-    toast.success(internal ? "Internal note added" : "Reply sent");
+    if (!reply.trim()) { toast.error("Type a message before sending"); return; }
+    if (!canCreate) { toast.error("You cannot post on this ticket"); return; }
+    commentMut.mutate({ body: reply.trim(), internal: internal && internalAllowed && canAssign });
   };
+
+  const handleResolve = () => {
+    if (resolution.trim().length < 4) { toast.error("Provide a resolution summary"); return; }
+    // Post the resolution as an internal note for audit trail, then mark resolved.
+    commentMut.mutate(
+      { body: `Resolution: ${resolution.trim()}`, internal: true },
+      {
+        onSuccess: () => {
+          updateMut.mutate({ status: "resolved" }, {
+            onSuccess: () => { setResolution(""); setResolveOpen(false); toast.success("Ticket resolved"); },
+          });
+        },
+      },
+    );
+  };
+
+  const handleReopen = () => {
+    if (reopenReason.trim().length < 4) { toast.error("Provide a reason"); return; }
+    commentMut.mutate(
+      { body: `Reopen reason: ${reopenReason.trim()}`, internal: isRequesterView ? false : true },
+      {
+        onSuccess: () => {
+          updateMut.mutate({ status: "reopened" }, {
+            onSuccess: () => { setReopenReason(""); setReopenOpen(false); toast.success("Ticket reopened"); },
+          });
+        },
+      },
+    );
+  };
+
+  // Build the assignee dropdown from known profiles. RLS scopes the list.
+  const assignableUsers = profiles;
 
   return (
     <div>
@@ -155,20 +228,17 @@ function TicketDetail() {
           <ArrowLeft className="h-3.5 w-3.5" /> {isRequesterView ? "My requests" : "Ticket queue"}
         </Link>
         <span>/</span>
-        <span className="font-mono text-foreground">{ticket.number}</span>
+        <span className="font-mono text-foreground">{ticket.ticketNumber}</span>
       </div>
 
       <PageHeader
         title={ticket.subject}
-        description={`${cap(ticket.type)} · ${ticket.category}${ticket.subcategory ? " / " + ticket.subcategory : ""} · Requested by ${ticket.requester}`}
+        description={`${cap(ticket.type)} · ${ticket.category ?? "Uncategorized"}${ticket.subcategory ? " / " + ticket.subcategory : ""} · Requested by ${requesterName}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {!isRequesterView && (
               <>
-                <Button variant="secondary" disabled={!canResolve} onClick={() => escalate(ticket.id)}>
-                  <TrendingUp className="mr-1.5 h-4 w-4" /> Escalate
-                </Button>
-                {ticket.status === "resolved" || ticket.status === "closed" ? (
+                {isClosedLike ? (
                   <Button variant="secondary" onClick={() => setReopenOpen(true)} disabled={!canResolve}>
                     <RotateCcw className="mr-1.5 h-4 w-4" /> Reopen
                   </Button>
@@ -177,12 +247,9 @@ function TicketDetail() {
                     <CheckCircle2 className="mr-1.5 h-4 w-4" /> Resolve
                   </Button>
                 )}
-                <Button variant="ghost" className="text-[#FF7C91]" disabled={!can("documents.delete", role)} onClick={() => setArchiveOpen(true)}>
-                  <Trash2 className="mr-1.5 h-4 w-4" /> Archive
-                </Button>
               </>
             )}
-            {isRequesterView && (ticket.status === "resolved" || ticket.status === "closed") && (
+            {isRequesterView && isClosedLike && (
               <Button variant="secondary" onClick={() => setReopenOpen(true)}>
                 <RotateCcw className="mr-1.5 h-4 w-4" /> Reopen request
               </Button>
@@ -197,54 +264,66 @@ function TicketDetail() {
           <div className="glass-card grid grid-cols-2 gap-3 rounded-2xl p-4 sm:grid-cols-4">
             <Stat label="Status"><StatusBadge label={labelStatus(ticket.status)} tone={STATUS_TONE[ticket.status]} /></Stat>
             <Stat label="Priority"><StatusBadge label={cap(ticket.priority)} tone={PRIORITY_TONE[ticket.priority]} /></Stat>
-            <Stat label="SLA"><StatusBadge label={sla.label} tone={sla.tone} /></Stat>
+            <Stat label="Source"><span>{cap(ticket.source)}</span></Stat>
             <Stat label="Updated"><span suppressHydrationWarning>{timeAgo(ticket.updatedAt)}</span></Stat>
           </div>
 
           <SectionCard title="Description">
-            <p className="whitespace-pre-line text-sm text-muted-foreground">{ticket.description}</p>
+            <p className="whitespace-pre-line text-sm text-muted-foreground">{ticket.description || "No description provided."}</p>
           </SectionCard>
 
           <SectionCard title="Conversation">
             <Tabs defaultValue="all">
               <TabsList>
-                <TabsTrigger value="all">All ({conversation.length})</TabsTrigger>
+                <TabsTrigger value="all">All ({visibleComments.length})</TabsTrigger>
                 {internalAllowed && (
                   <TabsTrigger value="internal">
-                    <Lock className="mr-1 h-3 w-3" /> Internal ({ticket.comments.filter((c) => c.internal).length})
+                    <Lock className="mr-1 h-3 w-3" /> Internal ({comments.filter((c) => c.internal).length})
                   </TabsTrigger>
                 )}
-                <TabsTrigger value="public">Replies ({ticket.comments.filter((c) => !c.internal).length})</TabsTrigger>
+                <TabsTrigger value="public">Replies ({comments.filter((c) => !c.internal).length})</TabsTrigger>
               </TabsList>
               <TabsContent value="all" className="mt-3 space-y-2">
-                {conversation.map((c) => <CommentBubble key={c.id} author={c.author} body={c.body} internal={c.internal} createdAt={c.createdAt} />)}
-                {conversation.length === 0 && <p className="text-xs text-muted-foreground">No messages yet.</p>}
+                {visibleComments.map((c) => (
+                  <CommentBubble key={c.id} author={nameOf(c.authorId, pmap)} body={c.body} internal={c.internal} createdAt={c.createdAt} />
+                ))}
+                {visibleComments.length === 0 && <p className="text-xs text-muted-foreground">No messages yet.</p>}
               </TabsContent>
               {internalAllowed && (
                 <TabsContent value="internal" className="mt-3 space-y-2">
-                  {ticket.comments.filter((c) => c.internal).map((c) => <CommentBubble key={c.id} author={c.author} body={c.body} internal createdAt={c.createdAt} />)}
-                  {ticket.comments.filter((c) => c.internal).length === 0 && <p className="text-xs text-muted-foreground">No internal notes.</p>}
+                  {comments.filter((c) => c.internal).map((c) => (
+                    <CommentBubble key={c.id} author={nameOf(c.authorId, pmap)} body={c.body} internal createdAt={c.createdAt} />
+                  ))}
+                  {comments.filter((c) => c.internal).length === 0 && <p className="text-xs text-muted-foreground">No internal notes.</p>}
                 </TabsContent>
               )}
               <TabsContent value="public" className="mt-3 space-y-2">
-                {ticket.comments.filter((c) => !c.internal).map((c) => <CommentBubble key={c.id} author={c.author} body={c.body} internal={false} createdAt={c.createdAt} />)}
+                {comments.filter((c) => !c.internal).map((c) => (
+                  <CommentBubble key={c.id} author={nameOf(c.authorId, pmap)} body={c.body} internal={false} createdAt={c.createdAt} />
+                ))}
               </TabsContent>
             </Tabs>
 
-            {can("tickets.create", role) ? (
+            {canCreate ? (
               <div className="mt-4 rounded-xl border border-border/60 bg-background/30 p-3">
-                <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder={internal ? "Add an internal note (visible only to IT)…" : "Reply to requester…"} rows={3} />
+                <Textarea
+                  value={reply}
+                  onChange={(e) => setReply(e.target.value)}
+                  placeholder={internal ? "Add an internal note (visible only to IT)…" : "Reply to requester…"}
+                  rows={3}
+                  disabled={commentMut.isPending}
+                />
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    {can("tickets.assign", role) && (
+                    {internalAllowed && canAssign && (
                       <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                         <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} className="accent-primary" />
                         <Lock className="h-3 w-3" /> Internal note
                       </label>
                     )}
                   </div>
-                  <Button size="sm" onClick={handleReply}>
-                    <Send className="mr-1 h-3.5 w-3.5" /> Send
+                  <Button size="sm" onClick={handleReply} disabled={commentMut.isPending}>
+                    <Send className="mr-1 h-3.5 w-3.5" /> {commentMut.isPending ? "Sending…" : "Send"}
                   </Button>
                 </div>
               </div>
@@ -255,49 +334,83 @@ function TicketDetail() {
             )}
           </SectionCard>
 
-          {ticket.attachments.length > 0 && (
-            <SectionCard title={`Attachments (${ticket.attachments.length})`}>
-              <div className="flex flex-wrap gap-1.5">
-                {ticket.attachments.map((f, i) => (
-                  <Badge key={i} variant="outline" className="font-mono text-[10px]">
-                    <Paperclip className="mr-1 h-3 w-3" />{f}
-                  </Badge>
+          {internalAllowed && (
+            <SectionCard title="Activity timeline">
+              <ol className="relative space-y-3 border-l border-border/40 pl-4">
+                <TimelineItem label={`Ticket created by ${requesterName}`} at={ticket.createdAt} />
+                {statusEvents.map((e) => (
+                  <TimelineItem
+                    key={e.id}
+                    label={`Status changed${e.fromStatus ? ` from ${labelStatus(e.fromStatus)}` : ""} to ${labelStatus(e.toStatus)}${e.changedBy ? ` by ${nameOf(e.changedBy, pmap)}` : ""}${e.reason ? ` — ${e.reason}` : ""}`}
+                    at={e.changedAt}
+                    tone={e.toStatus === "resolved" ? "success" : e.toStatus === "reopened" ? "danger" : e.toStatus === "in_progress" ? "warning" : "info"}
+                  />
                 ))}
-              </div>
+                {assignEvents.map((e) => {
+                  const toAssignee = e.toAssigneeId ? nameOf(e.toAssigneeId, pmap) : null;
+                  const fromAssignee = e.fromAssigneeId ? nameOf(e.fromAssigneeId, pmap) : null;
+                  const parts: string[] = [];
+                  if (toAssignee || fromAssignee) {
+                    parts.push(`Assignee: ${fromAssignee ?? "—"} → ${toAssignee ?? "—"}`);
+                  }
+                  if (e.toTeam || e.fromTeam) {
+                    parts.push(`Team: ${e.fromTeam ?? "—"} → ${e.toTeam ?? "—"}`);
+                  }
+                  return (
+                    <TimelineItem
+                      key={e.id}
+                      label={`${parts.join(" · ") || "Assignment updated"}${e.changedBy ? ` by ${nameOf(e.changedBy, pmap)}` : ""}`}
+                      at={e.changedAt}
+                      tone="info"
+                    />
+                  );
+                })}
+                {ticket.resolvedAt && <TimelineItem label="Ticket resolved" at={ticket.resolvedAt} tone="success" />}
+                {ticket.closedAt && <TimelineItem label="Ticket closed" at={ticket.closedAt} tone="muted" />}
+              </ol>
             </SectionCard>
           )}
-
-          <SectionCard title="Activity timeline">
-            <ol className="relative space-y-3 border-l border-border/40 pl-4">
-              <TimelineItem label={`Ticket created by ${ticket.requester}`} at={ticket.createdAt} />
-              {ticket.assignee && <TimelineItem label={`Assigned to ${ticket.assignee}`} at={ticket.updatedAt} tone="info" />}
-              {ticket.status === "in_progress" && <TimelineItem label="Work started" at={ticket.updatedAt} tone="warning" />}
-              {ticket.status === "waiting" && <TimelineItem label="Waiting on requester" at={ticket.updatedAt} tone="muted" />}
-              {ticket.resolvedAt && <TimelineItem label="Ticket resolved" at={ticket.resolvedAt} tone="success" />}
-              {ticket.comments.slice(-3).map((c) => (
-                <TimelineItem key={c.id} label={`${c.author} ${c.internal ? "added internal note" : "replied"}`} at={c.createdAt} />
-              ))}
-            </ol>
-          </SectionCard>
         </div>
 
         <div className="space-y-4">
           <SectionCard title="People">
-            <KV k="Requester" v={ticket.requester} icon={UserIcon} />
-            <KV k="Assignee" v={ticket.assignee ?? <em className="text-[#FFC86B] not-italic">Unassigned</em>} icon={UserCheck} />
-            <KV k="Team" v={ticket.team ?? "—"} icon={UsersIcon} />
-            {!isRequesterView && (
+            <KV k="Requester" v={requesterName} icon={UserIcon} />
+            <KV k="Assignee" v={assigneeName ?? <em className="text-[#FFC86B] not-italic">Unassigned</em>} icon={UserCheck} />
+            <KV k="Team" v={ticket.assignedTeam ?? "—"} icon={UsersIcon} />
+            {!isRequesterView && canAssign && (
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <Select value={ticket.assignee ?? "none"} onValueChange={(v) => { assignTickets([ticket.id], v === "none" ? "" : v); toast.success(v === "none" ? "Unassigned" : `Assigned to ${v}`); }}>
+                <Select
+                  value={ticket.assigneeId ?? "none"}
+                  onValueChange={(v) => {
+                    const next = v === "none" ? null : v;
+                    updateMut.mutate({ assigneeId: next }, {
+                      onSuccess: () => toast.success(next ? `Assigned to ${nameOf(next, pmap)}` : "Unassigned"),
+                    });
+                  }}
+                >
                   <SelectTrigger className="h-8 w-full text-xs"><SelectValue placeholder="Reassign" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Unassigned</SelectItem>
-                    {AGENTS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                    {assignableUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.displayName}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Select value={ticket.team ?? TICKET_TEAMS[0]} onValueChange={(v) => { setTeam([ticket.id], v); toast.success(`Team: ${v}`); }}>
-                  <SelectTrigger className="h-8 w-full text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>{TICKET_TEAMS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                <Select
+                  value={ticket.assignedTeam ?? "none"}
+                  onValueChange={(v) => {
+                    const next = v === "none" ? null : v;
+                    updateMut.mutate({ assignedTeam: next }, {
+                      onSuccess: () => toast.success(next ? `Team: ${next}` : "Team cleared"),
+                    });
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-full text-xs"><SelectValue placeholder="Team" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {SUGGESTED_TEAMS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    {ticket.assignedTeam && !SUGGESTED_TEAMS.includes(ticket.assignedTeam) && (
+                      <SelectItem value={ticket.assignedTeam}>{ticket.assignedTeam}</SelectItem>
+                    )}
+                  </SelectContent>
                 </Select>
               </div>
             )}
@@ -306,69 +419,34 @@ function TicketDetail() {
           <SectionCard title="Lifecycle">
             <KV k="Status" v={<StatusBadge label={labelStatus(ticket.status)} tone={STATUS_TONE[ticket.status]} />} />
             <KV k="Priority" v={<StatusBadge label={cap(ticket.priority)} tone={PRIORITY_TONE[ticket.priority]} />} />
-            <KV k="SLA" v={<StatusBadge label={sla.label} tone={sla.tone} />} icon={AlertTriangle} />
-            <KV k="SLA due" v={<span suppressHydrationWarning>{ticket.slaDueAt ? formatDateTime(ticket.slaDueAt) : "—"}</span>} icon={Clock} />
+            <KV k="Opened" v={<span suppressHydrationWarning>{formatDateTime(ticket.openedAt)}</span>} icon={Clock} />
             <KV k="Created" v={<span suppressHydrationWarning>{formatDateTime(ticket.createdAt)}</span>} />
             <KV k="Updated" v={<span suppressHydrationWarning>{formatDateTime(ticket.updatedAt)}</span>} />
-            {!isRequesterView && (
+            {ticket.resolvedAt && <KV k="Resolved" v={<span suppressHydrationWarning>{formatDateTime(ticket.resolvedAt)}</span>} />}
+            {ticket.closedAt && <KV k="Closed" v={<span suppressHydrationWarning>{formatDateTime(ticket.closedAt)}</span>} />}
+            {!isRequesterView && canResolve && (
               <div className="mt-3 grid grid-cols-2 gap-1.5">
-                <Select value={ticket.status} onValueChange={(v) => { setStatus([ticket.id], v as TicketStatus); toast.success(`Status: ${labelStatus(v as TicketStatus)}`); }}>
+                <Select
+                  value={ticket.status}
+                  onValueChange={(v) => updateMut.mutate({ status: v as TicketStatus }, {
+                    onSuccess: () => toast.success(`Status: ${labelStatus(v as TicketStatus)}`),
+                  })}
+                >
                   <SelectTrigger className="h-8 text-xs"><PlayCircle className="mr-1 h-3 w-3" /><SelectValue /></SelectTrigger>
                   <SelectContent>{TICKET_STATUSES.map((s) => <SelectItem key={s} value={s}>{labelStatus(s)}</SelectItem>)}</SelectContent>
                 </Select>
-                <Select value={ticket.priority} onValueChange={(v) => { setPriority([ticket.id], v as TicketPriority); toast.success(`Priority: ${cap(v)}`); }}>
+                <Select
+                  value={ticket.priority}
+                  onValueChange={(v) => updateMut.mutate({ priority: v as TicketPriority }, {
+                    onSuccess: () => toast.success(`Priority: ${cap(v)}`),
+                  })}
+                >
                   <SelectTrigger className="h-8 text-xs"><AlertTriangle className="mr-1 h-3 w-3" /><SelectValue /></SelectTrigger>
                   <SelectContent>{TICKET_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{cap(p)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             )}
           </SectionCard>
-
-          <SectionCard title="Linked records">
-            {linkedAsset && <LinkedRow to="/cmdb" icon={Server} label={linkedAsset.hostname} sub={linkedAsset.displayName} />}
-            {linkedIp && <LinkedRow to="/ipam" icon={Network} label={linkedIp.ipAddress} sub={linkedIp.hostname} />}
-            {linkedDoc && <LinkedRow to="/documents" icon={FileText} label={linkedDoc.title} sub={linkedDoc.category} />}
-            {relatedTasks.slice(0, 3).map((t) => <LinkedRow key={t.id} to="/tasks" icon={CheckSquare} label={t.title} sub={t.category} />)}
-            {relatedNotes.slice(0, 3).map((n) => <LinkedRow key={n.id} to="/notes" icon={StickyNote} label={n.title} sub={n.category} />)}
-            {!linkedAsset && !linkedIp && !linkedDoc && relatedTasks.length === 0 && relatedNotes.length === 0 && (
-              <p className="text-xs text-muted-foreground">No linked records.</p>
-            )}
-          </SectionCard>
-
-          <SectionCard title={`Watchers (${ticket.watchers.length})`}>
-            <div className="flex flex-wrap gap-1.5">
-              {ticket.watchers.map((w) => (
-                <Badge key={w} variant="outline" className="text-[10px]">
-                  {w}
-                  {!isRequesterView && (
-                    <button onClick={() => { setWatchers(ticket.id, ticket.watchers.filter((x) => x !== w)); toast.success("Watcher removed"); }} className="ml-1 text-muted-foreground hover:text-foreground">×</button>
-                  )}
-                </Badge>
-              ))}
-              {ticket.watchers.length === 0 && <span className="text-xs text-muted-foreground">No watchers</span>}
-            </div>
-            {!isRequesterView && (
-              <Button size="sm" variant="ghost" className="mt-2" onClick={() => setWatchersOpen(true)}>
-                <UsersIcon className="mr-1 h-3.5 w-3.5" /> Add watcher
-              </Button>
-            )}
-          </SectionCard>
-
-          {relatedTickets.length > 0 && (
-            <SectionCard title={`Related tickets (${relatedTickets.length})`}>
-              <div className="space-y-1.5">
-                {relatedTickets.map((t) => (
-                  <Link key={t.id} to="/tickets/$id" params={{ id: t.id }} className="block rounded-lg border border-border/40 bg-background/30 p-2 text-xs transition-colors hover:bg-white/[0.03]">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-[11px] text-primary">{t.number}</span>
-                      <StatusBadge label={labelStatus(t.status)} tone={STATUS_TONE[t.status]} />
-                    </div>
-                    <div className="mt-0.5 truncate">{t.subject}</div>
-                  </Link>
-                ))}
-              </div>
-            </SectionCard>
-          )}
 
           {ticket.tags.length > 0 && (
             <SectionCard title="Tags">
@@ -377,32 +455,22 @@ function TicketDetail() {
               </div>
             </SectionCard>
           )}
+
+          {ticket.affectedService && (
+            <SectionCard title="Affected service">
+              <p className="text-xs text-muted-foreground">{ticket.affectedService}</p>
+            </SectionCard>
+          )}
         </div>
       </div>
-
-      <ConfirmDialog
-        open={archiveOpen}
-        onOpenChange={setArchiveOpen}
-        title={`Archive ${ticket.number}?`}
-        description="The ticket will be moved to the recycle bin and can be restored later."
-        confirmLabel="Archive"
-        destructive
-        onConfirm={() => { archiveTickets([ticket.id]); toast.success(`${ticket.number} archived`); navigate({ to: "/tickets" }); }}
-      />
 
       <FormDrawer
         open={resolveOpen}
         onOpenChange={setResolveOpen}
-        title={`Resolve ${ticket.number}`}
-        description="Add a resolution summary visible to the requester."
-        submitLabel="Mark resolved"
-        onSubmit={() => {
-          if (resolution.trim().length < 4) return toast.error("Provide a resolution summary");
-          resolveTicket(ticket.id, resolution.trim(), currentActor);
-          setResolution("");
-          setResolveOpen(false);
-          toast.success("Ticket resolved");
-        }}
+        title={`Resolve ${ticket.ticketNumber}`}
+        description="Add a resolution summary. It is recorded as an internal note."
+        submitLabel={updateMut.isPending || commentMut.isPending ? "Working…" : "Mark resolved"}
+        onSubmit={handleResolve}
       >
         <div className="space-y-2">
           <Label className="text-xs">Resolution</Label>
@@ -413,40 +481,13 @@ function TicketDetail() {
       <FormDrawer
         open={reopenOpen}
         onOpenChange={setReopenOpen}
-        title={`Reopen ${ticket.number}`}
-        submitLabel="Reopen ticket"
-        onSubmit={() => {
-          if (reopenReason.trim().length < 4) return toast.error("Provide a reason");
-          reopenTicket(ticket.id, reopenReason.trim(), currentActor);
-          setReopenReason("");
-          setReopenOpen(false);
-          toast.success("Ticket reopened");
-        }}
+        title={`Reopen ${ticket.ticketNumber}`}
+        submitLabel={updateMut.isPending || commentMut.isPending ? "Working…" : "Reopen ticket"}
+        onSubmit={handleReopen}
       >
         <div className="space-y-2">
           <Label className="text-xs">Reason for reopening</Label>
           <Textarea value={reopenReason} onChange={(e) => setReopenReason(e.target.value)} rows={3} />
-        </div>
-      </FormDrawer>
-
-      <FormDrawer
-        open={watchersOpen}
-        onOpenChange={setWatchersOpen}
-        title="Add watcher"
-        submitLabel="Add"
-        onSubmit={() => {
-          const v = watcherInput.trim();
-          if (!v) return toast.error("Enter a username");
-          if (ticket.watchers.includes(v)) return toast.info("Already watching");
-          setWatchers(ticket.id, [...ticket.watchers, v]);
-          setWatcherInput("");
-          setWatchersOpen(false);
-          toast.success(`${v} added as watcher`);
-        }}
-      >
-        <div className="space-y-2">
-          <Label className="text-xs">Username</Label>
-          <Input value={watcherInput} onChange={(e) => setWatcherInput(e.target.value)} placeholder="user.name" />
         </div>
       </FormDrawer>
     </div>
@@ -498,18 +539,5 @@ function KV({ k, v, icon: Icon }: { k: string; v: React.ReactNode; icon?: React.
       </span>
       <span className="text-right text-xs">{v}</span>
     </div>
-  );
-}
-
-function LinkedRow({ to, icon: Icon, label, sub }: { to: string; icon: React.ComponentType<{ className?: string }>; label: string; sub: string }) {
-  return (
-    <Link to={to} className="flex items-center gap-2 rounded-lg border border-border/40 bg-background/30 p-2 transition-colors hover:bg-white/[0.03]">
-      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-xs font-medium">{label}</div>
-        <div className="truncate text-[10px] text-muted-foreground">{sub}</div>
-      </div>
-      <Eye className="h-3 w-3 text-muted-foreground" />
-    </Link>
   );
 }
