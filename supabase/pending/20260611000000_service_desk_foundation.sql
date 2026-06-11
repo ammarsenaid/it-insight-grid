@@ -18,7 +18,7 @@
 --   * Permission keys for catalog and tickets
 --   * Platform roles: it_admin, sd_lead, helpdesk
 --   * RLS policies leveraging existing helper functions
---   * Atomic RPC: submit_catalog_request(catalog_item_id, values)
+--   * Atomic RPC: submit_catalog_request(p_catalog_item_id, p_values)
 --
 -- Out of scope for this batch (handled in later batches):
 --   * ticket_attachments + storage bucket
