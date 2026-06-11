@@ -165,6 +165,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTeamsError(null);
     }
 
+    // Global role keys for this user → highest-ranked frontend Role.
+    const { data: rolesData, error: rolesErr } = await supabase
+      .from("user_global_roles")
+      .select("role_id, roles!inner(role_key, role_scope)")
+      .eq("user_id", userId);
+    if (rolesErr) {
+      console.error("[auth] failed to load roles", rolesErr);
+      setRoleKeys([]);
+      setRoleState(null);
+      failures.push("roles");
+    } else {
+      const keys = ((rolesData ?? []) as unknown as Array<{
+        roles: { role_key: string; role_scope: string } | null;
+      }>)
+        .map((r) => r.roles?.role_key ?? null)
+        .filter((k): k is string => Boolean(k));
+      setRoleKeys(keys);
+      setRoleState(pickHighestRole(keys));
+    }
+
     setContextError(
       failures.length === 0
         ? null
