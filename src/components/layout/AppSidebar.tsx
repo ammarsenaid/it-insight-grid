@@ -22,6 +22,7 @@ import {
   ListChecks,
   FileCode,
   Wrench,
+  Bell,
 } from "lucide-react";
 import {
   Sidebar,
