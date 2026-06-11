@@ -287,6 +287,7 @@ end$$;
 -- ============================================================
 -- Switch to the "other" employee and confirm they cannot see
 -- the ticket the first employee just created.
+set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}',
@@ -306,26 +307,26 @@ end$$;
 -- The other employee also cannot reply on someone else's ticket.
 do $$
 declare
-  ticket_id uuid;
+  v_ticket_id uuid;
 begin
-  -- Fetch via SECURITY DEFINER context isn't available; instead
-  -- pick a ticket id we know exists by querying as service_role.
+  -- Re-assert the simulated JWT inside the block.
   perform set_config(
     'request.jwt.claims',
     '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}',
     true);
-  select id into ticket_id from public.tickets
+  select id into v_ticket_id from public.tickets
    where requester_id = '00000000-0000-0000-0000-0000000000a1'
    limit 1;
-  -- ticket_id will be NULL under RLS for this user, which is itself
+  -- v_ticket_id will be NULL under RLS for this user, which is itself
   -- the proof: they cannot even discover the ticket id.
-  assert ticket_id is null, 'Other employee must not discover foreign tickets';
+  assert v_ticket_id is null, 'Other employee must not discover foreign tickets';
 end$$;
 
 
 -- ============================================================
 -- CHECK 5: IT admin (helpdesk) ticket visibility
 -- ============================================================
+set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}',
@@ -349,22 +350,23 @@ end$$;
 -- Helpdesk posts one public reply and one internal note.
 do $$
 declare
-  ticket_id uuid;
+  v_ticket_id uuid;
 begin
-  select id into ticket_id from public.tickets
+  select id into v_ticket_id from public.tickets
    where requester_id = '00000000-0000-0000-0000-0000000000a1'
    order by created_at desc
    limit 1;
 
   insert into public.ticket_comments (ticket_id, author_id, body, internal)
   values
-    (ticket_id, '00000000-0000-0000-0000-0000000000a2',
+    (v_ticket_id, '00000000-0000-0000-0000-0000000000a2',
      'Hello, working on this now.', false),
-    (ticket_id, '00000000-0000-0000-0000-0000000000a2',
+    (v_ticket_id, '00000000-0000-0000-0000-0000000000a2',
      'Internal: need to verify license seats.', true);
 end$$;
 
 -- Employee (the requester) sees only the public reply.
+set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
@@ -396,14 +398,14 @@ end$$;
 -- Employee cannot post an internal note.
 do $$
 declare
-  ticket_id uuid;
+  v_ticket_id uuid;
 begin
-  select id into ticket_id from public.tickets
+  select id into v_ticket_id from public.tickets
    where requester_id = '00000000-0000-0000-0000-0000000000a1'
    limit 1;
   begin
     insert into public.ticket_comments (ticket_id, author_id, body, internal)
-    values (ticket_id, '00000000-0000-0000-0000-0000000000a1',
+    values (v_ticket_id, '00000000-0000-0000-0000-0000000000a1',
             'I should not be allowed to post this.', true);
     raise exception 'Employee MUST NOT be able to post internal notes';
   exception when others then
@@ -414,14 +416,14 @@ end$$;
 -- Employee CAN post a public reply on their own ticket.
 do $$
 declare
-  ticket_id uuid;
+  v_ticket_id uuid;
   ok boolean := false;
 begin
-  select id into ticket_id from public.tickets
+  select id into v_ticket_id from public.tickets
    where requester_id = '00000000-0000-0000-0000-0000000000a1'
    limit 1;
   insert into public.ticket_comments (ticket_id, author_id, body, internal)
-  values (ticket_id, '00000000-0000-0000-0000-0000000000a1',
+  values (v_ticket_id, '00000000-0000-0000-0000-0000000000a1',
           'Thanks for the update.', false);
   ok := true;
   assert ok, 'Employee MUST be able to post a public reply on their own ticket';
@@ -429,9 +431,10 @@ end$$;
 
 
 -- ============================================================
--- CHECK 7: status events + audit log
+-- CHECK 7: status events + audit log (scoped to the created ticket)
 -- ============================================================
 -- Helpdesk transitions ticket to in_progress.
+set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}',
@@ -439,33 +442,39 @@ select set_config(
 
 do $$
 declare
-  ticket_id uuid;
+  v_ticket_id uuid;
   status_events int;
   audit_rows int;
 begin
-  select id into ticket_id from public.tickets
+  select id into v_ticket_id from public.tickets
    where requester_id = '00000000-0000-0000-0000-0000000000a1'
    order by created_at desc
    limit 1;
 
-  update public.tickets
-     set status = 'in_progress', assignee_id = '00000000-0000-0000-0000-0000000000a2'
-   where id = ticket_id;
+  assert v_ticket_id is not null,
+    'Helpdesk must be able to locate the requester''s ticket for Check 7';
 
+  update public.tickets
+     set status = 'in_progress',
+         assignee_id = '00000000-0000-0000-0000-0000000000a2'
+   where id = v_ticket_id;
+
+  -- Scope counts to THIS ticket only (avoid column/local shadowing).
   select count(*) into status_events
-    from public.ticket_status_events
-   where ticket_id = ticket_id;
+    from public.ticket_status_events e
+   where e.ticket_id = v_ticket_id;
   assert status_events >= 2,
-    'Status events must include initial open + transition to in_progress';
+    'Status events for this ticket must include initial open + transition to in_progress';
 
   select count(*) into audit_rows
-    from public.ticket_audit_log
-   where ticket_id = ticket_id;
+    from public.ticket_audit_log a
+   where a.ticket_id = v_ticket_id;
   assert audit_rows >= 2,
-    'Audit log must include ticket.create + ticket.update entries';
+    'Audit log for this ticket must include ticket.create + ticket.update entries';
 end$$;
 
 -- Employee cannot see ticket_audit_log rows.
+set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
