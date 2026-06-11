@@ -68,21 +68,50 @@ from public.roles r
 where r.role_key = 'helpdesk'
 on conflict do nothing;
 
--- Seed three catalog items: published / draft / archived.
+-- Seed four catalog items: published-internal / published-restricted /
+-- draft / archived.
 insert into public.catalog_items (id, name, category, description,
-                                  default_priority, status, fields_schema)
+                                  default_priority, status, visibility,
+                                  fields_schema)
 values
   ('00000000-0000-0000-0000-0000000000c1',
    'QA Published Service', 'Access', 'A published service for QA.',
-   'normal', 'published',
+   'normal', 'published', 'internal',
    '[{"key":"reason","label":"Reason","type":"text","required":true}]'::jsonb),
   ('00000000-0000-0000-0000-0000000000c2',
    'QA Draft Service', 'Access', 'A draft service for QA.',
-   'normal', 'draft', '[]'::jsonb),
+   'normal', 'draft', 'internal', '[]'::jsonb),
   ('00000000-0000-0000-0000-0000000000c3',
    'QA Archived Service', 'Access', 'An archived service for QA.',
-   'normal', 'archived', '[]'::jsonb)
+   'normal', 'archived', 'internal', '[]'::jsonb),
+  ('00000000-0000-0000-0000-0000000000c4',
+   'QA Restricted Service', 'Access', 'A restricted published service for QA.',
+   'normal', 'published', 'restricted', '[]'::jsonb)
 on conflict (id) do nothing;
+
+-- Grant a second helpdesk-like user the catalog.manage permission via sd_lead
+-- (sd_lead already has catalog.manage in the migration).
+insert into auth.users (id, email, instance_id, aud, role,
+                        encrypted_password, email_confirmed_at,
+                        created_at, updated_at)
+values
+  ('00000000-0000-0000-0000-0000000000a4',
+   'qa-catalog-manager@example.com',
+   '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', '', now(), now(), now())
+on conflict (id) do nothing;
+
+insert into public.profiles (id, email, display_name)
+values
+  ('00000000-0000-0000-0000-0000000000a4',
+   'qa-catalog-manager@example.com', 'QA Catalog Manager')
+on conflict (id) do nothing;
+
+insert into public.user_global_roles (user_id, role_id)
+select '00000000-0000-0000-0000-0000000000a4', r.id
+from public.roles r
+where r.role_key = 'sd_lead'
+on conflict do nothing;
 
 
 -- ------------------------------------------------------------
@@ -104,9 +133,10 @@ select set_config(
 
 do $$
 declare
-  visible_published int;
-  visible_draft     int;
-  visible_archived  int;
+  visible_published  int;
+  visible_draft      int;
+  visible_archived   int;
+  visible_restricted int;
 begin
   select count(*) into visible_published
     from public.catalog_items
@@ -117,10 +147,14 @@ begin
   select count(*) into visible_archived
     from public.catalog_items
    where id = '00000000-0000-0000-0000-0000000000c3';
+  select count(*) into visible_restricted
+    from public.catalog_items
+   where id = '00000000-0000-0000-0000-0000000000c4';
 
-  assert visible_published = 1, 'Employee MUST see the published catalog item';
-  assert visible_draft     = 0, 'Employee MUST NOT see draft catalog items';
-  assert visible_archived  = 0, 'Employee MUST NOT see archived catalog items';
+  assert visible_published  = 1, 'Employee MUST see the published+internal catalog item';
+  assert visible_draft      = 0, 'Employee MUST NOT see draft catalog items';
+  assert visible_archived   = 0, 'Employee MUST NOT see archived catalog items';
+  assert visible_restricted = 0, 'Employee MUST NOT see restricted catalog items';
 end$$;
 
 -- Employee cannot manage the catalog
@@ -134,6 +168,63 @@ begin
     null;
   end;
 end$$;
+
+-- Employee cannot submit a restricted catalog item via the RPC either.
+do $$
+begin
+  begin
+    perform public.submit_catalog_request(
+      '00000000-0000-0000-0000-0000000000c4',
+      '{}'::jsonb
+    );
+    raise exception 'submit_catalog_request must reject restricted items for normal employees';
+  exception when others then
+    null;
+  end;
+end$$;
+
+
+-- ============================================================
+-- CHECK 2b: catalog manager (sd_lead) sees every catalog item
+-- ============================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a4","role":"authenticated"}',
+  true);
+
+do $$
+declare
+  visible_published  int;
+  visible_draft      int;
+  visible_archived   int;
+  visible_restricted int;
+begin
+  select count(*) into visible_published
+    from public.catalog_items
+   where id = '00000000-0000-0000-0000-0000000000c1';
+  select count(*) into visible_draft
+    from public.catalog_items
+   where id = '00000000-0000-0000-0000-0000000000c2';
+  select count(*) into visible_archived
+    from public.catalog_items
+   where id = '00000000-0000-0000-0000-0000000000c3';
+  select count(*) into visible_restricted
+    from public.catalog_items
+   where id = '00000000-0000-0000-0000-0000000000c4';
+
+  assert visible_published  = 1, 'Catalog manager MUST see published items';
+  assert visible_draft      = 1, 'Catalog manager MUST see draft items';
+  assert visible_archived   = 1, 'Catalog manager MUST see archived items';
+  assert visible_restricted = 1, 'Catalog manager MUST see restricted items';
+end$$;
+
+-- Re-enter the original employee context for the rest of the script.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
+  true);
 
 
 -- ============================================================
@@ -196,6 +287,7 @@ end$$;
 -- ============================================================
 -- Switch to the "other" employee and confirm they cannot see
 -- the ticket the first employee just created.
+set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}',
@@ -215,26 +307,26 @@ end$$;
 -- The other employee also cannot reply on someone else's ticket.
 do $$
 declare
-  ticket_id uuid;
+  v_ticket_id uuid;
 begin
-  -- Fetch via SECURITY DEFINER context isn't available; instead
-  -- pick a ticket id we know exists by querying as service_role.
+  -- Re-assert the simulated JWT inside the block.
   perform set_config(
     'request.jwt.claims',
     '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}',
     true);
-  select id into ticket_id from public.tickets
+  select id into v_ticket_id from public.tickets
    where requester_id = '00000000-0000-0000-0000-0000000000a1'
    limit 1;
-  -- ticket_id will be NULL under RLS for this user, which is itself
+  -- v_ticket_id will be NULL under RLS for this user, which is itself
   -- the proof: they cannot even discover the ticket id.
-  assert ticket_id is null, 'Other employee must not discover foreign tickets';
+  assert v_ticket_id is null, 'Other employee must not discover foreign tickets';
 end$$;
 
 
 -- ============================================================
 -- CHECK 5: IT admin (helpdesk) ticket visibility
 -- ============================================================
+set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}',
@@ -258,22 +350,23 @@ end$$;
 -- Helpdesk posts one public reply and one internal note.
 do $$
 declare
-  ticket_id uuid;
+  v_ticket_id uuid;
 begin
-  select id into ticket_id from public.tickets
+  select id into v_ticket_id from public.tickets
    where requester_id = '00000000-0000-0000-0000-0000000000a1'
    order by created_at desc
    limit 1;
 
   insert into public.ticket_comments (ticket_id, author_id, body, internal)
   values
-    (ticket_id, '00000000-0000-0000-0000-0000000000a2',
+    (v_ticket_id, '00000000-0000-0000-0000-0000000000a2',
      'Hello, working on this now.', false),
-    (ticket_id, '00000000-0000-0000-0000-0000000000a2',
+    (v_ticket_id, '00000000-0000-0000-0000-0000000000a2',
      'Internal: need to verify license seats.', true);
 end$$;
 
 -- Employee (the requester) sees only the public reply.
+set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
@@ -305,14 +398,14 @@ end$$;
 -- Employee cannot post an internal note.
 do $$
 declare
-  ticket_id uuid;
+  v_ticket_id uuid;
 begin
-  select id into ticket_id from public.tickets
+  select id into v_ticket_id from public.tickets
    where requester_id = '00000000-0000-0000-0000-0000000000a1'
    limit 1;
   begin
     insert into public.ticket_comments (ticket_id, author_id, body, internal)
-    values (ticket_id, '00000000-0000-0000-0000-0000000000a1',
+    values (v_ticket_id, '00000000-0000-0000-0000-0000000000a1',
             'I should not be allowed to post this.', true);
     raise exception 'Employee MUST NOT be able to post internal notes';
   exception when others then
@@ -323,14 +416,14 @@ end$$;
 -- Employee CAN post a public reply on their own ticket.
 do $$
 declare
-  ticket_id uuid;
+  v_ticket_id uuid;
   ok boolean := false;
 begin
-  select id into ticket_id from public.tickets
+  select id into v_ticket_id from public.tickets
    where requester_id = '00000000-0000-0000-0000-0000000000a1'
    limit 1;
   insert into public.ticket_comments (ticket_id, author_id, body, internal)
-  values (ticket_id, '00000000-0000-0000-0000-0000000000a1',
+  values (v_ticket_id, '00000000-0000-0000-0000-0000000000a1',
           'Thanks for the update.', false);
   ok := true;
   assert ok, 'Employee MUST be able to post a public reply on their own ticket';
@@ -338,9 +431,10 @@ end$$;
 
 
 -- ============================================================
--- CHECK 7: status events + audit log
+-- CHECK 7: status events + audit log (scoped to the created ticket)
 -- ============================================================
 -- Helpdesk transitions ticket to in_progress.
+set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}',
@@ -348,33 +442,39 @@ select set_config(
 
 do $$
 declare
-  ticket_id uuid;
+  v_ticket_id uuid;
   status_events int;
   audit_rows int;
 begin
-  select id into ticket_id from public.tickets
+  select id into v_ticket_id from public.tickets
    where requester_id = '00000000-0000-0000-0000-0000000000a1'
    order by created_at desc
    limit 1;
 
-  update public.tickets
-     set status = 'in_progress', assignee_id = '00000000-0000-0000-0000-0000000000a2'
-   where id = ticket_id;
+  assert v_ticket_id is not null,
+    'Helpdesk must be able to locate the requester''s ticket for Check 7';
 
+  update public.tickets
+     set status = 'in_progress',
+         assignee_id = '00000000-0000-0000-0000-0000000000a2'
+   where id = v_ticket_id;
+
+  -- Scope counts to THIS ticket only (avoid column/local shadowing).
   select count(*) into status_events
-    from public.ticket_status_events
-   where ticket_id = ticket_id;
+    from public.ticket_status_events e
+   where e.ticket_id = v_ticket_id;
   assert status_events >= 2,
-    'Status events must include initial open + transition to in_progress';
+    'Status events for this ticket must include initial open + transition to in_progress';
 
   select count(*) into audit_rows
-    from public.ticket_audit_log
-   where ticket_id = ticket_id;
+    from public.ticket_audit_log a
+   where a.ticket_id = v_ticket_id;
   assert audit_rows >= 2,
-    'Audit log must include ticket.create + ticket.update entries';
+    'Audit log for this ticket must include ticket.create + ticket.update entries';
 end$$;
 
 -- Employee cannot see ticket_audit_log rows.
+set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
