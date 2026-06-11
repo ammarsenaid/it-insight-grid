@@ -161,6 +161,47 @@ function TicketDetail() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Send failed"),
   });
 
+  const uploadMut = useMutation({
+    mutationFn: (file: File) =>
+      uploadTicketAttachment({
+        ticketId: id,
+        uploadedBy: userId,
+        file,
+        visibility: isRequesterView ? "public" : internal ? "internal" : "public",
+      }),
+    onSuccess: () => {
+      toast.success("Attachment uploaded");
+      qc.invalidateQueries({ queryKey: sdKeys.ticketAttachments(id) });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Upload failed"),
+  });
+
+  const deleteAttMut = useMutation({
+    mutationFn: (att: TicketAttachment) => deleteTicketAttachment(att),
+    onSuccess: () => {
+      toast.success("Attachment removed");
+      qc.invalidateQueries({ queryKey: sdKeys.ticketAttachments(id) });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
+  });
+
+  const handleDownload = async (att: TicketAttachment) => {
+    try {
+      const url = await getAttachmentSignedUrl(att.storagePath, 300);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Download link failed");
+    }
+  };
+
+  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    uploadMut.mutate(f);
+    e.target.value = "";
+  };
+
+
   if (!enabled) {
     return (
       <div>
