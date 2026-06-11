@@ -14,6 +14,7 @@ import type {
   AppSettings,
   User,
   Team,
+  CatalogItem,
 } from "./types";
 
 
@@ -426,7 +427,7 @@ export function buildSeed(): DataState {
         { key: "summary", label: "What happened?", type: "textarea", required: true },
         { key: "affectedAccounts", label: "Affected accounts or devices", type: "text" },
       ]},
-    ] as Omit<CatalogItem, "status">[]).map((c) => ({ ...c, status: "published" as const, updatedAt: new Date().toISOString() })),
+    ] as Omit<CatalogItem, "status" | "updatedAt">[]).map<CatalogItem>((c) => ({ ...c, status: "published", updatedAt: new Date().toISOString() })),
     ticketSettings: {
       categories: ["Network", "Applications", "Hardware", "Storage", "Infrastructure", "Identity", "Security", "Backup", "Other"],
       teams: ["Service Desk", "Network", "Infrastructure", "Security", "Applications"],
