@@ -118,11 +118,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTeamsError(null);
       setRoleKeys([]);
       setRoleState(null);
-      setSessionRole(null);
+      // If a session exists but the client is missing, still deny the
+      // localStorage fallback by pinning to least-privilege.
+      setSessionRole(current?.user ? "employee" : null);
       setContextError(null);
       setContextLoading(false);
       return;
     }
+
 
     const userId = current.user.id;
     const failures: string[] = [];
