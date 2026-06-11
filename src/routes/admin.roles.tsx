@@ -46,7 +46,10 @@ function AdminRolesPage() {
   const role = useRole();
   const allowed = can("admin.roles", role);
   const data = useData();
+  const { session } = useAuth();
+  const isSignedIn = Boolean(session);
   const [preview, setPreview] = useState<Role>(role);
+
 
   if (!allowed) {
     return (
