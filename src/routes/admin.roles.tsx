@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { ROLES, CAPS, CAPABILITY_GROUPS, PAGE_VISIBILITY, can, useRole, setRole, type Role } from "@/lib/permissions";
 import { useData } from "@/lib/data/store";
 import { roleLabel } from "@/lib/data/users";
+import { useAuth } from "@/lib/auth/AuthProvider";
+
 
 export const Route = createFileRoute("/admin/roles")({
   head: () => ({ meta: [{ title: "Roles and Permissions · IT Knowledge Center" }] }),
