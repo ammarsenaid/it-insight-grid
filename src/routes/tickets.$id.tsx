@@ -14,6 +14,10 @@ import {
   UserCheck,
   PlayCircle,
   Tag,
+  Paperclip,
+  Trash2,
+  Download,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 
