@@ -549,10 +549,17 @@ alter table public.ticket_status_events enable row level security;
 alter table public.ticket_audit_log     enable row level security;
 
 -- ---- catalog_items ----
+-- Visibility rules:
+--   * published + internal   → all authenticated users
+--   * published + restricted → only users with catalog.manage
+--   * draft / archived       → only users with catalog.manage
 drop policy if exists catalog_items_select_visible on public.catalog_items;
 create policy catalog_items_select_visible
 on public.catalog_items for select to authenticated
-using (status = 'published' or public.has_permission('catalog.manage'));
+using (
+  (status = 'published' and visibility = 'internal')
+  or public.has_permission('catalog.manage')
+);
 
 drop policy if exists catalog_items_insert_managers on public.catalog_items;
 create policy catalog_items_insert_managers
