@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { isSafeMarkdownHref } from "@/lib/markdown-links";
 
 // Minimal, safe-ish markdown renderer for prototype use.
 // Supports: headings, bold, italic, inline code, code blocks, links,
@@ -20,7 +21,10 @@ function inline(s: string) {
   out = out.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
   out = out.replace(
     /\[([^\]]+)\]\(([^)\s]+)\)/g,
-    '<a href="$2" target="_blank" rel="noreferrer" class="text-primary underline-offset-2 hover:underline">$1</a>',
+    (_match, label: string, href: string) =>
+      isSafeMarkdownHref(href)
+        ? `<a href="${href}" target="_blank" rel="noopener noreferrer" class="text-primary underline-offset-2 hover:underline">${label}</a>`
+        : label,
   );
   return out;
 }
