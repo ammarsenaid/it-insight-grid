@@ -1,7 +1,7 @@
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
-import { renderErrorPage } from "./lib/error-page";
+import { createErrorResponse } from "./lib/error-page";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -25,16 +25,26 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) return response;
 
-  const body = await response.clone().text();
-  if (!body.includes('"unhandled":true') || !body.includes('"message":"HTTPError"')) {
+  let body: unknown;
+  try {
+    body = await response.clone().json();
+  } catch {
     return response;
   }
 
-  console.error(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
-  return new Response(renderErrorPage(), {
-    status: 500,
-    headers: { "content-type": "text/html; charset=utf-8" },
-  });
+  if (
+    body == null ||
+    typeof body !== "object" ||
+    !("unhandled" in body) ||
+    body.unhandled !== true ||
+    !("message" in body) ||
+    body.message !== "HTTPError"
+  ) {
+    return response;
+  }
+
+  console.error(consumeLastCapturedError() ?? new Error("h3 swallowed an SSR error"));
+  return createErrorResponse();
 }
 
 export default {
@@ -45,10 +55,7 @@ export default {
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      return createErrorResponse();
     }
   },
 };

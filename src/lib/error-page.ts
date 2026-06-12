@@ -28,3 +28,14 @@ export function renderErrorPage(): string {
   </body>
 </html>`;
 }
+
+export function createErrorResponse(): Response {
+  return new Response(renderErrorPage(), {
+    status: 500,
+    headers: {
+      "cache-control": "no-store",
+      "content-type": "text/html; charset=utf-8",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
