@@ -97,8 +97,10 @@ export async function getAttachmentSignedUrl(
 
 export async function deleteTicketAttachment(attachment: TicketAttachment): Promise<void> {
   const sb = getSupabase();
-  // Remove metadata first; the storage RLS allows uploader to delete the object too.
+  // Keep metadata available when storage deletion fails so the user can retry.
+  const storageDelete = await sb.storage.from(BUCKET).remove([attachment.storagePath]);
+  if (storageDelete.error) throw storageDelete.error;
+
   const { error } = await sb.from("ticket_attachments").delete().eq("id", attachment.id);
   if (error) throw error;
-  await sb.storage.from(BUCKET).remove([attachment.storagePath]).catch(() => {});
 }
