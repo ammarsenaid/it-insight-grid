@@ -57,14 +57,13 @@ create index if not exists idx_ticket_attachments_comment
 -- 2. PATH HELPER
 -- ------------------------------------------------------------
 -- Storage object name must be <ticket_uuid>/<filename> where:
---   * <ticket_uuid> is a real ticket the caller can view
+--   * <ticket_uuid> is structurally valid
 --   * <filename>    is a single path segment (no '/'), 1..255 chars,
---                   no NUL, no '..'
+--                   no '.' or '..'. PostgreSQL text rejects NUL before validation
 create or replace function public.is_valid_ticket_attachment_path(p_object_name text)
 returns boolean
 language plpgsql
-stable
-security definer
+immutable
 set search_path = ''
 as $$
 declare
@@ -90,16 +89,22 @@ begin
   if fname is null
      or length(fname) < 1
      or length(fname) > 255
-     or position(E'\u0000' in fname) > 0
      or fname = '..' or fname = '.' then
     return false;
   end if;
 
-  return exists (
-    select 1 from public.tickets t where t.id = ticket_uuid
-  );
+  return true;
 end;
 $$;
+
+alter table public.ticket_attachments
+  drop constraint if exists ticket_attachments_storage_path_matches_ticket;
+alter table public.ticket_attachments
+  add constraint ticket_attachments_storage_path_matches_ticket
+  check (
+    public.is_valid_ticket_attachment_path(storage_path)
+    and split_part(storage_path, '/', 1) = ticket_id::text
+  );
 
 -- ------------------------------------------------------------
 -- 3. STORAGE BUCKET
@@ -113,12 +118,14 @@ on conflict (id) do update set public = false;
 -- ------------------------------------------------------------
 alter table public.ticket_attachments enable row level security;
 
--- Select: ticket must be visible AND (visibility=public OR caller can read internal)
+-- Select: caller needs attachment-read permission, ticket visibility, and the
+-- appropriate public/internal visibility level.
 drop policy if exists ticket_attachments_select_visible on public.ticket_attachments;
 create policy ticket_attachments_select_visible
 on public.ticket_attachments for select to authenticated
 using (
-  public.can_view_ticket(ticket_id)
+  public.has_permission('tickets.attachments.view')
+  and public.can_view_ticket(ticket_id)
   and (
     visibility = 'public'
     or public.has_permission('tickets.view_internal')
@@ -152,14 +159,26 @@ using (
 -- ------------------------------------------------------------
 -- 5. RLS — storage.objects for 'ticket-attachments'
 -- ------------------------------------------------------------
--- Read: ticket must be visible to caller, path must be well-formed.
+-- Read: require a visible metadata row so internal objects cannot bypass
+-- attachment visibility through a direct storage URL.
 drop policy if exists ticket_attachments_storage_select on storage.objects;
 create policy ticket_attachments_storage_select
 on storage.objects for select to authenticated
 using (
   bucket_id = 'ticket-attachments'
   and public.is_valid_ticket_attachment_path(name)
-  and public.can_view_ticket((split_part(name, '/', 1))::uuid)
+  and public.has_permission('tickets.attachments.view')
+  and exists (
+    select 1
+    from public.ticket_attachments metadata
+    where metadata.storage_path = name
+      and metadata.ticket_id::text = split_part(name, '/', 1)
+      and public.can_view_ticket(metadata.ticket_id)
+      and (
+        metadata.visibility = 'public'
+        or public.has_permission('tickets.view_internal')
+      )
+  )
 );
 
 -- Upload: caller must own object, path must validate, and have upload perm.
@@ -169,9 +188,12 @@ on storage.objects for insert to authenticated
 with check (
   bucket_id = 'ticket-attachments'
   and owner = (select auth.uid())
-  and public.is_valid_ticket_attachment_path(name)
   and public.has_permission('tickets.attachments.upload')
-  and public.can_view_ticket((split_part(name, '/', 1))::uuid)
+  and case
+    when public.is_valid_ticket_attachment_path(name)
+      then public.can_view_ticket((split_part(name, '/', 1))::uuid)
+    else false
+  end
 );
 
 -- Delete: uploader or attachment manager.
@@ -196,6 +218,7 @@ grant select, insert, delete on table public.ticket_attachments to authenticated
 grant all on table public.ticket_attachments to service_role;
 
 revoke all on function public.is_valid_ticket_attachment_path(text) from public;
-grant execute on function public.is_valid_ticket_attachment_path(text) to authenticated;
+grant execute on function public.is_valid_ticket_attachment_path(text)
+  to authenticated, service_role;
 
 commit;

@@ -5,12 +5,15 @@
 --
 -- Covered:
 --   * Bucket exists and is private
---   * is_valid_ticket_attachment_path rejects malformed paths
---   * Requester sees own ticket's public attachments
---   * Requester does NOT see internal-visibility attachments
---   * Agent (helpdesk) sees both public and internal
---   * Other employee cannot see another user's attachments
---   * Uploader can delete; foreign user cannot
+--   * Structural path validation accepts only <ticket_uuid>/<filename>
+--   * Metadata storage paths must match their ticket_id
+--   * Ticket authorization, not path parsing, rejects nonexistent tickets
+--   * Ticket ownership does not bypass attachment-view permission
+--   * Requester sees public metadata and storage objects only
+--   * Helpdesk sees public and internal metadata and storage objects
+--   * Other employees see neither metadata nor storage objects
+--   * Storage DELETE policy is scoped to owners or attachment managers
+--   * Metadata uploader can delete; foreign user cannot
 -- ============================================================
 
 begin;
@@ -24,21 +27,107 @@ begin
   if is_pub then raise exception 'Bucket ticket-attachments must be private'; end if;
 end$$;
 
--- ---- path helper rejects junk ----
+-- Stored-file deletion must be tested later through the Supabase Storage API
+-- in an API or staging integration test. Raw SQL deletion from storage.objects
+-- is intentionally unsupported.
+-- ---- storage delete policy catalog assertions ----
+do $$
+declare
+  policy_roles name[];
+  policy_command text;
+  policy_qualification text;
+  compact_qualification text;
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where policyname = 'ticket_attachments_storage_delete'
+      and schemaname = 'storage'
+      and tablename = 'objects'
+  ) then
+    raise exception 'Storage DELETE policy ticket_attachments_storage_delete is missing';
+  end if;
+
+  select roles, cmd, qual
+    into policy_roles, policy_command, policy_qualification
+    from pg_policies
+   where policyname = 'ticket_attachments_storage_delete'
+     and schemaname = 'storage'
+     and tablename = 'objects';
+
+  if policy_command is distinct from 'DELETE' then
+    raise exception 'Storage delete policy command must be DELETE';
+  end if;
+  if not coalesce('authenticated'::name = any(policy_roles), false) then
+    raise exception 'Storage delete policy must apply to authenticated';
+  end if;
+
+  if policy_qualification is null then
+    raise exception 'Storage delete policy qualification is missing';
+  end if;
+  compact_qualification := regexp_replace(
+    lower(policy_qualification),
+    '[[:space:]]+',
+    '',
+    'g'
+  );
+  if position('bucket_id=''ticket-attachments''' in compact_qualification) = 0 then
+    raise exception 'Storage delete policy must target the ticket-attachments bucket';
+  end if;
+  if position('owner' in compact_qualification) = 0
+     or position('uid()' in compact_qualification) = 0 then
+    raise exception 'Storage delete policy must authorize the owner through auth.uid()';
+  end if;
+  if position('has_permission' in compact_qualification) = 0
+     or position('tickets.attachments.manage' in compact_qualification) = 0 then
+    raise exception 'Storage delete policy must authorize tickets.attachments.manage';
+  end if;
+  if exists (
+    select 1
+    from pg_policies
+    where policyname = 'ticket_attachments_storage_update'
+  ) then
+    raise exception 'Storage UPDATE policy ticket_attachments_storage_update must not exist';
+  end if;
+end$$;
+
+-- ---- path helper is structural only ----
 do $$
 begin
+  if not public.is_valid_ticket_attachment_path(
+    '00000000-0000-0000-0000-00000000c999/file.txt'
+  ) then
+    raise exception 'Path validator rejected a valid structural path';
+  end if;
   if public.is_valid_ticket_attachment_path('not-a-uuid/file.txt') then
-    raise exception 'Path validator accepted non-uuid prefix';
+    raise exception 'Path validator accepted malformed UUID';
   end if;
   if public.is_valid_ticket_attachment_path('/etc/passwd') then
     raise exception 'Path validator accepted absolute path';
   end if;
-  if public.is_valid_ticket_attachment_path('00000000-0000-0000-0000-000000000000/../escape.txt') then
-    raise exception 'Path validator accepted dot-dot segment';
+  if public.is_valid_ticket_attachment_path(
+    '00000000-0000-0000-0000-00000000c999/folder/file.txt'
+  ) then
+    raise exception 'Path validator accepted an extra path segment';
+  end if;
+  if public.is_valid_ticket_attachment_path(
+    '00000000-0000-0000-0000-00000000c999/.'
+  ) then
+    raise exception 'Path validator accepted dot filename';
+  end if;
+  if public.is_valid_ticket_attachment_path(
+    '00000000-0000-0000-0000-00000000c999/..'
+  ) then
+    raise exception 'Path validator accepted dot-dot filename';
+  end if;
+  if not public.is_valid_ticket_attachment_path(
+    '00000000-0000-0000-0000-00000000c999/nonexistent.txt'
+  ) then
+    raise exception 'Structural validator incorrectly queried ticket existence';
   end if;
 end$$;
 
--- ---- fixture users + ticket ----
+-- ---- fixture users + tickets ----
 insert into auth.users (id, email, instance_id, aud, role,
                         encrypted_password, email_confirmed_at,
                         created_at, updated_at)
@@ -74,13 +163,16 @@ select '00000000-0000-0000-0000-0000000000b3'::uuid, id
   from public.roles where role_key = 'employee'
 on conflict do nothing;
 
--- Seed a ticket owned by employee b1
 insert into public.tickets (id, requester_id, subject, description)
-values ('00000000-0000-0000-0000-00000000b101'::uuid,
-        '00000000-0000-0000-0000-0000000000b1'::uuid,
-        'QA attachment ticket', 'body');
+values
+  ('00000000-0000-0000-0000-00000000b101'::uuid,
+   '00000000-0000-0000-0000-0000000000b1'::uuid,
+   'QA attachment ticket', 'body'),
+  ('00000000-0000-0000-0000-00000000b102'::uuid,
+   '00000000-0000-0000-0000-0000000000b3'::uuid,
+   'QA cross-ticket path', 'body');
 
--- Insert one public + one internal attachment row directly as service_role.
+-- ---- matched metadata paths are accepted ----
 insert into public.ticket_attachments
   (id, ticket_id, uploaded_by, storage_path, file_name, mime_type, size_bytes, visibility)
 values
@@ -95,63 +187,216 @@ values
    '00000000-0000-0000-0000-00000000b101/internal-log.txt',
    'internal-log.txt','text/plain',512,'internal');
 
--- ---- Requester (employee b1) sees only public ----
+do $$
+begin
+  if not exists (
+    select 1
+    from public.ticket_attachments
+    where id = '00000000-0000-0000-0000-00000000b1aa'::uuid
+      and ticket_id::text = split_part(storage_path, '/', 1)
+  ) then
+    raise exception 'Matched metadata ticket and storage path were not accepted';
+  end if;
+end$$;
+
+-- ---- cross-ticket metadata paths are rejected by the CHECK constraint ----
+do $$
+begin
+  begin
+    insert into public.ticket_attachments
+      (id, ticket_id, uploaded_by, storage_path, file_name, size_bytes, visibility)
+    values
+      ('00000000-0000-0000-0000-00000000b1cc'::uuid,
+       '00000000-0000-0000-0000-00000000b101'::uuid,
+       '00000000-0000-0000-0000-0000000000b1'::uuid,
+       '00000000-0000-0000-0000-00000000b102/cross-ticket.txt',
+       'cross-ticket.txt',10,'public');
+    raise exception 'Cross-ticket metadata storage path was accepted';
+  exception when check_violation then
+    null;
+  end;
+end$$;
+
+-- Storage fixtures corresponding to the public and internal metadata rows.
+insert into storage.objects (id, bucket_id, name, owner)
+values
+  ('00000000-0000-0000-0000-00000000b1d1'::uuid,
+   'ticket-attachments',
+   '00000000-0000-0000-0000-00000000b101/screenshot.png',
+   '00000000-0000-0000-0000-0000000000b1'::uuid),
+  ('00000000-0000-0000-0000-00000000b1d2'::uuid,
+   'ticket-attachments',
+   '00000000-0000-0000-0000-00000000b101/internal-log.txt',
+   '00000000-0000-0000-0000-0000000000b2'::uuid);
+
+-- ---- requester without attachment-view permission sees no rows ----
+delete from public.user_global_roles
+where user_id = '00000000-0000-0000-0000-0000000000b1'::uuid;
+
 set local role authenticated;
 set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000b1","role":"authenticated"}';
 do $$
-declare cnt int; internal_cnt int;
+declare metadata_count int; storage_count int;
 begin
-  select count(*) into cnt from public.ticket_attachments
-   where ticket_id = '00000000-0000-0000-0000-00000000b101';
-  select count(*) into internal_cnt from public.ticket_attachments
-   where ticket_id = '00000000-0000-0000-0000-00000000b101' and visibility = 'internal';
-  if cnt <> 1 then raise exception 'Requester should see 1 attachment, got %', cnt; end if;
-  if internal_cnt <> 0 then raise exception 'Requester must not see internal attachment'; end if;
+  select count(*) into metadata_count
+    from public.ticket_attachments
+   where ticket_id = '00000000-0000-0000-0000-00000000b101'::uuid;
+  select count(*) into storage_count
+    from storage.objects
+   where bucket_id = 'ticket-attachments'
+     and name in (
+       '00000000-0000-0000-0000-00000000b101/screenshot.png',
+       '00000000-0000-0000-0000-00000000b101/internal-log.txt'
+     );
+  if metadata_count <> 0 then
+    raise exception 'Requester without attachment-view permission read metadata';
+  end if;
+  if storage_count <> 0 then
+    raise exception 'Requester without attachment-view permission read storage objects';
+  end if;
 end$$;
 reset role;
 reset "request.jwt.claims";
 
--- ---- Helpdesk b2 sees both ----
+insert into public.user_global_roles (user_id, role_id)
+select '00000000-0000-0000-0000-0000000000b1'::uuid, id
+  from public.roles where role_key = 'employee'
+on conflict do nothing;
+
+-- ---- nonexistent ticket passes parsing but fails storage authorization ----
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000b1","role":"authenticated"}';
+do $$
+begin
+  begin
+    insert into storage.objects (id, bucket_id, name, owner)
+    values (
+      '00000000-0000-0000-0000-00000000b1d3'::uuid,
+      'ticket-attachments',
+      '00000000-0000-0000-0000-00000000c999/nonexistent.txt',
+      '00000000-0000-0000-0000-0000000000b1'::uuid
+    );
+    raise exception 'Storage policy accepted a nonexistent ticket path';
+  exception when insufficient_privilege then
+    null;
+  end;
+end$$;
+reset role;
+reset "request.jwt.claims";
+
+-- ---- requester sees public metadata and public storage object only ----
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000b1","role":"authenticated"}';
+do $$
+declare metadata_public int; metadata_internal int;
+        storage_public int; storage_internal int;
+begin
+  select count(*) into metadata_public
+    from public.ticket_attachments
+   where storage_path = '00000000-0000-0000-0000-00000000b101/screenshot.png';
+  select count(*) into metadata_internal
+    from public.ticket_attachments
+   where storage_path = '00000000-0000-0000-0000-00000000b101/internal-log.txt';
+  select count(*) into storage_public
+    from storage.objects
+   where bucket_id = 'ticket-attachments'
+     and name = '00000000-0000-0000-0000-00000000b101/screenshot.png';
+  select count(*) into storage_internal
+    from storage.objects
+   where bucket_id = 'ticket-attachments'
+     and name = '00000000-0000-0000-0000-00000000b101/internal-log.txt';
+  if metadata_public <> 1 then raise exception 'Requester cannot read public metadata'; end if;
+  if storage_public <> 1 then raise exception 'Requester cannot read public storage object'; end if;
+  if metadata_internal <> 0 then raise exception 'Requester leaked internal metadata'; end if;
+  if storage_internal <> 0 then raise exception 'Requester leaked internal storage object'; end if;
+end$$;
+reset role;
+reset "request.jwt.claims";
+
+-- ---- helpdesk sees public and internal metadata and storage objects ----
 set local role authenticated;
 set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}';
 do $$
-declare cnt int;
+declare metadata_count int; storage_count int;
 begin
-  select count(*) into cnt from public.ticket_attachments
-   where ticket_id = '00000000-0000-0000-0000-00000000b101';
-  if cnt <> 2 then raise exception 'Helpdesk should see 2 attachments, got %', cnt; end if;
+  select count(*) into metadata_count
+    from public.ticket_attachments
+   where ticket_id = '00000000-0000-0000-0000-00000000b101'::uuid;
+  select count(*) into storage_count
+    from storage.objects
+   where bucket_id = 'ticket-attachments'
+     and name in (
+       '00000000-0000-0000-0000-00000000b101/screenshot.png',
+       '00000000-0000-0000-0000-00000000b101/internal-log.txt'
+     );
+  if metadata_count <> 2 then
+    raise exception 'Helpdesk should see 2 metadata rows, got %', metadata_count;
+  end if;
+  if storage_count <> 2 then
+    raise exception 'Helpdesk should see 2 storage objects, got %', storage_count;
+  end if;
 end$$;
 reset role;
 reset "request.jwt.claims";
 
--- ---- Other employee b3 sees none ----
+-- ---- unrelated employee sees neither metadata nor storage objects ----
 set local role authenticated;
 set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000b3","role":"authenticated"}';
 do $$
-declare cnt int;
+declare metadata_count int; storage_count int;
 begin
-  select count(*) into cnt from public.ticket_attachments
-   where ticket_id = '00000000-0000-0000-0000-00000000b101';
-  if cnt <> 0 then raise exception 'Foreign employee leaked attachments: %', cnt; end if;
+  select count(*) into metadata_count
+    from public.ticket_attachments
+   where ticket_id = '00000000-0000-0000-0000-00000000b101'::uuid;
+  select count(*) into storage_count
+    from storage.objects
+   where bucket_id = 'ticket-attachments'
+     and name in (
+       '00000000-0000-0000-0000-00000000b101/screenshot.png',
+       '00000000-0000-0000-0000-00000000b101/internal-log.txt'
+     );
+  if metadata_count <> 0 then
+    raise exception 'Foreign employee leaked metadata: %', metadata_count;
+  end if;
+  if storage_count <> 0 then
+    raise exception 'Foreign employee leaked storage objects: %', storage_count;
+  end if;
 end$$;
 reset role;
 reset "request.jwt.claims";
 
--- ---- Foreign employee cannot delete ----
+-- ---- foreign employee cannot delete metadata ----
 set local role authenticated;
 set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000b3","role":"authenticated"}';
 do $$
-declare deleted int;
+declare metadata_deleted int;
 begin
   with d as (
     delete from public.ticket_attachments
      where id = '00000000-0000-0000-0000-00000000b1aa'::uuid
      returning 1
   )
-  select count(*) into deleted from d;
-  if deleted <> 0 then
-    raise exception 'Foreign employee deleted attachment they do not own';
+  select count(*) into metadata_deleted from d;
+  if metadata_deleted <> 0 then
+    raise exception 'Foreign employee deleted attachment metadata';
   end if;
+end$$;
+reset role;
+reset "request.jwt.claims";
+
+-- ---- uploader can delete their own attachment metadata ----
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000b1","role":"authenticated"}';
+do $$
+declare metadata_deleted int;
+begin
+  with d as (
+    delete from public.ticket_attachments
+     where id = '00000000-0000-0000-0000-00000000b1aa'::uuid
+     returning 1
+  )
+  select count(*) into metadata_deleted from d;
+  if metadata_deleted <> 1 then raise exception 'Uploader could not delete metadata'; end if;
 end$$;
 reset role;
 reset "request.jwt.claims";
