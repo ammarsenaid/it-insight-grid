@@ -62,6 +62,7 @@ function TemplatesAdminPage() {
   const role = useRole();
   const { session } = useAuth();
   const writable = can("tickets.config", role);
+  const canDelete = can("tickets.cannedResponses.delete", role);
   const qc = useQueryClient();
 
   const { data: rows = [], isLoading, isError, error } = useQuery(cannedResponsesQuery());
@@ -113,7 +114,10 @@ function TemplatesAdminPage() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => deleteCannedResponse(id),
+    mutationFn: (id: string) => {
+      if (!canDelete) throw new Error("You do not have permission to delete templates");
+      return deleteCannedResponse(id);
+    },
     onSuccess: () => { toast.success("Deleted"); invalidate(); setConfirmDelete(null); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
   });
@@ -207,7 +211,7 @@ function TemplatesAdminPage() {
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                         )}
-                        {writable && (
+                        {canDelete && (
                           <Button
                             size="icon"
                             variant="ghost"
@@ -265,14 +269,16 @@ function TemplatesAdminPage() {
         </div>
       </FormDrawer>
 
-      <ConfirmDialog
-        open={confirmDelete !== null}
-        onOpenChange={(o) => !o && setConfirmDelete(null)}
-        title="Delete template?"
-        description="This canned response will be removed for all agents."
-        confirmLabel="Delete"
-        onConfirm={() => confirmDelete && deleteMut.mutate(confirmDelete)}
-      />
+      {canDelete && (
+        <ConfirmDialog
+          open={confirmDelete !== null}
+          onOpenChange={(o) => !o && setConfirmDelete(null)}
+          title="Delete template?"
+          description="This canned response will be removed for all agents."
+          confirmLabel="Delete"
+          onConfirm={() => confirmDelete && deleteMut.mutate(confirmDelete)}
+        />
+      )}
     </div>
   );
 }

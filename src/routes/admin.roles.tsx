@@ -193,7 +193,7 @@ function AdminRolesPage() {
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Allowed actions</h3>
                 <div className="max-h-72 space-y-1.5 overflow-y-auto pr-2 text-xs">
                   {CAPABILITY_GROUPS.flatMap((g) => g.caps).map((c) => {
-                    const ok = can(c.key, preview);
+                    const ok = can(c.key, [preview]);
                     return (
                       <div key={c.key} className="flex items-center justify-between gap-2 rounded-lg border border-border/30 bg-background/40 px-2 py-1.5">
                         <span>{c.label}</span>

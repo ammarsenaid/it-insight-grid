@@ -19,7 +19,11 @@ import {
 } from "@/components/ui/select";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { notificationsQuery, sdKeys } from "@/lib/service-desk/queries";
+import {
+  markNotificationsReadInCache,
+  notificationsQuery,
+  sdKeys,
+} from "@/lib/service-desk/queries";
 import {
   markAllNotificationsRead,
   markNotificationsRead,
@@ -55,7 +59,7 @@ function NotificationsPage() {
 
   const [filter, setFilter] = useState<FilterKind>("all");
 
-  const { data: notifications = [], isLoading, isError, error, refetch, isFetching } = useQuery({
+  const { data: notifications = [], isLoading, isError, refetch, isFetching } = useQuery({
     ...notificationsQuery(200),
     enabled,
   });
@@ -73,15 +77,20 @@ function NotificationsPage() {
   const markAllMut = useMutation({
     mutationFn: () => markAllNotificationsRead(),
     onSuccess: (n) => {
+      markNotificationsReadInCache(qc, n);
       toast.success(`${n} marked as read`);
       invalidate();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Mark all read failed"),
+    onError: () => toast.error("Could not mark notifications as read."),
   });
 
   const markOneMut = useMutation({
     mutationFn: (id: string) => markNotificationsRead([id]),
-    onSuccess: () => invalidate(),
+    onSuccess: (count, id) => {
+      markNotificationsReadInCache(qc, count, [id]);
+      invalidate();
+    },
+    onError: () => toast.error("Could not mark the notification as read."),
   });
 
   const handleOpen = (n: NotificationRow) => {
@@ -150,7 +159,7 @@ function NotificationsPage() {
         <EmptyState
           icon={Inbox}
           title="Failed to load notifications"
-          description={error instanceof Error ? error.message : "Try again in a moment."}
+          description="Try again in a moment."
           actionLabel="Retry"
           onAction={() => refetch()}
         />

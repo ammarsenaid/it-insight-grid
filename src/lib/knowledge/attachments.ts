@@ -155,12 +155,14 @@ export async function uploadAttachment(input: {
 export async function deleteAttachment(att: Pick<KbAttachment, "id" | "storage_path">): Promise<Result<true>> {
   try {
     const sb = getSupabase();
+    // Keep the pointer row when object deletion fails so the user can retry.
+    const storageDelete = await sb.storage.from(ATTACHMENTS_BUCKET).remove([att.storage_path]);
+    if (storageDelete.error) {
+      return { data: null, error: msg("Delete attachment object", storageDelete.error) };
+    }
+
     const { error } = await sb.from("knowledge_attachments").delete().eq("id", att.id);
-    if (error) return { data: null, error: msg("Delete attachment", error) };
-    // Best-effort object removal; if RLS denies it (e.g. permission change
-    // mid-flight) the pointer row is already gone and a future janitor can
-    // sweep the orphan.
-    await sb.storage.from(ATTACHMENTS_BUCKET).remove([att.storage_path]).catch(() => undefined);
+    if (error) return { data: null, error: msg("Delete attachment record", error) };
     return { data: true, error: null };
   } catch (e) {
     return { data: null, error: msg("Delete attachment", e) };

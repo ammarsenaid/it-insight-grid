@@ -46,7 +46,7 @@ begin
   end if;
 end$$;
 
--- ---- fixture users (sd_lead vs employee) ----
+-- ---- fixture users ----
 insert into auth.users (id, email, instance_id, aud, role,
                         encrypted_password, email_confirmed_at,
                         created_at, updated_at)
@@ -54,11 +54,17 @@ values
   ('00000000-0000-0000-0000-0000000000c1','qa-cfg-sdlead@example.com',
    '00000000-0000-0000-0000-000000000000','authenticated','authenticated','',now(),now(),now()),
   ('00000000-0000-0000-0000-0000000000c2','qa-cfg-employee@example.com',
+   '00000000-0000-0000-0000-000000000000','authenticated','authenticated','',now(),now(),now()),
+  ('00000000-0000-0000-0000-0000000000c3','qa-cfg-admin@example.com',
+   '00000000-0000-0000-0000-000000000000','authenticated','authenticated','',now(),now(),now()),
+  ('00000000-0000-0000-0000-0000000000c4','qa-cfg-itadmin@example.com',
    '00000000-0000-0000-0000-000000000000','authenticated','authenticated','',now(),now(),now())
 on conflict (id) do nothing;
 insert into public.profiles (id, email) values
   ('00000000-0000-0000-0000-0000000000c1','qa-cfg-sdlead@example.com'),
-  ('00000000-0000-0000-0000-0000000000c2','qa-cfg-employee@example.com')
+  ('00000000-0000-0000-0000-0000000000c2','qa-cfg-employee@example.com'),
+  ('00000000-0000-0000-0000-0000000000c3','qa-cfg-admin@example.com'),
+  ('00000000-0000-0000-0000-0000000000c4','qa-cfg-itadmin@example.com')
 on conflict (id) do nothing;
 insert into public.user_global_roles (user_id, role_id)
 select '00000000-0000-0000-0000-0000000000c1'::uuid, id
@@ -66,6 +72,12 @@ select '00000000-0000-0000-0000-0000000000c1'::uuid, id
 insert into public.user_global_roles (user_id, role_id)
 select '00000000-0000-0000-0000-0000000000c2'::uuid, id
   from public.roles where role_key='employee' on conflict do nothing;
+insert into public.user_global_roles (user_id, role_id)
+select '00000000-0000-0000-0000-0000000000c3'::uuid, id
+  from public.roles where role_key='platform_admin' on conflict do nothing;
+insert into public.user_global_roles (user_id, role_id)
+select '00000000-0000-0000-0000-0000000000c4'::uuid, id
+  from public.roles where role_key='it_admin' on conflict do nothing;
 
 -- Seed one category (active) and one SLA policy as service_role.
 insert into public.ticket_categories (id, key, name, is_active)
@@ -118,6 +130,76 @@ begin
   if cnt < 1 then raise exception 'sd_lead should read SLA policies'; end if;
   insert into public.ticket_canned_responses (shortcut, title, body)
   values ('qa-greet','QA','Hello');
+end$$;
+reset role; reset "request.jwt.claims";
+
+-- ---- config roles can create/update, but only platform admin can delete ----
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000c1","role":"authenticated"}';
+do $$
+declare
+  canned_id uuid;
+  updated_count int;
+  deleted_count int;
+begin
+  select id into canned_id
+  from public.ticket_canned_responses
+  where shortcut = 'qa-greet';
+
+  update public.ticket_canned_responses
+  set title = 'QA lead update'
+  where id = canned_id;
+  get diagnostics updated_count = row_count;
+  if updated_count <> 1 then
+    raise exception 'sd_lead should update one canned response, updated %', updated_count;
+  end if;
+
+  delete from public.ticket_canned_responses where id = canned_id;
+  get diagnostics deleted_count = row_count;
+  if deleted_count <> 0 then
+    raise exception 'sd_lead deleted canned response';
+  end if;
+end$$;
+reset role; reset "request.jwt.claims";
+
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000c4","role":"authenticated"}';
+do $$
+declare
+  canned_id uuid;
+  updated_count int;
+  deleted_count int;
+begin
+  select id into canned_id
+  from public.ticket_canned_responses
+  where shortcut = 'qa-greet';
+
+  update public.ticket_canned_responses
+  set title = 'QA IT admin update'
+  where id = canned_id;
+  get diagnostics updated_count = row_count;
+  if updated_count <> 1 then
+    raise exception 'it_admin should update one canned response, updated %', updated_count;
+  end if;
+
+  delete from public.ticket_canned_responses where id = canned_id;
+  get diagnostics deleted_count = row_count;
+  if deleted_count <> 0 then
+    raise exception 'it_admin deleted canned response';
+  end if;
+end$$;
+reset role; reset "request.jwt.claims";
+
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000c3","role":"authenticated"}';
+do $$
+declare deleted_count int;
+begin
+  delete from public.ticket_canned_responses where shortcut = 'qa-greet';
+  get diagnostics deleted_count = row_count;
+  if deleted_count <> 1 then
+    raise exception 'platform_admin should delete one canned response, deleted %', deleted_count;
+  end if;
 end$$;
 reset role; reset "request.jwt.claims";
 

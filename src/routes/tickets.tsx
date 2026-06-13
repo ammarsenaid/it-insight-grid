@@ -280,7 +280,9 @@ export function TicketsPage() {
   const clearSelection = () => setSelected(new Set());
   const selectedIds = Array.from(selected);
 
-  const canWrite = can("tickets.assign", role) || can("tickets.resolve", role);
+  const canAssign = can("tickets.assign", role);
+  const canResolve = can("tickets.resolve", role);
+  const canWrite = canAssign || canResolve;
   const canCreate = can("tickets.create", role);
 
   const activeFilters = useMemo(() => {
@@ -402,22 +404,23 @@ export function TicketsPage() {
               </div>
             )}
 
-            {selected.size > 0 && (
+            {selected.size > 0 && canWrite && (
               <div className="glass-card mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl p-3">
                 <div className="text-xs">
                   <span className="font-semibold">{selected.size}</span>
                   <span className="text-muted-foreground"> selected</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <BulkAssignMenu
-                    disabled={!canWrite}
-                    profiles={profiles}
-                    onAssign={(id, label) => bulkUpdate(selectedIds, { assigneeId: id }, `Assigned ${selectedIds.length} ticket(s) to ${label}`)}
-                  />
-                  <BulkStatusMenu disabled={!canWrite} onChange={(s) => bulkUpdate(selectedIds, { status: s }, `Status updated to ${labelStatus(s)}`)} />
-                  <BulkPriorityMenu disabled={!canWrite} onChange={(p) => bulkUpdate(selectedIds, { priority: p }, `Priority set to ${cap(p)}`)} />
-                  <BulkTeamMenu disabled={!canWrite} onChange={(t) => bulkUpdate(selectedIds, { assignedTeam: t || null }, `Team set to ${t || "Unassigned"}`)} />
-                  <Button size="sm" variant="secondary" disabled={!canWrite} onClick={() => setTagOpen(true)}>
+                  {canAssign && (
+                    <BulkAssignMenu
+                      profiles={profiles}
+                      onAssign={(id, label) => bulkUpdate(selectedIds, { assigneeId: id }, `Assigned ${selectedIds.length} ticket(s) to ${label}`)}
+                    />
+                  )}
+                  {canResolve && <BulkStatusMenu onChange={(s) => bulkUpdate(selectedIds, { status: s }, `Status updated to ${labelStatus(s)}`)} />}
+                  <BulkPriorityMenu onChange={(p) => bulkUpdate(selectedIds, { priority: p }, `Priority set to ${cap(p)}`)} />
+                  {canAssign && <BulkTeamMenu onChange={(t) => bulkUpdate(selectedIds, { assignedTeam: t || null }, `Team set to ${t || "Unassigned"}`)} />}
+                  <Button size="sm" variant="secondary" onClick={() => setTagOpen(true)}>
                     <Tag className="mr-1 h-3.5 w-3.5" /> Add tag
                   </Button>
                   <Button size="sm" variant="ghost" onClick={clearSelection}>Clear</Button>
@@ -449,9 +452,11 @@ export function TicketsPage() {
                   <table className="w-full text-xs">
                     <thead className="bg-background/40 text-[10px] uppercase tracking-wider text-muted-foreground">
                       <tr>
-                        <th className={cellHead(density, "w-8")}>
-                          <Checkbox checked={allOnPageSelected} onCheckedChange={toggleAllOnPage} aria-label="Select all on page" />
-                        </th>
+                        {canWrite && (
+                          <th className={cellHead(density, "w-8")}>
+                            <Checkbox checked={allOnPageSelected} onCheckedChange={toggleAllOnPage} aria-label="Select all on page" />
+                          </th>
+                        )}
                         <ThSort label="Number" col="ticketNumber" sortKey={sortKey} sortDir={sortDir} onSort={(k) => { setSortKey(k); setSortDir(sortKey === k && sortDir === "asc" ? "desc" : "asc"); }} density={density} />
                         <ThSort label="Subject" col="subject" sortKey={sortKey} sortDir={sortDir} onSort={(k) => { setSortKey(k); setSortDir(sortKey === k && sortDir === "asc" ? "desc" : "asc"); }} density={density} />
                         <th className={cellHead(density)}>Requester</th>
@@ -483,9 +488,11 @@ export function TicketsPage() {
                           aria-label={`Open ${t.ticketNumber} ${t.subject}`}
                           className="cursor-pointer border-t border-border/40 outline-none transition-colors hover:bg-white/[0.02] focus-visible:bg-white/[0.02] focus-visible:ring-1 focus-visible:ring-ring"
                         >
-                          <td className={cellBody(density)} onClick={(e) => e.stopPropagation()}>
-                            <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleOne(t.id)} aria-label={`Select ${t.ticketNumber}`} />
-                          </td>
+                          {canWrite && (
+                            <td className={cellBody(density)} onClick={(e) => e.stopPropagation()}>
+                              <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleOne(t.id)} aria-label={`Select ${t.ticketNumber}`} />
+                            </td>
+                          )}
                           <td className={cellBody(density, "font-mono text-[11px] text-primary")}><Link to="/tickets/$id" params={{ id: t.id }} className="hover:underline">{t.ticketNumber}</Link></td>
                           <td className={cellBody(density, "max-w-[280px]")}>
                             <div className="flex items-center gap-1.5">
@@ -511,7 +518,8 @@ export function TicketsPage() {
                           <td className={cellBody(density)} onClick={(e) => e.stopPropagation()}>
                             <RowActions
                               ticket={t}
-                              canWrite={canWrite}
+                              canAssign={canAssign}
+                              canResolve={canResolve}
                               profiles={profiles}
                               onUpdate={(patch) => updateMutation.mutate({ id: t.id, patch })}
                             />
@@ -694,10 +702,11 @@ function BulkTeamMenu({ onChange, disabled }: { onChange: (t: string) => void; d
 }
 
 function RowActions({
-  ticket, canWrite, profiles, onUpdate,
+  ticket, canAssign, canResolve, profiles, onUpdate,
 }: {
   ticket: Ticket;
-  canWrite: boolean;
+  canAssign: boolean;
+  canResolve: boolean;
   profiles: { id: string; displayName: string }[];
   onUpdate: (patch: Parameters<typeof updateTicket>[1]) => void;
 }) {
@@ -713,28 +722,36 @@ function RowActions({
             <Eye className="mr-2 h-3.5 w-3.5" /> View details
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger disabled={!canWrite}><UserCheck className="mr-2 h-3.5 w-3.5" /> Assign</DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-            <DropdownMenuItem onClick={() => { onUpdate({ assigneeId: null }); toast.success("Unassigned"); }}>Unassigned</DropdownMenuItem>
+        {(canAssign || canResolve) && (
+          <>
             <DropdownMenuSeparator />
-            {profiles.map((p) => <DropdownMenuItem key={p.id} onClick={() => { onUpdate({ assigneeId: p.id }); toast.success(`Assigned to ${p.displayName}`); }}>{p.displayName}</DropdownMenuItem>)}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger disabled={!canWrite}><PlayCircle className="mr-2 h-3.5 w-3.5" /> Set status</DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            {TICKET_STATUSES.map((s) => <DropdownMenuItem key={s} onClick={() => { onUpdate({ status: s }); toast.success(`Status set to ${labelStatus(s)}`); }}>{labelStatus(s)}</DropdownMenuItem>)}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger disabled={!canWrite}><AlertTriangle className="mr-2 h-3.5 w-3.5" /> Set priority</DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            {TICKET_PRIORITIES.map((p) => <DropdownMenuItem key={p} onClick={() => { onUpdate({ priority: p }); toast.success(`Priority set to ${cap(p)}`); }}>{cap(p)}</DropdownMenuItem>)}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSeparator />
+            {canAssign && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger><UserCheck className="mr-2 h-3.5 w-3.5" /> Assign</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+                  <DropdownMenuItem onClick={() => { onUpdate({ assigneeId: null }); toast.success("Unassigned"); }}>Unassigned</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {profiles.map((p) => <DropdownMenuItem key={p.id} onClick={() => { onUpdate({ assigneeId: p.id }); toast.success(`Assigned to ${p.displayName}`); }}>{p.displayName}</DropdownMenuItem>)}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
+            {canResolve && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger><PlayCircle className="mr-2 h-3.5 w-3.5" /> Set status</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {TICKET_STATUSES.map((s) => <DropdownMenuItem key={s} onClick={() => { onUpdate({ status: s }); toast.success(`Status set to ${labelStatus(s)}`); }}>{labelStatus(s)}</DropdownMenuItem>)}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger><AlertTriangle className="mr-2 h-3.5 w-3.5" /> Set priority</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {TICKET_PRIORITIES.map((p) => <DropdownMenuItem key={p} onClick={() => { onUpdate({ priority: p }); toast.success(`Priority set to ${cap(p)}`); }}>{cap(p)}</DropdownMenuItem>)}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem onClick={() => { navigator.clipboard?.writeText(ticket.ticketNumber); toast.success("Ticket number copied"); }}>Copy number</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

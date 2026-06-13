@@ -161,9 +161,10 @@ export function TopHeader() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={async () => {
-                  await signOut();
+                  const result = await signOut();
                   navigate({ to: "/auth", replace: true });
-                  toast.success("Signed out");
+                  if (result.error) toast.error(result.error);
+                  else toast.success("Signed out");
                 }}
               >
                 <LogOut className="mr-2 h-4 w-4" /> Sign out

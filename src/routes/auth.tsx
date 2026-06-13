@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Brain, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ const FEATURES = {
 const WORKSPACE_LABEL: string | null = null;
 
 function AuthPage() {
-  const { signIn, session, loading, configured } = useAuth();
+  const { signIn, loading, configured } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,10 +33,6 @@ function AuthPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
-
-  useEffect(() => {
-    if (session) navigate({ to: "/", replace: true });
-  }, [session, navigate]);
 
   const emailInvalid = touched && (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()));
   const passwordInvalid = touched && !password;

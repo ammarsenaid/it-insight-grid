@@ -18,10 +18,11 @@
 --   1. Requester isolation on /my-requests (tickets table SELECT)
 --   2. Published catalog visibility for employees
 --   3. Draft and archived services hidden from employees
---   4. Internal-note isolation (ticket_comments select / insert)
+--   4. Comment permission enforcement and internal-note isolation
 --   5. IT admin (helpdesk) ticket visibility
---   6. RPC submit_catalog_request inserts ticket + audit + status
+--   6. RPC submit_catalog_request authorization, validation, insert + audit + status
 --   7. Audit log + status event creation on ticket update
+--   8. Constrained manual create_ticket RPC + direct INSERT denial
 -- ============================================================
 
 begin;
@@ -60,6 +61,13 @@ values
   ('00000000-0000-0000-0000-0000000000a2','qa-helpdesk@example.com','QA Helpdesk'),
   ('00000000-0000-0000-0000-0000000000a3','qa-other-employee@example.com','QA Other Employee')
 on conflict (id) do nothing;
+
+-- Grant the employee requester role to the primary requester fixture.
+insert into public.user_global_roles (user_id, role_id)
+select '00000000-0000-0000-0000-0000000000a1', r.id
+from public.roles r
+where r.role_key = 'employee'
+on conflict do nothing;
 
 -- Grant the helpdesk user the 'helpdesk' platform role.
 insert into public.user_global_roles (user_id, role_id)
@@ -169,18 +177,81 @@ begin
   end;
 end$$;
 
+
+-- A caller without an authenticated user id must be rejected by the RPC itself.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"role":"authenticated"}',
+  true);
+
+do $$
+declare
+  blocked boolean := false;
+begin
+  begin
+    perform public.submit_catalog_request(
+      '00000000-0000-0000-0000-0000000000c1',
+      '{"reason":"Anonymous requester"}'::jsonb
+    );
+  exception
+    when insufficient_privilege then
+      blocked := true;
+  end;
+
+  assert blocked,
+    'Anonymous callers MUST NOT submit catalog requests';
+end$$;
+
+-- Caller without catalog.request must not submit even a published internal item.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}',
+  true);
+
+do $$
+declare
+  blocked boolean := false;
+begin
+  begin
+    perform public.submit_catalog_request(
+      '00000000-0000-0000-0000-0000000000c1',
+      '{"reason":"Unauthorized requester"}'::jsonb
+    );
+  exception
+    when insufficient_privilege then
+      blocked := true;
+  end;
+
+  assert blocked,
+    'Caller without catalog.request MUST NOT submit catalog requests';
+end$$;
+
+-- Re-enter the authorized employee requester context.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
+  true);
+
 -- Employee cannot submit a restricted catalog item via the RPC either.
 do $$
+declare
+  blocked boolean := false;
 begin
   begin
     perform public.submit_catalog_request(
       '00000000-0000-0000-0000-0000000000c4',
       '{}'::jsonb
     );
-    raise exception 'submit_catalog_request must reject restricted items for normal employees';
-  exception when others then
-    null;
+  exception
+    when insufficient_privilege then
+      blocked := true;
   end;
+
+  assert blocked,
+    'submit_catalog_request MUST reject restricted items for normal employees';
 end$$;
 
 
@@ -230,32 +301,42 @@ select set_config(
 -- ============================================================
 -- CHECK 6: RPC submit_catalog_request (atomic, validates required)
 -- ============================================================
--- Required-field omission must raise
+-- Required-field omission must raise invalid_parameter_value.
 do $$
+declare
+  blocked boolean := false;
 begin
   begin
     perform public.submit_catalog_request(
       '00000000-0000-0000-0000-0000000000c1',
       '{}'::jsonb
     );
-    raise exception 'submit_catalog_request must reject missing required field';
-  exception when others then
-    null;
+  exception
+    when invalid_parameter_value then
+      blocked := true;
   end;
+
+  assert blocked,
+    'submit_catalog_request MUST reject missing required fields';
 end$$;
 
 -- Submitting against a draft item must fail
 do $$
+declare
+  blocked boolean := false;
 begin
   begin
     perform public.submit_catalog_request(
       '00000000-0000-0000-0000-0000000000c2',
       '{"reason":"x"}'::jsonb
     );
-    raise exception 'submit_catalog_request must reject draft items';
-  exception when others then
-    null;
+  exception
+    when insufficient_privilege then
+      blocked := true;
   end;
+
+  assert blocked,
+    'submit_catalog_request MUST reject draft items';
 end$$;
 
 -- Happy path: employee submits a request and gets a ticket
@@ -413,22 +494,67 @@ begin
   end;
 end$$;
 
--- Employee CAN post a public reply on their own ticket.
+-- A requester without tickets.comment_public cannot post merely because the
+-- ticket is visible to them. Use the no-role requester fixture because all
+-- pending migrations are applied before the QA suite runs.
+reset role;
+
+insert into public.tickets (
+  id,
+  requester_id,
+  subject
+)
+values (
+  '00000000-0000-0000-0000-0000000000d3',
+  '00000000-0000-0000-0000-0000000000a3',
+  'QA requester without public-comment permission'
+);
+
+set local role authenticated;
+
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}',
+  true
+);
+
 do $$
 declare
-  v_ticket_id uuid;
-  ok boolean := false;
+  blocked boolean := false;
 begin
-  select id into v_ticket_id from public.tickets
-   where requester_id = '00000000-0000-0000-0000-0000000000a1'
-   limit 1;
-  insert into public.ticket_comments (ticket_id, author_id, body, internal)
-  values (v_ticket_id, '00000000-0000-0000-0000-0000000000a1',
-          'Thanks for the update.', false);
-  ok := true;
-  assert ok, 'Employee MUST be able to post a public reply on their own ticket';
+  assert not public.has_permission('tickets.comment_public'),
+    'No-role requester fixture MUST NOT have tickets.comment_public';
+
+  begin
+    insert into public.ticket_comments (
+      ticket_id,
+      author_id,
+      body,
+      internal
+    )
+    values (
+      '00000000-0000-0000-0000-0000000000d3',
+      '00000000-0000-0000-0000-0000000000a3',
+      'I can view this ticket but lack comment permission.',
+      false
+    );
+  exception
+    when insufficient_privilege then
+      blocked := true;
+  end;
+
+  assert blocked,
+    'Requester without tickets.comment_public MUST NOT post public comments';
 end$$;
 
+-- Restore the primary requester context for the following checks.
+set local role authenticated;
+
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
+  true
+);
 
 -- ============================================================
 -- CHECK 7: status events + audit log (scoped to the created ticket)
@@ -443,6 +569,7 @@ select set_config(
 do $$
 declare
   v_ticket_id uuid;
+  updated_ticket public.tickets;
   status_events int;
   audit_rows int;
 begin
@@ -454,10 +581,22 @@ begin
   assert v_ticket_id is not null,
     'Helpdesk must be able to locate the requester''s ticket for Check 7';
 
-  update public.tickets
-     set status = 'in_progress',
-         assignee_id = '00000000-0000-0000-0000-0000000000a2'
-   where id = v_ticket_id;
+  select *
+    into updated_ticket
+    from public.update_ticket(
+      v_ticket_id,
+      jsonb_build_object(
+        'status', 'in_progress',
+        'assignee_id', '00000000-0000-0000-0000-0000000000a2'
+      )
+    );
+
+  assert updated_ticket.status = 'in_progress',
+    'update_ticket must transition status to in_progress';
+
+  assert updated_ticket.assignee_id =
+    '00000000-0000-0000-0000-0000000000a2'::uuid,
+    'update_ticket must assign the helpdesk agent';
 
   -- Scope counts to THIS ticket only (avoid column/local shadowing).
   select count(*) into status_events
@@ -506,4 +645,279 @@ end$$;
 -- ------------------------------------------------------------
 -- Done. Roll everything back so the QA run leaves no trace.
 -- ------------------------------------------------------------
+
+-- ============================================================
+-- CHECK 8: constrained manual ticket creation RPC
+-- ============================================================
+-- Re-enter the employee context explicitly.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
+  true);
+
+-- Safe manual portal creation succeeds through the RPC.
+do $$
+declare
+  new_ticket public.tickets;
+begin
+  select *
+    into new_ticket
+    from public.create_ticket(
+      p_subject          => 'QA Manual Portal Ticket',
+      p_description      => 'Allowed requester-controlled description.',
+      p_type             => 'request',
+      p_category         => 'Access',
+      p_subcategory      => 'General',
+      p_priority         => 'normal',
+      p_tags             => array['qa','portal'],
+      p_affected_service => 'Knowledge Center'
+    );
+
+  assert new_ticket.id is not null,
+    'create_ticket must return the inserted ticket';
+  assert new_ticket.requester_id =
+    '00000000-0000-0000-0000-0000000000a1'::uuid,
+    'create_ticket must derive requester_id from auth.uid()';
+  assert new_ticket.status = 'open',
+    'create_ticket must retain the safe open status default';
+  assert new_ticket.source = 'portal',
+    'create_ticket must force the portal source';
+  assert new_ticket.catalog_item_id is null,
+    'create_ticket must not forge a catalog item';
+  assert new_ticket.assignee_id is null,
+    'create_ticket must not set an assignee';
+  assert new_ticket.assigned_team is null,
+    'create_ticket must not set an assigned team';
+  assert new_ticket.source_email is null,
+    'create_ticket must not set a source email';
+  assert new_ticket.resolved_at is null,
+    'create_ticket must not set a resolved timestamp';
+  assert new_ticket.closed_at is null,
+    'create_ticket must not set a closed timestamp';
+end$$;
+
+-- Authenticated callers must no longer receive direct ticket INSERT privilege.
+do $$
+begin
+  assert not has_table_privilege(
+    'authenticated',
+    'public.tickets',
+    'INSERT'
+  ), 'authenticated MUST NOT have direct INSERT privilege on public.tickets';
+end$$;
+
+-- Crafted browser-side direct INSERT must be rejected, even if requester_id
+-- matches auth.uid().
+do $$
+declare
+  blocked boolean := false;
+begin
+  begin
+    insert into public.tickets (
+      requester_id,
+      subject,
+      status,
+      source,
+      assignee_id,
+      assigned_team,
+      resolved_at,
+      closed_at
+    )
+    values (
+      '00000000-0000-0000-0000-0000000000a1',
+      'QA Crafted Privileged Direct Insert',
+      'resolved',
+      'api',
+      '00000000-0000-0000-0000-0000000000a2',
+      'Forbidden Team',
+      now(),
+      now()
+    );
+  exception
+    when insufficient_privilege then
+      blocked := true;
+  end;
+
+  assert blocked,
+    'Authenticated callers MUST NOT INSERT directly into public.tickets';
+end$$;
+
+
+
+
+-- ============================================================
+-- CHECK 9: constrained update_ticket RPC
+-- ============================================================
+
+-- Authenticated browser callers must not receive direct ticket UPDATE.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
+  true);
+
+do $$
+begin
+  assert not has_table_privilege(
+    'authenticated',
+    'public.tickets',
+    'UPDATE'
+  ), 'authenticated MUST NOT have direct UPDATE privilege on public.tickets';
+end$$;
+
+-- Crafted direct browser UPDATE must fail.
+do $$
+declare
+  blocked boolean := false;
+begin
+  begin
+    update public.tickets
+       set requester_id = '00000000-0000-0000-0000-0000000000a2',
+           status = 'closed',
+           source = 'api'
+     where subject = 'QA Manual Portal Ticket';
+  exception
+    when insufficient_privilege then
+      blocked := true;
+  end;
+
+  assert blocked,
+    'Authenticated callers MUST NOT UPDATE public.tickets directly';
+end$$;
+
+-- Employee requester cannot change ticket metadata.
+do $$
+declare
+  v_ticket_id uuid;
+  blocked boolean := false;
+begin
+  select id
+    into v_ticket_id
+    from public.tickets
+   where subject = 'QA Manual Portal Ticket'
+   limit 1;
+
+  begin
+    perform public.update_ticket(
+      v_ticket_id,
+      jsonb_build_object('priority', 'critical')
+    );
+  exception
+    when insufficient_privilege then
+      blocked := true;
+  end;
+
+  assert blocked,
+    'Employee requester MUST NOT modify ticket metadata';
+end$$;
+
+-- Prepare an owned resolved ticket using the privileged QA runner.
+reset role;
+reset "request.jwt.claims";
+
+update public.tickets
+   set status = 'resolved'
+ where subject = 'QA Manual Portal Ticket';
+
+-- Requester may safely reopen their own resolved ticket.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}',
+  true);
+
+do $$
+declare
+  v_ticket_id uuid;
+  updated_ticket public.tickets;
+begin
+  select id
+    into v_ticket_id
+    from public.tickets
+   where subject = 'QA Manual Portal Ticket'
+   limit 1;
+
+  select *
+    into updated_ticket
+    from public.update_ticket(
+      v_ticket_id,
+      jsonb_build_object('status', 'reopened')
+    );
+
+  assert updated_ticket.status = 'reopened',
+    'Requester MUST be able to reopen their own resolved ticket';
+
+  assert updated_ticket.resolved_at is null,
+    'Requester reopen MUST clear resolved_at';
+end$$;
+
+-- Helpdesk must not tamper with immutable ownership fields.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}',
+  true);
+
+do $$
+declare
+  v_ticket_id uuid;
+  blocked boolean := false;
+begin
+  select id
+    into v_ticket_id
+    from public.tickets
+   where subject = 'QA Manual Portal Ticket'
+   limit 1;
+
+  begin
+    perform public.update_ticket(
+      v_ticket_id,
+      jsonb_build_object(
+        'requester_id',
+        '00000000-0000-0000-0000-0000000000a2'
+      )
+    );
+  exception
+    when sqlstate '22023' then
+      blocked := true;
+  end;
+
+  assert blocked,
+    'update_ticket MUST reject immutable privileged fields';
+end$$;
+
+-- Illegal lifecycle transitions must fail server-side.
+do $$
+declare
+  v_ticket_id uuid;
+  blocked boolean := false;
+begin
+  select id
+    into v_ticket_id
+    from public.tickets
+   where status = 'in_progress'
+   order by created_at desc
+   limit 1;
+
+  assert v_ticket_id is not null,
+    'Expected an in_progress ticket for transition QA';
+
+  begin
+    perform public.update_ticket(
+      v_ticket_id,
+      jsonb_build_object('status', 'reopened')
+    );
+  exception
+    when sqlstate '22023' then
+      blocked := true;
+  end;
+
+  assert blocked,
+    'update_ticket MUST reject illegal lifecycle transitions';
+end$$;
+
+reset role;
+reset "request.jwt.claims";
+
 rollback;

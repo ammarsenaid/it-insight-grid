@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   notificationsQuery,
+  markNotificationsReadInCache,
   unreadNotificationsQuery,
   sdKeys,
 } from "@/lib/service-desk/queries";
@@ -45,7 +46,7 @@ export function NotificationDrawer({
   const qc = useQueryClient();
   const enabled = Boolean(session?.user?.id);
 
-  const { data: notifications = [], isLoading, isError, error } = useQuery({
+  const { data: notifications = [], isLoading, isError } = useQuery({
     ...notificationsQuery(50),
     enabled,
   });
@@ -59,13 +60,20 @@ export function NotificationDrawer({
 
   const markAllMut = useMutation({
     mutationFn: () => markAllNotificationsRead(),
-    onSuccess: () => invalidate(),
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Mark all read failed"),
+    onSuccess: (count) => {
+      markNotificationsReadInCache(qc, count);
+      invalidate();
+    },
+    onError: () => toast.error("Could not mark notifications as read."),
   });
 
   const markOneMut = useMutation({
     mutationFn: (id: string) => markNotificationsRead([id]),
-    onSuccess: () => invalidate(),
+    onSuccess: (count, id) => {
+      markNotificationsReadInCache(qc, count, [id]);
+      invalidate();
+    },
+    onError: () => toast.error("Could not mark the notification as read."),
   });
 
   const handleClick = (n: NotificationRow) => {
@@ -104,7 +112,7 @@ export function NotificationDrawer({
       ) : isLoading ? (
         <EmptyMsg label="Loading notifications…" />
       ) : isError ? (
-        <EmptyMsg label={error instanceof Error ? error.message : "Failed to load notifications."} />
+        <EmptyMsg label="Failed to load notifications." />
       ) : notifications.length === 0 ? (
         <div className="grid place-items-center py-16 text-center">
           <div className="grid h-12 w-12 place-items-center rounded-xl bg-muted/40 text-muted-foreground">

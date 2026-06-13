@@ -1,7 +1,7 @@
 /**
  * Service Desk — Profile lookups.
  * Used to render requester / assignee identities without hard-coding
- * usernames. Reads from the public `profiles` view (RLS-gated).
+ * usernames. Reads through the scoped Service Desk directory RPC.
  */
 import { getSupabase } from "@/integrations/supabase/client";
 import { asRows, type SbRow } from "./sb";
@@ -9,32 +9,23 @@ import { asRows, type SbRow } from "./sb";
 export interface SdProfile {
   id: string;
   displayName: string;
-  email: string | null;
 }
-
-const COLS = "id, display_name, email";
 
 function mapProfile(row: SbRow): SdProfile {
   const id = String(row.id ?? "");
   const display = typeof row.display_name === "string" && row.display_name.trim()
     ? row.display_name.trim()
-    : typeof row.email === "string" && row.email
-      ? row.email
-      : id.slice(0, 8);
+    : id.slice(0, 8);
   return {
     id,
     displayName: display,
-    email: typeof row.email === "string" ? row.email : null,
   };
 }
 
-/** All profiles visible to the current user (RLS scopes). */
+/** Assignment-safe profiles visible through the Service Desk directory. */
 export async function listProfiles(): Promise<SdProfile[]> {
   const sb = getSupabase();
-  const { data, error } = await sb
-    .from("profiles")
-    .select(COLS)
-    .order("display_name", { ascending: true });
+  const { data, error } = await sb.rpc("list_service_desk_profiles");
   if (error) throw error;
   return asRows<SbRow>(data).map(mapProfile);
 }

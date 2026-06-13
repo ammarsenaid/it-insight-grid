@@ -179,7 +179,7 @@ export function KnowledgeBackendWorkspace() {
     setSelection({ kind: "article", id });
     setEditingArticle(false);
     // clear the search param so subsequent state changes don't re-trigger
-    navigate({ to: "/documents", search: {}, replace: true });
+    navigate({ to: "/documents", search: { article: undefined }, replace: true });
   }, [search.article, data, activeTeamId, navigate]);
 
 

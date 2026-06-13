@@ -53,6 +53,26 @@ create index if not exists idx_ticket_attachments_ticket
 create index if not exists idx_ticket_attachments_comment
   on public.ticket_attachments(comment_id);
 
+-- Bind comment attachments to a comment on the same ticket. The referenced
+-- composite key is intentionally redundant with ticket_comments.id so the
+-- relationship is enforced declaratively on both INSERT and UPDATE.
+alter table public.ticket_attachments
+  drop constraint if exists ticket_attachments_comment_ticket_fkey;
+alter table public.ticket_attachments
+  drop constraint if exists ticket_attachments_comment_id_fkey;
+
+alter table public.ticket_comments
+  drop constraint if exists ticket_comments_id_ticket_id_key;
+alter table public.ticket_comments
+  add constraint ticket_comments_id_ticket_id_key
+  unique (id, ticket_id);
+
+alter table public.ticket_attachments
+  add constraint ticket_attachments_comment_ticket_fkey
+  foreign key (comment_id, ticket_id)
+  references public.ticket_comments(id, ticket_id)
+  on delete set null (comment_id);
+
 -- ------------------------------------------------------------
 -- 2. PATH HELPER
 -- ------------------------------------------------------------

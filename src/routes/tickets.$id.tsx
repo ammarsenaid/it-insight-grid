@@ -97,7 +97,11 @@ function TicketDetail() {
   const internalAllowed = can("tickets.viewInternal", role);
   const canAssign = can("tickets.assign", role);
   const canResolve = can("tickets.resolve", role);
-  const canCreate = can("tickets.create", role);
+  const canCommentPublic = can("tickets.commentPublic", role);
+  const canCommentInternal = can("tickets.commentInternal", role);
+  const canViewAttachments = can("tickets.attachments.view", role);
+  const canUploadAttachments = can("tickets.attachments.upload", role);
+  const canManageAttachments = can("tickets.attachments.manage", role);
   const isRequesterView = !internalAllowed; // employee-style portal view
   const enabled = Boolean(userId);
 
@@ -117,7 +121,7 @@ function TicketDetail() {
   // Attachments: employees see only public; agents see public + internal.
   const { data: rawAttachments = [], isLoading: attLoading, isError: attError, error: attErrorObj } = useQuery({
     ...ticketAttachmentsQuery(id),
-    enabled: enabled && Boolean(ticket),
+    enabled: enabled && Boolean(ticket) && canViewAttachments,
   });
   const attachments = useMemo<TicketAttachment[]>(
     () => rawAttachments.filter((a) => (isRequesterView ? a.visibility !== "internal" : true)),
@@ -250,8 +254,11 @@ function TicketDetail() {
 
   const handleReply = () => {
     if (!reply.trim()) { toast.error("Type a message before sending"); return; }
-    if (!canCreate) { toast.error("You cannot post on this ticket"); return; }
-    commentMut.mutate({ body: reply.trim(), internal: internal && internalAllowed && canAssign });
+    if (!canCommentPublic) { toast.error("You cannot post on this ticket"); return; }
+    commentMut.mutate({
+      body: reply.trim(),
+      internal: internal && internalAllowed && canCommentInternal,
+    });
   };
 
   const handleResolve = () => {
@@ -301,14 +308,14 @@ function TicketDetail() {
         description={`${cap(ticket.type)} · ${ticket.category ?? "Uncategorized"}${ticket.subcategory ? " / " + ticket.subcategory : ""} · Requested by ${requesterName}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {!isRequesterView && (
+            {!isRequesterView && canResolve && (
               <>
                 {isClosedLike ? (
-                  <Button variant="secondary" onClick={() => setReopenOpen(true)} disabled={!canResolve}>
+                  <Button variant="secondary" onClick={() => setReopenOpen(true)}>
                     <RotateCcw className="mr-1.5 h-4 w-4" /> Reopen
                   </Button>
                 ) : (
-                  <Button onClick={() => setResolveOpen(true)} disabled={!canResolve}>
+                  <Button onClick={() => setResolveOpen(true)}>
                     <CheckCircle2 className="mr-1.5 h-4 w-4" /> Resolve
                   </Button>
                 )}
@@ -369,7 +376,7 @@ function TicketDetail() {
               </TabsContent>
             </Tabs>
 
-            {canCreate ? (
+            {canCommentPublic ? (
               <div className="mt-4 rounded-xl border border-border/60 bg-background/30 p-3">
                 <Textarea
                   value={reply}
@@ -380,7 +387,7 @@ function TicketDetail() {
                 />
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    {internalAllowed && canAssign && (
+                    {internalAllowed && canCommentInternal && (
                       <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                         <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} className="accent-primary" />
                         <Lock className="h-3 w-3" /> Internal note
@@ -400,7 +407,9 @@ function TicketDetail() {
           </SectionCard>
 
           <SectionCard title={`Attachments (${attachments.length})`}>
-            {attLoading ? (
+            {!canViewAttachments ? (
+              <p className="text-xs text-muted-foreground">You do not have permission to view attachments.</p>
+            ) : attLoading ? (
               <p className="text-xs text-muted-foreground">Loading attachments…</p>
             ) : attError ? (
               <p className="text-xs text-[#FF7C91]">{attErrorObj instanceof Error ? attErrorObj.message : "Failed to load attachments"}</p>
@@ -420,7 +429,7 @@ function TicketDetail() {
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDownload(a)} title="Download">
                       <Download className="h-3.5 w-3.5" />
                     </Button>
-                    {!isRequesterView && a.uploadedBy === userId && (
+                    {(a.uploadedBy === userId || canManageAttachments) && (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -436,7 +445,7 @@ function TicketDetail() {
                 ))}
               </ul>
             )}
-            {canCreate && (
+            {canUploadAttachments && (
               <div className="mt-3">
                 <input
                   ref={fileInputRef}

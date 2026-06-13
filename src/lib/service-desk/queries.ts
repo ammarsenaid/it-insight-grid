@@ -4,7 +4,7 @@
  * Components and route loaders read through these so we keep a single
  * source of truth for queryKey shapes and stale times.
  */
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { listPublishedCatalog, listAllCatalogForManagers, getCatalogItem } from "./catalog";
 import { listTicketComments } from "./comments";
@@ -26,6 +26,7 @@ import {
   listSlaPolicies,
 } from "./settings";
 import { listProfiles } from "./profiles";
+import type { NotificationRow } from "./types";
 
 
 export const sdKeys = {
@@ -132,6 +133,36 @@ export const unreadNotificationsQuery = () =>
     queryKey: sdKeys.notificationsUnread(),
     queryFn: () => countUnreadNotifications(),
   });
+
+export function markNotificationsReadInCache(
+  qc: QueryClient,
+  affectedRows: number,
+  ids?: readonly string[],
+): void {
+  const changed = Math.max(0, affectedRows);
+  if (changed === 0) return;
+
+  const selected = ids ? new Set(ids) : null;
+  const readAt = new Date().toISOString();
+  qc.setQueriesData<NotificationRow[]>(
+    {
+      predicate: ({ queryKey }) =>
+        queryKey[0] === sdKeys.all[0] &&
+        queryKey[1] === "notifications" &&
+        typeof queryKey[2] === "number",
+    },
+    (rows) =>
+      Array.isArray(rows)
+        ? rows.map((row) =>
+            !row.readAt && (!selected || selected.has(row.id)) ? { ...row, readAt } : row,
+          )
+        : rows,
+  );
+  qc.setQueryData(sdKeys.notificationsUnread(), (count: number | undefined) => {
+    if (count === undefined) return count;
+    return Math.max(0, count - changed);
+  });
+}
 
 export const ticketCategoriesQuery = () =>
   queryOptions({

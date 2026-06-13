@@ -303,20 +303,17 @@ create policy notifications_select_own
 on public.notifications for select to authenticated
 using (user_id = (select auth.uid()));
 
--- Updates limited to flipping read_at on own rows; the RPC above is the
--- supported path but this policy keeps clients honest if they hit PostgREST.
+-- Browser notification mutation must use mark_notifications_read(...).
+-- RLS cannot restrict which columns an UPDATE changes, so direct authenticated
+-- UPDATE is intentionally unavailable.
 drop policy if exists notifications_update_own on public.notifications;
-create policy notifications_update_own
-on public.notifications for update to authenticated
-using       (user_id = (select auth.uid()))
-with check  (user_id = (select auth.uid()));
 
 
 -- ------------------------------------------------------------
 -- Data API privileges
 -- ------------------------------------------------------------
 revoke all on table public.notifications from anon, authenticated;
-grant select, update on table public.notifications to authenticated;
+grant select on table public.notifications to authenticated;
 grant all on table public.notifications to service_role;
 
 revoke all on function public.notify_user(uuid, uuid, text, text, text, jsonb) from public;

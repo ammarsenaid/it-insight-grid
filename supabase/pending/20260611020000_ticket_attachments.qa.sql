@@ -7,6 +7,8 @@
 --   * Bucket exists and is private
 --   * Structural path validation accepts only <ticket_uuid>/<filename>
 --   * Metadata storage paths must match their ticket_id
+--   * Comment attachments bind to a comment on the same ticket
+--   * Ticket-only attachments preserve a null comment_id
 --   * Ticket authorization, not path parsing, rejects nonexistent tickets
 --   * Ticket ownership does not bypass attachment-view permission
 --   * Requester sees public metadata and storage objects only
@@ -172,20 +174,47 @@ values
    '00000000-0000-0000-0000-0000000000b3'::uuid,
    'QA cross-ticket path', 'body');
 
+insert into public.ticket_comments (id, ticket_id, author_id, body, internal)
+values
+  ('00000000-0000-0000-0000-00000000b201'::uuid,
+   '00000000-0000-0000-0000-00000000b101'::uuid,
+   '00000000-0000-0000-0000-0000000000b1'::uuid,
+   'QA public attachment comment', false),
+  ('00000000-0000-0000-0000-00000000b202'::uuid,
+   '00000000-0000-0000-0000-00000000b101'::uuid,
+   '00000000-0000-0000-0000-0000000000b2'::uuid,
+   'QA internal attachment comment', true),
+  ('00000000-0000-0000-0000-00000000b203'::uuid,
+   '00000000-0000-0000-0000-00000000b102'::uuid,
+   '00000000-0000-0000-0000-0000000000b3'::uuid,
+   'QA foreign-ticket comment', false),
+  ('00000000-0000-0000-0000-00000000b204'::uuid,
+   '00000000-0000-0000-0000-00000000b101'::uuid,
+   '00000000-0000-0000-0000-0000000000b2'::uuid,
+   'QA comment delete behavior', false);
+
 -- ---- matched metadata paths are accepted ----
 insert into public.ticket_attachments
-  (id, ticket_id, uploaded_by, storage_path, file_name, mime_type, size_bytes, visibility)
+  (id, ticket_id, comment_id, uploaded_by, storage_path, file_name, mime_type, size_bytes, visibility)
 values
   ('00000000-0000-0000-0000-00000000b1aa'::uuid,
    '00000000-0000-0000-0000-00000000b101'::uuid,
+   '00000000-0000-0000-0000-00000000b201'::uuid,
    '00000000-0000-0000-0000-0000000000b1'::uuid,
    '00000000-0000-0000-0000-00000000b101/screenshot.png',
    'screenshot.png','image/png',1024,'public'),
   ('00000000-0000-0000-0000-00000000b1bb'::uuid,
    '00000000-0000-0000-0000-00000000b101'::uuid,
+   '00000000-0000-0000-0000-00000000b202'::uuid,
    '00000000-0000-0000-0000-0000000000b2'::uuid,
    '00000000-0000-0000-0000-00000000b101/internal-log.txt',
-   'internal-log.txt','text/plain',512,'internal');
+   'internal-log.txt','text/plain',512,'internal'),
+  ('00000000-0000-0000-0000-00000000b1dd'::uuid,
+   '00000000-0000-0000-0000-00000000b101'::uuid,
+   null,
+   '00000000-0000-0000-0000-0000000000b1'::uuid,
+   '00000000-0000-0000-0000-00000000b101/ticket-only.txt',
+   'ticket-only.txt','text/plain',64,'public');
 
 do $$
 begin
@@ -194,10 +223,83 @@ begin
     from public.ticket_attachments
     where id = '00000000-0000-0000-0000-00000000b1aa'::uuid
       and ticket_id::text = split_part(storage_path, '/', 1)
+      and comment_id = '00000000-0000-0000-0000-00000000b201'::uuid
   ) then
-    raise exception 'Matched metadata ticket and storage path were not accepted';
+    raise exception 'Valid same-ticket comment attachment was not accepted';
+  end if;
+  if not exists (
+    select 1
+    from public.ticket_attachments
+    where id = '00000000-0000-0000-0000-00000000b1dd'::uuid
+      and comment_id is null
+  ) then
+    raise exception 'Ticket-only attachment with null comment_id was not accepted';
   end if;
 end$$;
+
+-- ---- cross-ticket comment bindings are rejected on INSERT ----
+do $$
+declare blocked boolean := false;
+begin
+  begin
+    insert into public.ticket_attachments
+      (id, ticket_id, comment_id, uploaded_by, storage_path, file_name, size_bytes, visibility)
+    values
+      ('00000000-0000-0000-0000-00000000b1ce'::uuid,
+       '00000000-0000-0000-0000-00000000b101'::uuid,
+       '00000000-0000-0000-0000-00000000b203'::uuid,
+       '00000000-0000-0000-0000-0000000000b1'::uuid,
+       '00000000-0000-0000-0000-00000000b101/cross-comment.txt',
+       'cross-comment.txt',10,'public');
+  exception when foreign_key_violation then
+    blocked := true;
+  end;
+  assert blocked,
+    'Cross-ticket comment attachment INSERT MUST be rejected';
+end$$;
+
+-- ---- existing metadata cannot be rebound to another ticket's comment ----
+do $$
+declare blocked boolean := false;
+begin
+  begin
+    update public.ticket_attachments
+       set comment_id = '00000000-0000-0000-0000-00000000b203'::uuid
+     where id = '00000000-0000-0000-0000-00000000b1aa'::uuid;
+  exception when foreign_key_violation then
+    blocked := true;
+  end;
+  assert blocked,
+    'Cross-ticket comment attachment UPDATE MUST be rejected';
+end$$;
+
+-- ---- deleting a comment preserves the attachment as ticket-only ----
+insert into public.ticket_attachments
+  (id, ticket_id, comment_id, uploaded_by, storage_path, file_name, size_bytes, visibility)
+values
+  ('00000000-0000-0000-0000-00000000b1ee'::uuid,
+   '00000000-0000-0000-0000-00000000b101'::uuid,
+   '00000000-0000-0000-0000-00000000b204'::uuid,
+   '00000000-0000-0000-0000-0000000000b2'::uuid,
+   '00000000-0000-0000-0000-00000000b101/comment-delete.txt',
+   'comment-delete.txt',10,'public');
+
+delete from public.ticket_comments
+where id = '00000000-0000-0000-0000-00000000b204'::uuid;
+
+do $$
+begin
+  assert exists (
+    select 1
+    from public.ticket_attachments
+    where id = '00000000-0000-0000-0000-00000000b1ee'::uuid
+      and ticket_id = '00000000-0000-0000-0000-00000000b101'::uuid
+      and comment_id is null
+  ), 'Deleting a comment MUST preserve its attachment with null comment_id';
+end$$;
+
+delete from public.ticket_attachments
+where id = '00000000-0000-0000-0000-00000000b1ee'::uuid;
 
 -- ---- cross-ticket metadata paths are rejected by the CHECK constraint ----
 do $$
@@ -227,7 +329,11 @@ values
   ('00000000-0000-0000-0000-00000000b1d2'::uuid,
    'ticket-attachments',
    '00000000-0000-0000-0000-00000000b101/internal-log.txt',
-   '00000000-0000-0000-0000-0000000000b2'::uuid);
+   '00000000-0000-0000-0000-0000000000b2'::uuid),
+  ('00000000-0000-0000-0000-00000000b1d4'::uuid,
+   'ticket-attachments',
+   '00000000-0000-0000-0000-00000000b101/ticket-only.txt',
+   '00000000-0000-0000-0000-0000000000b1'::uuid);
 
 -- ---- requester without attachment-view permission sees no rows ----
 delete from public.user_global_roles
@@ -288,8 +394,8 @@ reset "request.jwt.claims";
 set local role authenticated;
 set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-0000000000b1","role":"authenticated"}';
 do $$
-declare metadata_public int; metadata_internal int;
-        storage_public int; storage_internal int;
+declare metadata_public int; metadata_internal int; metadata_ticket_only int;
+        storage_public int; storage_internal int; storage_ticket_only int;
 begin
   select count(*) into metadata_public
     from public.ticket_attachments
@@ -297,6 +403,9 @@ begin
   select count(*) into metadata_internal
     from public.ticket_attachments
    where storage_path = '00000000-0000-0000-0000-00000000b101/internal-log.txt';
+  select count(*) into metadata_ticket_only
+    from public.ticket_attachments
+   where storage_path = '00000000-0000-0000-0000-00000000b101/ticket-only.txt';
   select count(*) into storage_public
     from storage.objects
    where bucket_id = 'ticket-attachments'
@@ -305,8 +414,14 @@ begin
     from storage.objects
    where bucket_id = 'ticket-attachments'
      and name = '00000000-0000-0000-0000-00000000b101/internal-log.txt';
+  select count(*) into storage_ticket_only
+    from storage.objects
+   where bucket_id = 'ticket-attachments'
+     and name = '00000000-0000-0000-0000-00000000b101/ticket-only.txt';
   if metadata_public <> 1 then raise exception 'Requester cannot read public metadata'; end if;
   if storage_public <> 1 then raise exception 'Requester cannot read public storage object'; end if;
+  if metadata_ticket_only <> 1 then raise exception 'Requester cannot read ticket-only metadata'; end if;
+  if storage_ticket_only <> 1 then raise exception 'Requester cannot read ticket-only storage object'; end if;
   if metadata_internal <> 0 then raise exception 'Requester leaked internal metadata'; end if;
   if storage_internal <> 0 then raise exception 'Requester leaked internal storage object'; end if;
 end$$;
@@ -327,13 +442,14 @@ begin
    where bucket_id = 'ticket-attachments'
      and name in (
        '00000000-0000-0000-0000-00000000b101/screenshot.png',
-       '00000000-0000-0000-0000-00000000b101/internal-log.txt'
+       '00000000-0000-0000-0000-00000000b101/internal-log.txt',
+       '00000000-0000-0000-0000-00000000b101/ticket-only.txt'
      );
-  if metadata_count <> 2 then
-    raise exception 'Helpdesk should see 2 metadata rows, got %', metadata_count;
+  if metadata_count <> 3 then
+    raise exception 'Helpdesk should see 3 metadata rows, got %', metadata_count;
   end if;
-  if storage_count <> 2 then
-    raise exception 'Helpdesk should see 2 storage objects, got %', storage_count;
+  if storage_count <> 3 then
+    raise exception 'Helpdesk should see 3 storage objects, got %', storage_count;
   end if;
 end$$;
 reset role;
@@ -353,7 +469,8 @@ begin
    where bucket_id = 'ticket-attachments'
      and name in (
        '00000000-0000-0000-0000-00000000b101/screenshot.png',
-       '00000000-0000-0000-0000-00000000b101/internal-log.txt'
+       '00000000-0000-0000-0000-00000000b101/internal-log.txt',
+       '00000000-0000-0000-0000-00000000b101/ticket-only.txt'
      );
   if metadata_count <> 0 then
     raise exception 'Foreign employee leaked metadata: %', metadata_count;

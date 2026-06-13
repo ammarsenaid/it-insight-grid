@@ -59,6 +59,8 @@ insert into public.permissions (permission_key, name, description)
 values
   ('catalog.manage',           'Manage Service Catalog',
    'Create, edit, publish, archive and delete catalog services.'),
+  ('catalog.request',          'Submit Catalog Requests',
+   'Submit a request from a published catalog service.'),
   ('tickets.view_all',         'View All Tickets',
    'View every ticket in the service desk queue, not just your own.'),
   ('tickets.assign',           'Assign Tickets',
@@ -67,6 +69,8 @@ values
    'Transition tickets to resolved, closed or reopened.'),
   ('tickets.view_internal',    'Read Internal Notes',
    'Read internal notes on tickets (hidden from requesters).'),
+  ('tickets.comment_public',   'Reply on Tickets',
+   'Post a public reply (visible to the requester) on a ticket.'),
   ('tickets.comment_internal', 'Write Internal Notes',
    'Post internal notes on tickets.')
 on conflict (permission_key) do update
@@ -84,8 +88,9 @@ from public.roles r
 cross join public.permissions p
 where r.role_key = 'platform_admin'
   and p.permission_key in (
-    'catalog.manage', 'tickets.view_all', 'tickets.assign',
-    'tickets.resolve', 'tickets.view_internal', 'tickets.comment_internal'
+    'catalog.manage', 'catalog.request', 'tickets.view_all', 'tickets.assign',
+    'tickets.resolve', 'tickets.view_internal', 'tickets.comment_public',
+    'tickets.comment_internal'
   )
 on conflict do nothing;
 
@@ -95,8 +100,9 @@ select r.id, p.id
 from public.roles r
 join public.permissions p
   on p.permission_key in (
-    'catalog.manage', 'tickets.view_all', 'tickets.assign',
-    'tickets.resolve', 'tickets.view_internal', 'tickets.comment_internal'
+    'catalog.manage', 'catalog.request', 'tickets.view_all', 'tickets.assign',
+    'tickets.resolve', 'tickets.view_internal', 'tickets.comment_public',
+    'tickets.comment_internal'
   )
 where r.role_key = 'it_admin'
 on conflict do nothing;
@@ -107,8 +113,9 @@ select r.id, p.id
 from public.roles r
 join public.permissions p
   on p.permission_key in (
-    'catalog.manage', 'tickets.view_all', 'tickets.assign',
-    'tickets.resolve', 'tickets.view_internal', 'tickets.comment_internal'
+    'catalog.manage', 'catalog.request', 'tickets.view_all', 'tickets.assign',
+    'tickets.resolve', 'tickets.view_internal', 'tickets.comment_public',
+    'tickets.comment_internal'
   )
 where r.role_key = 'sd_lead'
 on conflict do nothing;
@@ -120,9 +127,19 @@ from public.roles r
 join public.permissions p
   on p.permission_key in (
     'tickets.view_all', 'tickets.assign', 'tickets.resolve',
-    'tickets.view_internal', 'tickets.comment_internal'
+    'tickets.view_internal', 'tickets.comment_public',
+    'tickets.comment_internal', 'catalog.request'
   )
 where r.role_key = 'helpdesk'
+on conflict do nothing;
+
+-- employee: requester-only catalog submission capability
+insert into public.role_permissions (role_id, permission_id)
+select r.id, p.id
+from public.roles r
+join public.permissions p
+  on p.permission_key in ('catalog.request')
+where r.role_key = 'employee'
 on conflict do nothing;
 
 -- platform_auditor: read-only access to queue & internal notes
@@ -466,7 +483,396 @@ $$;
 
 
 -- ------------------------------------------------------------
--- 12. ATOMIC CATALOG SUBMIT RPC
+-- 12. CONSTRAINED MANUAL TICKET-CREATION RPC
+-- ------------------------------------------------------------
+-- Browser clients must never INSERT directly into public.tickets.
+-- The requester identity and privileged lifecycle fields are derived
+-- exclusively by the backend. Catalog submission continues through
+-- the separate submit_catalog_request RPC below.
+create or replace function public.create_ticket(
+  p_subject text,
+  p_description text default '',
+  p_type text default 'request',
+  p_category text default null,
+  p_subcategory text default null,
+  p_priority text default 'normal',
+  p_tags text[] default '{}'::text[],
+  p_affected_service text default null
+)
+returns public.tickets
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  caller uuid := auth.uid();
+  result public.tickets;
+begin
+  if caller is null then
+    raise exception 'Authentication required' using errcode = '42501';
+  end if;
+
+  if char_length(trim(coalesce(p_subject, ''))) not between 2 and 250 then
+    raise exception 'Invalid ticket subject' using errcode = '22023';
+  end if;
+
+  if char_length(coalesce(p_description, '')) > 20000 then
+    raise exception 'Ticket description is too long' using errcode = '22023';
+  end if;
+
+  if coalesce(p_type, 'request') not in ('request','incident','problem','change') then
+    raise exception 'Invalid ticket type' using errcode = '22023';
+  end if;
+
+  if coalesce(p_priority, 'normal') not in ('low','normal','high','critical') then
+    raise exception 'Invalid ticket priority' using errcode = '22023';
+  end if;
+
+  if char_length(coalesce(p_category, '')) > 120 then
+    raise exception 'Ticket category is too long' using errcode = '22023';
+  end if;
+
+  if char_length(coalesce(p_subcategory, '')) > 200 then
+    raise exception 'Ticket subcategory is too long' using errcode = '22023';
+  end if;
+
+  if char_length(coalesce(p_affected_service, '')) > 200 then
+    raise exception 'Affected service is too long' using errcode = '22023';
+  end if;
+
+  if cardinality(coalesce(p_tags, '{}'::text[])) > 20 then
+    raise exception 'Too many ticket tags' using errcode = '22023';
+  end if;
+
+  if exists (
+    select 1
+      from unnest(coalesce(p_tags, '{}'::text[])) as tag(value)
+     where char_length(trim(value)) not between 1 and 50
+  ) then
+    raise exception 'Invalid ticket tag' using errcode = '22023';
+  end if;
+
+  insert into public.tickets (
+    requester_id,
+    subject,
+    description,
+    type,
+    category,
+    subcategory,
+    priority,
+    source,
+    affected_service,
+    tags
+  )
+  values (
+    caller,
+    trim(p_subject),
+    coalesce(p_description, ''),
+    coalesce(p_type, 'request'),
+    nullif(trim(coalesce(p_category, '')), ''),
+    nullif(trim(coalesce(p_subcategory, '')), ''),
+    coalesce(p_priority, 'normal'),
+    'portal',
+    nullif(trim(coalesce(p_affected_service, '')), ''),
+    coalesce(p_tags, '{}'::text[])
+  )
+  returning *
+  into result;
+
+  return result;
+end;
+$$;
+
+
+-- ------------------------------------------------------------
+-- 13. CONSTRAINED TICKET-UPDATE RPC
+-- ------------------------------------------------------------
+-- Browser clients must never UPDATE public.tickets directly.
+-- Assignment and lifecycle permissions are checked separately.
+create or replace function public.update_ticket(
+  p_ticket_id uuid,
+  p_patch jsonb
+)
+returns public.tickets
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  caller uuid := auth.uid();
+  current_ticket public.tickets;
+  result public.tickets;
+  requested_status text;
+  next_tags text[];
+  can_view_all boolean;
+  can_assign boolean;
+  can_resolve boolean;
+  can_edit_metadata boolean;
+begin
+  if caller is null then
+    raise exception 'Authentication required' using errcode = '42501';
+  end if;
+
+  if p_ticket_id is null then
+    raise exception 'Ticket ID is required' using errcode = '22023';
+  end if;
+
+  if p_patch is null
+     or jsonb_typeof(p_patch) <> 'object'
+     or p_patch = '{}'::jsonb then
+    raise exception 'Ticket patch is required' using errcode = '22023';
+  end if;
+
+  if exists (
+    select 1
+      from jsonb_object_keys(p_patch) as patch_key(key)
+     where key not in (
+       'status',
+       'priority',
+       'assignee_id',
+       'assigned_team',
+       'category',
+       'subcategory',
+       'tags',
+       'subject',
+       'description'
+     )
+  ) then
+    raise exception 'Unsupported ticket patch field' using errcode = '22023';
+  end if;
+
+  select *
+    into current_ticket
+    from public.tickets
+   where id = p_ticket_id
+   for update;
+
+  if not found then
+    raise exception 'Ticket not found' using errcode = 'P0002';
+  end if;
+
+  can_view_all := public.has_permission('tickets.view_all');
+  can_assign := can_view_all and public.has_permission('tickets.assign');
+  can_resolve := can_view_all and public.has_permission('tickets.resolve');
+  can_edit_metadata := can_assign or can_resolve;
+
+  if p_patch ? 'assignee_id' or p_patch ? 'assigned_team' then
+    if not can_assign then
+      raise exception 'Ticket assignment permission required'
+        using errcode = '42501';
+    end if;
+  end if;
+
+  if p_patch ? 'status' then
+    if jsonb_typeof(p_patch -> 'status') <> 'string' then
+      raise exception 'Invalid ticket status' using errcode = '22023';
+    end if;
+
+    requested_status := p_patch ->> 'status';
+
+    if current_ticket.requester_id = caller
+       and requested_status = 'reopened'
+       and current_ticket.status in ('resolved', 'closed') then
+      null;
+    elsif not can_resolve then
+      raise exception 'Ticket resolution permission required'
+        using errcode = '42501';
+    elsif requested_status = current_ticket.status then
+      null;
+    elsif not (
+      (current_ticket.status = 'open'
+        and requested_status in ('in_progress', 'on_hold', 'resolved', 'closed'))
+      or
+      (current_ticket.status = 'in_progress'
+        and requested_status in ('on_hold', 'resolved', 'closed'))
+      or
+      (current_ticket.status = 'on_hold'
+        and requested_status in ('in_progress', 'resolved', 'closed'))
+      or
+      (current_ticket.status = 'resolved'
+        and requested_status in ('reopened', 'closed'))
+      or
+      (current_ticket.status = 'closed'
+        and requested_status = 'reopened')
+      or
+      (current_ticket.status = 'reopened'
+        and requested_status in ('in_progress', 'on_hold', 'resolved', 'closed'))
+    ) then
+      raise exception 'Invalid ticket status transition'
+        using errcode = '22023';
+    end if;
+  end if;
+
+  if p_patch ?| array[
+    'priority',
+    'category',
+    'subcategory',
+    'tags',
+    'subject',
+    'description'
+  ] then
+    if not can_edit_metadata then
+      raise exception 'Ticket metadata permission required'
+        using errcode = '42501';
+    end if;
+  end if;
+
+  if p_patch ? 'priority'
+     and (
+       jsonb_typeof(p_patch -> 'priority') <> 'string'
+       or (p_patch ->> 'priority') not in ('low', 'normal', 'high', 'critical')
+     ) then
+    raise exception 'Invalid ticket priority' using errcode = '22023';
+  end if;
+
+  if p_patch ? 'subject'
+     and (
+       jsonb_typeof(p_patch -> 'subject') <> 'string'
+       or char_length(trim(p_patch ->> 'subject')) not between 2 and 250
+     ) then
+    raise exception 'Invalid ticket subject' using errcode = '22023';
+  end if;
+
+  if p_patch ? 'description'
+     and (
+       jsonb_typeof(p_patch -> 'description') <> 'string'
+       or char_length(p_patch ->> 'description') > 20000
+     ) then
+    raise exception 'Invalid ticket description' using errcode = '22023';
+  end if;
+
+  if p_patch ? 'category'
+     and p_patch -> 'category' <> 'null'::jsonb
+     and (
+       jsonb_typeof(p_patch -> 'category') <> 'string'
+       or char_length(p_patch ->> 'category') > 120
+     ) then
+    raise exception 'Invalid ticket category' using errcode = '22023';
+  end if;
+
+  if p_patch ? 'subcategory'
+     and p_patch -> 'subcategory' <> 'null'::jsonb
+     and (
+       jsonb_typeof(p_patch -> 'subcategory') <> 'string'
+       or char_length(p_patch ->> 'subcategory') > 200
+     ) then
+    raise exception 'Invalid ticket subcategory' using errcode = '22023';
+  end if;
+
+  if p_patch ? 'assigned_team'
+     and p_patch -> 'assigned_team' <> 'null'::jsonb
+     and (
+       jsonb_typeof(p_patch -> 'assigned_team') <> 'string'
+       or char_length(p_patch ->> 'assigned_team') > 120
+     ) then
+    raise exception 'Invalid assigned team' using errcode = '22023';
+  end if;
+
+  if p_patch ? 'assignee_id'
+     and p_patch -> 'assignee_id' <> 'null'::jsonb then
+    if jsonb_typeof(p_patch -> 'assignee_id') <> 'string' then
+      raise exception 'Invalid assignee ID' using errcode = '22023';
+    end if;
+
+    begin
+      perform (p_patch ->> 'assignee_id')::uuid;
+    exception
+      when invalid_text_representation then
+        raise exception 'Invalid assignee ID' using errcode = '22023';
+    end;
+  end if;
+
+  next_tags := current_ticket.tags;
+
+  if p_patch ? 'tags' then
+    if jsonb_typeof(p_patch -> 'tags') <> 'array' then
+      raise exception 'Invalid ticket tags' using errcode = '22023';
+    end if;
+
+    if exists (
+      select 1
+        from jsonb_array_elements(p_patch -> 'tags') as tag(value)
+       where jsonb_typeof(value) <> 'string'
+          or char_length(trim(value #>> '{}')) not between 1 and 50
+    ) then
+      raise exception 'Invalid ticket tag' using errcode = '22023';
+    end if;
+
+    select coalesce(array_agg(value #>> '{}'), '{}'::text[])
+      into next_tags
+      from jsonb_array_elements(p_patch -> 'tags') as tag(value);
+
+    if cardinality(next_tags) > 20 then
+      raise exception 'Too many ticket tags' using errcode = '22023';
+    end if;
+  end if;
+
+  update public.tickets
+     set status = case
+           when p_patch ? 'status' then requested_status
+           else current_ticket.status
+         end,
+         priority = case
+           when p_patch ? 'priority' then p_patch ->> 'priority'
+           else current_ticket.priority
+         end,
+         assignee_id = case
+           when p_patch ? 'assignee_id'
+             then nullif(p_patch ->> 'assignee_id', '')::uuid
+           else current_ticket.assignee_id
+         end,
+         assigned_team = case
+           when p_patch ? 'assigned_team'
+             then nullif(trim(p_patch ->> 'assigned_team'), '')
+           else current_ticket.assigned_team
+         end,
+         category = case
+           when p_patch ? 'category'
+             then nullif(trim(p_patch ->> 'category'), '')
+           else current_ticket.category
+         end,
+         subcategory = case
+           when p_patch ? 'subcategory'
+             then nullif(trim(p_patch ->> 'subcategory'), '')
+           else current_ticket.subcategory
+         end,
+         tags = case
+           when p_patch ? 'tags' then next_tags
+           else current_ticket.tags
+         end,
+         subject = case
+           when p_patch ? 'subject' then trim(p_patch ->> 'subject')
+           else current_ticket.subject
+         end,
+         description = case
+           when p_patch ? 'description' then p_patch ->> 'description'
+           else current_ticket.description
+         end,
+         resolved_at = case
+           when p_patch ? 'status' and requested_status = 'resolved'
+             then coalesce(current_ticket.resolved_at, now())
+           when p_patch ? 'status' and requested_status = 'reopened'
+             then null
+           else current_ticket.resolved_at
+         end,
+         closed_at = case
+           when p_patch ? 'status' and requested_status = 'closed'
+             then coalesce(current_ticket.closed_at, now())
+           when p_patch ? 'status' and requested_status = 'reopened'
+             then null
+           else current_ticket.closed_at
+         end
+   where id = p_ticket_id
+   returning *
+    into result;
+
+  return result;
+end;
+$$;
+
+
+-- ------------------------------------------------------------
+-- 14. ATOMIC CATALOG SUBMIT RPC
 -- ------------------------------------------------------------
 create or replace function public.submit_catalog_request(
   p_catalog_item_id uuid,
@@ -487,6 +893,10 @@ declare
 begin
   if caller is null then
     raise exception 'Authentication required' using errcode = '42501';
+  end if;
+
+  if not public.has_permission('catalog.request') then
+    raise exception 'Catalog request permission required' using errcode = '42501';
   end if;
 
   select * into item
@@ -540,7 +950,7 @@ $$;
 
 
 -- ------------------------------------------------------------
--- 13. ROW LEVEL SECURITY
+-- 15. ROW LEVEL SECURITY
 -- ------------------------------------------------------------
 alter table public.catalog_items        enable row level security;
 alter table public.tickets              enable row level security;
@@ -586,19 +996,14 @@ using (
   or public.has_permission('tickets.view_all')
 );
 
+-- Direct authenticated INSERT is intentionally disabled.
+-- Manual portal creation must use public.create_ticket(...).
+-- Catalog creation must use public.submit_catalog_request(...).
 drop policy if exists tickets_insert_own on public.tickets;
-create policy tickets_insert_own
-on public.tickets for insert to authenticated
-with check (requester_id = (select auth.uid()));
 
+-- Direct authenticated UPDATE is intentionally disabled.
+-- Browser ticket mutation must use public.update_ticket(...).
 drop policy if exists tickets_update_agents on public.tickets;
-create policy tickets_update_agents
-on public.tickets for update to authenticated
-using (
-  public.has_permission('tickets.view_all')
-  and (public.has_permission('tickets.assign') or public.has_permission('tickets.resolve'))
-)
-with check (public.has_permission('tickets.view_all'));
 
 drop policy if exists tickets_delete_admin on public.tickets;
 create policy tickets_delete_admin
@@ -620,7 +1025,11 @@ on public.ticket_comments for insert to authenticated
 with check (
   author_id = (select auth.uid())
   and public.can_view_ticket(ticket_id)
-  and (internal = false or public.has_permission('tickets.comment_internal'))
+  and (
+    (internal = false and public.has_permission('tickets.comment_public'))
+    or
+    (internal = true and public.has_permission('tickets.comment_internal'))
+  )
 );
 
 -- ---- ticket_status_events (writes occur via SECURITY DEFINER triggers only) ----
@@ -637,7 +1046,7 @@ using (public.is_platform_admin() or public.has_permission('tickets.view_all'));
 
 
 -- ------------------------------------------------------------
--- 14. DATA-API PRIVILEGES
+-- 16. DATA-API PRIVILEGES
 -- ------------------------------------------------------------
 revoke all privileges on table public.catalog_items        from anon;
 revoke all privileges on table public.tickets              from anon;
@@ -652,7 +1061,7 @@ revoke all privileges on table public.ticket_status_events from authenticated;
 revoke all privileges on table public.ticket_audit_log     from authenticated;
 
 grant select, insert, update, delete on table public.catalog_items        to authenticated;
-grant select, insert, update         on table public.tickets              to authenticated;
+grant select                         on table public.tickets              to authenticated;
 grant select, insert                 on table public.ticket_comments      to authenticated;
 grant select                         on table public.ticket_status_events to authenticated;
 grant select                         on table public.ticket_audit_log     to authenticated;
@@ -663,20 +1072,24 @@ grant all on table public.ticket_comments      to service_role;
 grant all on table public.ticket_status_events to service_role;
 grant all on table public.ticket_audit_log     to service_role;
 
-grant usage, select on sequence public.ticket_number_seq to authenticated, service_role;
+grant usage, select on sequence public.ticket_number_seq to service_role;
 
 
 -- ------------------------------------------------------------
--- 15. FUNCTION EXECUTION PRIVILEGES
+-- 17. FUNCTION EXECUTION PRIVILEGES
 -- ------------------------------------------------------------
 revoke all on function public.tickets_capture_status_event()      from public;
 revoke all on function public.tickets_write_audit()               from public;
 revoke all on function public.ticket_comments_write_audit()       from public;
 revoke all on function public.catalog_items_write_audit()         from public;
 revoke all on function public.can_view_ticket(uuid)               from public;
+revoke all on function public.create_ticket(text, text, text, text, text, text, text[], text) from public;
+revoke all on function public.update_ticket(uuid, jsonb)          from public;
 revoke all on function public.submit_catalog_request(uuid, jsonb) from public;
 
 grant execute on function public.can_view_ticket(uuid)               to authenticated;
+grant execute on function public.create_ticket(text, text, text, text, text, text, text[], text) to authenticated;
+grant execute on function public.update_ticket(uuid, jsonb)          to authenticated;
 grant execute on function public.submit_catalog_request(uuid, jsonb) to authenticated;
 
 commit;

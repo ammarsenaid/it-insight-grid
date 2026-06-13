@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/sidebar";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { canSeePage, useRole } from "@/lib/permissions";
+import { canSeePage, hasPageVisibilityRule, useRole } from "@/lib/permissions";
 
 const groups = [
   {
@@ -110,12 +110,11 @@ export function AppSidebar() {
     .map((g) => ({
       ...g,
       items: g.items.filter((it) => {
-        if (!canSeePage(it.url, role)) return false;
         if (it.url.startsWith("/admin")) {
-          if (isPlatformAdmin) return true;
+          if (!hasPageVisibilityRule(it.url)) return isPlatformAdmin;
           return canSeePage(it.url, role);
         }
-        return true;
+        return canSeePage(it.url, role);
       }),
     }))
     .filter((g) => g.items.length > 0);
@@ -175,4 +174,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-

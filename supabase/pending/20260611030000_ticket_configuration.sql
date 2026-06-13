@@ -158,7 +158,8 @@ for each row execute function public.set_updated_at();
 
 
 -- ------------------------------------------------------------
--- 7. RLS — read = view_all, write = tickets.config
+-- 7. RLS — read = view_all, create/update = tickets.config,
+--          destructive delete = platform admin only
 -- ------------------------------------------------------------
 alter table public.ticket_categories       enable row level security;
 alter table public.ticket_priorities       enable row level security;

@@ -39,12 +39,31 @@ const LEGACY_MAP: Record<string, Role> = {
   viewer: "auditor",
 };
 
+const DB_ROLE_ALIASES: Record<string, Role> = {
+  platform_admin: "super_admin",
+  platform_auditor: "auditor",
+};
+
+// Display precedence only. Authorization always evaluates every effective role.
+export const ROLE_DISPLAY_PRECEDENCE: Role[] = [
+  "super_admin",
+  "it_admin",
+  "sd_lead",
+  "helpdesk",
+  "technician",
+  "network_admin",
+  "doc_editor",
+  "auditor",
+  "employee",
+];
+
 const listeners = new Set<() => void>();
 let role: Role = load();
 // When a Supabase session is active, AuthProvider pushes the DB-derived role
 // here. It takes precedence over the localStorage role, which is kept only as
 // an unauthenticated preview fallback.
 let sessionRole: Role | null = null;
+let sessionRoles: Role[] | null = null;
 
 function load(): Role {
   if (typeof window === "undefined") return "super_admin";
@@ -78,14 +97,41 @@ export function setRole(next: Role) {
  * role is set, it overrides the localStorage role returned by `useRole()`.
  */
 export function setSessionRole(next: Role | null) {
-  if (next !== null && !ROLES.some((r) => r.id === next)) return;
-  if (sessionRole === next) return;
-  sessionRole = next;
+  setSessionRoles(next === null ? null : [next], next);
+}
+
+export function rolesForRoleKeys(roleKeys: readonly string[]): Role[] {
+  const validRoles = new Set(ROLES.map((roleDef) => roleDef.id));
+  const mappedRoles = new Set(roleKeys
+    .map((roleKey) => DB_ROLE_ALIASES[roleKey] ?? roleKey)
+    .filter((roleKey): roleKey is Role => validRoles.has(roleKey as Role)));
+  return ROLE_DISPLAY_PRECEDENCE.filter((candidate) => mappedRoles.has(candidate));
+}
+
+export function pickDisplayRole(effectiveRoles: readonly Role[]): Role | null {
+  return ROLE_DISPLAY_PRECEDENCE.find((candidate) => effectiveRoles.includes(candidate)) ?? null;
+}
+
+/**
+ * Publish all authenticated roles for additive authorization while retaining a
+ * single deterministic role for labels and other display-only consumers.
+ */
+export function setSessionRoles(next: readonly Role[] | null, displayRole?: Role | null) {
+  const effectiveRoles = next === null ? null : rolesForRoleKeys(next);
+  const nextDisplayRole = effectiveRoles === null
+    ? null
+    : displayRole ?? pickDisplayRole(effectiveRoles) ?? "employee";
+  if (
+    sessionRole === nextDisplayRole &&
+    JSON.stringify(sessionRoles) === JSON.stringify(effectiveRoles)
+  ) return;
+  sessionRole = nextDisplayRole;
+  sessionRoles = effectiveRoles;
   notify();
 }
 
 export function hasSessionRole(): boolean {
-  return sessionRole !== null;
+  return sessionRoles !== null;
 }
 
 function subscribe(cb: () => void) {
@@ -103,6 +149,7 @@ export function useRole(): Role {
 
 const ALL_IT: Role[] = ["super_admin", "it_admin", "sd_lead", "helpdesk", "technician", "network_admin", "doc_editor", "auditor"];
 const IT_OPS: Role[] = ["super_admin", "it_admin", "sd_lead", "helpdesk", "technician", "network_admin"];
+const TICKET_OPERATORS: Role[] = ["super_admin", "it_admin", "sd_lead", "helpdesk", "technician"];
 const INFRA_OPS: Role[] = ["super_admin", "it_admin", "technician", "network_admin"];
 const ADMINS: Role[] = ["super_admin", "it_admin"];
 
@@ -123,14 +170,20 @@ export const CAPS: Record<string, Role[]> = {
 
   // Tickets
   "tickets.create":            ["super_admin", "it_admin", "sd_lead", "helpdesk", "technician", "network_admin", "doc_editor", "employee"],
-  "tickets.assign":            IT_OPS,
-  "tickets.resolve":           IT_OPS,
+  "tickets.assign":            TICKET_OPERATORS,
+  "tickets.resolve":           TICKET_OPERATORS,
+  "tickets.commentPublic":      ["super_admin", "it_admin", "sd_lead", "helpdesk", "technician", "network_admin", "doc_editor", "employee"],
+  "tickets.commentInternal":    IT_OPS,
+  "tickets.attachments.view":   ROLES.map((r) => r.id),
+  "tickets.attachments.upload": ["super_admin", "it_admin", "sd_lead", "helpdesk", "technician", "network_admin", "doc_editor", "employee"],
+  "tickets.attachments.manage": ["super_admin", "it_admin", "sd_lead"],
   "tickets.viewInternal":      [...IT_OPS, "auditor"], // requester roles never see internal notes
   "tickets.viewQueue":         [...IT_OPS, "auditor"],
   "tickets.config":            [...ADMINS, "sd_lead"],
+  "tickets.cannedResponses.delete": ["super_admin"],
 
   // Operations
-  "cmdb.write":                INFRA_OPS,
+  "cmdb.manage":               INFRA_OPS,
   "cmdb.view":                 [...ALL_IT],
   "ipam.write":                INFRA_OPS,
   "ipam.view":                 [...ALL_IT],
@@ -155,17 +208,23 @@ const NON_REQUESTER: Role[] = ROLES.map((r) => r.id).filter((r) => r !== "employ
 
 export const PAGE_VISIBILITY: Record<string, Role[]> = {
   "/": NON_REQUESTER,
+  "/dashboard": NON_REQUESTER,
   "/documents": ROLES.map((r) => r.id),
   "/search": NON_REQUESTER,
   "/tickets": [...IT_OPS, "auditor"],
+  "/tickets/": [...IT_OPS, "auditor"],
+  "/tickets/:id": ROLES.map((r) => r.id),
   "/my-requests": ROLES.map((r) => r.id),
   "/service-catalog": ROLES.map((r) => r.id),
+  "/service-catalog/:id": ROLES.map((r) => r.id),
   "/notifications": ROLES.map((r) => r.id),
   "/cmdb": [...ALL_IT],
   "/ipam": [...ALL_IT],
   "/tasks": [...ALL_IT],
   "/notes": [...ALL_IT],
   "/protocols": [...ALL_IT],
+  "/protocols/": [...ALL_IT],
+  "/protocols/:id": [...ALL_IT],
   "/audit": [...ADMINS, "auditor"],
   "/reports": [...ADMINS, "sd_lead", "auditor"],
   "/admin/users": ADMINS,
@@ -173,8 +232,9 @@ export const PAGE_VISIBILITY: Record<string, Role[]> = {
   "/admin/roles": ADMINS,
   "/admin/ticket-settings": [...ADMINS, "sd_lead"],
   "/admin/mailbox": [...ADMINS, "sd_lead"],
-  "/admin/templates": [...ADMINS, "sd_lead", "doc_editor"],
+  "/admin/templates": [...ADMINS, "sd_lead"],
   "/admin/catalog": [...ADMINS, "sd_lead"],
+  "/recycle-bin": ADMINS,
   "/trash": ADMINS,
   "/settings": ROLES.map((r) => r.id),
 };
@@ -182,18 +242,47 @@ export const PAGE_VISIBILITY: Record<string, Role[]> = {
 // Silence unused-warning while keeping the named constant for clarity.
 void REQUESTER_PAGES;
 
-export function canSeePage(path: string, current?: Role): boolean {
-  const r = current ?? currentRole();
-  const list = PAGE_VISIBILITY[path];
-  if (!list) return true;
-  return list.includes(r);
+function pageRuleMatches(pattern: string, path: string): boolean {
+  if (!pattern.includes(":")) return pattern === path;
+
+  const patternSegments = pattern.split("/");
+  const pathSegments = path.split("/");
+  if (patternSegments.length !== pathSegments.length) return false;
+
+  return patternSegments.every((segment, index) =>
+    segment.startsWith(":") ? pathSegments[index].length > 0 : segment === pathSegments[index],
+  );
 }
 
-export function can(capability: string, current?: Role): boolean {
-  const r = current ?? currentRole();
+export function pageVisibilityFor(path: string): Role[] | undefined {
+  const exact = PAGE_VISIBILITY[path];
+  if (exact) return exact;
+
+  const dynamicRule = Object.entries(PAGE_VISIBILITY).find(([pattern]) =>
+    pageRuleMatches(pattern, path),
+  );
+  return dynamicRule?.[1];
+}
+
+export function hasPageVisibilityRule(path: string): boolean {
+  return pageVisibilityFor(path) !== undefined;
+}
+
+function authorizationRoles(current?: Role | readonly Role[]): readonly Role[] {
+  if (current !== undefined && typeof current !== "string") return current;
+  return sessionRoles ?? [current ?? currentRole()];
+}
+
+export function canSeePage(path: string, current?: Role | readonly Role[]): boolean {
+  const allowedRoles = pageVisibilityFor(path);
+  if (!allowedRoles) return false;
+  return authorizationRoles(current).some((candidate) => allowedRoles.includes(candidate));
+}
+
+export function can(capability: string, current?: Role | readonly Role[]): boolean {
   const list = CAPS[capability];
-  if (!list) return true;
-  return list.includes(r);
+  if (!list) return false;
+  return authorizationRoles(current).some((candidate) => list.includes(candidate));
 }
 
 
@@ -221,15 +310,21 @@ export const CAPABILITY_GROUPS: { label: string; caps: { key: string; label: str
       { key: "tickets.create", label: "Create ticket" },
       { key: "tickets.assign", label: "Assign / route tickets" },
       { key: "tickets.resolve", label: "Resolve / close tickets" },
+      { key: "tickets.commentPublic", label: "Post public replies" },
+      { key: "tickets.commentInternal", label: "Post internal notes" },
+      { key: "tickets.attachments.view", label: "View ticket attachments" },
+      { key: "tickets.attachments.upload", label: "Upload ticket attachments" },
+      { key: "tickets.attachments.manage", label: "Manage ticket attachments" },
       { key: "tickets.viewInternal", label: "Read internal notes" },
       { key: "tickets.config", label: "Configure SLAs & routing" },
+      { key: "tickets.cannedResponses.delete", label: "Delete canned responses" },
     ],
   },
   {
     label: "Operations",
     caps: [
       { key: "cmdb.view", label: "View CMDB" },
-      { key: "cmdb.write", label: "Edit CMDB assets" },
+      { key: "cmdb.manage", label: "Manage CMDB assets" },
       { key: "ipam.view", label: "View IPAM" },
       { key: "ipam.write", label: "Edit IP records" },
       { key: "tasks.view", label: "View tasks" },

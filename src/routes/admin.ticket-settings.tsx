@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AlarmClock, Route as RouteIcon, Tag, Users as UsersIcon, Lock, MessageSquare } from "lucide-react";
+import { AlarmClock, CircleAlert, Route as RouteIcon, Tag, Users as UsersIcon, Lock, MessageSquare } from "lucide-react";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -31,17 +31,53 @@ function TicketSettings() {
   const allowed = can("tickets.config", role);
   const enabled = Boolean(session?.user?.id) && allowed;
 
-  const { data: categories = [] } = useQuery({ ...ticketCategoriesQuery(), enabled });
-  const { data: priorities = [] } = useQuery({ ...ticketPriorityConfigsQuery(), enabled });
-  const { data: slas = [] } = useQuery({ ...slaPoliciesQuery(), enabled });
-  const { data: rules = [] } = useQuery({ ...routingRulesQuery(), enabled });
-  const { data: canned = [] } = useQuery({ ...cannedResponsesQuery(), enabled });
+  const categoriesQueryResult = useQuery({ ...ticketCategoriesQuery(), enabled });
+  const prioritiesQueryResult = useQuery({ ...ticketPriorityConfigsQuery(), enabled });
+  const slasQueryResult = useQuery({ ...slaPoliciesQuery(), enabled });
+  const rulesQueryResult = useQuery({ ...routingRulesQuery(), enabled });
+  const cannedQueryResult = useQuery({ ...cannedResponsesQuery(), enabled });
+
+  const categories = categoriesQueryResult.data ?? [];
+  const priorities = prioritiesQueryResult.data ?? [];
+  const slas = slasQueryResult.data ?? [];
+  const rules = rulesQueryResult.data ?? [];
+  const canned = cannedQueryResult.data ?? [];
+  const configError = [
+    categoriesQueryResult,
+    prioritiesQueryResult,
+    slasQueryResult,
+    rulesQueryResult,
+    cannedQueryResult,
+  ].some((query) => query.isError);
 
   if (!allowed) {
     return (
       <div>
         <PageHeader title="Ticket Configuration" description="Categories, priorities, SLA policies, routing rules, and canned responses." />
         <EmptyState icon={Lock} title="Admin access required" description="You need the tickets.config permission to manage ticket configuration." />
+      </div>
+    );
+  }
+
+  if (configError) {
+    return (
+      <div>
+        <PageHeader title="Ticket Configuration" description="Categories, priorities, SLA policies, routing rules, and canned responses." />
+        <EmptyState
+          icon={CircleAlert}
+          title="Failed to load ticket configuration"
+          description="The configuration service did not return a complete result. Try again before making operational decisions."
+          actionLabel="Retry"
+          onAction={() => {
+            void Promise.all([
+              categoriesQueryResult.refetch(),
+              prioritiesQueryResult.refetch(),
+              slasQueryResult.refetch(),
+              rulesQueryResult.refetch(),
+              cannedQueryResult.refetch(),
+            ]);
+          }}
+        />
       </div>
     );
   }

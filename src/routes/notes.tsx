@@ -330,7 +330,7 @@ function NotesPage() {
                       <ul className="space-y-1 text-xs">
                         {linkedDoc && (
                           <li className="flex items-center gap-2"><FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                            <Link to="/documents" className="hover:underline">{linkedDoc.title}</Link></li>
+                            <Link to="/documents" search={{ article: linkedDoc.id }} className="hover:underline">{linkedDoc.title}</Link></li>
                         )}
                         {linkedTickets.map((tk) => tk && (
                           <li key={tk.id} className="flex items-center gap-2"><TicketIcon className="h-3.5 w-3.5 text-muted-foreground" />

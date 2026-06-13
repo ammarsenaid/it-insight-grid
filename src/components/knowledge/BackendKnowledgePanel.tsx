@@ -58,6 +58,7 @@ export function BackendKnowledgePanel() {
       <div className="mt-3 border-t border-border/40 pt-3">
         <Link
           to="/documents"
+          search={{ article: undefined }}
           className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
           Open knowledge base <ArrowUpRight className="h-3 w-3" />

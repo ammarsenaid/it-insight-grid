@@ -238,7 +238,7 @@ function Dashboard() {
     id: `doc-${d.id}`, severity: "info", module: "Knowledge",
     title: `Awaiting review: ${d.title}`,
     meta: d.tags[0] ?? "Knowledge Base",
-    cta: "Review Page", onClick: () => navigate({ to: "/documents" }),
+    cta: "Review Page", onClick: () => navigate({ to: "/documents", search: { article: d.id } }),
   }));
   const sevOrder = { critical: 0, high: 1, medium: 2, info: 3 } as const;
   alerts.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
@@ -610,7 +610,7 @@ function QuickActions({ role }: { role: Role }) {
     { to: "/tickets", icon: TicketIcon, label: "New ticket", cap: "tickets.create" },
     { to: "/tasks", icon: CheckSquare, label: "New task", cap: "tasks.write" },
     { to: "/protocols", icon: ListChecks, label: "Run protocol" },
-    { to: "/cmdb", icon: Server, label: "Add asset", cap: "cmdb.write" },
+    { to: "/cmdb", icon: Server, label: "Add asset", cap: "cmdb.manage" },
     { to: "/ipam", icon: Network, label: "Add IP record", cap: "ipam.write" },
     { to: "/documents", icon: FileText, label: "New knowledge page", cap: "documents.create" },
   ];

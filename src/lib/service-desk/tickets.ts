@@ -62,31 +62,31 @@ export interface CreateTicketInput {
 }
 
 /**
- * Manual ticket creation for the current user. The RLS policy
- * `tickets_insert_own` requires requester_id = auth.uid().
+ * Manual portal ticket creation for the current authenticated user.
+ *
+ * The legacy userId argument remains temporarily for call-site compatibility,
+ * but it is deliberately ignored. The backend RPC derives requester_id from
+ * auth.uid() and never accepts privileged lifecycle or assignment fields.
  */
 export async function createTicket(
-  userId: string,
+  _userId: string,
   input: CreateTicketInput,
 ): Promise<Ticket> {
   const sb = getSupabase();
-  const { data, error } = await sb
-    .from("tickets")
-    .insert({
-      requester_id: userId,
-      subject: input.subject,
-      description: input.description ?? "",
-      type: input.type ?? "request",
-      category: input.category ?? null,
-      subcategory: input.subcategory ?? null,
-      priority: input.priority ?? "normal",
-      tags: input.tags ?? [],
-      affected_service: input.affectedService ?? null,
-      source: "portal",
-    })
-    .select(T_COLS)
-    .single();
+  const { data, error } = await sb.rpc("create_ticket", {
+    p_subject: input.subject,
+    p_description: input.description ?? "",
+    p_type: input.type ?? "request",
+    p_category: input.category ?? null,
+    p_subcategory: input.subcategory ?? null,
+    p_priority: input.priority ?? "normal",
+    p_tags: input.tags ?? [],
+    p_affected_service: input.affectedService ?? null,
+  });
+
   if (error) throw error;
+  if (!data) throw new Error("create_ticket returned no row");
+
   return mapTicket(asRow<Row>(data));
 }
 
@@ -103,12 +103,12 @@ export interface UpdateTicketInput {
 }
 
 /**
- * Patch a ticket. RLS (`tickets_update_agents`) enforces that the caller
- * has tickets.view_all + (tickets.assign or tickets.resolve).
+ * Patch a ticket through the constrained backend update contract.
  */
 export async function updateTicket(id: string, patch: UpdateTicketInput): Promise<Ticket> {
   const sb = getSupabase();
   const row: Record<string, unknown> = {};
+
   if (patch.status !== undefined) row.status = patch.status;
   if (patch.priority !== undefined) row.priority = patch.priority;
   if (patch.assigneeId !== undefined) row.assignee_id = patch.assigneeId;
@@ -118,13 +118,15 @@ export async function updateTicket(id: string, patch: UpdateTicketInput): Promis
   if (patch.tags !== undefined) row.tags = patch.tags;
   if (patch.subject !== undefined) row.subject = patch.subject;
   if (patch.description !== undefined) row.description = patch.description;
-  const { data, error } = await sb
-    .from("tickets")
-    .update(row)
-    .eq("id", id)
-    .select(T_COLS)
-    .single();
+
+  const { data, error } = await sb.rpc("update_ticket", {
+    p_ticket_id: id,
+    p_patch: row,
+  });
+
   if (error) throw error;
+  if (!data) throw new Error("update_ticket returned no row");
+
   return mapTicket(asRow<Row>(data));
 }
 

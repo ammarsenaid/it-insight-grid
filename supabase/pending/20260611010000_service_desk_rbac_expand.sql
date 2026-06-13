@@ -62,6 +62,8 @@ values
   -- Tickets
   ('tickets.comment_public',      'Reply on Tickets',
    'Post a public reply (visible to the requester) on a ticket.'),
+  ('tickets.directory',           'View Service Desk Profile Directory',
+   'Read assignment-safe names for Service Desk queue identities.'),
   ('tickets.attachments.view',    'View Ticket Attachments',
    'Read attachments on tickets the user is allowed to see.'),
   ('tickets.attachments.upload',  'Upload Ticket Attachments',
@@ -111,7 +113,7 @@ from public.roles r
 cross join public.permissions p
 where r.role_key = 'platform_admin'
   and p.permission_key in (
-    'tickets.comment_public','tickets.attachments.view','tickets.attachments.upload',
+    'tickets.comment_public','tickets.directory','tickets.attachments.view','tickets.attachments.upload',
     'tickets.attachments.manage','tickets.config','catalog.request',
     'notifications.view_own',
     'cmdb.view','cmdb.manage','ipam.view','ipam.manage',
@@ -126,7 +128,7 @@ select r.id, p.id
 from public.roles r
 join public.permissions p
   on p.permission_key in (
-    'tickets.comment_public','tickets.attachments.view','tickets.attachments.upload',
+    'tickets.comment_public','tickets.directory','tickets.attachments.view','tickets.attachments.upload',
     'tickets.attachments.manage','tickets.config','catalog.request',
     'notifications.view_own',
     'cmdb.view','cmdb.manage','ipam.view','ipam.manage',
@@ -142,7 +144,7 @@ select r.id, p.id
 from public.roles r
 join public.permissions p
   on p.permission_key in (
-    'tickets.comment_public','tickets.attachments.view','tickets.attachments.upload',
+    'tickets.comment_public','tickets.directory','tickets.attachments.view','tickets.attachments.upload',
     'tickets.attachments.manage','tickets.config','catalog.request',
     'notifications.view_own',
     'cmdb.view','ipam.view','tasks.view','tasks.manage','notes.view','notes.manage',
@@ -157,7 +159,7 @@ select r.id, p.id
 from public.roles r
 join public.permissions p
   on p.permission_key in (
-    'tickets.comment_public','tickets.attachments.view','tickets.attachments.upload',
+    'tickets.comment_public','tickets.directory','tickets.attachments.view','tickets.attachments.upload',
     'catalog.request','notifications.view_own',
     'cmdb.view','ipam.view','tasks.view','tasks.manage','notes.view','notes.manage',
     'protocols.view'
@@ -171,7 +173,7 @@ select r.id, p.id
 from public.roles r
 join public.permissions p
   on p.permission_key in (
-    'tickets.comment_public','tickets.attachments.view','tickets.attachments.upload',
+    'tickets.comment_public','tickets.directory','tickets.attachments.view','tickets.attachments.upload',
     'tickets.view_all','tickets.view_internal','tickets.comment_internal',
     'tickets.resolve','tickets.assign',
     'catalog.request','notifications.view_own',
@@ -181,13 +183,14 @@ join public.permissions p
 where r.role_key = 'technician'
 on conflict do nothing;
 
--- network_admin: infra-focused. Full IPAM, CMDB; read tickets, no internal write.
+-- network_admin: infra-focused. Full IPAM and CMDB; ticket queue access without
+-- assignment or lifecycle permissions.
 insert into public.role_permissions (role_id, permission_id)
 select r.id, p.id
 from public.roles r
 join public.permissions p
   on p.permission_key in (
-    'tickets.comment_public','tickets.attachments.view','tickets.attachments.upload',
+    'tickets.comment_public','tickets.directory','tickets.attachments.view','tickets.attachments.upload',
     'tickets.view_all','tickets.view_internal','tickets.comment_internal',
     'catalog.request','notifications.view_own',
     'cmdb.view','cmdb.manage','ipam.view','ipam.manage',
@@ -235,5 +238,55 @@ join public.permissions p
   )
 where r.role_key = 'platform_auditor'
 on conflict do nothing;
+
+
+-- ------------------------------------------------------------
+-- 4. SCOPED SERVICE DESK PROFILE DIRECTORY
+-- ------------------------------------------------------------
+-- Bypasses profile RLS only after an explicit Service Desk permission check.
+-- The returned rows contain no email or other private profile attributes, and
+-- only users who hold tickets.assign are exposed as assignment candidates.
+create or replace function public.list_service_desk_profiles()
+returns table (
+  id uuid,
+  display_name text
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '42501';
+  end if;
+
+  if not public.has_permission('tickets.directory') then
+    raise exception 'Insufficient permission' using errcode = '42501';
+  end if;
+
+  return query
+  select profiles.id,
+         coalesce(nullif(btrim(profiles.display_name), ''), left(profiles.id::text, 8))
+    from public.profiles
+   where exists (
+     select 1
+       from public.user_global_roles
+       join public.roles
+         on roles.id = user_global_roles.role_id
+       join public.role_permissions
+         on role_permissions.role_id = roles.id
+       join public.permissions
+         on permissions.id = role_permissions.permission_id
+      where user_global_roles.user_id = profiles.id
+        and roles.role_scope = 'platform'
+        and permissions.permission_key = 'tickets.assign'
+   )
+   order by 2, 1;
+end;
+$$;
+
+revoke all on function public.list_service_desk_profiles() from public;
+grant execute on function public.list_service_desk_profiles() to authenticated;
 
 commit;
