@@ -41,6 +41,7 @@ Last updated: 2026-06-14
 - Completed milestone: 35 - Disposable Validation Runner Preparation
 - Completed milestone: 36 - Disposable Full-Chain Execution Plan Review
 - Completed milestone: 37 - Disposable Database Preflight Only
+- Completed milestone: 38 - Disposable Execution Commands Preparation Only
 - Active milestone: none; disposable execution remains unapproved.
 - Repository inventory completed without reading secret-bearing files.
 - Existing uncommitted ticket-attachment SQL and QA changes identified and
@@ -348,8 +349,25 @@ Milestone 37 implementation:
 - `scripts/qa/production_hardening_disposable_preflight.sh`
 - `docs/PRODUCTION_HARDENING_STATUS.md`
 
+Milestone 38 implementation:
+
+- `docs/DISPOSABLE_EXECUTION_COMMAND_PLAN_20260614.md`
+- `scripts/qa/production_hardening_disposable_command_plan.sh`
+- `docs/PRODUCTION_HARDENING_STATUS.md`
+
 ## Validation Results
 
+- Disposable execution command-plan assertions: passed; the plan references the
+  Milestone 35 runner, Milestone 36 runbook, and Milestone 37 preflight,
+  preserves both exact twelve-file orders, includes phases A-K, keeps all
+  database-tool examples comment-prefixed, and preserves the later-milestone
+  execution and separate live-deployment approval boundaries.
+- `bash -n scripts/qa/production_hardening_disposable_command_plan.sh`: passed.
+- `bash scripts/qa/production_hardening_disposable_command_plan.sh`: passed.
+- `bunx --no-install tsc --noEmit`: passed after milestone 38.
+- `git diff --check`: passed after milestone 38.
+- No command template, database command, or disposable runner was executed
+  during Milestone 38 static validation.
 - Disposable database preflight assertions: passed; the document references the
   Milestone 35 runner and Milestone 36 runbook, contains the required human,
   target, live-refusal, secret, backup, evidence, stop, and result checklists,
@@ -1226,3 +1244,19 @@ requires explicit approval under `AGENTS.md`.
 - This milestone contacted no database, touched no live DB, created no
   disposable database, and executed no migration or QA SQL. Actual disposable
   execution remains a separate later approval step.
+
+## Milestone 38 - Disposable Execution Commands Preparation Only
+
+- Added `docs/DISPOSABLE_EXECUTION_COMMAND_PLAN_20260614.md` as the exact A-K
+  human-review sequence for a later disposable full-chain milestone. It covers
+  repository verification, disposable-only variables, target confirmation,
+  evidence planning, both ordered twelve-file manifests, and deliberately
+  non-runnable database creation, migration, QA, result, and cleanup templates.
+- Added `scripts/qa/production_hardening_disposable_command_plan.sh` to verify
+  the prior milestone references, all required phases, both ordered manifests,
+  inert-command and authorization language, live-database refusal, status entry,
+  and absence of active `psql`, `docker`, or `sudo` command lines in the plan.
+- Commands are inert documentation/templates only. No database was contacted,
+  no live DB was touched, no disposable database was created, no migration or QA
+  SQL was executed, and no `psql`, `docker`, or `sudo` command was executed.
+  Actual disposable execution remains a separate later approval step.
