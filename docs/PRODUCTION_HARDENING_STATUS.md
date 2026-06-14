@@ -783,5 +783,6 @@ requires explicit approval under `AGENTS.md`.
   drawer no longer use the local store or legacy `src/lib/data/tasks.ts`
   mutators, use the new service layer and React Query keys, and that destructive
   operations are RPC-only.
-- SQL was not executed. Disposable-database and browser runtime validation remain
-  required; the protected live database remains untouched.
+- P16 disposable-database validation passed against a read-only live snapshot restored
+  into a temporary QA database; the protected live database was not migrated.
+- Browser runtime validation remains required before any live apply.
