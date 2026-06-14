@@ -40,6 +40,7 @@ Last updated: 2026-06-14
 - Completed milestone: 34 - Repository-Side Pending Migration Promotion Planning
 - Completed milestone: 35 - Disposable Validation Runner Preparation
 - Completed milestone: 36 - Disposable Full-Chain Execution Plan Review
+- Completed milestone: 37 - Disposable Database Preflight Only
 - Active milestone: none; disposable execution remains unapproved.
 - Repository inventory completed without reading secret-bearing files.
 - Existing uncommitted ticket-attachment SQL and QA changes identified and
@@ -341,8 +342,23 @@ Milestone 36 implementation:
 - `scripts/qa/production_hardening_disposable_runbook.sh`
 - `docs/PRODUCTION_HARDENING_STATUS.md`
 
+Milestone 37 implementation:
+
+- `docs/DISPOSABLE_DATABASE_PREFLIGHT_20260614.md`
+- `scripts/qa/production_hardening_disposable_preflight.sh`
+- `docs/PRODUCTION_HARDENING_STATUS.md`
+
 ## Validation Results
 
+- Disposable database preflight assertions: passed; the document references the
+  Milestone 35 runner and Milestone 36 runbook, contains the required human,
+  target, live-refusal, secret, backup, evidence, stop, and result checklists,
+  and preserves the separate later-execution approval boundary.
+- `bash -n scripts/qa/production_hardening_disposable_preflight.sh`: passed.
+- `bash scripts/qa/production_hardening_disposable_preflight.sh`: passed.
+- `bunx --no-install tsc --noEmit`: passed after milestone 37.
+- `git diff --check`: passed after milestone 37.
+- No database was contacted during Milestone 37 static validation.
 - Disposable full-chain runbook assertions: passed; the runbook references the
   Milestone 35 runner, preserves both exact twelve-file orders, and contains the
   required live-database prohibition, disposable-only boundary, naming and
@@ -1193,3 +1209,20 @@ requires explicit approval under `AGENTS.md`.
 - This milestone performed repository-only documentation and static QA work.
   No database was touched, no SQL or migration was executed, and no disposable
   or live deployment action was authorized.
+
+## Milestone 37 - Disposable Database Preflight Only
+
+- Added `docs/DISPOSABLE_DATABASE_PREFLIGHT_20260614.md` as the operator and
+  reviewer preflight gate for any future disposable full-chain execution. It
+  records current readiness, completed preparation, remaining work, the
+  preflight-only authorization boundary, human approval requirements, target
+  naming and live-database refusal checks, secret and backup handling, evidence
+  planning, stop conditions, and exact pass/fail criteria.
+- Added `scripts/qa/production_hardening_disposable_preflight.sh` as a read-only
+  static guard for the required document, Milestone 35 runner and Milestone 36
+  runbook references, required refusal and later-milestone statements,
+  checklists, status entry, and absence of active `psql`, `docker`, or `sudo`
+  command lines in the Milestone 37 artifacts.
+- This milestone contacted no database, touched no live DB, created no
+  disposable database, and executed no migration or QA SQL. Actual disposable
+  execution remains a separate later approval step.
