@@ -26,6 +26,7 @@ import {
   listSlaPolicies,
 } from "./settings";
 import { listProfiles } from "./profiles";
+import { listTicketAuditEntries } from "./audit";
 import type { NotificationRow } from "./types";
 
 
@@ -44,6 +45,7 @@ export const sdKeys = {
   notifications: () => [...sdKeys.all, "notifications"] as const,
   notificationsUnread: () => [...sdKeys.all, "notifications", "unread-count"] as const,
   profiles: () => [...sdKeys.all, "profiles"] as const,
+  audit: () => [...sdKeys.all, "audit"] as const,
   settings: {
     categories: () => [...sdKeys.all, "settings", "categories"] as const,
     priorities: () => [...sdKeys.all, "settings", "priorities"] as const,
@@ -58,6 +60,12 @@ export const profilesQuery = () =>
   queryOptions({
     queryKey: sdKeys.profiles(),
     queryFn: () => listProfiles(),
+  });
+
+export const ticketAuditQuery = () =>
+  queryOptions({
+    queryKey: sdKeys.audit(),
+    queryFn: () => listTicketAuditEntries(),
   });
 
 

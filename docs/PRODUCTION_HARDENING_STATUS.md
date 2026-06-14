@@ -36,6 +36,7 @@ Last updated: 2026-06-14
 - Completed milestone: 30 - Recycle Bin Backend Aggregation
 - Completed milestone: 31 - Global Search Live-Data Integration
 - Completed milestone: 32 - Dashboard Live-Data Integration
+- Completed milestone: 33 - Service Desk Audit Live-Data Integration
 - Active milestone: none; repository-side review phase completed.
 - Repository inventory completed without reading secret-bearing files.
 - Existing uncommitted ticket-attachment SQL and QA changes identified and
@@ -113,6 +114,8 @@ Last updated: 2026-06-14
   controls now render only when their matching backend capability is present.
 - Dashboard Tasks, CMDB, Notes, and Recycle Bin metrics now use the existing
   permission-gated Supabase query layers instead of stale browser-local rows.
+- The Audit Log now reads the append-only, RLS-protected Service Desk audit
+  table instead of seeded browser-local activity.
 
 ## Changed Files
 
@@ -308,8 +311,23 @@ Milestone 32 implementation:
 - `scripts/qa/production_hardening_dashboard.sh`
 - `docs/PRODUCTION_HARDENING_STATUS.md`
 
+Milestone 33 implementation:
+
+- `src/routes/audit.tsx`
+- `src/lib/service-desk/audit.ts`
+- `src/lib/service-desk/queries.ts`
+- `src/lib/service-desk/types.ts`
+- `scripts/qa/production_hardening_audit.sh`
+- `docs/PRODUCTION_HARDENING_STATUS.md`
+
 ## Validation Results
 
+- Service Desk audit live-data assertions: passed; `/audit` has no browser-store
+  dependency, uses the bounded read-only audit query, handles load failures, and
+  remains aligned with the existing manager-only RLS policy and grants.
+- `bash -n scripts/qa/production_hardening_audit.sh`: passed.
+- `bash scripts/qa/production_hardening_audit.sh`: passed.
+- `bunx --no-install tsc --noEmit`: passed after milestone 33.
 - Repository file inventory: passed.
 - Working-tree baseline review: passed; only the two ticket-attachment files were
   modified before hardening work began.
@@ -1069,3 +1087,25 @@ requires explicit approval under `AGENTS.md`.
   for this query-only patch beyond the existing module QA, but browser runtime
   validation remains required for loading/error transitions and role-specific
   dashboard counts.
+
+## Milestone 33 - Service Desk Audit Live-Data Integration
+
+- Replaced `/audit` browser-local `data.activity` reads with a bounded,
+  newest-first query of the existing append-only `ticket_audit_log` table.
+  Filtering, metrics, CSV export, event details, and the default ten-row page
+  size remain available without presenting seeded events as production data.
+- Added a typed Service Desk audit DTO and read-only data-access/query contract.
+  Audit payloads are mapped defensively and converted to concise UI summaries;
+  backend error objects are not rendered to users.
+- Added explicit loading, generic failure, and retry states. Query failures no
+  longer render as an authoritative empty audit log.
+- Authorization remains enforced at the data boundary by the existing
+  `ticket_audit_log_select_managers` RLS policy, which permits platform admins
+  or callers with `tickets.view_all`; the frontend `audit.view` route guard is
+  retained as a UX boundary, not treated as the security control.
+- Added `scripts/qa/production_hardening_audit.sh` to reject browser-store
+  regressions, require the bounded read-only query, pin loading/error handling,
+  and assert the existing RLS and grants remain aligned with the frontend.
+- No SQL was added or executed. Browser role testing and disposable-database
+  RLS verification remain required; the protected live database remains
+  untouched.

@@ -106,6 +106,15 @@ export interface TicketAssignmentEvent {
   changedAt: string;
 }
 
+export interface TicketAuditEntry {
+  id: string;
+  ticketId: string | null;
+  actorId: string | null;
+  action: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
+
 export interface TicketAttachment {
   id: string;
   ticketId: string;
