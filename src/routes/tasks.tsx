@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
   Plus, CheckSquare, AlertTriangle, Calendar as CalendarIcon, Flame, CheckCircle2,
@@ -24,15 +25,20 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useData } from "@/lib/data/store";
 import {
   CURRENT_TEAM, CURRENT_USER, TASK_CATEGORIES, TASK_OWNERS, TASK_TEAMS, TASK_SOURCES,
-  archiveTask, bulkAddTag, bulkArchive, bulkDelete, bulkUpdateTasks,
-  checklistProgress, completeTask, createTask, deleteTask, deleteTaskView,
-  duplicateTask, escalateTask, isOverdue, reopenTask, saveTaskView,
-  setTaskStatus, updateTask,
+  deleteTaskView, saveTaskView,
 } from "@/lib/data/tasks";
 import { getTaskTemplate } from "@/lib/data/task-templates";
 import { useTemplates, incrementUsage } from "@/lib/templates/store";
 import type { RegistryTemplate } from "@/lib/templates/types";
-import type { Task, TaskPriority, TaskScope, TaskSource, TaskStatus } from "@/lib/data/types";
+import { tasksKeys, tasksQuery } from "@/lib/tasks/queries";
+import {
+  bulkAddTaskTag, bulkSetTasksArchived, bulkSoftDeleteTasks, bulkUpdateTasks,
+  checklistProgress, duplicateTask, escalateTask, isOverdue, publicTaskError,
+  saveTask, saveTaskLinks, setTaskArchived, setTaskReminder, setTaskStatus, softDeleteTask,
+} from "@/lib/tasks/tasks";
+import type {
+  Task, TaskBulkPatch, TaskInput, TaskLinks, TaskPriority, TaskRecurrence, TaskScope, TaskSource, TaskStatus,
+} from "@/lib/tasks/types";
 import { toast } from "sonner";
 import { formatDate } from "@/components/common/format";
 import { can, useRole } from "@/lib/permissions";
@@ -125,6 +131,11 @@ function TasksPage() {
   const role = useRole();
   const writable = can("tasks.write", role);
   const canSeeAll = can("tasks.view", role);
+  const qc = useQueryClient();
+
+  const tasksQ = useQuery({ ...tasksQuery(), enabled: canSeeAll });
+  const tasks = useMemo(() => tasksQ.data ?? [], [tasksQ.data]);
+  const invalidate = () => qc.invalidateQueries({ queryKey: tasksKeys.all });
 
   const [scope, setScope] = useState<ScopeTab>("my");
   const [query, setQuery] = useState("");
@@ -139,6 +150,7 @@ function TasksPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [form, setForm] = useState(empty());
   const [editId, setEditId] = useState<string | null>(null);
+  const [editOriginalStatus, setEditOriginalStatus] = useState<TaskStatus | null>(null);
   const [templateId, setTemplateId] = useState<string>("none");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -154,9 +166,9 @@ function TasksPage() {
 
   const cats = useMemo(() => {
     const set = new Set(TASK_CATEGORIES);
-    data.tasks.forEach((t) => set.add(t.category));
+    tasks.forEach((t) => set.add(t.category));
     return Array.from(set);
-  }, [data.tasks]);
+  }, [tasks]);
 
   const visibleByTab = (t: Task) => {
     if (!showArchived && t.archived) return false;
@@ -164,17 +176,17 @@ function TasksPage() {
       case "my":
         return t.assignedTo === CURRENT_USER || t.owner === CURRENT_USER;
       case "team":
-        return (t.team ?? CURRENT_TEAM) === CURRENT_TEAM;
+        return (t.team || CURRENT_TEAM) === CURRENT_TEAM;
       case "all":
         return canSeeAll;
       case "ticket":
-        return (t.linkedTicketIds?.length ?? 0) > 0 || !!t.sourceTicketId;
+        return (t.links.linkedTicketIds?.length ?? 0) > 0 || !!t.links.sourceTicketId;
       case "maintenance":
         return t.category === "Maintenance" || t.category === "Patching" || t.category === "Backup";
       case "recurring":
         return !!t.recurring;
       case "protocol":
-        return (t.linkedProtocolRunIds?.length ?? 0) > 0 || t.source === "protocol" || t.category === "Protocol";
+        return (t.links.linkedProtocolRunIds?.length ?? 0) > 0 || t.source === "protocol" || t.category === "Protocol";
       case "completed":
         return t.status === "done";
       case "calendar":
@@ -185,14 +197,14 @@ function TasksPage() {
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     const now = Date.now();
-    return data.tasks.filter((t) => {
+    return tasks.filter((t) => {
       if (!visibleByTab(t)) return false;
       if (fCat !== "all" && t.category !== fCat) return false;
       if (fPrio !== "all" && t.priority !== fPrio) return false;
       if (fStatus !== "all" && t.status !== fStatus) return false;
-      if (fTeam !== "all" && (t.team ?? "") !== fTeam) return false;
-      if (fAssignee !== "all" && (t.assignedTo ?? "") !== fAssignee) return false;
-      if (fSource !== "all" && (t.source ?? "manual") !== fSource) return false;
+      if (fTeam !== "all" && t.team !== fTeam) return false;
+      if (fAssignee !== "all" && t.assignedTo !== fAssignee) return false;
+      if (fSource !== "all" && t.source !== fSource) return false;
       if (fDue !== "all" && t.dueDate) {
         const days = (new Date(t.dueDate).getTime() - now) / 86400000;
         if (fDue === "overdue" && !(days < 0 && t.status !== "done")) return false;
@@ -203,17 +215,17 @@ function TasksPage() {
       if (!q) return true;
       return (
         t.title.toLowerCase().includes(q) ||
-        (t.notes ?? "").toLowerCase().includes(q) ||
-        (t.tags ?? []).some((tag) => tag.toLowerCase().includes(q))
+        t.notes.toLowerCase().includes(q) ||
+        t.tags.some((tag) => tag.toLowerCase().includes(q))
       );
     });
-  }, [data.tasks, query, fCat, fPrio, fStatus, fTeam, fAssignee, fSource, fDue, scope, showArchived, canSeeAll]);
+  }, [tasks, query, fCat, fPrio, fStatus, fTeam, fAssignee, fSource, fDue, scope, showArchived, canSeeAll]);
 
   // metrics
-  const all = data.tasks.filter((t) => !t.archived);
+  const all = tasks.filter((t) => !t.archived);
   const open = all.filter((t) => t.status !== "done").length;
   const mine = all.filter((t) => t.assignedTo === CURRENT_USER && t.status !== "done").length;
-  const teamTasks = all.filter((t) => (t.team ?? CURRENT_TEAM) === CURRENT_TEAM && t.status !== "done").length;
+  const teamTasks = all.filter((t) => (t.team || CURRENT_TEAM) === CURRENT_TEAM && t.status !== "done").length;
   const overdue = all.filter(isOverdue).length;
   const dueSoon = all.filter((t) => {
     if (t.status === "done" || !t.dueDate) return false;
@@ -227,7 +239,7 @@ function TasksPage() {
   const blocked = all.filter((t) => t.status === "blocked").length;
   const critical = all.filter((t) => t.priority === "critical" && t.status !== "done").length;
   const weekAgo = Date.now() - 7 * 86400_000;
-  const completedThisWeek = data.tasks.filter((t) => t.status === "done" && t.completedAt && new Date(t.completedAt).getTime() >= weekAgo).length;
+  const completedThisWeek = tasks.filter((t) => t.status === "done" && t.completedAt && new Date(t.completedAt).getTime() >= weekAgo).length;
   const [showMoreMetrics, setShowMoreMetrics] = useState(false);
 
   const allowedTabs: { value: ScopeTab; label: string; show: boolean }[] = [
@@ -245,6 +257,7 @@ function TasksPage() {
   const openCreate = (presetTpl?: string) => {
     if (!writable) { toast.error("Read-only role"); return; }
     setEditId(null);
+    setEditOriginalStatus(null);
     const base = empty();
     setForm(presetTpl ? applyTemplateToForm(presetTpl, base, taskRegistryTemplates) : base);
     if (presetTpl) incrementUsage(presetTpl);
@@ -254,34 +267,112 @@ function TasksPage() {
 
   const openEdit = (t: Task) => {
     setEditId(t.id);
+    setEditOriginalStatus(t.status);
     setTemplateId("none");
     setForm({
-      title: t.title, description: t.description ?? "", category: t.category,
-      priority: t.priority, status: t.status, scope: t.scope ?? "personal",
-      source: t.source ?? "manual",
+      title: t.title, description: t.description, category: t.category,
+      priority: t.priority, status: t.status, scope: t.scope,
+      source: t.source,
       dueDate: t.dueDate?.slice(0, 10) ?? "", reminderAt: t.reminderAt?.slice(0, 16) ?? "",
-      assignedTo: t.assignedTo, team: t.team ?? CURRENT_TEAM,
-      tags: (t.tags ?? []).join(", "),
-      watchers: (t.watchers ?? []).join(", "),
+      assignedTo: t.assignedTo, team: t.team || CURRENT_TEAM,
+      tags: t.tags.join(", "),
+      watchers: t.watchers.join(", "),
       recurringFreq: t.recurring?.freq ?? "none",
       recurringInterval: t.recurring?.interval ?? 1,
-      notes: t.notes ?? "",
+      notes: t.notes,
     });
     setDrawerOpen(true);
   };
 
+  const saveMutation = useMutation({
+    mutationFn: (input: TaskInput) => saveTask(editId, input),
+    onSuccess: async (_id, input) => {
+      await invalidate();
+      if (editId && editOriginalStatus && input.status && input.status !== editOriginalStatus) {
+        try {
+          await setTaskStatus(editId, input.status);
+          await invalidate();
+        } catch (error) {
+          toast.error(publicTaskError(error));
+        }
+      }
+      toast.success(editId ? "Task updated" : "Task created");
+      setDrawerOpen(false);
+    },
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: TaskStatus }) => setTaskStatus(id, status),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+  const escalateMutation = useMutation({
+    mutationFn: (id: string) => escalateTask(id),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+  const archiveMutation = useMutation({
+    mutationFn: ({ id, archived }: { id: string; archived: boolean }) => setTaskArchived(id, archived),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => duplicateTask(id),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => softDeleteTask(id),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+  const reminderMutation = useMutation({
+    mutationFn: ({ id, reminderAt }: { id: string; reminderAt: string }) => setTaskReminder(id, reminderAt),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+  const linksMutation = useMutation({
+    mutationFn: ({ id, links }: { id: string; links: TaskLinks }) => saveTaskLinks(id, links),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+  const bulkUpdateMutation = useMutation({
+    mutationFn: (patch: TaskBulkPatch) => bulkUpdateTasks(selIds(), patch),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+  const bulkAddTagMutation = useMutation({
+    mutationFn: (tag: string) => bulkAddTaskTag(selIds(), tag),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+  const bulkArchiveMutation = useMutation({
+    mutationFn: () => bulkSetTasksArchived(selIds(), true),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => bulkSoftDeleteTasks(selIds()),
+    onSuccess: () => invalidate(),
+    onError: (error) => toast.error(publicTaskError(error)),
+  });
+
   const save = () => {
     if (!form.title.trim()) { toast.error("Title is required"); return; }
-    const recurring = form.recurringFreq === "none"
+    const recurring: TaskRecurrence | null = form.recurringFreq === "none"
       ? null
       : { freq: form.recurringFreq, interval: Math.max(1, form.recurringInterval) };
     const tags = form.tags.split(",").map((s) => s.trim()).filter(Boolean);
     const watchers = form.watchers.split(",").map((s) => s.trim()).filter(Boolean);
     const checklistSrc = templateId !== "none" ? resolveChecklistForTemplate(templateId, taskRegistryTemplates) : null;
-    const seededChecklist = !editId && checklistSrc
-      ? checklistSrc.map((c, i) => ({ id: `ck_${Date.now()}_${i}`, title: c.title, completed: false, required: !!c.required }))
-      : undefined;
-    const payload = {
+    const existing = editId ? tasks.find((x) => x.id === editId) : null;
+    const checklist = editId
+      ? existing?.checklist ?? []
+      : checklistSrc
+        ? checklistSrc.map((c, i) => ({ id: `ck_${Date.now()}_${i}`, title: c.title, completed: false, required: !!c.required }))
+        : [];
+    const input: TaskInput = {
       title: form.title.trim(),
       description: form.description,
       category: form.category,
@@ -289,23 +380,18 @@ function TasksPage() {
       status: form.status,
       scope: form.scope,
       source: form.source,
-      dueDate: form.dueDate || undefined,
-      reminderAt: form.reminderAt ? new Date(form.reminderAt).toISOString() : undefined,
+      dueDate: form.dueDate || null,
+      reminderAt: form.reminderAt ? new Date(form.reminderAt).toISOString() : null,
       assignedTo: form.assignedTo,
+      owner: existing?.owner ?? "",
       team: form.team,
       tags,
       watchers,
       recurring,
+      checklist,
       notes: form.notes,
-    } as Partial<Task>;
-    if (editId) {
-      updateTask(editId, payload);
-      toast.success("Task updated");
-    } else {
-      createTask({ ...payload, title: payload.title!, ...(seededChecklist ? { checklist: seededChecklist } : {}) });
-      toast.success("Task created");
-    }
-    setDrawerOpen(false);
+    };
+    saveMutation.mutate(input);
   };
 
   const applyView = (id: string) => {
@@ -474,7 +560,7 @@ function TasksPage() {
               </SelectContent>
             </Select>
             <Button variant="ghost" size="sm" className="h-9" onClick={() => setSaveViewOpen(true)}>
-              <Bookmark className="mr-1 h-3.5 w-3.5" /> Save view
+              <Bookmark className="mr-1.5 h-3.5 w-3.5" /> Save view
             </Button>
             {data.taskViews.length > 0 && (
               <DropdownMenu>
@@ -495,28 +581,36 @@ function TasksPage() {
         {writable && selected.size > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
             <span className="font-medium">{selected.size} selected</span>
-            <Select onValueChange={(v) => { bulkUpdateTasks(selIds(), { assignedTo: v }); toast.success(`Assigned to ${v}`); setSelected(new Set()); }}>
+            <Select onValueChange={(v) => bulkUpdateMutation.mutate({ assignedTo: v }, { onSuccess: () => { toast.success(`Assigned to ${v}`); setSelected(new Set()); } })}>
               <SelectTrigger className="h-7 w-[140px]"><SelectValue placeholder="Assign user" /></SelectTrigger>
               <SelectContent>{TASK_OWNERS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
             </Select>
-            <Select onValueChange={(v) => { bulkUpdateTasks(selIds(), { team: v }); toast.success(`Team: ${v}`); setSelected(new Set()); }}>
+            <Select onValueChange={(v) => bulkUpdateMutation.mutate({ team: v }, { onSuccess: () => { toast.success(`Team: ${v}`); setSelected(new Set()); } })}>
               <SelectTrigger className="h-7 w-[140px]"><SelectValue placeholder="Assign team" /></SelectTrigger>
               <SelectContent>{TASK_TEAMS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
             </Select>
-            <Select onValueChange={(v) => { bulkUpdateTasks(selIds(), { status: v as TaskStatus }); toast.success(`Status: ${v}`); setSelected(new Set()); }}>
+            <Select onValueChange={(v) => bulkUpdateMutation.mutate({ status: v as TaskStatus }, { onSuccess: () => { toast.success(`Status: ${v}`); setSelected(new Set()); } })}>
               <SelectTrigger className="h-7 w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>{STATUSES.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
             </Select>
-            <Select onValueChange={(v) => { bulkUpdateTasks(selIds(), { priority: v as TaskPriority }); toast.success(`Priority: ${v}`); setSelected(new Set()); }}>
+            <Select onValueChange={(v) => bulkUpdateMutation.mutate({ priority: v as TaskPriority }, { onSuccess: () => { toast.success(`Priority: ${v}`); setSelected(new Set()); } })}>
               <SelectTrigger className="h-7 w-[120px]"><SelectValue placeholder="Priority" /></SelectTrigger>
               <SelectContent>{PRIORITIES.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
             </Select>
-            <Input type="date" className="h-7 w-[140px]" onChange={(e) => { if (!e.target.value) return; bulkUpdateTasks(selIds(), { dueDate: e.target.value }); toast.success("Due date set"); setSelected(new Set()); }} />
+            <Input type="date" className="h-7 w-[140px]" onChange={(e) => {
+              if (!e.target.value) return;
+              bulkUpdateMutation.mutate({ dueDate: e.target.value }, { onSuccess: () => { toast.success("Due date set"); setSelected(new Set()); } });
+            }} />
             <Button size="sm" variant="ghost" className="h-7" onClick={() => {
-              const t = prompt("Tag to add:"); if (t) { bulkAddTag(selIds(), t); toast.success("Tag added"); setSelected(new Set()); }
+              const t = prompt("Tag to add:");
+              if (t) bulkAddTagMutation.mutate(t, { onSuccess: () => { toast.success("Tag added"); setSelected(new Set()); } });
             }}>Add tag</Button>
-            <Button size="sm" variant="ghost" className="h-7" onClick={() => { bulkArchive(selIds()); toast.success("Archived"); setSelected(new Set()); }}><Archive className="mr-1 h-3 w-3" /> Archive</Button>
-            <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => { bulkDelete(selIds()); toast.success("Moved to recycle bin"); setSelected(new Set()); }}><Trash2 className="mr-1 h-3 w-3" /> Delete</Button>
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => bulkArchiveMutation.mutate(undefined, { onSuccess: () => { toast.success("Archived"); setSelected(new Set()); } })}>
+              <Archive className="mr-1 h-3 w-3" /> Archive
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => bulkDeleteMutation.mutate(undefined, { onSuccess: () => { toast.success("Moved to recycle bin"); setSelected(new Set()); } })}>
+              <Trash2 className="mr-1 h-3 w-3" /> Delete
+            </Button>
             <Button size="sm" variant="ghost" className="h-7 ml-auto" onClick={() => setSelected(new Set())}>Clear</Button>
           </div>
         )}
@@ -538,8 +632,8 @@ function TasksPage() {
               ) : (
                 <EmptyState
                   icon={CheckSquare}
-                  title="No tasks yet"
-                  description="Create the first task to begin tracking operational work."
+                  title={tasksQ.isLoading ? "Loading tasks" : "No tasks yet"}
+                  description={tasksQ.isLoading ? "Loading shared task data." : "Create the first task to begin tracking operational work."}
                   actionLabel={writable ? "Create task" : undefined}
                   onAction={writable ? () => openCreate() : undefined}
                 />
@@ -569,7 +663,7 @@ function TasksPage() {
                     {filtered.map((t) => {
                       const over = isOverdue(t);
                       const prog = checklistProgress(t);
-                      const linkedCount = (t.linkedTicketIds?.length ?? 0) + (t.linkedProtocolRunIds?.length ?? 0) + (t.linkedAssetId ? 1 : 0) + (t.linkedNoteIds?.length ?? 0);
+                      const linkedCount = (t.links.linkedTicketIds?.length ?? 0) + (t.links.linkedProtocolRunIds?.length ?? 0) + (t.links.linkedAssetId ? 1 : 0) + (t.links.linkedNoteIds?.length ?? 0);
                       return (
                         <tr key={t.id} className="border-t border-border/30 hover:bg-white/[0.02]">
                           <td className="px-2 py-2"><Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleOne(t.id)} /></td>
@@ -579,7 +673,7 @@ function TasksPage() {
                               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                 {t.recurring && <Repeat className="h-3 w-3" />}
                                 {t.escalated && <TrendingUp className="h-3 w-3 text-[#FF7C91]" />}
-                                {(t.tags ?? []).slice(0, 2).map((tag) => <span key={tag}>#{tag}</span>)}
+                                {t.tags.slice(0, 2).map((tag) => <span key={tag}>#{tag}</span>)}
                               </div>
                             </button>
                           </td>
@@ -591,7 +685,7 @@ function TasksPage() {
                           <td className="px-2 py-2 text-xs">
                             {t.dueDate ? <span className={over ? "text-[#FF7C91]" : "text-muted-foreground"}>{formatDate(t.dueDate)}</span> : <span className="text-muted-foreground">—</span>}
                           </td>
-                          <td className="px-2 py-2 text-xs text-muted-foreground">{t.source ?? "manual"}</td>
+                          <td className="px-2 py-2 text-xs text-muted-foreground">{t.source}</td>
                           <td className="px-2 py-2 text-xs text-muted-foreground">{linkedCount > 0 ? linkedCount : "—"}</td>
                           <td className="px-2 py-2">
                             {prog.total > 0 ? (
@@ -602,8 +696,20 @@ function TasksPage() {
                             ) : <span className="text-[10px] text-muted-foreground">—</span>}
                           </td>
                           <td className="px-2 py-2 text-right">
-                            <RowMenu task={t} writable={writable} onOpen={() => setDetailId(t.id)} onEdit={() => openEdit(t)}
-                              onDelete={() => setConfirmDelete(t.id)} />
+                            <RowMenu
+                              task={t}
+                              writable={writable}
+                              onOpen={() => setDetailId(t.id)}
+                              onEdit={() => openEdit(t)}
+                              onDelete={() => setConfirmDelete(t.id)}
+                              onComplete={() => statusMutation.mutate({ id: t.id, status: "done" }, { onSuccess: () => toast.success("Completed") })}
+                              onReopen={() => statusMutation.mutate({ id: t.id, status: "open" }, { onSuccess: () => toast.success("Reopened") })}
+                              onStart={() => statusMutation.mutate({ id: t.id, status: "in_progress" }, { onSuccess: () => toast.success("Started") })}
+                              onMarkBlocked={() => statusMutation.mutate({ id: t.id, status: "blocked" }, { onSuccess: () => toast.success("Marked blocked") })}
+                              onDuplicate={() => duplicateMutation.mutate(t.id, { onSuccess: () => toast.success("Duplicated") })}
+                              onEscalate={() => escalateMutation.mutate(t.id, { onSuccess: () => toast.success("Escalated") })}
+                              onArchive={() => archiveMutation.mutate({ id: t.id, archived: true }, { onSuccess: () => toast.success("Archived") })}
+                            />
                           </td>
                         </tr>
                       );
@@ -741,23 +847,48 @@ function TasksPage() {
         confirmLabel="Delete"
         onConfirm={() => {
           if (!confirmDelete) return;
-          deleteTask(confirmDelete);
+          const id = confirmDelete;
+          deleteMutation.mutate(id, { onSuccess: () => toast.success("Moved to recycle bin") });
           setConfirmDelete(null);
-          toast.success("Moved to recycle bin");
         }}
       />
 
       <TaskDetailsDrawer
-        task={data.tasks.find((t) => t.id === detailId) ?? null}
+        task={tasks.find((t) => t.id === detailId) ?? null}
+        allTasks={tasks}
         open={!!detailId}
         onOpenChange={(o) => !o && setDetailId(null)}
         onEdit={(t) => { setDetailId(null); openEdit(t); }}
+        onComplete={(id) => statusMutation.mutateAsync({ id, status: "done" })}
+        onReopen={(id) => statusMutation.mutateAsync({ id, status: "open" })}
+        onDuplicate={(id) => duplicateMutation.mutateAsync(id)}
+        onEscalate={(id) => escalateMutation.mutateAsync(id)}
+        onArchive={(id) => archiveMutation.mutateAsync({ id, archived: true })}
+        onDelete={(id) => deleteMutation.mutateAsync(id)}
+        onSetReminder={(id, reminderAt) => reminderMutation.mutateAsync({ id, reminderAt })}
+        onSaveLinks={(id, links) => linksMutation.mutateAsync({ id, links })}
       />
     </div>
   );
 }
 
-function RowMenu({ task, writable, onOpen, onEdit, onDelete }: { task: Task; writable: boolean; onOpen: () => void; onEdit: () => void; onDelete: () => void }) {
+function RowMenu({
+  task, writable, onOpen, onEdit, onDelete,
+  onComplete, onReopen, onStart, onMarkBlocked, onDuplicate, onEscalate, onArchive,
+}: {
+  task: Task;
+  writable: boolean;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onComplete: () => void;
+  onReopen: () => void;
+  onStart: () => void;
+  onMarkBlocked: () => void;
+  onDuplicate: () => void;
+  onEscalate: () => void;
+  onArchive: () => void;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -767,32 +898,32 @@ function RowMenu({ task, writable, onOpen, onEdit, onDelete }: { task: Task; wri
         <DropdownMenuItem onClick={onOpen}><Search className="mr-2 h-3.5 w-3.5" /> Open</DropdownMenuItem>
         {writable && <DropdownMenuItem onClick={onEdit}><Edit className="mr-2 h-3.5 w-3.5" /> Edit</DropdownMenuItem>}
         {writable && task.status !== "done" && (
-          <DropdownMenuItem onClick={() => { completeTask(task.id); toast.success("Completed"); }}>
+          <DropdownMenuItem onClick={onComplete}>
             <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Mark done
           </DropdownMenuItem>
         )}
         {writable && task.status === "done" && (
-          <DropdownMenuItem onClick={() => { reopenTask(task.id); toast.success("Reopened"); }}>
+          <DropdownMenuItem onClick={onReopen}>
             <RotateCcw className="mr-2 h-3.5 w-3.5" /> Reopen
           </DropdownMenuItem>
         )}
         {writable && task.status === "open" && (
-          <DropdownMenuItem onClick={() => { setTaskStatus(task.id, "in_progress"); toast.success("Started"); }}>
+          <DropdownMenuItem onClick={onStart}>
             <PlayCircle className="mr-2 h-3.5 w-3.5" /> Start
           </DropdownMenuItem>
         )}
         {writable && (
           <>
-            <DropdownMenuItem onClick={() => { setTaskStatus(task.id, "blocked"); toast.success("Marked blocked"); }}>
+            <DropdownMenuItem onClick={onMarkBlocked}>
               <Layers className="mr-2 h-3.5 w-3.5" /> Mark blocked
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { duplicateTask(task.id); toast.success("Duplicated"); }}>
+            <DropdownMenuItem onClick={onDuplicate}>
               <Copy className="mr-2 h-3.5 w-3.5" /> Duplicate
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { escalateTask(task.id); toast.success("Escalated"); }}>
+            <DropdownMenuItem onClick={onEscalate}>
               <TrendingUp className="mr-2 h-3.5 w-3.5" /> Escalate
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { archiveTask(task.id); toast.success("Archived"); }}>
+            <DropdownMenuItem onClick={onArchive}>
               <Archive className="mr-2 h-3.5 w-3.5" /> Archive
             </DropdownMenuItem>
             <DropdownMenuSeparator />

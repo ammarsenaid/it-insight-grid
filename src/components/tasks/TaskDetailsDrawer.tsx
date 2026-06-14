@@ -27,33 +27,40 @@ import { Label } from "@/components/ui/label";
 import { formatDate, formatDateTime, timeAgo } from "@/components/common/format";
 import { useData } from "@/lib/data/store";
 import { RelationPicker, type RelationSelection } from "@/components/common/RelationPicker";
-import {
-  archiveTask,
-  blockedByOpen,
-  completeTask,
-  deleteTask,
-  duplicateTask,
-  escalateTask,
-  isOverdue,
-  reopenTask,
-  scheduleReminder,
-  updateTask,
-} from "@/lib/data/tasks";
-import type { Task } from "@/lib/data/types";
+import { blockedByOpen, isOverdue } from "@/lib/tasks/tasks";
+import type { Task, TaskLinks } from "@/lib/tasks/types";
 import { can, useRole } from "@/lib/permissions";
 
 const PRIORITY_TONE = { low: "muted", normal: "info", high: "warning", critical: "danger" } as const;
 
 export function TaskDetailsDrawer({
   task,
+  allTasks,
   open,
   onOpenChange,
   onEdit,
+  onComplete,
+  onReopen,
+  onDuplicate,
+  onEscalate,
+  onArchive,
+  onDelete,
+  onSetReminder,
+  onSaveLinks,
 }: {
   task: Task | null;
+  allTasks: Task[];
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onEdit: (t: Task) => void;
+  onComplete: (id: string) => Promise<unknown>;
+  onReopen: (id: string) => Promise<unknown>;
+  onDuplicate: (id: string) => Promise<unknown>;
+  onEscalate: (id: string) => Promise<unknown>;
+  onArchive: (id: string) => Promise<unknown>;
+  onDelete: (id: string) => Promise<unknown>;
+  onSetReminder: (id: string, reminderAt: string) => Promise<unknown>;
+  onSaveLinks: (id: string, links: TaskLinks) => Promise<unknown>;
 }) {
   const data = useData();
   const role = useRole();
@@ -64,24 +71,70 @@ export function TaskDetailsDrawer({
   const [reminderVal, setReminderVal] = useState("");
 
   if (!task) return null;
-  const t = data.tasks.find((x) => x.id === task.id) ?? task;
+  const t = allTasks.find((x) => x.id === task.id) ?? task;
   const overdue = isOverdue(t);
-  const blocked = blockedByOpen(t, data.tasks);
+  const blocked = blockedByOpen(t, allTasks);
 
-  const linkedAsset = data.assets.find((a) => a.id === t.linkedAssetId);
-  const linkedDoc = data.documents.find((d) => d.id === t.linkedDocumentId);
-  const linkedTickets = (t.linkedTicketIds ?? []).map((id) => data.tickets.find((x) => x.id === id)).filter(Boolean);
-  const linkedIps = (t.linkedIpamIds ?? []).map((id) => data.ipam.find((x) => x.id === id)).filter(Boolean);
-  const linkedNotes = (t.linkedNoteIds ?? []).map((id) => data.notes.find((x) => x.id === id)).filter(Boolean);
-  const depTasks = (t.dependencyIds ?? []).map((id) => data.tasks.find((x) => x.id === id)).filter(Boolean) as Task[];
+  const linkedAsset = data.assets.find((a) => a.id === t.links.linkedAssetId);
+  const linkedDoc = data.documents.find((d) => d.id === t.links.linkedDocumentId);
+  const linkedTickets = (t.links.linkedTicketIds ?? []).map((id) => data.tickets.find((x) => x.id === id)).filter(Boolean);
+  const linkedIps = (t.links.linkedIpamIds ?? []).map((id) => data.ipam.find((x) => x.id === id)).filter(Boolean);
+  const linkedNotes = (t.links.linkedNoteIds ?? []).map((id) => data.notes.find((x) => x.id === id)).filter(Boolean);
+  const depTasks = (t.links.dependencyIds ?? []).map((id) => allTasks.find((x) => x.id === id)).filter(Boolean) as Task[];
 
   const relationsValue: RelationSelection = {
-    ticketIds: t.linkedTicketIds ?? [],
-    assetIds: t.linkedAssetId ? [t.linkedAssetId] : [],
-    ipamIds: t.linkedIpamIds ?? [],
-    taskIds: t.dependencyIds ?? [],
-    noteIds: t.linkedNoteIds ?? [],
-    userIds: t.linkedUserIds ?? [],
+    ticketIds: t.links.linkedTicketIds ?? [],
+    assetIds: t.links.linkedAssetId ? [t.links.linkedAssetId] : [],
+    ipamIds: t.links.linkedIpamIds ?? [],
+    taskIds: t.links.dependencyIds ?? [],
+    noteIds: t.links.linkedNoteIds ?? [],
+    userIds: t.links.linkedUserIds ?? [],
+  };
+
+  const runComplete = async () => {
+    try { await onComplete(t.id); toast.success("Completed"); } catch { /* mutation onError already surfaced a toast */ }
+  };
+  const runReopen = async () => {
+    try { await onReopen(t.id); toast.success("Reopened"); } catch { /* mutation onError already surfaced a toast */ }
+  };
+  const runDuplicate = async () => {
+    try { await onDuplicate(t.id); toast.success("Duplicated"); } catch { /* mutation onError already surfaced a toast */ }
+  };
+  const runEscalate = async () => {
+    try { await onEscalate(t.id); toast.success("Escalated"); } catch { /* mutation onError already surfaced a toast */ }
+  };
+  const runArchive = async () => {
+    try { await onArchive(t.id); toast.success("Archived"); onOpenChange(false); } catch { /* mutation onError already surfaced a toast */ }
+  };
+  const runDelete = async () => {
+    try {
+      await onDelete(t.id);
+      setConfirmDelete(false);
+      onOpenChange(false);
+      toast.success("Moved to recycle bin");
+    } catch { /* mutation onError already surfaced a toast */ }
+  };
+  const runSetReminder = async () => {
+    if (!reminderVal) { toast.error("Pick a date/time"); return; }
+    try {
+      await onSetReminder(t.id, new Date(reminderVal).toISOString());
+      toast.success("Reminder scheduled");
+      setReminderOpen(false);
+    } catch { /* mutation onError already surfaced a toast */ }
+  };
+  const runSaveLinks = async (sel: RelationSelection) => {
+    try {
+      await onSaveLinks(t.id, {
+        ...t.links,
+        linkedTicketIds: sel.ticketIds,
+        linkedAssetId: sel.assetIds[0],
+        linkedIpamIds: sel.ipamIds,
+        dependencyIds: sel.taskIds.filter((id) => id !== t.id),
+        linkedNoteIds: sel.noteIds,
+        linkedUserIds: sel.userIds,
+      });
+      toast.success("Links updated");
+    } catch { /* mutation onError already surfaced a toast */ }
   };
 
   return (
@@ -89,7 +142,7 @@ export function TaskDetailsDrawer({
       open={open}
       onOpenChange={onOpenChange}
       title={t.title}
-      description={`${t.category} · ${t.scope ?? "personal"}`}
+      description={`${t.category} · ${t.scope}`}
       actions={
         writable ? (
           <>
@@ -103,24 +156,24 @@ export function TaskDetailsDrawer({
         writable ? (
           <div className="flex flex-wrap items-center gap-2">
             {t.status !== "done" ? (
-              <Button size="sm" onClick={() => { completeTask(t.id); toast.success("Completed"); }}>
+              <Button size="sm" onClick={runComplete}>
                 <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Complete
               </Button>
             ) : (
-              <Button size="sm" variant="secondary" onClick={() => { reopenTask(t.id); toast.success("Reopened"); }}>
+              <Button size="sm" variant="secondary" onClick={runReopen}>
                 <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reopen
               </Button>
             )}
-            <Button size="sm" variant="ghost" onClick={() => { duplicateTask(t.id); toast.success("Duplicated"); }}>
+            <Button size="sm" variant="ghost" onClick={runDuplicate}>
               <Copy className="mr-1.5 h-3.5 w-3.5" /> Duplicate
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { escalateTask(t.id); toast.success("Escalated"); }}>
+            <Button size="sm" variant="ghost" onClick={runEscalate}>
               <TrendingUp className="mr-1.5 h-3.5 w-3.5" /> Escalate
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setReminderOpen((v) => !v)}>
               <Bell className="mr-1.5 h-3.5 w-3.5" /> Reminder
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { archiveTask(t.id); toast.success("Archived"); onOpenChange(false); }}>
+            <Button size="sm" variant="ghost" onClick={runArchive}>
               <Archive className="mr-1.5 h-3.5 w-3.5" /> Archive
             </Button>
             <Button size="sm" variant="ghost" className="ml-auto text-destructive" onClick={() => setConfirmDelete(true)}>
@@ -147,12 +200,7 @@ export function TaskDetailsDrawer({
             <Label className="text-xs text-muted-foreground">Set reminder</Label>
             <div className="mt-1.5 flex gap-2">
               <Input type="datetime-local" value={reminderVal} onChange={(e) => setReminderVal(e.target.value)} className="h-8" />
-              <Button size="sm" onClick={() => {
-                if (!reminderVal) { toast.error("Pick a date/time"); return; }
-                scheduleReminder(t.id, new Date(reminderVal).toISOString());
-                toast.success("Reminder scheduled");
-                setReminderOpen(false);
-              }}>Save</Button>
+              <Button size="sm" onClick={runSetReminder}>Save</Button>
             </div>
             {t.reminderAt && <div className="mt-1.5 text-[11px] text-muted-foreground">Current: {formatDateTime(t.reminderAt)}</div>}
           </div>
@@ -175,10 +223,10 @@ export function TaskDetailsDrawer({
           </Section>
         )}
 
-        {(t.tags?.length ?? 0) > 0 && (
+        {t.tags.length > 0 && (
           <Section label="Tags">
             <div className="flex flex-wrap gap-1.5">
-              {t.tags!.map((tag) => (
+              {t.tags.map((tag) => (
                 <StatusBadge key={tag} tone="muted" label={tag} />
               ))}
             </div>
@@ -223,11 +271,11 @@ export function TaskDetailsDrawer({
           </LinkedList>
         </Section>
 
-        {t.sourceTicketId && (
+        {t.links.sourceTicketId && (
           <Section label="Source">
             <p className="text-xs text-muted-foreground">
               Converted from ticket{" "}
-              <Link to="/tickets/$id" params={{ id: t.sourceTicketId }} className="text-primary hover:underline">
+              <Link to="/tickets/$id" params={{ id: t.links.sourceTicketId }} className="text-primary hover:underline">
                 view
               </Link>
             </p>
@@ -240,17 +288,7 @@ export function TaskDetailsDrawer({
         onOpenChange={setLinkOpen}
         value={relationsValue}
         title="Link records to task"
-        onSave={(sel) => {
-          updateTask(t.id, {
-            linkedTicketIds: sel.ticketIds,
-            linkedAssetId: sel.assetIds[0],
-            linkedIpamIds: sel.ipamIds,
-            dependencyIds: sel.taskIds.filter((id) => id !== t.id),
-            linkedNoteIds: sel.noteIds,
-            linkedUserIds: sel.userIds,
-          });
-          toast.success("Links updated");
-        }}
+        onSave={runSaveLinks}
       />
 
       <ConfirmDialog
@@ -259,12 +297,7 @@ export function TaskDetailsDrawer({
         title="Delete task?"
         destructive
         confirmLabel="Delete"
-        onConfirm={() => {
-          deleteTask(t.id);
-          setConfirmDelete(false);
-          onOpenChange(false);
-          toast.success("Moved to recycle bin");
-        }}
+        onConfirm={runDelete}
       />
     </DetailsDrawer>
   );

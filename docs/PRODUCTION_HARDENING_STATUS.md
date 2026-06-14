@@ -731,3 +731,57 @@ requires explicit approval under `AGENTS.md`.
   and an explicit disposable marker before cleanup or fixture writes are armed.
 - SQL was not executed. Disposable-database and browser runtime validation remain
   required; the protected live database remains untouched.
+
+## Milestone 27 - Organization-Scoped Tasks Backend
+
+- Replaced the Tasks route and task details drawer's reads and writes with typed
+  Supabase and TanStack Query contracts (`src/lib/tasks/types.ts`,
+  `src/lib/tasks/tasks.ts`, `src/lib/tasks/queries.ts`); browser-local task rows
+  are no longer authoritative. Saved-view preferences (`data.taskViews`) and the
+  static `CURRENT_USER`/`CURRENT_TEAM`/`TASK_*` constants remain local UI state,
+  consistent with prior milestones.
+- Added an organization-scoped `tasks` table (priority/status/scope/source enums,
+  recurrence, checklist, tags, watchers, opaque `links` jsonb for cross-module
+  references, soft delete) and a `task_comments` table, both with least-privilege
+  RLS gated on `tasks.view` (non-deleted rows) and `tasks.manage` (full access,
+  including writes).
+- Added `prepare_tasks_write`/`prepare_task_comments_write` triggers that derive
+  `organization_id`, `created_by`/`updated_by`/`author`, and forbid
+  cross-organization moves, plus an `assert_tasks_manage()` helper used by every
+  mutating RPC.
+- Revoked all direct authenticated table writes and exposed `list_tasks`,
+  `save_task`, `set_task_status`, `escalate_task`, `set_task_archived`,
+  `duplicate_task`, `save_task_links`, `set_task_reminder`, `add_task_comment`,
+  `soft_delete_task`, `restore_task`, `bulk_update_tasks`, `bulk_add_task_tag`,
+  `bulk_set_tasks_archived`, and `bulk_soft_delete_tasks` as permission-checked,
+  empty-search-path RPCs.
+- `set_task_status` records `completed_at` on completion/reopen and, for tasks
+  with a `recurring` schedule and a due date, creates a follow-up task at the
+  next occurrence with a freshly-keyed, unchecked checklist via
+  `next_task_occurrence`/`duplicate_task_checklist`.
+- Added an additive `role_permissions` grant so `doc_editor` (which already has
+  `tasks.view` and the frontend `tasks.write` capability) also holds the backend
+  `tasks.manage` permission, aligning the existing frontend/DB permission
+  mismatch without removing any existing grant.
+- Corrected `save_task`'s UPDATE path so an empty `assigned_to`/`owner`/`team`
+  value in the input no longer overwrites the existing value (matches the
+  `nullif` pattern already used for `due_date`/`reminder_at` and the INSERT
+  path).
+- Cross-module "linked records" reads in the task details drawer (assets,
+  documents, tickets, IPAM, notes) continue to read the browser-local seed
+  store, matching the precedent set by the CMDB/IPAM milestones; only the
+  Tasks module's own data moved to the backend.
+- Added transaction-backed disposable QA covering RLS enablement, direct-write
+  denial, the `doc_editor` RBAC alignment, validation errors (checklist,
+  recurrence, priority/status/scope/source enums, blank title), recurring
+  follow-up creation and reopen, escalation idempotency, archive toggling,
+  duplication, links/reminder updates, comments, bulk operations with
+  `completed_at` side effects, soft delete/restore, hard-delete and direct-write
+  rejection, and organization-isolation for both reads and every mutating RPC.
+- Added a static frontend/SQL assertion script
+  (`scripts/qa/production_hardening_tasks.sh`) verifying the Tasks route and
+  drawer no longer use the local store or legacy `src/lib/data/tasks.ts`
+  mutators, use the new service layer and React Query keys, and that destructive
+  operations are RPC-only.
+- SQL was not executed. Disposable-database and browser runtime validation remain
+  required; the protected live database remains untouched.
