@@ -56,8 +56,23 @@ import { Switch } from "@/components/ui/switch";
 import { BackendKnowledgePanel } from "@/components/knowledge/BackendKnowledgePanel";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import { cmdbAssetsQuery } from "@/lib/cmdb/queries";
 import { ipamAddressesQuery } from "@/lib/ipam/queries";
+import { notesQuery } from "@/lib/notes/queries";
 import { protocolRunsQuery } from "@/lib/protocols/queries";
+import {
+  recycleBinDeletedAddressesQuery,
+  recycleBinDeletedAssetsQuery,
+  recycleBinDeletedNotesQuery,
+  recycleBinDeletedTasksQuery,
+} from "@/lib/recycle-bin/queries";
+import {
+  addressesToRecycleBinItems,
+  assetsToRecycleBinItems,
+  notesToRecycleBinItems,
+  tasksToRecycleBinItems,
+} from "@/lib/recycle-bin/recycleBin";
+import { tasksQuery } from "@/lib/tasks/queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -110,7 +125,7 @@ function primaryCreateForRole(role: Role): { label: string; to: string; show: bo
 // ---------- main ----------
 
 function Dashboard() {
-  const data = useData();
+  const { tickets: legacyTickets, activity: localActivity } = useData();
   const knowledge = useKnowledge();
   const knowledgePages = useMemo(() => knowledge.nodes.filter((n) => n.type === "page"), [knowledge.nodes]);
   const spaceCount = useMemo(() => knowledge.nodes.filter((n) => n.type === "space").length, [knowledge.nodes]);
@@ -118,17 +133,37 @@ function Dashboard() {
   const navigate = useNavigate();
   const prefs = useDashboardPrefs();
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const cmdbReadable = can("cmdb.view", role);
   const ipamReadable = can("ipam.view", role);
+  const notesReadable = can("notes.view", role);
   const protocolsReadable = can("protocols.view", role);
+  const tasksReadable = can("tasks.view", role);
+  const recycleBinReadable = can("recyclebin.restore", role);
+  const cmdbQuery = useQuery({ ...cmdbAssetsQuery(), enabled: cmdbReadable });
   const ipamQuery = useQuery({ ...ipamAddressesQuery(false), enabled: ipamReadable });
+  const notesQueryResult = useQuery({ ...notesQuery(), enabled: notesReadable });
   const protocolRunsQueryResult = useQuery({ ...protocolRunsQuery(), enabled: protocolsReadable });
+  const tasksQueryResult = useQuery({ ...tasksQuery(), enabled: tasksReadable });
+  const deletedAssetsQuery = useQuery({ ...recycleBinDeletedAssetsQuery(), enabled: recycleBinReadable });
+  const deletedAddressesQuery = useQuery({ ...recycleBinDeletedAddressesQuery(), enabled: recycleBinReadable });
+  const deletedTasksQuery = useQuery({ ...recycleBinDeletedTasksQuery(), enabled: recycleBinReadable });
+  const deletedNotesQuery = useQuery({ ...recycleBinDeletedNotesQuery(), enabled: recycleBinReadable });
+  const assets = cmdbQuery.data ?? [];
   const ipamAddresses = ipamQuery.data ?? [];
+  const notes = notesQueryResult.data ?? [];
   const protocolRuns = protocolRunsQueryResult.data ?? [];
+  const tasks = tasksQueryResult.data ?? [];
+  const recycleBinCount = useMemo(() =>
+    assetsToRecycleBinItems(deletedAssetsQuery.data ?? []).length
+    + addressesToRecycleBinItems(deletedAddressesQuery.data ?? []).length
+    + tasksToRecycleBinItems(deletedTasksQuery.data ?? []).length
+    + notesToRecycleBinItems(deletedNotesQuery.data ?? []).length,
+  [deletedAssetsQuery.data, deletedAddressesQuery.data, deletedTasksQuery.data, deletedNotesQuery.data]);
 
   const me = meForRole(role);
   const primary = primaryCreateForRole(role);
 
-  const tickets = useMemo(() => data.tickets.map(recomputeSla), [data.tickets]);
+  const tickets = useMemo(() => legacyTickets.map(recomputeSla), [legacyTickets]);
 
   // -------- ticket calcs --------
   const openLike = (s: string) => !["resolved", "closed", "cancelled"].includes(s);
@@ -138,11 +173,11 @@ function Dashboard() {
   const slaBreach = openTickets.filter((t) => t.sla === "breached").length;
 
   // -------- task calcs --------
-  const isOverdue = (d?: string) => !!d && new Date(d) < new Date();
-  const isDueToday = (d?: string) => !!d && new Date(d).toDateString() === new Date().toDateString();
-  const openTasks = data.tasks.filter((t) => t.status !== "done");
+  const isOverdue = (d?: string | null) => !!d && new Date(d) < new Date();
+  const isDueToday = (d?: string | null) => !!d && new Date(d).toDateString() === new Date().toDateString();
+  const openTasks = tasks.filter((t) => t.status !== "done");
   const overdueTasks = openTasks.filter((t) => isOverdue(t.dueDate));
-  const maintenanceAssets = data.assets.filter((a) => a.status === "maintenance");
+  const maintenanceAssets = assets.filter((a) => a.status === "maintenance");
   const unlinkedIP = ipamQuery.isSuccess
     ? ipamAddresses.filter((address) => address.allocationState === "allocated" && !address.linkedAssetId)
     : [];
@@ -164,9 +199,9 @@ function Dashboard() {
   const myTasks = useMemo(() => {
     if (isReadOnly(role) || isRequester(role)) return [];
     if (role === "super_admin" || role === "it_admin")
-      return data.tasks.filter((t) => t.status !== "done");
-    return data.tasks.filter((t) => t.status !== "done" && t.assignedTo === me.taskOwner);
-  }, [data.tasks, role, me]);
+      return tasks.filter((t) => t.status !== "done");
+    return tasks.filter((t) => t.status !== "done" && t.assignedTo === me.taskOwner);
+  }, [tasks, role, me]);
 
   const waitingForMe = useMemo(() => {
     if (isRequester(role)) return tickets.filter((t) => t.status === "waiting" && t.requester.toLowerCase().includes(me.requester)).length;
@@ -361,7 +396,7 @@ function Dashboard() {
               <h2 className="text-sm font-semibold tracking-tight">Recent Activity</h2>
             </div>
             <ol className="flex-1 divide-y divide-border/40">
-              {data.activity.slice(0, 7).map((a) => (
+              {localActivity.slice(0, 7).map((a) => (
                 <li key={a.id} className="py-2 first:pt-0">
                   <p className="text-sm leading-snug">{a.message}</p>
                   <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground/70" suppressHydrationWarning>
@@ -369,7 +404,7 @@ function Dashboard() {
                   </p>
                 </li>
               ))}
-              {data.activity.length === 0 && (
+              {localActivity.length === 0 && (
                 <p className="py-2 text-sm text-muted-foreground">No recent activity.</p>
               )}
             </ol>
@@ -434,7 +469,7 @@ function Dashboard() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <MetricCard icon={FileText} label="Knowledge Pages" value={knowledgePages.length} sub="In knowledge base" accent="primary" />
             <MetricCard icon={Hash} label="Spaces" value={spaceCount} sub="Top-level areas" accent="primary" />
-            <MetricCard icon={StickyNote} label="Notes" value={data.notes.length} sub="Quick references" accent="primary" />
+            <MetricCard icon={StickyNote} label="Notes" value={notes.length} sub="Quick references" accent="primary" />
             <MetricCard icon={Hourglass} label="In Review" value={reviewDocs.length} sub="Pending publication" accent="warning" />
           </div>
         </section>
@@ -445,7 +480,7 @@ function Dashboard() {
         <section className="mt-5">
           <SectionTitle title="Infrastructure Metrics" caption="CMDB and IPAM footprint." />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MetricCard icon={Server} label="CMDB Assets" value={data.assets.length} sub="Tracked infrastructure" accent="success" />
+            <MetricCard icon={Server} label="CMDB Assets" value={assets.length} sub="Tracked infrastructure" accent="success" />
             <MetricCard icon={Network} label="IP Records" value={ipamQuery.isSuccess ? ipamAddresses.length : "—"} sub={ipamQuery.isError ? "Shared IPAM unavailable" : ipamQuery.isLoading ? "Loading shared IPAM" : "IPAM entries"} accent="success" />
             <MetricCard icon={Wrench} label="In Maintenance" value={maintenanceAssets.length} sub="Under service" accent="warning" />
             <MetricCard icon={AlertTriangle} label="Unlinked IPs" value={ipamQuery.isSuccess ? unlinkedIP.length : "—"} sub={ipamQuery.isError ? "Shared IPAM unavailable" : ipamQuery.isLoading ? "Loading shared IPAM" : "Allocated, no asset"} accent="warning" />
@@ -484,12 +519,12 @@ function Dashboard() {
       )}
 
       {/* Optional: Recycle Bin summary */}
-      {prefs.recycleBinSummary && can("recyclebin.restore", role) && data.trash.length > 0 && (
+      {prefs.recycleBinSummary && recycleBinReadable && recycleBinCount > 0 && (
         <section className="mt-5">
           <div className="glass-card flex items-center justify-between rounded-2xl p-4">
             <div>
               <h2 className="text-sm font-semibold tracking-tight">Recycle Bin</h2>
-              <p className="text-xs text-muted-foreground">{data.trash.length} item{data.trash.length === 1 ? "" : "s"} recoverable.</p>
+              <p className="text-xs text-muted-foreground">{recycleBinCount} item{recycleBinCount === 1 ? "" : "s"} recoverable.</p>
             </div>
             <Button size="sm" variant="secondary" onClick={() => navigate({ to: "/trash" })}>
               Open Recycle Bin

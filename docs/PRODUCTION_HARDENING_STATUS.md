@@ -1,6 +1,6 @@
 # Production Hardening Status
 
-Last updated: 2026-06-13
+Last updated: 2026-06-14
 
 ## Current Progress
 
@@ -30,6 +30,12 @@ Last updated: 2026-06-13
 - Completed milestone: 24 - Shared CMDB Backend
 - Completed milestone: 25 - Organization-Scoped CMDB Correction
 - Completed milestone: 26 - Organization-Scoped IPAM Backend
+- Completed milestone: 27 - Organization-Scoped Tasks Backend
+- Completed milestone: 28 - Organization-Scoped Notes Backend
+- Completed milestone: 29 - Organization-Scoped Protocols Backend
+- Completed milestone: 30 - Recycle Bin Backend Aggregation
+- Completed milestone: 31 - Global Search Live-Data Integration
+- Completed milestone: 32 - Dashboard Live-Data Integration
 - Active milestone: none; repository-side review phase completed.
 - Repository inventory completed without reading secret-bearing files.
 - Existing uncommitted ticket-attachment SQL and QA changes identified and
@@ -105,6 +111,8 @@ Last updated: 2026-06-13
 - `network_admin` retains ticket queue and internal visibility but no longer
   receives assignment or resolution capabilities. Queue and detail mutation
   controls now render only when their matching backend capability is present.
+- Dashboard Tasks, CMDB, Notes, and Recycle Bin metrics now use the existing
+  permission-gated Supabase query layers instead of stale browser-local rows.
 
 ## Changed Files
 
@@ -292,6 +300,12 @@ Milestone 26 implementation:
 - `scripts/qa/production_hardening_csv.sh`
 - `scripts/qa/production_hardening_ipam_concurrency.sh`
 - `scripts/qa/production_hardening_frontend_auth.sh`
+- `docs/PRODUCTION_HARDENING_STATUS.md`
+
+Milestone 32 implementation:
+
+- `src/routes/index.tsx`
+- `scripts/qa/production_hardening_dashboard.sh`
 - `docs/PRODUCTION_HARDENING_STATUS.md`
 
 ## Validation Results
@@ -1023,3 +1037,35 @@ requires explicit approval under `AGENTS.md`.
 - Remaining known gap: the dashboard (`src/routes/index.tsx`) still has the
   same staleness issue for several widgets (`data.tasks`/`data.assets`/
   `data.notes` counts) and is the natural candidate for the next milestone.
+
+## Milestone 32 - Dashboard Live-Data Integration
+
+- Replaced the dashboard's Tasks, CMDB, and Notes reads with the existing
+  Supabase-backed TanStack Query contracts (`tasksQuery`, `cmdbAssetsQuery`,
+  and `notesQuery`). Active-task counts, overdue-task alerts, assigned-task
+  counts, maintenance-asset alerts/counts, total asset count, and note count no
+  longer come from the browser-local seed store.
+- Replaced the dashboard's legacy `data.trash` summary with the same four
+  include-deleted queries and normalization helpers used by the live Recycle
+  Bin route. The summary now counts recoverable CMDB assets, IPAM addresses,
+  Tasks, and Notes that are visible through the existing backend contracts.
+- Each query is enabled only when the current frontend role has the matching
+  `tasks.view`, `cmdb.view`, `notes.view`, or `recyclebin.restore` capability.
+  The underlying list operations remain the authorization boundary and enforce
+  organization and permission scope through their existing RLS/RPC contracts.
+- Preserved the dashboard layout, metric labels, alert ordering, click-through
+  behavior, and customization preferences. No SQL or backend contract change
+  was required.
+- Kept the legacy ticket and recent-activity reads explicitly scoped to
+  `legacyTickets` and `localActivity`. The live Service Desk ticket DTO does not
+  expose the SLA deadline/state used by the dashboard's breach widgets, and no
+  live cross-module activity aggregation query exists; replacing either in this
+  milestone would change behavior rather than preserve it.
+- Added `scripts/qa/production_hardening_dashboard.sh` to reject regressions to
+  `data.tasks`/`data.assets`/`data.notes`/`data.trash`, require capability-gated
+  live queries and recycle-bin aggregation, verify the existing query contracts,
+  and pin the two explicitly deferred local reads.
+- No SQL was added or executed. Disposable-database validation is not required
+  for this query-only patch beyond the existing module QA, but browser runtime
+  validation remains required for loading/error transitions and role-specific
+  dashboard counts.
