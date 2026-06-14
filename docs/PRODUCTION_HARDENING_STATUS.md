@@ -1282,3 +1282,55 @@ requires explicit approval under `AGENTS.md`.
   or modified, and no migration or QA SQL was executed. Full-chain validation
   must be rerun from a fresh disposable database under separate explicit human
   approval before any promotion or deployment decision.
+
+---
+
+## Milestone 47 — Live Remaining Backend Modules Applied
+
+Status: PASSED.
+
+Date: 2026-06-14.
+
+Branch: `hardening/production-readiness-20260612`.
+
+Latest pushed commit before live application: `7ce34df Fix ticket attachment bucket compatibility`.
+
+### What changed on live DB
+
+The remaining backend modules were applied to the live self-hosted Supabase database after a successful disposable gate:
+
+- IPAM backend
+- Tasks backend
+- Notes backend
+- Protocols backend
+
+The live database final state was verified as:
+
+- `service_desk=true`
+- `cmdb=true`
+- `ipam=true`
+- `tasks=true`
+- `notes=true`
+- `protocols=true`
+- `public_tables=47`
+- `auth_users=1`
+
+### Safety gates completed
+
+- Current live DB was backed up before reclassification:
+  `/opt/it-knowledge-center/backups/current-live-before-reclassification-20260614_150641`
+- Remaining migrations were tested on a disposable DB restored from the current live backup.
+- Disposable migration gate passed.
+- Live migrations were applied after disposable success.
+- Live rollback QA files passed.
+- Post-migration live backup was created:
+  `/opt/it-knowledge-center/backups/post-remaining-migrations-live-20260614_151452`
+- Post-migration system health passed:
+  - Supabase containers healthy: 11/11
+  - Frontend service: active
+  - Frontend local HTTP: 200
+  - Supabase gateway local HTTP: 401 expected unauthenticated response
+
+### Important note
+
+The live database was not a clean baseline when Milestone 41 started. It already contained Service Desk, ticket configuration, ticket attachments, notifications, organization foundation, and CMDB tables. Therefore, the workflow was reclassified from “full clean baseline migration” to “current-live-state continuation with protected backups.”
