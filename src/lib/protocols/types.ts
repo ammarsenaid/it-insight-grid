@@ -112,10 +112,3 @@ export interface StartProtocolRunInput {
 }
 
 export type ProtocolRunStepPatch = Partial<Omit<ProtocolRunStep, "stepId">>;
-
-// Legacy browser-local store shape, retained for the non-authoritative
-// cross-module reads in src/routes/index.tsx and src/routes/search.tsx.
-export interface ProtocolState {
-  templates: ProtocolTemplate[];
-  runs: ProtocolRun[];
-}

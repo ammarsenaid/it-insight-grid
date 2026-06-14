@@ -682,10 +682,9 @@ grant execute on function public.add_protocol_run_comment(uuid, text) to authent
 -- ------------------------------------------------------------
 -- RBAC ALIGNMENT
 -- ------------------------------------------------------------
--- Frontend CAPS (src/lib/permissions.tsx) gates Protocols writes
--- behind "tasks.write", which includes sd_lead, helpdesk, and
--- technician. Align the database catalog with the same capability
--- so those roles can call the protocols.manage-gated RPCs above.
+-- Frontend CAPS (src/lib/permissions.tsx) gates Protocols writes with
+-- protocols.manage. Add the Service Desk roles that previously inherited
+-- write access from the prototype's tasks.write capability.
 insert into public.role_permissions (role_id, permission_id)
 select r.id, p.id
   from public.roles r

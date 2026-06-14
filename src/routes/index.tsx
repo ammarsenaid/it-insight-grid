@@ -25,7 +25,6 @@ import {
   PlayCircle,
   Wrench,
 } from "lucide-react";
-import { useProtocols as useProtocolsHook } from "@/lib/protocols/store";
 import { useMemo, useState, type ComponentType } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { MetricCard } from "@/components/common/MetricCard";
@@ -58,6 +57,7 @@ import { BackendKnowledgePanel } from "@/components/knowledge/BackendKnowledgePa
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { ipamAddressesQuery } from "@/lib/ipam/queries";
+import { protocolRunsQuery } from "@/lib/protocols/queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -118,10 +118,12 @@ function Dashboard() {
   const navigate = useNavigate();
   const prefs = useDashboardPrefs();
   const [customizeOpen, setCustomizeOpen] = useState(false);
-  const { runs: protocolRuns } = useProtocolsHook();
   const ipamReadable = can("ipam.view", role);
+  const protocolsReadable = can("protocols.view", role);
   const ipamQuery = useQuery({ ...ipamAddressesQuery(false), enabled: ipamReadable });
+  const protocolRunsQueryResult = useQuery({ ...protocolRunsQuery(), enabled: protocolsReadable });
   const ipamAddresses = ipamQuery.data ?? [];
+  const protocolRuns = protocolRunsQueryResult.data ?? [];
 
   const me = meForRole(role);
   const primary = primaryCreateForRole(role);
@@ -616,7 +618,7 @@ function QuickActions({ role }: { role: Role }) {
   const actions: { to: string; icon: ComponentType<{ className?: string }>; label: string; cap?: string }[] = [
     { to: "/tickets", icon: TicketIcon, label: "New ticket", cap: "tickets.create" },
     { to: "/tasks", icon: CheckSquare, label: "New task", cap: "tasks.write" },
-    { to: "/protocols", icon: ListChecks, label: "Run protocol" },
+    { to: "/protocols", icon: ListChecks, label: "Run protocol", cap: "protocols.manage" },
     { to: "/cmdb", icon: Server, label: "Add asset", cap: "cmdb.manage" },
     { to: "/ipam", icon: Network, label: "Add IP record", cap: "ipam.manage" },
     { to: "/documents", icon: FileText, label: "New knowledge page", cap: "documents.create" },

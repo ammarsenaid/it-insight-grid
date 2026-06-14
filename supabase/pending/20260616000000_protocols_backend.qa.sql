@@ -244,13 +244,16 @@ begin
   select steps -> 0 ->> 'stepId' into step_one_id from public.protocol_runs where id = run_a;
 
   -- Toggle step complete with server-derived completedBy/completedAt.
-  perform public.update_protocol_run_step(run_a, step_one_id, jsonb_build_object('completed', true, 'notes', 'done'));
+  perform public.update_protocol_run_step(run_a, step_one_id, jsonb_build_object(
+    'completed', true, 'notes', 'done', 'evidence', 'change-123'
+  ));
   assert exists (
     select 1 from public.protocol_runs r, jsonb_array_elements(r.steps) elem
      where r.id = run_a and elem->>'stepId' = step_one_id
        and elem->>'completed' = 'true' and elem->>'completedBy' = 'QA Protocols Manager A'
        and elem->>'completedAt' is not null and elem->>'notes' = 'done'
-  ), 'update_protocol_run_step must set completed, completedBy, completedAt, and notes';
+       and elem->>'evidence' = 'change-123'
+  ), 'update_protocol_run_step must set completion metadata, notes, and evidence';
 
   -- Toggling back to incomplete clears completedBy/completedAt.
   perform public.update_protocol_run_step(run_a, step_one_id, jsonb_build_object('completed', false));

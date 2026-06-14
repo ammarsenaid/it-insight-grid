@@ -100,7 +100,7 @@ function ProtocolsPage() {
   const [confirmDelete, setConfirmDelete] = useState<ProtocolTemplate | null>(null);
 
   const me = meForRole(role);
-  const canWrite = can("tasks.write", role);
+  const canWrite = can("protocols.manage", role);
 
   const metrics = useMemo(() => {
     const today = new Date(); today.setHours(0,0,0,0);

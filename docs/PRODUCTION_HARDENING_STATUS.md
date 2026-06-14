@@ -841,11 +841,30 @@ requires explicit approval under `AGENTS.md`.
 
 ## Milestone 29 - Organization-Scoped Protocols Backend
 
+### P18 static-review follow-up
+
+- Replaced the dashboard's remaining `useProtocols()` browser-store read with
+  the shared `protocolRunsQuery()` contract, so Protocols counts no longer come
+  from seeded local browser state.
+- Removed the now-unreachable `src/lib/protocols/store.ts` and
+  `src/lib/protocols/seed.ts` prototype persistence modules and their legacy
+  `ProtocolState` type. Protocol records no longer have a browser-local
+  persistence path.
+- Added explicit `protocols.view` and `protocols.manage` frontend capabilities.
+  Protocols routes now gate writes with the same permission name enforced by
+  the RLS-backed RPCs, and the dashboard run shortcut requires
+  `protocols.manage`.
+- Extended `scripts/qa/production_hardening_protocols.sh` to reject Protocols
+  local-store imports anywhere under `src`, require the dashboard query and
+  capability integration, and prevent a return to the unrelated
+  `tasks.write` UI gate. The disposable SQL QA now also asserts evidence is
+  persisted through `update_protocol_run_step`. SQL remains pending and
+  unexecuted.
+
 - Replaced the Protocols list and run-detail routes' reads and writes with
   typed Supabase and TanStack Query contracts (`src/lib/protocols/types.ts`,
   `src/lib/protocols/protocols.ts`, `src/lib/protocols/queries.ts`); the
-  browser-local `src/lib/protocols/store.ts` is no longer imported or
-  authoritative.
+  former browser-local Protocols store is no longer present.
 - Added organization-scoped `protocol_templates`, `protocol_runs`, and
   `protocol_run_comments` tables (templates carry a jsonb `steps` array and
   soft-delete columns; runs carry jsonb `steps`/`approvals` arrays and a jsonb
@@ -960,3 +979,47 @@ requires explicit approval under `AGENTS.md`.
 - No SQL was added or executed. This milestone is a pure frontend
   aggregation over already-migrated, already-QA'd backend objects; the
   protected live database remains untouched.
+
+## Milestone 31 - Global Search Live-Data Integration
+
+- Replaced Global Search's (`src/routes/search.tsx`) CMDB/IPAM/Tasks/Notes/
+  Protocols result sources with the live Supabase-backed TanStack Query
+  layers added in Milestones 24-29 (`cmdbAssetsQuery`, `ipamAddressesQuery`,
+  `tasksQuery`, `notesQuery`, `protocolTemplatesQuery`, `protocolRunsQuery`).
+  Previously these five sections searched the legacy browser-local
+  `data.assets`/`data.ipam`/`data.tasks`/`data.notes` seed arrays and the
+  `useProtocols()` local store (`protocols.templates`/`protocols.runs`), so
+  records created, edited, restored, or deleted through the now-backend-driven
+  CMDB/IPAM/Tasks/Notes/Protocols/Recycle-Bin UIs never appeared in (or
+  disappeared from) search results.
+- No new database migration was required: `list_assets`/`list_ipam_addresses`/
+  `list_tasks`/`list_notes`/`list_protocol_templates`/`list_protocol_runs` and
+  their query-key/queryOptions wrappers already exist and are already RLS- and
+  permission-scoped (rows the caller cannot see are filtered out server-side,
+  not raised as errors), so each search section degrades to "no results" for
+  users without the corresponding `*.view`/`*.manage` permission rather than
+  failing the whole page.
+- Result field mappings (`hostname`/`displayName`/`ipAddress` for assets,
+  `ipAddress`/`hostname`/`subnet` for IPAM, `title`/`category`/`status` for
+  tasks, `title`/`category`/`content` for notes, `title`/`category`/`tags`/
+  `steps` for protocol templates, `runNumber`/`templateTitle`/`status`/
+  `assignedUser` for protocol runs) were unchanged - the new types from
+  `src/lib/<module>/types.ts` expose the same field names the legacy `data.*`
+  shapes used, so the existing `Group` rendering and result-grouping UI is
+  preserved exactly.
+- The "Knowledge Base" (`useKnowledge()` local tree) and "Knowledge Base
+  (Live)" (`useTeamArticles()`) sections are unchanged and out of scope for
+  this milestone; that dual-source duplication predates Milestones 24-30 and
+  is tracked separately.
+- Added a static frontend assertion script
+  (`scripts/qa/production_hardening_global_search.sh`) verifying the search
+  route no longer reads `@/lib/data/store` or `@/lib/protocols/store` for
+  these five modules, uses the five modules' live query layers via
+  `useQuery(...)`, derives results from `*.data ?? []`, and that the
+  Knowledge Base sections remain untouched.
+- No SQL was added or executed. This milestone is a pure frontend
+  aggregation over already-migrated, already-QA'd backend objects; the
+  protected live database remains untouched.
+- Remaining known gap: the dashboard (`src/routes/index.tsx`) still has the
+  same staleness issue for several widgets (`data.tasks`/`data.assets`/
+  `data.notes` counts) and is the natural candidate for the next milestone.

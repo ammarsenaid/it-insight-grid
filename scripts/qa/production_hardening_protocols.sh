@@ -9,6 +9,8 @@ queries="$root/src/lib/protocols/queries.ts"
 sql="$root/supabase/pending/20260616000000_protocols_backend.sql"
 qa="$root/supabase/pending/20260616000000_protocols_backend.qa.sql"
 status="$root/docs/PRODUCTION_HARDENING_STATUS.md"
+dashboard="$root/src/routes/index.tsx"
+permissions="$root/src/lib/permissions.tsx"
 
 extract_import_block() {
   # Print the import statement ending at the first line matching $2, in file $1.
@@ -22,6 +24,12 @@ extract_import_block() {
 # ---- Protocols must no longer use the local prototype store as authoritative persistence ----
 ! rg -q 'from "@/lib/protocols/store"' "$index_route" "$id_route"
 ! rg -q 'from "@/lib/data/' "$index_route" "$id_route"
+test ! -e "$root/src/lib/protocols/store.ts"
+test ! -e "$root/src/lib/protocols/seed.ts"
+! rg -q 'from "@/lib/protocols/store"' "$root/src"
+rg -Fq 'protocolRunsQuery' "$dashboard"
+rg -Fq 'enabled: protocolsReadable' "$dashboard"
+rg -Fq 'cap: "protocols.manage"' "$dashboard"
 
 # ---- New typed service layer + React Query integration ----
 new_index_import=$(extract_import_block "$index_route" 'from "@/lib/protocols/protocols";')
@@ -50,6 +58,13 @@ rg -Fq 'invalidateQueries({ queryKey: protocolRunsKeys.all })' "$index_route" "$
 test "$(rg -c 'useMutation' "$index_route")" -ge 7
 test "$(rg -c 'useMutation' "$id_route")" -ge 5
 
+# ---- Frontend capabilities must name the permissions enforced by SQL ----
+rg -Fq '"protocols.view":' "$permissions"
+rg -Fq '"protocols.manage":' "$permissions"
+rg -Fq 'can("protocols.manage", role)' "$index_route" "$id_route"
+! rg -q 'can\("tasks.write", role\)' "$index_route" "$id_route"
+! rg -q 'ProtocolState' "$root/src/lib/protocols"
+
 # ---- Destructive / multi-step operations must go through RPC, never direct table writes ----
 for rpc in list_protocol_templates list_protocol_runs save_protocol_template \
   set_protocol_template_archived duplicate_protocol_template soft_delete_protocol_template \
@@ -76,7 +91,7 @@ rg -Fq 'revoke all privileges on public.protocol_templates, public.protocol_runs
 rg -Fq 'revoke all on function public.soft_delete_protocol_template(uuid) from public;' "$sql"
 rg -Fq 'revoke all on function public.start_protocol_run(uuid, jsonb) from public;' "$sql"
 
-# ---- RBAC alignment: sd_lead/helpdesk/technician must match the frontend "tasks.write" gate ----
+# ---- RBAC alignment: Service Desk writers receive protocols.manage ----
 rg -Fq "permission_key = 'protocols.manage'" "$sql"
 rg -Fq "role_key in ('sd_lead', 'helpdesk', 'technician')" "$sql"
 
@@ -85,7 +100,7 @@ rg -Fq 'save_protocol_template must persist organization, tags, required ids, an
 rg -Fq 'duplicate_protocol_template must append (Copy), reset state, and regenerate step ids' "$qa"
 rg -Fq 'start_protocol_run must create a PR-1001 run with copied steps, in_progress status, and links' "$qa"
 rg -Fq 'start_protocol_run must allocate sequential run numbers within an organization' "$qa"
-rg -Fq 'update_protocol_run_step must set completed, completedBy, completedAt, and notes' "$qa"
+rg -Fq 'update_protocol_run_step must set completion metadata, notes, and evidence' "$qa"
 rg -Fq 'add_protocol_run_approval(approved) must record the approval and resume the run' "$qa"
 rg -Fq 'list_protocol_runs must surface comments with author display names' "$qa"
 rg -Fq 'sd_lead, helpdesk, and technician must each be granted protocols.manage' "$qa"

@@ -47,7 +47,7 @@ function ProtocolRunPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const role = useRole();
-  const canWrite = can("tasks.write", role);
+  const canWrite = can("protocols.manage", role);
   const qc = useQueryClient();
 
   const runsQ = useQuery(protocolRunsQuery());

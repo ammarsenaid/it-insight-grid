@@ -191,6 +191,8 @@ export const CAPS: Record<string, Role[]> = {
   "tasks.view":                ALL_IT,
   "notes.write":               ["super_admin", "it_admin", "sd_lead", "helpdesk", "technician", "network_admin", "doc_editor"],
   "notes.view":                ALL_IT,
+  "protocols.manage":          ["super_admin", "it_admin", "sd_lead", "helpdesk", "technician", "network_admin", "doc_editor"],
+  "protocols.view":            ALL_IT,
 
   // Administration
   "admin.users":               ADMINS,
