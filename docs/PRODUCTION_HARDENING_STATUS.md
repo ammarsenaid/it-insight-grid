@@ -1391,3 +1391,37 @@ Boundary:
 - No schema changes were made in this milestone.
 - No service restart was required.
 - Temporary browser automation still exists and should be removed only after the full production validation is finalized.
+
+## Milestone 71 — Runtime Wrapper Static Asset Checkpoint
+
+Status: PASSED
+
+Date: 2026-06-14
+
+Production runtime checkpoint for the external Bun frontend wrapper.
+
+Confirmed:
+- systemd service `itkc-frontend` is active.
+- Live service runs `/opt/it-knowledge-center/runtime/itkc-frontend-server.mjs`.
+- Runtime wrapper checksum:
+  - `208e8b05b2c379b0baa8219b01ded010437bc56d77362e8ce19f003279ba1901`
+- Wrapper serves `/assets/*` from `/opt/it-knowledge-center/app/dist/client`.
+- Wrapper validates path traversal by resolving requested assets under `dist/client`.
+- Wrapper returns correct content types for JavaScript and CSS.
+- Wrapper returns `Cache-Control: public, max-age=31536000, immutable`.
+- Current root HTML referenced 13 assets.
+- All referenced assets existed on disk.
+- All referenced assets returned HTTP 200.
+- Frontend app returned HTTP 200 after asset verification.
+- No DB change was made.
+- No service restart was made.
+
+Repository hardening action:
+- Added repository recovery copy:
+  - `ops/runtime/itkc-frontend-server.mjs`
+- Added runtime recovery notes:
+  - `ops/runtime/README.md`
+
+Reason:
+- The live runtime wrapper is outside the repository.
+- This checkpoint preserves the production wrapper logic in git so the static asset fix can be restored after server rebuild, accidental deletion, or future deployment migration.
