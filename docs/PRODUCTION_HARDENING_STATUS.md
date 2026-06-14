@@ -901,3 +901,62 @@ requires explicit approval under `AGENTS.md`.
   migration and QA SQL.
 - SQL was not executed. Disposable-database and browser runtime validation
   remain required; the protected live database remains untouched.
+
+## Milestone 30 - Recycle Bin Backend Aggregation
+
+- Replaced the Recycle Bin route's reads and writes (`src/routes/trash.tsx`),
+  which previously operated entirely on the legacy browser-local `data.trash`
+  collection via `useData()`/`setState()`/`logActivity()`, with a typed
+  TanStack Query aggregation layer (`src/lib/recycle-bin/types.ts`,
+  `src/lib/recycle-bin/recycleBin.ts`, `src/lib/recycle-bin/queries.ts`) built
+  entirely on top of the soft-delete RPCs already shipped in Milestones 24-29.
+  No new database migration was required: `list_assets`/`list_ipam_addresses`/
+  `list_tasks`/`list_notes` (each called with `includeDeleted = true`) and
+  `restore_cmdb_asset`/`restore_ipam_address`/`restore_task`/`restore_note`
+  already exist, are already RLS- and permission-gated (`*.manage` required to
+  see soft-deleted rows, matching `recyclebin.restore`'s admin-only grant), and
+  are already covered by each module's own disposable QA.
+- `src/lib/recycle-bin/recycleBin.ts` maps each module's soft-deleted records
+  (`CmdbAsset`, `IpamAddress`, `Task`, `Note` with non-null `deletedAt`) into a
+  normalized `RecycleBinItem` (`id`, `kind`, `name`, `originalLocation`,
+  `deletedAt`) and dispatches `restoreRecycleBinItem` to the matching
+  per-module `restore*` RPC wrapper.
+- The Recycle Bin previously covered `folder`/`document`/`asset`/`ipam`/
+  `task`/`note` kinds via a single flat local array populated by ad-hoc
+  `trashItem()` calls from legacy ticket/task/catalog code. The rebuilt route
+  covers exactly `asset`/`ipam`/`task`/`note` - the four kinds with a
+  Supabase-backed `list_*(includeDeleted)` + `restore_*` pair. `folder`/
+  `document` are out of scope: the Knowledge Base is already served by
+  `KnowledgeBackendWorkspace` with its own restore surface. CMDB and IPAM
+  already expose an in-module "Deleted assets/addresses" toggle with restore
+  in `cmdb.tsx`/`ipam.tsx`; the Recycle Bin remains valuable as the *only*
+  restore surface for soft-deleted Tasks and Notes, which have no such
+  in-module toggle.
+- "Permanently delete" and "Empty bin" were removed rather than left wired to
+  dead local-store mutations. No module exposes a hard-delete RPC by design -
+  every Milestone 24-29 QA file explicitly asserts hard-deletes are rejected
+  for audit immutability - so a real "permanently delete" action is not
+  available from this UI. The route now shows an explanatory note ("Deleted
+  records are retained for audit and compliance ... Permanent deletion is not
+  available.") and keeps Restore as the only action, alongside a CSV export
+  (name/type/original location/deleted-at; the legacy `size` column was
+  dropped as none of the four record types carry a meaningful byte size).
+- The "Recoverable" / "Most recently deleted" / "Oldest" metric cards and the
+  search/type filter are preserved, recomputed from the live aggregated query
+  results instead of the static `data.trash` array.
+- The legacy `data.trash` collection, `TrashItem`/`TrashKind` types, and the
+  `trashItem()` helper in `src/lib/data/store.ts` are left in place: they
+  remain read by the dashboard's "Recycle Bin summary" widget
+  (`src/routes/index.tsx`) and `src/routes/admin.diagnostics.tsx`, which are
+  non-authoritative cross-module reads following the same precedent as the
+  CMDB/IPAM/Tasks/Notes/Protocols seed collections.
+- Added a static frontend assertion script
+  (`scripts/qa/production_hardening_recycle_bin.sh`) verifying the Recycle Bin
+  route no longer reads/writes the legacy `data.trash` store, uses the new
+  `src/lib/recycle-bin` service/query layer, wires all four `restore*` RPC
+  wrappers, contains no "Empty bin"/"permanently delete" actions, and that the
+  underlying per-module `list_*`/`restore_*` RPCs and QA coverage from
+  Milestones 24-29 are still present.
+- No SQL was added or executed. This milestone is a pure frontend
+  aggregation over already-migrated, already-QA'd backend objects; the
+  protected live database remains untouched.
