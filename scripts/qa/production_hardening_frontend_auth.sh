@@ -93,7 +93,7 @@ const helpdeskAuditor = rolesForRoleKeys(["helpdesk", "platform_auditor"]);
 assert(can("tickets.assign", helpdeskAuditor), "helpdesk + auditor lost ticket assignment");
 assert(can("audit.view", helpdeskAuditor), "helpdesk + auditor lost audit access");
 const networkAuditor = rolesForRoleKeys(["network_admin", "platform_auditor"]);
-assert(can("ipam.write", networkAuditor), "network admin + auditor lost IPAM write");
+assert(can("ipam.manage", networkAuditor), "network admin + auditor lost IPAM management");
 assert(can("audit.view", networkAuditor), "network admin + auditor lost audit access");
 assert(canSeePage("/audit", networkAuditor), "network admin + auditor denied audit page");
 assert(!can("tickets.assign", networkAuditor), "network admin + auditor allowed ticket assignment");

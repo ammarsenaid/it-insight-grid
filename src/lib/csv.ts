@@ -5,7 +5,7 @@ export function toCSV(rows: Record<string, unknown>[], headers?: string[]): stri
   const cols = headers ?? Object.keys(rows[0]);
   const esc = (v: unknown) => {
     const s = v === null || v === undefined ? "" : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
 }
@@ -24,32 +24,56 @@ export function downloadCSV(filename: string, csv: string) {
 }
 
 export function parseCSV(text: string): { headers: string[]; rows: Record<string, string>[] } {
-  const lines = text.replace(/\r\n?/g, "\n").split("\n").filter((l) => l.length > 0);
-  if (lines.length === 0) return { headers: [], rows: [] };
-  const parseLine = (line: string): string[] => {
-    const out: string[] = [];
-    let cur = "";
-    let inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (inQ) {
-        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
-        else if (ch === '"') inQ = false;
-        else cur += ch;
+  const source = text.startsWith("\uFEFF") ? text.slice(1) : text;
+  if (source.length === 0) return { headers: [], rows: [] };
+
+  const records: string[][] = [];
+  let record: string[] = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index];
+    if (inQuotes) {
+      if (character === '"' && source[index + 1] === '"') {
+        field += '"';
+        index++;
+      } else if (character === '"') {
+        inQuotes = false;
       } else {
-        if (ch === ",") { out.push(cur); cur = ""; }
-        else if (ch === '"') inQ = true;
-        else cur += ch;
+        field += character;
       }
+      continue;
     }
-    out.push(cur);
-    return out;
-  };
-  const headers = parseLine(lines[0]).map((h) => h.trim());
-  const rows = lines.slice(1).map((line) => {
-    const cells = parseLine(line);
+
+    if (character === '"' && field.length === 0) {
+      inQuotes = true;
+    } else if (character === ",") {
+      record.push(field);
+      field = "";
+    } else if (character === "\n" || character === "\r") {
+      record.push(field);
+      records.push(record);
+      record = [];
+      field = "";
+      if (character === "\r" && source[index + 1] === "\n") index++;
+    } else {
+      field += character;
+    }
+  }
+
+  if (inQuotes) throw new Error("Malformed CSV: unterminated quoted field");
+  if (field.length > 0 || record.length > 0 || !/[\r\n]$/.test(source)) {
+    record.push(field);
+    records.push(record);
+  }
+
+  const nonBlankRecords = records.filter((cells) => cells.length !== 1 || cells[0] !== "");
+  if (nonBlankRecords.length === 0) return { headers: [], rows: [] };
+  const [headers, ...dataRecords] = nonBlankRecords;
+  const rows = dataRecords.map((cells) => {
     const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => { obj[h] = (cells[idx] ?? "").trim(); });
+    headers.forEach((header, index) => { obj[header] = cells[index] ?? ""; });
     return obj;
   });
   return { headers, rows };

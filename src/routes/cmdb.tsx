@@ -131,7 +131,7 @@ function CMDBPage() {
   });
   const importMutation = useMutation({
     mutationFn: importAssets,
-    onSuccess: async (count) => { await invalidate(); toast.success(`Imported ${count} asset${count === 1 ? "" : "s"}`); },
+    onSuccess: async () => { await invalidate(); },
     onError: (error) => toast.error(publicError(error)),
   });
 
@@ -168,7 +168,7 @@ function CMDBPage() {
     if (!form.assetTypeId) return toast.error("Asset type is required");
     saveMutation.mutate();
   };
-  const importRows = (rows: Record<string, string>[]) => {
+  const importRows = async (rows: Record<string, string>[]) => {
     const byKey = new Map(assetTypes.map((type) => [type.key, type.id]));
     const parsed = rows.filter((row) => row.hostname?.trim()).map((row) => ({
       ...blankAsset(byKey.get(row.assetType || "server") ?? ""),
@@ -182,8 +182,11 @@ function CMDBPage() {
       status: (["active", "maintenance", "retired"].includes(row.status)
         ? row.status : "active") as CmdbAssetInput["status"],
     }));
-    if (parsed.some((asset) => !asset.assetTypeId)) return toast.error("Import contains an unknown assetType value");
-    importMutation.mutate(parsed);
+    if (parsed.some((asset) => !asset.assetTypeId)) {
+      toast.error("Import contains an unknown assetType value");
+      return false;
+    }
+    return importMutation.mutateAsync(parsed);
   };
   const exportCSV = () => {
     const rows = (selected.size ? filtered.filter((a) => selected.has(a.id)) : filtered).map((asset) => {

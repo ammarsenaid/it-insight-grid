@@ -25,31 +25,50 @@ export function ImportPreviewDialog({
   title: string;
   description?: string;
   expectedHeaders: string[];
-  onImport: (rows: Record<string, string>[]) => void;
+  onImport: (rows: Record<string, string>[]) => unknown | Promise<unknown>;
 }) {
   const [parsed, setParsed] = useState<{ headers: string[]; rows: Record<string, string>[] } | null>(null);
   const [fileName, setFileName] = useState<string>("");
+  const [isImporting, setIsImporting] = useState(false);
 
   const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     setFileName(f.name);
-    const text = await f.text();
-    setParsed(parseCSV(text));
+    try {
+      const text = await f.text();
+      setParsed(parseCSV(text));
+    } catch {
+      setParsed(null);
+      toast.error("The CSV file could not be parsed.");
+    }
   };
 
   const reset = () => { setParsed(null); setFileName(""); };
 
-  const handleImport = () => {
-    if (!parsed) return;
-    onImport(parsed.rows);
-    toast.success(`Imported ${parsed.rows.length} record${parsed.rows.length === 1 ? "" : "s"}`);
-    reset();
-    onOpenChange(false);
+  const handleImport = async () => {
+    if (!parsed || isImporting) return;
+    setIsImporting(true);
+    try {
+      const result = await onImport(parsed.rows);
+      if (result === false) return;
+      const count = typeof result === "number" ? result : parsed.rows.length;
+      toast.success(`Imported ${count} record${count === 1 ? "" : "s"}`);
+      reset();
+      onOpenChange(false);
+    } catch {
+      // The caller owns sanitized mutation error reporting.
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
+    <Dialog open={open} onOpenChange={(o) => {
+      if (isImporting) return;
+      onOpenChange(o);
+      if (!o) reset();
+    }}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -99,10 +118,10 @@ export function ImportPreviewDialog({
         )}
 
         <DialogFooter>
-          {parsed && <Button variant="ghost" onClick={reset}>Choose another file</Button>}
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleImport} disabled={!parsed || parsed.rows.length === 0}>
-            Import {parsed && `(${parsed.rows.length})`}
+          {parsed && <Button variant="ghost" onClick={reset} disabled={isImporting}>Choose another file</Button>}
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isImporting}>Cancel</Button>
+          <Button onClick={() => void handleImport()} disabled={!parsed || parsed.rows.length === 0 || isImporting}>
+            {isImporting ? "Importing..." : <>Import {parsed && `(${parsed.rows.length})`}</>}
           </Button>
         </DialogFooter>
       </DialogContent>

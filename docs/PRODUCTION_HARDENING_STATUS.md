@@ -28,6 +28,8 @@ Last updated: 2026-06-13
 - Completed milestone: 22 - Scoped Service Desk Profile Directory
 - Completed milestone: 23 - Platform-Admin-Only Canned-Response Deletion
 - Completed milestone: 24 - Shared CMDB Backend
+- Completed milestone: 25 - Organization-Scoped CMDB Correction
+- Completed milestone: 26 - Organization-Scoped IPAM Backend
 - Active milestone: none; repository-side review phase completed.
 - Repository inventory completed without reading secret-bearing files.
 - Existing uncommitted ticket-attachment SQL and QA changes identified and
@@ -270,6 +272,26 @@ Milestone 24 implementation:
 - `supabase/pending/20260613000000_cmdb_backend.sql`
 - `supabase/pending/20260613000000_cmdb_backend.qa.sql`
 - `scripts/qa/production_hardening_cmdb.sh`
+- `docs/PRODUCTION_HARDENING_STATUS.md`
+
+Milestone 26 implementation:
+
+- `src/routes/ipam.tsx`
+- `src/routes/cmdb.tsx`
+- `src/routes/index.tsx`
+- `src/components/common/ImportPreviewDialog.tsx`
+- `src/components/ipam/SubnetDetailsDrawer.tsx`
+- `src/lib/csv.ts`
+- `src/lib/ipam/addresses.ts`
+- `src/lib/ipam/queries.ts`
+- `src/lib/ipam/types.ts`
+- `src/lib/permissions.tsx`
+- `supabase/pending/20260613010000_ipam_backend.sql`
+- `supabase/pending/20260613010000_ipam_backend.qa.sql`
+- `scripts/qa/production_hardening_ipam.sh`
+- `scripts/qa/production_hardening_csv.sh`
+- `scripts/qa/production_hardening_ipam_concurrency.sh`
+- `scripts/qa/production_hardening_frontend_auth.sh`
 - `docs/PRODUCTION_HARDENING_STATUS.md`
 
 ## Validation Results
@@ -654,3 +676,58 @@ requires explicit approval under `AGENTS.md`.
   organization-customization contract is approved.
 - Added repository-local and disposable-database QA for tenant isolation.
 - SQL was not executed. The protected live database remains untouched.
+
+## Milestone 26 - Organization-Scoped IPAM Backend
+
+- Replaced IPAM route and subnet-drawer reads and writes with typed Supabase and
+  TanStack Query contracts; browser-local IPAM rows are no longer authoritative.
+- Added organization-scoped networks, subnets, addresses, and reservations with
+  PostgreSQL `cidr`/`inet` validation and same-organization composite foreign
+  keys to CMDB assets.
+- Added least-privilege RLS for `ipam.view` and `ipam.manage`, revoked all direct
+  authenticated writes, and constrained every mutation to permission-checked,
+  empty-search-path RPCs that derive the active organization server-side.
+- Enforced unique live IP addresses and one live address per linked asset,
+  rejected addresses and gateways outside their subnet, and exposed integrity
+  conflict reasons for legacy or manually staged inconsistent rows.
+- Added atomic save/import, bulk reserve/release, reserve-next, soft-delete, and
+  restore operations. Reservation rows are created and retired with allocation
+  state transitions; restored addresses return as unlinked and free.
+- Aligned frontend authorization with the staged `ipam.manage` backend key and
+  removed the obsolete `ipam.write` capability from IPAM and dashboard callers.
+- Added static frontend/SQL assertions and transaction-backed disposable QA for
+  RLS, direct-write denial, tenant isolation, conflict rejection, reservation
+  consistency, atomic import, soft deletion, and restoration.
+- Corrected the reviewed P15 patch to canonicalize every stored IPv4 host and
+  gateway as `/32` and every IPv6 host and gateway as `/128`, with trigger
+  normalization and mask constraints protecting every write path.
+- Replaced the dashboard's remaining browser-local IPAM counts and alerts with
+  the typed shared React Query contract and fail-closed loading/error states.
+- Defined one exact round-trip CSV contract including CMDB asset links,
+  reservation expiry and notes, and address notes; imports reject mismatched
+  headers and remain atomic and capped at 500 rows.
+- Added permission-checked, empty-search-path network and subnet soft-delete and
+  restore RPCs with active-dependency rejection, active-parent requirements,
+  and explicit live-row collision rejection. No lifecycle UI was added because
+  the current screen exposes lifecycle controls only for addresses.
+- Expanded static and disposable-database QA fixtures for tenant mutation
+  isolation, host-mask duplicates, gateway normalization, denied hard deletes,
+  atomic mixed-organization bulk operations and imports, CMDB link integrity,
+  reservation/gateway consistency, and network/subnet lifecycle safety.
+- Serialized IPAM mutations with a documented network, subnet, then address row-
+  lock order so lifecycle checks, gateway edits, allocation changes, imports,
+  and reserve-next operations cannot create invalid live parent-child state.
+- Updated the shared import preview to await IPAM and CMDB mutation completion,
+  keep failed imports open, and prevent duplicate submission while pending.
+- Replaced line-based CSV parsing with quoted-field state handling for commas,
+  escaped quotes, BOMs, trailing empties, and LF/CRLF multiline values; added
+  executable round-trip QA and malformed-quote rejection coverage.
+- Finalized P15 import concurrency by preflighting and canonicalizing complete
+  batches, locking all existing networks, subnets, and addresses in UUID order,
+  then processing rows by canonical network, subnet, and host order. Address
+  restore now rejects deleted network and subnet ancestors before locking the
+  address. The disposable concurrency harness now requires two exact
+  confirmations, a strict database-name allowlist, `current_database()` identity,
+  and an explicit disposable marker before cleanup or fixture writes are armed.
+- SQL was not executed. Disposable-database and browser runtime validation remain
+  required; the protected live database remains untouched.

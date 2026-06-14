@@ -185,7 +185,7 @@ export const CAPS: Record<string, Role[]> = {
   // Operations
   "cmdb.manage":               INFRA_OPS,
   "cmdb.view":                 [...ALL_IT],
-  "ipam.write":                INFRA_OPS,
+  "ipam.manage":               ["super_admin", "it_admin", "network_admin"],
   "ipam.view":                 [...ALL_IT],
   "tasks.write":               ["super_admin", "it_admin", "sd_lead", "helpdesk", "technician", "network_admin", "doc_editor"],
   "tasks.view":                ALL_IT,
@@ -326,7 +326,7 @@ export const CAPABILITY_GROUPS: { label: string; caps: { key: string; label: str
       { key: "cmdb.view", label: "View CMDB" },
       { key: "cmdb.manage", label: "Manage CMDB assets" },
       { key: "ipam.view", label: "View IPAM" },
-      { key: "ipam.write", label: "Edit IP records" },
+      { key: "ipam.manage", label: "Manage IPAM" },
       { key: "tasks.view", label: "View tasks" },
       { key: "tasks.write", label: "Edit tasks" },
       { key: "notes.view", label: "View notes" },

@@ -56,6 +56,8 @@ import { DetailsDrawer } from "@/components/common/DetailsDrawer";
 import { Switch } from "@/components/ui/switch";
 import { BackendKnowledgePanel } from "@/components/knowledge/BackendKnowledgePanel";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { ipamAddressesQuery } from "@/lib/ipam/queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -117,6 +119,9 @@ function Dashboard() {
   const prefs = useDashboardPrefs();
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const { runs: protocolRuns } = useProtocolsHook();
+  const ipamReadable = can("ipam.view", role);
+  const ipamQuery = useQuery({ ...ipamAddressesQuery(false), enabled: ipamReadable });
+  const ipamAddresses = ipamQuery.data ?? [];
 
   const me = meForRole(role);
   const primary = primaryCreateForRole(role);
@@ -136,7 +141,9 @@ function Dashboard() {
   const openTasks = data.tasks.filter((t) => t.status !== "done");
   const overdueTasks = openTasks.filter((t) => isOverdue(t.dueDate));
   const maintenanceAssets = data.assets.filter((a) => a.status === "maintenance");
-  const unlinkedIP = data.ipam.filter((i) => i.status === "used" && !i.linkedAssetId);
+  const unlinkedIP = ipamQuery.isSuccess
+    ? ipamAddresses.filter((address) => address.allocationState === "allocated" && !address.linkedAssetId)
+    : [];
   const reviewDocs = knowledgePages.filter((p) => p.status === "in_review");
 
   // -------- protocol calcs --------
@@ -437,9 +444,9 @@ function Dashboard() {
           <SectionTitle title="Infrastructure Metrics" caption="CMDB and IPAM footprint." />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <MetricCard icon={Server} label="CMDB Assets" value={data.assets.length} sub="Tracked infrastructure" accent="success" />
-            <MetricCard icon={Network} label="IP Records" value={data.ipam.length} sub="IPAM entries" accent="success" />
+            <MetricCard icon={Network} label="IP Records" value={ipamQuery.isSuccess ? ipamAddresses.length : "—"} sub={ipamQuery.isError ? "Shared IPAM unavailable" : ipamQuery.isLoading ? "Loading shared IPAM" : "IPAM entries"} accent="success" />
             <MetricCard icon={Wrench} label="In Maintenance" value={maintenanceAssets.length} sub="Under service" accent="warning" />
-            <MetricCard icon={AlertTriangle} label="Unlinked IPs" value={unlinkedIP.length} sub="Used, no asset" accent="warning" />
+            <MetricCard icon={AlertTriangle} label="Unlinked IPs" value={ipamQuery.isSuccess ? unlinkedIP.length : "—"} sub={ipamQuery.isError ? "Shared IPAM unavailable" : ipamQuery.isLoading ? "Loading shared IPAM" : "Allocated, no asset"} accent="warning" />
           </div>
         </section>
       )}
@@ -611,7 +618,7 @@ function QuickActions({ role }: { role: Role }) {
     { to: "/tasks", icon: CheckSquare, label: "New task", cap: "tasks.write" },
     { to: "/protocols", icon: ListChecks, label: "Run protocol" },
     { to: "/cmdb", icon: Server, label: "Add asset", cap: "cmdb.manage" },
-    { to: "/ipam", icon: Network, label: "Add IP record", cap: "ipam.write" },
+    { to: "/ipam", icon: Network, label: "Add IP record", cap: "ipam.manage" },
     { to: "/documents", icon: FileText, label: "New knowledge page", cap: "documents.create" },
   ];
   const filtered = actions.filter((a) => !a.cap || can(a.cap, role));
