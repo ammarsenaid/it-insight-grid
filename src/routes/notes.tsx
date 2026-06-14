@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
   Plus, StickyNote, Edit, Trash2, Copy, Download, Pin, PinOff, Archive,
   FileText, CheckSquare, FileCode, Tag as TagIcon, MoreHorizontal, ArchiveRestore,
-  Link2, Server, Network, Ticket as TicketIcon,
+  Link2, Server, Network, Ticket as TicketIcon, AlertTriangle,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/common/PageHeader";
@@ -25,12 +26,13 @@ import { ActivityTimeline } from "@/components/common/ActivityTimeline";
 import { RelationPicker, type RelationSelection } from "@/components/common/RelationPicker";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useData } from "@/lib/data/store";
+import { convertNoteToDocument, convertNoteToTask, exportNoteMarkdown } from "@/lib/data/notes";
+import { notesKeys, notesQuery, noteTemplatesKeys, noteTemplatesQuery } from "@/lib/notes/queries";
 import {
-  NOTE_CATEGORIES, archiveNote, convertNoteToDocument, convertNoteToTask, createNote,
-  deleteNote, deleteTemplate, duplicateNote, exportNoteMarkdown, saveAsTemplate,
-  togglePin, unarchiveNote, updateNote,
-} from "@/lib/data/notes";
-import type { Note, NoteTemplate } from "@/lib/data/types";
+  duplicateNote, publicNoteError, saveNote, saveNoteLinks, saveNoteTemplate,
+  setNoteArchived, softDeleteNote, softDeleteNoteTemplate, toggleNotePin,
+} from "@/lib/notes/notes";
+import { NOTE_CATEGORIES, type Note, type NoteInput, type NoteTemplate } from "@/lib/notes/types";
 import { toast } from "sonner";
 import { formatDate } from "@/components/common/format";
 import { cn } from "@/lib/utils";
@@ -43,8 +45,6 @@ export const Route = createFileRoute("/notes")({
 
 type TabVal = "all" | "pinned" | "archived" | "templates";
 
-const TPL_ICON: Record<string, typeof FileCode> = { default: FileCode };
-
 interface FormState {
   title: string;
   category: string;
@@ -52,17 +52,26 @@ interface FormState {
   tags: string;
   pinned: boolean;
   isTemplate: boolean;
-  linkedDocumentId?: string;
+  linkedDocumentId: string | null;
 }
 
 const empty = (): FormState => ({
-  title: "", category: "General", content: "", tags: "", pinned: false, isTemplate: false,
+  title: "", category: "General", content: "", tags: "", pinned: false, isTemplate: false, linkedDocumentId: null,
 });
 
 function NotesPage() {
   const data = useData();
   const role = useRole();
   const writable = can("notes.write", role);
+  const qc = useQueryClient();
+
+  const notesQ = useQuery(notesQuery());
+  const templatesQ = useQuery(noteTemplatesQuery());
+  const notes = useMemo(() => notesQ.data ?? [], [notesQ.data]);
+  const templates = useMemo(() => templatesQ.data ?? [], [templatesQ.data]);
+
+  const invalidateNotes = () => qc.invalidateQueries({ queryKey: notesKeys.all });
+  const invalidateTemplates = () => qc.invalidateQueries({ queryKey: noteTemplatesKeys.all });
 
   const [tab, setTab] = useState<TabVal>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -75,42 +84,94 @@ function NotesPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
 
+  const saveMutation = useMutation({
+    mutationFn: (input: NoteInput) => saveNote(editId, input),
+    onSuccess: async (id) => {
+      await invalidateNotes();
+      if (!editId) setSelectedId(id);
+      toast.success(editId ? "Note updated" : "Note created");
+      setDrawerOpen(false);
+    },
+    onError: (error) => toast.error(publicNoteError(error)),
+  });
+  const pinMutation = useMutation({
+    mutationFn: (id: string) => toggleNotePin(id),
+    onSuccess: async (pinned) => { await invalidateNotes(); toast.success(pinned ? "Pinned" : "Unpinned"); },
+    onError: (error) => toast.error(publicNoteError(error)),
+  });
+  const archiveMutation = useMutation({
+    mutationFn: ({ id, archived }: { id: string; archived: boolean }) => setNoteArchived(id, archived),
+    onSuccess: async (_data, { archived }) => { await invalidateNotes(); toast.success(archived ? "Archived" : "Restored"); },
+    onError: (error) => toast.error(publicNoteError(error)),
+  });
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => duplicateNote(id),
+    onSuccess: async (id) => { await invalidateNotes(); setSelectedId(id); toast.success("Duplicated"); },
+    onError: (error) => toast.error(publicNoteError(error)),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => softDeleteNote(id),
+    onSuccess: async () => { await invalidateNotes(); toast.success("Note deleted"); },
+    onError: (error) => toast.error(publicNoteError(error)),
+  });
+  const linksMutation = useMutation({
+    mutationFn: ({ id, links }: { id: string; links: RelationSelection }) => saveNoteLinks(id, {
+      linkedTicketIds: links.ticketIds,
+      linkedAssetIds: links.assetIds,
+      linkedIpamIds: links.ipamIds,
+      linkedTaskIds: links.taskIds,
+      linkedUserIds: links.userIds,
+    }),
+    onSuccess: async () => { await invalidateNotes(); toast.success("Links updated"); },
+    onError: (error) => toast.error(publicNoteError(error)),
+  });
+  const saveTemplateMutation = useMutation({
+    mutationFn: (input: { name: string; category: string; content: string }) => saveNoteTemplate(null, input),
+    onSuccess: async () => { await invalidateTemplates(); toast.success("Saved as template"); },
+    onError: (error) => toast.error(publicNoteError(error)),
+  });
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (id: string) => softDeleteNoteTemplate(id),
+    onSuccess: async () => { await invalidateTemplates(); toast.success("Template deleted"); },
+    onError: (error) => toast.error(publicNoteError(error)),
+  });
+
   const allTags = useMemo(() => {
     const s = new Set<string>();
-    data.notes.forEach((n) => (n.tags ?? []).forEach((t) => s.add(t)));
+    notes.forEach((n) => n.tags.forEach((t) => s.add(t)));
     return Array.from(s);
-  }, [data.notes]);
+  }, [notes]);
 
   const categories = useMemo(() => {
     const s = new Set(NOTE_CATEGORIES);
-    data.notes.forEach((n) => s.add(n.category));
+    notes.forEach((n) => s.add(n.category));
     return Array.from(s);
-  }, [data.notes]);
+  }, [notes]);
 
   const visible = useMemo(() => {
     const ql = q.toLowerCase();
-    return data.notes.filter((n) => {
+    return notes.filter((n) => {
       if (tab === "pinned" && !n.pinned) return false;
       if (tab === "archived" && !n.archived) return false;
       if (tab === "templates") return false; // templates rendered separately
       if (tab === "all" && n.archived) return false;
       if (fCat !== "all" && n.category !== fCat) return false;
-      if (fTag !== "all" && !(n.tags ?? []).includes(fTag)) return false;
+      if (fTag !== "all" && !n.tags.includes(fTag)) return false;
       if (!ql) return true;
       return (
         n.title.toLowerCase().includes(ql) ||
         n.content.toLowerCase().includes(ql) ||
-        (n.tags ?? []).some((t) => t.toLowerCase().includes(ql))
+        n.tags.some((t) => t.toLowerCase().includes(ql))
       );
-    }).sort((a, b) => Number(b.pinned ?? 0) - Number(a.pinned ?? 0));
-  }, [data.notes, q, tab, fCat, fTag]);
+    }).sort((a, b) => Number(b.pinned) - Number(a.pinned));
+  }, [notes, q, tab, fCat, fTag]);
 
   // pick a default selection
-  const selected = data.notes.find((n) => n.id === selectedId) ?? visible[0] ?? null;
+  const selected = notes.find((n) => n.id === selectedId) ?? visible[0] ?? null;
 
-  const pinnedCount = data.notes.filter((n) => n.pinned && !n.archived).length;
-  const archivedCount = data.notes.filter((n) => n.archived).length;
-  const recent = data.notes.filter((n) => Date.now() - new Date(n.updatedAt).getTime() < 7 * 86400000).length;
+  const pinnedCount = notes.filter((n) => n.pinned && !n.archived).length;
+  const archivedCount = notes.filter((n) => n.archived).length;
+  const recent = notes.filter((n) => Date.now() - new Date(n.updatedAt).getTime() < 7 * 86400000).length;
 
   const openCreate = (initial?: Partial<FormState>) => {
     if (!writable) { toast.error("Read-only role"); return; }
@@ -122,8 +183,8 @@ function NotesPage() {
     setEditId(n.id);
     setForm({
       title: n.title, category: n.category, content: n.content,
-      tags: (n.tags ?? []).join(", "), pinned: n.pinned ?? false,
-      isTemplate: n.isTemplate ?? false, linkedDocumentId: n.linkedDocumentId,
+      tags: n.tags.join(", "), pinned: n.pinned,
+      isTemplate: n.isTemplate, linkedDocumentId: n.linkedDocumentId,
     });
     setDrawerOpen(true);
   };
@@ -131,31 +192,15 @@ function NotesPage() {
   const save = () => {
     if (!form.title.trim()) { toast.error("Title required"); return; }
     const tags = form.tags.split(",").map((s) => s.trim()).filter(Boolean);
-    if (editId) {
-      updateNote(editId, {
-        title: form.title.trim(),
-        category: form.category,
-        content: form.content,
-        tags,
-        pinned: form.pinned,
-        isTemplate: form.isTemplate,
-        linkedDocumentId: form.linkedDocumentId,
-      });
-      toast.success("Note updated");
-    } else {
-      const n = createNote({
-        title: form.title,
-        category: form.category,
-        content: form.content,
-        tags,
-        pinned: form.pinned,
-        isTemplate: form.isTemplate,
-        linkedDocumentId: form.linkedDocumentId,
-      });
-      setSelectedId(n.id);
-      toast.success("Note created");
-    }
-    setDrawerOpen(false);
+    saveMutation.mutate({
+      title: form.title.trim(),
+      category: form.category,
+      content: form.content,
+      tags,
+      pinned: form.pinned,
+      isTemplate: form.isTemplate,
+      linkedDocumentId: form.linkedDocumentId,
+    });
   };
 
   const useTemplate = (tpl: NoteTemplate) => {
@@ -163,24 +208,31 @@ function NotesPage() {
   };
 
   const relationsValue: RelationSelection = selected ? {
-    ticketIds: selected.linkedTicketIds ?? [],
-    assetIds: selected.linkedAssetIds ?? [],
-    ipamIds: selected.linkedIpamIds ?? [],
-    taskIds: selected.linkedTaskIds ?? [],
+    ticketIds: selected.linkedTicketIds,
+    assetIds: selected.linkedAssetIds,
+    ipamIds: selected.linkedIpamIds,
+    taskIds: selected.linkedTaskIds,
     noteIds: [],
-    userIds: selected.linkedUserIds ?? [],
+    userIds: selected.linkedUserIds,
   } : { ticketIds: [], assetIds: [], ipamIds: [], taskIds: [], noteIds: [], userIds: [] };
 
-  const linkedTickets = selected ? (selected.linkedTicketIds ?? []).map((id) => data.tickets.find((t) => t.id === id)).filter(Boolean) : [];
-  const linkedAssets = selected ? (selected.linkedAssetIds ?? []).map((id) => data.assets.find((a) => a.id === id)).filter(Boolean) : [];
-  const linkedIps = selected ? (selected.linkedIpamIds ?? []).map((id) => data.ipam.find((i) => i.id === id)).filter(Boolean) : [];
-  const linkedTasks = selected ? (selected.linkedTaskIds ?? []).map((id) => data.tasks.find((t) => t.id === id)).filter(Boolean) : [];
+  const linkedTickets = selected ? selected.linkedTicketIds.map((id) => data.tickets.find((t) => t.id === id)).filter(Boolean) : [];
+  const linkedAssets = selected ? selected.linkedAssetIds.map((id) => data.assets.find((a) => a.id === id)).filter(Boolean) : [];
+  const linkedIps = selected ? selected.linkedIpamIds.map((id) => data.ipam.find((i) => i.id === id)).filter(Boolean) : [];
+  const linkedTasks = selected ? selected.linkedTaskIds.map((id) => data.tasks.find((t) => t.id === id)).filter(Boolean) : [];
   const linkedDoc = selected ? data.documents.find((d) => d.id === selected.linkedDocumentId) : undefined;
 
   const noteActivity = useMemo(() => {
     if (!selected) return [];
     return data.activity.filter((a) => a.entityId === selected.id || a.message.includes(selected.title)).slice(0, 10);
   }, [data.activity, selected]);
+
+  if (notesQ.isError || templatesQ.isError) {
+    return (
+      <EmptyState icon={AlertTriangle} title="Notes unavailable" description="The shared notes data could not be loaded." actionLabel="Retry"
+        onAction={() => { void notesQ.refetch(); void templatesQ.refetch(); }} />
+    );
+  }
 
   return (
     <div>
@@ -193,7 +245,7 @@ function NotesPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <MetricCard icon={StickyNote} label="Total" value={data.notes.filter((n) => !n.archived).length} accent="primary" />
+        <MetricCard icon={StickyNote} label="Total" value={notes.filter((n) => !n.archived).length} accent="primary" />
         <MetricCard icon={Pin} label="Pinned" value={pinnedCount} accent="warning" />
         <MetricCard icon={TagIcon} label="Tags" value={allTags.length} accent="primary" />
         <MetricCard icon={StickyNote} label="Updated 7d" value={recent} accent="success" />
@@ -213,10 +265,10 @@ function NotesPage() {
 
       {tab === "templates" ? (
         <TemplatesPanel
-          templates={data.noteTemplates}
+          templates={templates}
           writable={writable}
           onUse={useTemplate}
-          onDelete={(id) => { deleteTemplate(id); toast.success("Template deleted"); }}
+          onDelete={(id) => deleteTemplateMutation.mutate(id)}
         />
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
@@ -233,7 +285,11 @@ function NotesPage() {
               </Select>
             </div>
             <div className="max-h-[65vh] space-y-1 overflow-y-auto">
-              {visible.length === 0 && <div className="px-3 py-6 text-center text-xs text-muted-foreground">{(q || fCat !== "all" || fTag !== "all") ? "No matching notes" : "No notes yet"}</div>}
+              {visible.length === 0 && (
+                <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                  {notesQ.isLoading ? "Loading notes…" : (q || fCat !== "all" || fTag !== "all") ? "No matching notes" : "No notes yet"}
+                </div>
+              )}
               {visible.map((n) => (
                 <button key={n.id} onClick={() => setSelectedId(n.id)}
                   className={cn("w-full rounded-lg px-3 py-2 text-left transition", selected?.id === n.id ? "bg-primary/15 text-primary" : "hover:bg-white/[0.03]")}>
@@ -242,9 +298,9 @@ function NotesPage() {
                     <div className="truncate text-sm font-medium">{n.title}</div>
                   </div>
                   <div className="truncate text-[10px] text-muted-foreground">{n.category} · {formatDate(n.updatedAt)}</div>
-                  {(n.tags?.length ?? 0) > 0 && (
+                  {n.tags.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {n.tags!.slice(0, 3).map((t) => <span key={t} className="text-[9px] text-muted-foreground">#{t}</span>)}
+                      {n.tags.slice(0, 3).map((t) => <span key={t} className="text-[9px] text-muted-foreground">#{t}</span>)}
                     </div>
                   )}
                 </button>
@@ -263,10 +319,10 @@ function NotesPage() {
                       {selected.archived && <StatusBadge tone="muted" label="archived" />}
                       {selected.isTemplate && <StatusBadge tone="info" label="template" />}
                     </div>
-                    <div className="text-xs text-muted-foreground">{selected.category} · Updated {formatDate(selected.updatedAt)} · {selected.owner ?? "—"}</div>
-                    {(selected.tags?.length ?? 0) > 0 && (
+                    <div className="text-xs text-muted-foreground">{selected.category} · Updated {formatDate(selected.updatedAt)} · {selected.owner || "—"}</div>
+                    {selected.tags.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
-                        {selected.tags!.map((t) => <StatusBadge key={t} tone="muted" label={`#${t}`} />)}
+                        {selected.tags.map((t) => <StatusBadge key={t} tone="muted" label={`#${t}`} />)}
                       </div>
                     )}
                   </div>
@@ -274,7 +330,7 @@ function NotesPage() {
                     {writable && (
                       <>
                         <Button size="sm" variant="secondary" onClick={() => openEdit(selected)}><Edit className="mr-1.5 h-3.5 w-3.5" /> Edit</Button>
-                        <Button size="sm" variant="ghost" onClick={() => { togglePin(selected.id); toast.success(selected.pinned ? "Unpinned" : "Pinned"); }}>
+                        <Button size="sm" variant="ghost" onClick={() => pinMutation.mutate(selected.id)}>
                           {selected.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => setLinkOpen(true)}><Link2 className="h-3.5 w-3.5" /></Button>
@@ -285,10 +341,10 @@ function NotesPage() {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button size="sm" variant="ghost"><MoreHorizontal className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { const n = duplicateNote(selected.id); if (n) setSelectedId(n.id); toast.success("Duplicated"); }}>
+                          <DropdownMenuItem onClick={() => duplicateMutation.mutate(selected.id)}>
                             <Copy className="mr-2 h-3.5 w-3.5" /> Duplicate
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => { saveAsTemplate(selected); toast.success("Saved as template"); }}>
+                          <DropdownMenuItem onClick={() => saveTemplateMutation.mutate({ name: selected.title, category: selected.category, content: selected.content })}>
                             <FileCode className="mr-2 h-3.5 w-3.5" /> Save as template
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -300,11 +356,11 @@ function NotesPage() {
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {selected.archived ? (
-                            <DropdownMenuItem onClick={() => { unarchiveNote(selected.id); toast.success("Restored"); }}>
+                            <DropdownMenuItem onClick={() => archiveMutation.mutate({ id: selected.id, archived: false })}>
                               <ArchiveRestore className="mr-2 h-3.5 w-3.5" /> Unarchive
                             </DropdownMenuItem>
                           ) : (
-                            <DropdownMenuItem onClick={() => { archiveNote(selected.id); toast.success("Archived"); }}>
+                            <DropdownMenuItem onClick={() => archiveMutation.mutate({ id: selected.id, archived: true })}>
                               <Archive className="mr-2 h-3.5 w-3.5" /> Archive
                             </DropdownMenuItem>
                           )}
@@ -357,8 +413,8 @@ function NotesPage() {
                   </div>
                 </div>
               </>
-            ) : data.notes.length === 0 ? (
-              <EmptyState icon={StickyNote} title="No notes yet" description="Create a note to capture quick information." actionLabel={writable ? "Create note" : undefined} onAction={writable ? () => openCreate() : undefined} />
+            ) : notes.length === 0 ? (
+              <EmptyState icon={StickyNote} title={notesQ.isLoading ? "Loading notes" : "No notes yet"} description={notesQ.isLoading ? "Loading shared note data." : "Create a note to capture quick information."} actionLabel={writable && !notesQ.isLoading ? "Create note" : undefined} onAction={writable && !notesQ.isLoading ? () => openCreate() : undefined} />
             ) : (
               <EmptyState icon={StickyNote} title="Select a note" description="Choose a note from the list or create a new one." actionLabel={writable ? "Create note" : undefined} onAction={writable ? () => openCreate() : undefined} />
             )}
@@ -383,7 +439,7 @@ function NotesPage() {
             <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.isTemplate} onChange={(e) => setForm({ ...form, isTemplate: e.target.checked })} /> Mark as template</label>
           </div>
           <div className="space-y-1.5"><Label className="text-xs">Linked document</Label>
-            <Select value={form.linkedDocumentId ?? "none"} onValueChange={(v) => setForm({ ...form, linkedDocumentId: v === "none" ? undefined : v })}>
+            <Select value={form.linkedDocumentId ?? "none"} onValueChange={(v) => setForm({ ...form, linkedDocumentId: v === "none" ? null : v })}>
               <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
               <SelectContent><SelectItem value="none">None</SelectItem>{data.documents.map((d) => <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>)}</SelectContent>
             </Select>
@@ -396,7 +452,7 @@ function NotesPage() {
       </FormDrawer>
 
       <ConfirmDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)} title="Delete note?" destructive confirmLabel="Delete"
-        onConfirm={() => { if (confirmDelete) { deleteNote(confirmDelete); toast.success("Moved to recycle bin"); } setConfirmDelete(null); }} />
+        onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete); setConfirmDelete(null); }} />
 
       <RelationPicker
         open={linkOpen}
@@ -405,14 +461,7 @@ function NotesPage() {
         title="Link records to note"
         onSave={(sel) => {
           if (!selected) return;
-          updateNote(selected.id, {
-            linkedTicketIds: sel.ticketIds,
-            linkedAssetIds: sel.assetIds,
-            linkedIpamIds: sel.ipamIds,
-            linkedTaskIds: sel.taskIds,
-            linkedUserIds: sel.userIds,
-          });
-          toast.success("Links updated");
+          linksMutation.mutate({ id: selected.id, links: sel });
         }}
       />
     </div>

@@ -786,3 +786,55 @@ requires explicit approval under `AGENTS.md`.
 - P16 disposable-database validation passed against a read-only live snapshot restored
   into a temporary QA database; the protected live database was not migrated.
 - Browser runtime validation remains required before any live apply.
+
+## Milestone 28 - Organization-Scoped Notes Backend
+
+- Replaced the Notes route's reads and writes with typed Supabase and TanStack
+  Query contracts (`src/lib/notes/types.ts`, `src/lib/notes/notes.ts`,
+  `src/lib/notes/queries.ts`); browser-local note/template rows are no longer
+  authoritative. `src/lib/data/notes.ts` was trimmed to the non-authoritative
+  `exportNoteMarkdown`, `convertNoteToDocument`, and `convertNoteToTask` helpers,
+  which continue to read/write the local Documents/Tasks seed stores, consistent
+  with the cross-module precedent set by prior milestones.
+- Added organization-scoped `notes` and `note_templates` tables (tags, pinned,
+  archived, `is_template`, owner, opaque `links` jsonb for cross-module
+  references, soft delete), both with least-privilege RLS gated on `notes.view`
+  (non-deleted rows) and `notes.manage` (full access, including writes).
+- Added `prepare_notes_write`/`prepare_note_templates_write` triggers that derive
+  `organization_id`, `created_by`/`updated_by`, and forbid cross-organization
+  moves, plus an `assert_notes_manage()` helper used by every mutating RPC.
+- Revoked all direct authenticated table writes and exposed `list_notes`,
+  `list_note_templates`, `save_note`, `save_note_template`, `toggle_note_pin`,
+  `set_note_archived`, `duplicate_note`, `save_note_links`, `soft_delete_note`,
+  `restore_note`, `soft_delete_note_template`, and `restore_note_template` as
+  permission-checked, empty-search-path RPCs.
+- `save_note` derives `owner` from the caller's profile on create, preserves it
+  on update, and merges the `links` jsonb only on the `linkedDocumentId` key so
+  RelationPicker-managed link arrays survive a subsequent note edit.
+  `save_note_links` validates the payload is a JSON object and merges
+  `linkedTicketIds`/`linkedAssetIds`/`linkedIpamIds`/`linkedTaskIds`/
+  `linkedUserIds` without disturbing `linkedDocumentId`. `duplicate_note` resets
+  `pinned`/`archived`, appends " (copy)" to the title, and carries `links`.
+- Confirmed the existing `notes.manage` permission grant already matches the
+  frontend `notes.write` capability's role set exactly (platform_admin/
+  super_admin, it_admin, sd_lead, helpdesk, technician, network_admin,
+  doc_editor), so no additional RBAC-alignment grant was required for this
+  milestone.
+- Cross-module "linked records" reads in the notes detail panel (tickets,
+  assets, IPAM, tasks, documents) and the note activity timeline continue to
+  read the browser-local seed store, matching the precedent set by the
+  CMDB/IPAM/Tasks milestones; only the Notes module's own data moved to the
+  backend. Markdown export remains client-side.
+- Added transaction-backed disposable QA covering RLS enablement, direct-write
+  denial, validation errors (blank title), pin/archive toggling, links merging
+  and non-object rejection, duplication with link carry-over, note templates
+  (create/update/list/soft-delete/restore), soft delete/restore/hard-delete
+  rejection, direct-insert rejection, and organization isolation for both reads
+  and every mutating RPC.
+- Added a static frontend/SQL assertion script
+  (`scripts/qa/production_hardening_notes.sh`) verifying the Notes route no
+  longer uses the local store or legacy `src/lib/data/notes.ts` mutators, uses
+  the new service layer and React Query keys, and that destructive operations
+  are RPC-only.
+- SQL was not executed. Disposable-database and browser runtime validation
+  remain required; the protected live database remains untouched.
