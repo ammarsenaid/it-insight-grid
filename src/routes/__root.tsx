@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { AuthGate } from "@/components/layout/AuthGate";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
@@ -100,12 +101,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AuthGate>
-          <Outlet />
-        </AuthGate>
-      </AuthProvider>
-      <Toaster position="bottom-right" theme="dark" richColors closeButton />
+      <TooltipProvider delayDuration={200}>
+        <AuthProvider>
+          <AuthGate>
+            <Outlet />
+          </AuthGate>
+        </AuthProvider>
+        <Toaster position="bottom-right" theme="dark" richColors closeButton />
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }
