@@ -2,7 +2,7 @@
 -- IT KNOWLEDGE CENTER
 -- Migration: Ticket Configuration (Phase A — Batch 4/6)
 -- ------------------------------------------------------------
--- DRAFT — NOT YET APPLIED. Forward-only and additive.
+-- AUTHORITATIVE. Forward-only and additive.
 --
 -- Adds (all in public schema):
 --   * ticket_categories

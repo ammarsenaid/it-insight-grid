@@ -2,7 +2,7 @@
 -- IT KNOWLEDGE CENTER
 -- Migration: Ticket Assignment History (Phase A — Batch 5/6)
 -- ------------------------------------------------------------
--- DRAFT — NOT YET APPLIED. Forward-only and additive.
+-- AUTHORITATIVE. Forward-only and additive.
 --
 -- Adds:
 --   * public.ticket_assignment_history

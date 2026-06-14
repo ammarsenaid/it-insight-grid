@@ -3,9 +3,9 @@ set -euo pipefail
 
 root="${ITKC_QA_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
-org_sql="${ITKC_ORG_SQL:-$root/supabase/pending/20260612235900_organization_foundation.sql}"
+org_sql="${ITKC_ORG_SQL:-$root/supabase/migrations/20260612235900_organization_foundation.sql}"
 org_qa="${ITKC_ORG_QA:-$root/supabase/pending/20260612235900_organization_foundation.qa.sql}"
-cmdb_sql="${ITKC_CMDB_SQL:-$root/supabase/pending/20260613000000_cmdb_backend.sql}"
+cmdb_sql="${ITKC_CMDB_SQL:-$root/supabase/migrations/20260613000000_cmdb_backend.sql}"
 cmdb_qa="${ITKC_CMDB_QA:-$root/supabase/pending/20260613000000_cmdb_backend.qa.sql}"
 
 route="$root/src/routes/cmdb.tsx"

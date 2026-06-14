@@ -33,9 +33,9 @@ PG_SUPERUSER="${PG_SUPERUSER:-supabase_admin}"      # role with CREATEDB privile
 LIVE_DB="${LIVE_DB:-postgres}"                # live Supabase database name
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-notes_sql="$root/supabase/pending/20260615000000_notes_backend.sql"
+notes_sql="$root/supabase/migrations/20260615000000_notes_backend.sql"
 notes_qa="$root/supabase/pending/20260615000000_notes_backend.qa.sql"
-protocols_sql="$root/supabase/pending/20260616000000_protocols_backend.sql"
+protocols_sql="$root/supabase/migrations/20260616000000_protocols_backend.sql"
 protocols_qa="$root/supabase/pending/20260616000000_protocols_backend.qa.sql"
 
 ts=$(date +%Y%m%d%H%M%S)

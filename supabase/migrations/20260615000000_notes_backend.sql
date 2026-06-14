@@ -2,7 +2,7 @@
 -- IT KNOWLEDGE CENTER
 -- Migration: organization-scoped Notes backend
 -- ------------------------------------------------------------
--- DRAFT - NOT APPLIED. Forward-only and additive.
+-- AUTHORITATIVE. Forward-only and additive.
 -- Depends on 20260612235900_organization_foundation.sql and
 -- Service Desk RBAC expansion (notes.view / notes.manage).
 -- ============================================================

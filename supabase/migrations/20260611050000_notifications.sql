@@ -2,7 +2,7 @@
 -- IT KNOWLEDGE CENTER
 -- Migration: Notifications (Phase A — Batch 6/6)
 -- ------------------------------------------------------------
--- DRAFT — NOT YET APPLIED. Forward-only and additive.
+-- AUTHORITATIVE. Forward-only and additive.
 --
 -- Adds:
 --   * public.notifications

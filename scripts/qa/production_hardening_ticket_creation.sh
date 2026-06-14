@@ -3,7 +3,7 @@ set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 
-sql="$root/supabase/pending/20260611000000_service_desk_foundation.sql"
+sql="$root/supabase/migrations/20260611000000_service_desk_foundation.sql"
 dbqa="$root/supabase/pending/20260611000000_service_desk_foundation.qa.sql"
 frontend="$root/src/lib/service-desk/tickets.ts"
 

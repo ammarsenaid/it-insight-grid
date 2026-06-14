@@ -2,7 +2,7 @@
 -- IT KNOWLEDGE CENTER
 -- Migration: Service Desk RBAC Expansion (Phase A — Batch 2/6)
 -- ------------------------------------------------------------
--- DRAFT — NOT YET APPLIED.
+-- AUTHORITATIVE.
 -- Forward-only and additive. No existing object is dropped or
 -- altered in a destructive way (only ON CONFLICT upserts on the
 -- roles / permissions / role_permissions catalog tables).

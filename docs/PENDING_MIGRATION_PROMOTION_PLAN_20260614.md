@@ -28,7 +28,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 1. Service Desk foundation
 
-- Production SQL: `supabase/pending/20260611000000_service_desk_foundation.sql`
+- Production SQL: `supabase/migrations/20260611000000_service_desk_foundation.sql`
 - QA SQL: `supabase/pending/20260611000000_service_desk_foundation.qa.sql`
 - Dependency reason: first pending migration; it builds on the already-applied
   identity/RBAC foundation and creates the ticket, catalog, comment, status,
@@ -45,7 +45,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 2. Service Desk RBAC/profile helpers
 
-- Production SQL: `supabase/pending/20260611010000_service_desk_rbac_expand.sql`
+- Production SQL: `supabase/migrations/20260611010000_service_desk_rbac_expand.sql`
 - QA SQL: `supabase/pending/20260611010000_service_desk_rbac_expand.qa.sql`
 - Dependency reason: follows the Service Desk roles and permissions introduced
   by step 1, then adds the permission catalog and profile-directory helper used
@@ -59,7 +59,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 3. Ticket attachments
 
-- Production SQL: `supabase/pending/20260611020000_ticket_attachments.sql`
+- Production SQL: `supabase/migrations/20260611020000_ticket_attachments.sql`
 - QA SQL: `supabase/pending/20260611020000_ticket_attachments.qa.sql`
 - Dependency reason: directly references step 1 ticket/comment objects and
   visibility helpers, and step 2 attachment permissions. It must follow both.
@@ -71,7 +71,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 4. Ticket configuration
 
-- Production SQL: `supabase/pending/20260611030000_ticket_configuration.sql`
+- Production SQL: `supabase/migrations/20260611030000_ticket_configuration.sql`
 - QA SQL: `supabase/pending/20260611030000_ticket_configuration.qa.sql`
 - Dependency reason: uses step 1 Service Desk helpers and the step 2
   `tickets.config`/role mappings; it follows attachments to preserve the fixed
@@ -84,7 +84,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 5. Ticket assignments
 
-- Production SQL: `supabase/pending/20260611040000_ticket_assignments.sql`
+- Production SQL: `supabase/migrations/20260611040000_ticket_assignments.sql`
 - QA SQL: `supabase/pending/20260611040000_ticket_assignments.qa.sql`
 - Dependency reason: records changes to the step 1 `tickets` table and relies
   on its ticket visibility helper; it follows the earlier Service Desk batches
@@ -97,7 +97,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 6. Notifications
 
-- Production SQL: `supabase/pending/20260611050000_notifications.sql`
+- Production SQL: `supabase/migrations/20260611050000_notifications.sql`
 - QA SQL: `supabase/pending/20260611050000_notifications.qa.sql`
 - Dependency reason: consumes step 1 ticket/comment/status objects, step 2
   notification permissions, and step 5 assignment history/events. It closes
@@ -110,7 +110,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 7. Organization foundation
 
-- Production SQL: `supabase/pending/20260612235900_organization_foundation.sql`
+- Production SQL: `supabase/migrations/20260612235900_organization_foundation.sql`
 - QA SQL: `supabase/pending/20260612235900_organization_foundation.qa.sql`
 - Dependency reason: follows the complete Service Desk/RBAC batch and uses the
   applied profile identity model. It establishes the tenant boundary that every
@@ -123,7 +123,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 8. CMDB
 
-- Production SQL: `supabase/pending/20260613000000_cmdb_backend.sql`
+- Production SQL: `supabase/migrations/20260613000000_cmdb_backend.sql`
 - QA SQL: `supabase/pending/20260613000000_cmdb_backend.qa.sql`
 - Dependency reason: directly requires step 2 CMDB permissions and step 7
   organization membership/context helpers. It supplies asset identifiers used
@@ -136,7 +136,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 9. IPAM
 
-- Production SQL: `supabase/pending/20260613010000_ipam_backend.sql`
+- Production SQL: `supabase/migrations/20260613010000_ipam_backend.sql`
 - QA SQL: `supabase/pending/20260613010000_ipam_backend.qa.sql`
 - Dependency reason: directly requires step 7 organization helpers, step 8
   CMDB assets for organization-bound asset links, and step 2 IPAM permissions.
@@ -150,7 +150,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 10. Tasks
 
-- Production SQL: `supabase/pending/20260614000000_tasks_backend.sql`
+- Production SQL: `supabase/migrations/20260614000000_tasks_backend.sql`
 - QA SQL: `supabase/pending/20260614000000_tasks_backend.qa.sql`
 - Dependency reason: directly requires step 7 organization helpers and step 2
   task permissions. It follows CMDB/IPAM in the immutable operations order and
@@ -163,7 +163,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 11. Notes
 
-- Production SQL: `supabase/pending/20260615000000_notes_backend.sql`
+- Production SQL: `supabase/migrations/20260615000000_notes_backend.sql`
 - QA SQL: `supabase/pending/20260615000000_notes_backend.qa.sql`
 - Dependency reason: directly requires step 7 organization helpers and step 2
   note permissions. It follows Tasks to preserve reviewed cross-module link and
@@ -176,7 +176,7 @@ cross-migration references, triggers, RLS behavior, grants, or rollback safety.
 
 ### 12. Protocols
 
-- Production SQL: `supabase/pending/20260616000000_protocols_backend.sql`
+- Production SQL: `supabase/migrations/20260616000000_protocols_backend.sql`
 - QA SQL: `supabase/pending/20260616000000_protocols_backend.qa.sql`
 - Dependency reason: directly requires step 7 organization helpers and step 2
   protocol permissions. It is last because its run links and UI workflows can
@@ -208,3 +208,16 @@ database creation or connection, migration execution, QA SQL execution, and any
 live deployment are separate later milestones. A disposable success would
 still not authorize live execution; live deployment requires another explicit
 review and approval.
+
+## Promotion Completion Note
+
+Status: COMPLETED ON 2026-06-14 18:39:26
+
+The production SQL files listed in this plan have been promoted from `supabase/pending/` to `supabase/migrations/`.
+
+Post-promotion state:
+- Production SQL now lives under `supabase/migrations/`.
+- Transaction-backed QA SQL remains under `supabase/pending/`.
+- A clean disposable database replay from `supabase/migrations/` alone was validated.
+- The live database was not contacted or modified during this promotion validation.
+- No service restart was performed.

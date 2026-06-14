@@ -129,18 +129,18 @@ retention, access, and secret-screening process.
 
 ### Phase E - List exact 12 migrations
 
-1. `supabase/pending/20260611000000_service_desk_foundation.sql`
-2. `supabase/pending/20260611010000_service_desk_rbac_expand.sql`
-3. `supabase/pending/20260611020000_ticket_attachments.sql`
-4. `supabase/pending/20260611030000_ticket_configuration.sql`
-5. `supabase/pending/20260611040000_ticket_assignments.sql`
-6. `supabase/pending/20260611050000_notifications.sql`
-7. `supabase/pending/20260612235900_organization_foundation.sql`
-8. `supabase/pending/20260613000000_cmdb_backend.sql`
-9. `supabase/pending/20260613010000_ipam_backend.sql`
-10. `supabase/pending/20260614000000_tasks_backend.sql`
-11. `supabase/pending/20260615000000_notes_backend.sql`
-12. `supabase/pending/20260616000000_protocols_backend.sql`
+1. `supabase/migrations/20260611000000_service_desk_foundation.sql`
+2. `supabase/migrations/20260611010000_service_desk_rbac_expand.sql`
+3. `supabase/migrations/20260611020000_ticket_attachments.sql`
+4. `supabase/migrations/20260611030000_ticket_configuration.sql`
+5. `supabase/migrations/20260611040000_ticket_assignments.sql`
+6. `supabase/migrations/20260611050000_notifications.sql`
+7. `supabase/migrations/20260612235900_organization_foundation.sql`
+8. `supabase/migrations/20260613000000_cmdb_backend.sql`
+9. `supabase/migrations/20260613010000_ipam_backend.sql`
+10. `supabase/migrations/20260614000000_tasks_backend.sql`
+11. `supabase/migrations/20260615000000_notes_backend.sql`
+12. `supabase/migrations/20260616000000_protocols_backend.sql`
 
 ```text
 # printf '%s\n' '<THE_12_REVIEWED_MIGRATION_PATHS_IN_THE_ORDER_ABOVE>'

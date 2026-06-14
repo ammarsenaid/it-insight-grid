@@ -5,7 +5,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 route="$root/src/routes/admin.ticket-settings.tsx"
 templates_route="$root/src/routes/admin.templates.tsx"
 permissions="$root/src/lib/permissions.tsx"
-configuration_sql="$root/supabase/pending/20260611030000_ticket_configuration.sql"
+configuration_sql="$root/supabase/migrations/20260611030000_ticket_configuration.sql"
 configuration_qa="$root/supabase/pending/20260611030000_ticket_configuration.qa.sql"
 
 test "$(rg -c 'QueryResult = useQuery' "$route")" -eq 5

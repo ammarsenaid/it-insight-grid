@@ -2,7 +2,7 @@
 -- IT KNOWLEDGE CENTER
 -- Migration: Ticket Attachments (Phase A — Batch 3/6)
 -- ------------------------------------------------------------
--- DRAFT — NOT YET APPLIED. Forward-only and additive.
+-- AUTHORITATIVE. Forward-only and additive.
 --
 -- Adds:
 --   * Table public.ticket_attachments
@@ -154,6 +154,19 @@ begin
   end if;
 end
 $$;
+
+-- ------------------------------------------------------------
+-- 3b. Storage privileges required for RLS policy evaluation
+-- ------------------------------------------------------------
+-- Supabase Storage policies on storage.objects are not enough by themselves:
+-- the authenticated role also needs schema/table privileges before RLS can
+-- evaluate the bucket-scoped policies. Keep UPDATE unsupported because stored
+-- objects should not be mutated in place.
+grant usage on schema storage to authenticated;
+grant select, insert, delete on table storage.objects to authenticated;
+
+comment on table storage.objects is
+  'ITKC ticket attachment storage grants: authenticated can select/insert/delete objects only through RLS policies; update remains unsupported.';
 
 -- ------------------------------------------------------------
 -- 4. RLS — public.ticket_attachments

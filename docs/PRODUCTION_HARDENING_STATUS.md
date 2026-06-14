@@ -126,7 +126,7 @@ Last updated: 2026-06-14
 
 Pre-existing, preserved changes:
 
-- `supabase/pending/20260611020000_ticket_attachments.sql`
+- `supabase/migrations/20260611020000_ticket_attachments.sql`
 - `supabase/pending/20260611020000_ticket_attachments.qa.sql`
 
 Hardening-phase documentation:
@@ -137,7 +137,7 @@ Hardening-phase documentation:
 
 Milestone 1 implementation (including the preserved baseline changes):
 
-- `supabase/pending/20260611020000_ticket_attachments.sql`
+- `supabase/migrations/20260611020000_ticket_attachments.sql`
 - `supabase/pending/20260611020000_ticket_attachments.qa.sql`
 
 Milestone 2 implementation:
@@ -199,32 +199,32 @@ Milestone 11 implementation:
 
 Milestone 12 implementation:
 
-- `supabase/pending/20260611000000_service_desk_foundation.sql`
+- `supabase/migrations/20260611000000_service_desk_foundation.sql`
 - `supabase/pending/20260611000000_service_desk_foundation.qa.sql`
 - `src/lib/service-desk/tickets.ts`
 - `scripts/qa/production_hardening_ticket_creation.sh`
 
 Milestone 14 implementation:
 
-- `supabase/pending/20260611000000_service_desk_foundation.sql`
+- `supabase/migrations/20260611000000_service_desk_foundation.sql`
 - `supabase/pending/20260611000000_service_desk_foundation.qa.sql`
 - `supabase/pending/20260611010000_service_desk_rbac_expand.qa.sql`
 
 Milestone 15 implementation:
 
-- `supabase/pending/20260611000000_service_desk_foundation.sql`
+- `supabase/migrations/20260611000000_service_desk_foundation.sql`
 - `supabase/pending/20260611000000_service_desk_foundation.qa.sql`
 - `scripts/qa/production_hardening_catalog_request.sh`
 
 Milestone 16 implementation:
 
-- `supabase/pending/20260611050000_notifications.sql`
+- `supabase/migrations/20260611050000_notifications.sql`
 - `supabase/pending/20260611050000_notifications.qa.sql`
 - `scripts/qa/production_hardening_notifications.sh`
 
 Milestone 17 implementation:
 
-- `supabase/pending/20260611020000_ticket_attachments.sql`
+- `supabase/migrations/20260611020000_ticket_attachments.sql`
 - `supabase/pending/20260611020000_ticket_attachments.qa.sql`
 - `scripts/qa/production_hardening_ticket_attachments.sh`
 
@@ -254,7 +254,7 @@ Milestone 21 implementation:
 - `src/lib/permissions.tsx`
 - `src/routes/tickets.tsx`
 - `src/routes/tickets.$id.tsx`
-- `supabase/pending/20260611010000_service_desk_rbac_expand.sql`
+- `supabase/migrations/20260611010000_service_desk_rbac_expand.sql`
 - `supabase/pending/20260611010000_service_desk_rbac_expand.qa.sql`
 - `scripts/qa/production_hardening_frontend_auth.sh`
 - `docs/PRODUCTION_HARDENING_STATUS.md`
@@ -262,7 +262,7 @@ Milestone 21 implementation:
 Milestone 22 implementation:
 
 - `src/lib/service-desk/profiles.ts`
-- `supabase/pending/20260611010000_service_desk_rbac_expand.sql`
+- `supabase/migrations/20260611010000_service_desk_rbac_expand.sql`
 - `supabase/pending/20260611010000_service_desk_rbac_expand.qa.sql`
 - `scripts/qa/production_hardening_service_desk_profiles.sh`
 - `docs/PRODUCTION_HARDENING_STATUS.md`
@@ -271,7 +271,7 @@ Milestone 23 implementation:
 
 - `src/lib/permissions.tsx`
 - `src/routes/admin.templates.tsx`
-- `supabase/pending/20260611030000_ticket_configuration.sql`
+- `supabase/migrations/20260611030000_ticket_configuration.sql`
 - `supabase/pending/20260611030000_ticket_configuration.qa.sql`
 - `scripts/qa/production_hardening_ticket_configuration.sh`
 - `docs/PRODUCTION_HARDENING_STATUS.md`
@@ -285,7 +285,7 @@ Milestone 24 implementation:
 - `src/lib/cmdb/queries.ts`
 - `src/lib/cmdb/types.ts`
 - `src/lib/permissions.tsx`
-- `supabase/pending/20260613000000_cmdb_backend.sql`
+- `supabase/migrations/20260613000000_cmdb_backend.sql`
 - `supabase/pending/20260613000000_cmdb_backend.qa.sql`
 - `scripts/qa/production_hardening_cmdb.sh`
 - `docs/PRODUCTION_HARDENING_STATUS.md`
@@ -302,7 +302,7 @@ Milestone 26 implementation:
 - `src/lib/ipam/queries.ts`
 - `src/lib/ipam/types.ts`
 - `src/lib/permissions.tsx`
-- `supabase/pending/20260613010000_ipam_backend.sql`
+- `supabase/migrations/20260613010000_ipam_backend.sql`
 - `supabase/pending/20260613010000_ipam_backend.qa.sql`
 - `scripts/qa/production_hardening_ipam.sh`
 - `scripts/qa/production_hardening_csv.sh`
@@ -1265,7 +1265,7 @@ requires explicit approval under `AGENTS.md`.
 
 - Milestone 39 disposable full-chain validation applied 12 of 22 ordered SQL
   files before stopping at
-  `supabase/pending/20260611020000_ticket_attachments.sql`. The disposable
+  `supabase/migrations/20260611020000_ticket_attachments.sql`. The disposable
   `storage.buckets` table exposed `id`, `name`, `owner`, `created_at`, and
   `updated_at`, but no `public` column; the migration's unconditional
   `insert into storage.buckets (id, name, public)` therefore failed.
@@ -1498,3 +1498,32 @@ Final result:
 - Runtime wrapper asset serving: VERIFIED.
 - Post-fix backup: PRESENT.
 - Temporary browser automation: DELETED.
+
+## Milestone 74 — Migration Provenance Repair
+
+Date: 2026-06-14 18:34:45
+
+Status: VALIDATED IN DISPOSABLE DATABASE — NOT APPLIED TO LIVE DB IN THIS MILESTONE.
+
+Problem fixed:
+- Production SQL files had been validated/applied operationally but remained under `supabase/pending/`.
+- This meant a clean repository-only deployment could not prove it recreated the current backend system.
+
+Actions:
+- Promoted the twelve production SQL files from `supabase/pending/` to `supabase/migrations/`.
+- Kept transaction-backed QA SQL files under `supabase/pending/` as QA-only files.
+- Added the required ticket attachment storage grants for authenticated RLS evaluation.
+- Added the required CMDB table grants for authenticated RLS evaluation.
+- Added the required `auth.uid()` execution grants for CMDB security-invoker trigger execution.
+- Updated repository references from pending production SQL paths to authoritative migration paths.
+
+Validation:
+- Disposable database was reset from the clean pre-ITKC Supabase baseline.
+- Authoritative migrations in `supabase/migrations/` replayed successfully from scratch.
+- Pending QA SQL files passed against the disposable database.
+- Static production hardening QA scripts passed.
+- Live database was not contacted or modified.
+- No service restart was performed.
+
+Remaining:
+- Commit and push only after the full validation command completes successfully.

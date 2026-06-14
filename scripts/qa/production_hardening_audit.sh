@@ -5,7 +5,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 route="$root/src/routes/audit.tsx"
 client="$root/src/lib/service-desk/audit.ts"
 queries="$root/src/lib/service-desk/queries.ts"
-sql="$root/supabase/pending/20260611000000_service_desk_foundation.sql"
+sql="$root/supabase/migrations/20260611000000_service_desk_foundation.sql"
 status="$root/docs/PRODUCTION_HARDENING_STATUS.md"
 
 # The audit route must use the shared append-only log, never browser-local activity.

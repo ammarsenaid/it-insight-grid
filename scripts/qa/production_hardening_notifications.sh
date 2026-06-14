@@ -6,7 +6,7 @@ queries="$root/src/lib/service-desk/queries.ts"
 page="$root/src/routes/notifications.tsx"
 drawer="$root/src/components/common/NotificationDrawer.tsx"
 notifications="$root/src/lib/service-desk/notifications.ts"
-sql="$root/supabase/pending/20260611050000_notifications.sql"
+sql="$root/supabase/migrations/20260611050000_notifications.sql"
 dbqa="$root/supabase/pending/20260611050000_notifications.qa.sql"
 status="$root/docs/PRODUCTION_HARDENING_STATUS.md"
 

@@ -2,7 +2,7 @@
 -- IT KNOWLEDGE CENTER
 -- Migration: organization tenant foundation
 -- ------------------------------------------------------------
--- DRAFT - NOT APPLIED. Forward-only and additive.
+-- AUTHORITATIVE. Forward-only and additive.
 -- One customer company equals one organization.
 -- ============================================================
 

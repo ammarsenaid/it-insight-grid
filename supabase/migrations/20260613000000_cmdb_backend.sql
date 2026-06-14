@@ -2,7 +2,7 @@
 -- IT KNOWLEDGE CENTER
 -- Migration: CMDB shared backend
 -- ------------------------------------------------------------
--- DRAFT - NOT APPLIED. Forward-only and additive.
+-- AUTHORITATIVE. Forward-only and additive.
 -- Depends on identity RBAC, 20260611010000_service_desk_rbac_expand.sql,
 -- and 20260612235900_organization_foundation.sql.
 -- CMDB asset types remain global read-only reference data.
@@ -348,5 +348,27 @@ grant update (
   asset_tag, mac_address, status, warranty_expiration, notes
 ) on public.cmdb_assets to authenticated;
 revoke insert, update, delete on public.cmdb_asset_types from authenticated;
+
+-- ------------------------------------------------------------
+-- 7b. CMDB table privileges required for RLS policy evaluation
+-- ------------------------------------------------------------
+-- RLS policies are not sufficient by themselves: authenticated needs the
+-- minimal table privileges before PostgreSQL can evaluate the policies.
+-- Global asset types are read-only. Assets are readable/insertable through RLS.
+-- Lifecycle events are read-only through RLS and cannot be forged directly.
+grant select on public.cmdb_asset_types to authenticated;
+grant select, insert on public.cmdb_assets to authenticated;
+grant select on public.cmdb_asset_lifecycle_events to authenticated;
+
+-- CMDB write triggers run as the authenticated caller and use auth.uid().
+-- Grant only what is required for auth.uid() lookup; no auth table access is granted.
+grant usage on schema auth to authenticated;
+grant execute on function auth.uid() to authenticated;
+
+comment on schema auth is
+  'ITKC CMDB auth.uid execution grants: authenticated can execute auth.uid() for security-invoker triggers and RLS evaluation; no auth table access is granted.';
+
+comment on table public.cmdb_assets is
+  'ITKC CMDB authenticated table grants: authenticated can select/insert assets through RLS and limited column updates only; hard delete remains forbidden.';
 
 commit;

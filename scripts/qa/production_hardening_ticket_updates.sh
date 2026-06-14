@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-SQL="$ROOT/supabase/pending/20260611000000_service_desk_foundation.sql"
+SQL="$ROOT/supabase/migrations/20260611000000_service_desk_foundation.sql"
 FOUNDATION_QA="$ROOT/supabase/pending/20260611000000_service_desk_foundation.qa.sql"
 NOTIFY_QA="$ROOT/supabase/pending/20260611050000_notifications.qa.sql"
 FRONTEND="$ROOT/src/lib/service-desk/tickets.ts"

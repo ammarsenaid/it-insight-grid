@@ -13,7 +13,7 @@ import_dialog="$root/src/components/common/ImportPreviewDialog.tsx"
 csv="$root/src/lib/csv.ts"
 csv_qa="$root/scripts/qa/production_hardening_csv.sh"
 concurrency_qa="$root/scripts/qa/production_hardening_ipam_concurrency.sh"
-sql="$root/supabase/pending/20260613010000_ipam_backend.sql"
+sql="$root/supabase/migrations/20260613010000_ipam_backend.sql"
 qa="$root/supabase/pending/20260613010000_ipam_backend.qa.sql"
 status="$root/docs/PRODUCTION_HARDENING_STATUS.md"
 

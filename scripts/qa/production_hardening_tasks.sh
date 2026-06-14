@@ -6,7 +6,7 @@ route="$root/src/routes/tasks.tsx"
 drawer="$root/src/components/tasks/TaskDetailsDrawer.tsx"
 service="$root/src/lib/tasks/tasks.ts"
 queries="$root/src/lib/tasks/queries.ts"
-sql="$root/supabase/pending/20260614000000_tasks_backend.sql"
+sql="$root/supabase/migrations/20260614000000_tasks_backend.sql"
 qa="$root/supabase/pending/20260614000000_tasks_backend.qa.sql"
 status="$root/docs/PRODUCTION_HARDENING_STATUS.md"
 

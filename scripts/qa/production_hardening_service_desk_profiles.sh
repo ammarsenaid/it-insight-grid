@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-SQL="$ROOT/supabase/pending/20260611010000_service_desk_rbac_expand.sql"
+SQL="$ROOT/supabase/migrations/20260611010000_service_desk_rbac_expand.sql"
 DB_QA="$ROOT/supabase/pending/20260611010000_service_desk_rbac_expand.qa.sql"
 FRONTEND="$ROOT/src/lib/service-desk/profiles.ts"
 STATUS="$ROOT/docs/PRODUCTION_HARDENING_STATUS.md"

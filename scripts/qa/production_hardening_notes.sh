@@ -5,7 +5,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 route="$root/src/routes/notes.tsx"
 service="$root/src/lib/notes/notes.ts"
 queries="$root/src/lib/notes/queries.ts"
-sql="$root/supabase/pending/20260615000000_notes_backend.sql"
+sql="$root/supabase/migrations/20260615000000_notes_backend.sql"
 qa="$root/supabase/pending/20260615000000_notes_backend.qa.sql"
 status="$root/docs/PRODUCTION_HARDENING_STATUS.md"
 

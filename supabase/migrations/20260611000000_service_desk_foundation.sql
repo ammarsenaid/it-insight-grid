@@ -2,7 +2,7 @@
 -- IT KNOWLEDGE CENTER
 -- Migration Batch: Service Desk Foundation (Batch 1)
 -- ------------------------------------------------------------
--- DRAFT — NOT YET APPLIED.
+-- AUTHORITATIVE.
 -- Move into supabase/migrations/ as
 --   20260611000000_service_desk_foundation.sql
 -- via the migration tool when ready to apply.

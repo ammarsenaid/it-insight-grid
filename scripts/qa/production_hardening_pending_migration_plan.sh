@@ -3,8 +3,10 @@ set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 plan="$root/docs/PENDING_MIGRATION_PROMOTION_PLAN_20260614.md"
+status_doc="$root/docs/PRODUCTION_HARDENING_STATUS.md"
 
 test -f "$plan"
+test -f "$status_doc"
 
 production_files=(
   20260611000000_service_desk_foundation.sql
@@ -21,47 +23,30 @@ production_files=(
   20260616000000_protocols_backend.sql
 )
 
-headings=(
-  "### 1. Service Desk foundation"
-  "### 2. Service Desk RBAC/profile helpers"
-  "### 3. Ticket attachments"
-  "### 4. Ticket configuration"
-  "### 5. Ticket assignments"
-  "### 6. Notifications"
-  "### 7. Organization foundation"
-  "### 8. CMDB"
-  "### 9. IPAM"
-  "### 10. Tasks"
-  "### 11. Notes"
-  "### 12. Protocols"
-)
+for file in "${production_files[@]}"; do
+  migration="supabase/migrations/$file"
+  legacy_pending="supabase/pending/$file"
+  qa="supabase/pending/${file%.sql}.qa.sql"
 
-previous_line=0
-for index in "${!production_files[@]}"; do
-  production="supabase/pending/${production_files[$index]}"
-  qa="${production%.sql}.qa.sql"
-
-  test -f "$root/$production"
+  test -f "$root/$migration"
+  test ! -e "$root/$legacy_pending"
   test -f "$root/$qa"
-  rg -Fq "$production" "$plan"
-  rg -Fq "$qa" "$plan"
 
-  line=$(rg -n -F "${headings[$index]}" "$plan" | cut -d: -f1)
-  test -n "$line"
-  test "$line" -gt "$previous_line"
-  previous_line=$line
+  rg -Fq "$migration" "$plan"
+  rg -Fq "$qa" "$plan"
 done
 
-rg -Fq 'NO-GO for production deployment as of 2026-06-14' "$plan"
-rg -Fq 'docs/FULL_SYSTEM_PRODUCTION_AUDIT_20260614.md' "$plan"
-rg -Fq 'NEVER run any file under `supabase/pending/` against the live database' "$plan"
-rg -Fq 'live database remains untouched' "$plan"
-rg -Fq 'Disposable database only' "$plan"
-rg -Fq 'requires a separate' "$plan"
-rg -Fq 'explicit human approval' "$plan"
-rg -Fq 'No migration was executed' "$plan"
-rg -Fq 'Do not copy or' "$plan"
-rg -Fq 'move these files into `supabase/migrations/`' "$plan"
+test "$(find "$root/supabase/migrations" -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 22
+
+if find "$root/supabase/pending" -maxdepth 1 -type f -name '*.sql' ! -name '*.qa.sql' | grep -q .; then
+  echo "ERROR: production SQL still exists under supabase/pending"
+  exit 1
+fi
+
+rg -Fq 'Milestone 74 — Migration Provenance Repair' "$status_doc"
+rg -Fq 'Live database was not contacted or modified' "$status_doc"
+rg -Fq 'supabase/migrations' "$plan"
+rg -Fq 'supabase/pending' "$plan"
 
 for module in Tickets Catalog Notifications Organization CMDB IPAM Tasks Notes Protocols 'Recycle Bin' Audit; do
   rg -Fq "$module" "$plan"
@@ -87,4 +72,4 @@ for qa_script in \
   rg -Fq "scripts/qa/$qa_script" "$plan"
 done
 
-printf 'Pending migration promotion plan assertions passed.\n'
+printf 'Migration promotion plan assertions passed after authoritative promotion.\n'

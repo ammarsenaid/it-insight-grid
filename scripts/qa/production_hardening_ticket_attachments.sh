@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-sql="$root/supabase/pending/20260611020000_ticket_attachments.sql"
+sql="$root/supabase/migrations/20260611020000_ticket_attachments.sql"
 dbqa="$root/supabase/pending/20260611020000_ticket_attachments.qa.sql"
 frontend="$root/src/lib/service-desk/attachments.ts"
 status="$root/docs/PRODUCTION_HARDENING_STATUS.md"
