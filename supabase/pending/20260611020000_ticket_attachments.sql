@@ -19,9 +19,10 @@
 -- NOTE on storage.buckets:
 --   Supabase's preferred path is the storage tool. This migration
 --   is intentionally raw SQL because the whole Service Desk package
---   is being staged for manual apply on the test VPS. The
---   `insert into storage.buckets ... on conflict do nothing` is
---   idempotent and matches existing knowledge-attachments setup.
+--   is being staged for manual apply on the test VPS. Supabase storage
+--   schemas differ on whether `storage.buckets.public` exists, so the
+--   idempotent bucket upsert handles both variants and forces private
+--   access whenever that column is available.
 -- ============================================================
 
 begin;
@@ -129,9 +130,30 @@ alter table public.ticket_attachments
 -- ------------------------------------------------------------
 -- 3. STORAGE BUCKET
 -- ------------------------------------------------------------
-insert into storage.buckets (id, name, public)
-values ('ticket-attachments', 'ticket-attachments', false)
-on conflict (id) do update set public = false;
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'storage'
+      and table_name = 'buckets'
+      and column_name = 'public'
+  ) then
+    execute $bucket$
+      insert into storage.buckets (id, name, public)
+      values ('ticket-attachments', 'ticket-attachments', false)
+      on conflict (id) do update
+        set name = excluded.name,
+            public = false
+    $bucket$;
+  else
+    insert into storage.buckets (id, name)
+    values ('ticket-attachments', 'ticket-attachments')
+    on conflict (id) do update
+      set name = excluded.name;
+  end if;
+end
+$$;
 
 -- ------------------------------------------------------------
 -- 4. RLS — public.ticket_attachments

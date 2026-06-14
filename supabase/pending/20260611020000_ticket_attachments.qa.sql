@@ -22,11 +22,38 @@ begin;
 
 -- ---- bucket present and private ----
 do $$
-declare is_pub boolean;
+declare
+  bucket_name text;
+  has_public boolean;
+  is_pub boolean;
 begin
-  select public into is_pub from storage.buckets where id = 'ticket-attachments';
-  if is_pub is null then raise exception 'Bucket ticket-attachments missing'; end if;
-  if is_pub then raise exception 'Bucket ticket-attachments must be private'; end if;
+  select name into bucket_name
+  from storage.buckets
+  where id = 'ticket-attachments';
+
+  if bucket_name is distinct from 'ticket-attachments' then
+    raise exception 'Bucket ticket-attachments missing or misnamed';
+  end if;
+
+  select exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'storage'
+      and table_name = 'buckets'
+      and column_name = 'public'
+  ) into has_public;
+
+  if has_public then
+    execute $bucket$
+      select public
+      from storage.buckets
+      where id = 'ticket-attachments'
+    $bucket$ into is_pub;
+
+    if is_pub is distinct from false then
+      raise exception 'Bucket ticket-attachments must be private';
+    end if;
+  end if;
 end$$;
 
 -- Stored-file deletion must be tested later through the Supabase Storage API

@@ -1260,3 +1260,25 @@ requires explicit approval under `AGENTS.md`.
   no live DB was touched, no disposable database was created, no migration or QA
   SQL was executed, and no `psql`, `docker`, or `sudo` command was executed.
   Actual disposable execution remains a separate later approval step.
+
+## Milestone 40 - Ticket Attachments Storage Bucket Compatibility
+
+- Milestone 39 disposable full-chain validation applied 12 of 22 ordered SQL
+  files before stopping at
+  `supabase/pending/20260611020000_ticket_attachments.sql`. The disposable
+  `storage.buckets` table exposed `id`, `name`, `owner`, `created_at`, and
+  `updated_at`, but no `public` column; the migration's unconditional
+  `insert into storage.buckets (id, name, public)` therefore failed.
+- Replaced that unconditional insert with an idempotent compatibility block
+  that checks the storage bucket catalog. When `public` exists, the bucket is
+  inserted or updated with `public = false`; when it does not, only `id` and
+  `name` are inserted or updated. The bucket id/name and all metadata/path and
+  storage-object authorization policies remain unchanged.
+- Updated the transaction-backed ticket attachment QA and static guard so they
+  do not blindly assume the optional column exists, while still requiring the
+  bucket to be private whenever the schema exposes `public` and preserving the
+  attachment path and storage policy assertions.
+- This patch is repository-only. No disposable or live database was contacted
+  or modified, and no migration or QA SQL was executed. Full-chain validation
+  must be rerun from a fresh disposable database under separate explicit human
+  approval before any promotion or deployment decision.
