@@ -37,7 +37,10 @@ Last updated: 2026-06-14
 - Completed milestone: 31 - Global Search Live-Data Integration
 - Completed milestone: 32 - Dashboard Live-Data Integration
 - Completed milestone: 33 - Service Desk Audit Live-Data Integration
-- Active milestone: none; repository-side review phase completed.
+- Completed milestone: 34 - Repository-Side Pending Migration Promotion Planning
+- Completed milestone: 35 - Disposable Validation Runner Preparation
+- Completed milestone: 36 - Disposable Full-Chain Execution Plan Review
+- Active milestone: none; disposable execution remains unapproved.
 - Repository inventory completed without reading secret-bearing files.
 - Existing uncommitted ticket-attachment SQL and QA changes identified and
   preserved as the milestone baseline.
@@ -320,8 +323,34 @@ Milestone 33 implementation:
 - `scripts/qa/production_hardening_audit.sh`
 - `docs/PRODUCTION_HARDENING_STATUS.md`
 
+Milestone 34 implementation:
+
+- `docs/PENDING_MIGRATION_PROMOTION_PLAN_20260614.md`
+- `scripts/qa/production_hardening_pending_migration_plan.sh`
+- `docs/PRODUCTION_HARDENING_STATUS.md`
+
+Milestone 35 implementation:
+
+- `scripts/qa/run_disposable_full_chain_validation.sh`
+- `scripts/qa/production_hardening_disposable_runner.sh`
+- `docs/PRODUCTION_HARDENING_STATUS.md`
+
+Milestone 36 implementation:
+
+- `docs/DISPOSABLE_FULL_CHAIN_VALIDATION_RUNBOOK_20260614.md`
+- `scripts/qa/production_hardening_disposable_runbook.sh`
+- `docs/PRODUCTION_HARDENING_STATUS.md`
+
 ## Validation Results
 
+- Disposable full-chain runbook assertions: passed; the runbook references the
+  Milestone 35 runner, preserves both exact twelve-file orders, and contains the
+  required live-database prohibition, disposable-only boundary, naming and
+  backup rules, result paths, and no-live-deployment statement.
+- `bash -n scripts/qa/production_hardening_disposable_runbook.sh`: passed.
+- `bash scripts/qa/production_hardening_disposable_runbook.sh`: passed.
+- `bunx --no-install tsc --noEmit`: passed after milestone 36.
+- `git diff --check`: passed after milestone 36.
 - Service Desk audit live-data assertions: passed; `/audit` has no browser-store
   dependency, uses the bounded read-only audit query, handles load failures, and
   remains aligned with the existing manager-only RLS policy and grants.
@@ -1147,3 +1176,20 @@ requires explicit approval under `AGENTS.md`.
 - No database was touched and no migration was executed. The runner is not
   allowed to perform database work in this milestone; actual disposable
   execution remains a separate later approval step.
+
+## Milestone 36 - Disposable Full-Chain Execution Plan Review
+
+- Added `docs/DISPOSABLE_FULL_CHAIN_VALIDATION_RUNBOOK_20260614.md` as the
+  human-readable review plan for a later, separately approved disposable-only
+  full-chain execution. It records the current NO-GO posture, live-database
+  prohibition, exact prerequisites, naming and backup rules, complete ordered
+  twelve-migration and twelve-QA-SQL manifests, success and failure handling,
+  evidence and cleanup requirements, and the separate live-deployment approval
+  boundary.
+- Added `scripts/qa/production_hardening_disposable_runbook.sh` to statically
+  verify the runbook exists, references the Milestone 35 runner, preserves both
+  exact ordered manifests, contains the required safety and authorization
+  language, explains both result paths, and is recorded in this status document.
+- This milestone performed repository-only documentation and static QA work.
+  No database was touched, no SQL or migration was executed, and no disposable
+  or live deployment action was authorized.
