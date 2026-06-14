@@ -1565,15 +1565,15 @@ Status: PASSED.
 
 Acceptance evidence:
 - Disposable database was reset from the clean pre-ITKC Supabase baseline.
-- All 22 tracked migrations under  replayed successfully.
-- Current live database was read only with .
-- Replay and live schema-only dumps were compared with .
-- Initial schema diff contained only internal  owner-role grants.
-- After normalizing those internal owner-role grants, the verifier reported .
+- All 22 tracked migrations under `supabase/migrations/` replayed successfully.
+- Current live database was read only with `pg_dump --schema-only`.
+- Replay and live schema-only dumps were compared with `scripts/qa/verify_clean_deployment_schema_equivalence.sh`.
+- Initial schema diff contained only internal `TO postgres` owner-role grants.
+- After normalizing those internal owner-role grants, the verifier reported `PASS`.
 - No missing application tables, functions, policies, or grants were found.
-- No hidden production SQL remains under .
+- No hidden production SQL remains under `supabase/pending/`.
 - No live database write was performed.
 - No service restart was performed.
 
 Evidence directory:
--
+- `/opt/it-knowledge-center/app/.artifacts/clean-deployment-replay/20260614_190728`

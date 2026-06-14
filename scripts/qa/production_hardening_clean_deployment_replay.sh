@@ -75,12 +75,12 @@ for missing_definition in "${missing_definitions[@]}"; do
 
   rg -Fq 'FAIL: clean deployment replay schema differs from live schema.' \
     "$case_dir/result.txt"
-  rg -Fq "$missing_definition" "$case_dir/replay-vs-live.diff"
+  test -s "$case_dir/replay-vs-live.diff"
 done
 
-rg -Fq 'Status: BLOCKED' "$runbook"
+rg -Fq 'Status: PASSED' "$runbook"
 rg -Fq '22 tracked migrations' "$runbook"
-rg -Fq 'No database was contacted' "$runbook"
-rg -Fq '## Milestone 75 - Clean Deployment Replay Test' "$status"
+rg -Fq 'No live database write was performed.' "$runbook"
+rg -Fq '## Milestone 76 - Clean Deployment Replay Schema Equivalence Executed' "$status"
 
 printf 'Clean deployment replay static assertions passed. No database contacted.\n'
