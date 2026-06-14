@@ -1,8 +1,9 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
-  Play, Plus, ListChecks, ShieldCheck, Calendar, AlertTriangle, CheckCircle2,
-  Clock, User, Users, Copy, Edit, Archive, Trash2, MoreHorizontal, Pause,
+  Play, Plus, ListChecks, ShieldCheck, AlertTriangle, CheckCircle2,
+  Clock, Copy, Edit, Archive, Trash2, MoreHorizontal,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { MetricCard } from "@/components/common/MetricCard";
@@ -23,11 +24,16 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDate, timeAgo } from "@/components/common/format";
-import { useProtocols, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate, startRun, addStep, updateStep, deleteStep, moveStep, runProgress } from "@/lib/protocols/store";
-import type { ProtocolTemplate, ProtocolRun, ProtocolStatus, ProtocolRecurrence } from "@/lib/protocols/types";
+import { protocolTemplatesKeys, protocolTemplatesQuery, protocolRunsKeys, protocolRunsQuery } from "@/lib/protocols/queries";
+import {
+  saveProtocolTemplate, setProtocolTemplateArchived, duplicateProtocolTemplate,
+  softDeleteProtocolTemplate, startProtocolRun, runProgress, publicProtocolError,
+} from "@/lib/protocols/protocols";
+import type {
+  ProtocolTemplate, ProtocolTemplateInput, ProtocolRun, ProtocolStatus, ProtocolRecurrence, ProtocolStep,
+} from "@/lib/protocols/types";
 import { useRole, can } from "@/lib/permissions";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/protocols/")({
   head: () => ({ meta: [{ title: "Protocols · IT Knowledge Center" }] }),
@@ -59,14 +65,37 @@ function meForRole(role: string): string {
   }
 }
 
+function templateToInput(t: ProtocolTemplate): ProtocolTemplateInput {
+  const { id, archived, lastRunAt, createdAt, updatedAt, deletedAt, ...rest } = t;
+  return rest;
+}
+
+const BLANK_TEMPLATE: ProtocolTemplateInput = {
+  title: "", category: "Operations", description: "", purpose: "", scope: "", preconditions: "",
+  assignedTeam: "", estimatedMinutes: 30, approvalRequired: false, recurrence: "none",
+  requiredAssetIds: [], requiredKnowledgeIds: [], tags: [], visibility: "internal", steps: [],
+};
+
+type SaveTemplateVars = { id: string | null; input: ProtocolTemplateInput };
+type StepsVars = { template: ProtocolTemplate; steps: ProtocolStep[] };
+
 function ProtocolsPage() {
-  const { templates, runs } = useProtocols();
   const role = useRole();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const templatesQ = useQuery(protocolTemplatesQuery());
+  const runsQ = useQuery(protocolRunsQuery());
+  const templates = useMemo(() => templatesQ.data ?? [], [templatesQ.data]);
+  const runs = useMemo(() => runsQ.data ?? [], [runsQ.data]);
+
+  const invalidateTemplates = () => qc.invalidateQueries({ queryKey: protocolTemplatesKeys.all });
+  const invalidateRuns = () => qc.invalidateQueries({ queryKey: protocolRunsKeys.all });
+
   const [tab, setTab] = useState<Tab>("templates");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [editingTemplate, setEditingTemplate] = useState<ProtocolTemplate | null>(null);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<ProtocolTemplate | null>(null);
 
@@ -108,6 +137,60 @@ function ProtocolsPage() {
     return list;
   }, [runs, tab, q, statusFilter, me]);
 
+  const startRunMutation = useMutation({
+    mutationFn: (templateId: string) => startProtocolRun(templateId, { assignedUser: me }),
+    onSuccess: async (runId) => {
+      await invalidateRuns();
+      const list = await qc.ensureQueryData(protocolRunsQuery());
+      const created = list.find((r) => r.id === runId);
+      toast.success(created ? `Started ${created.runNumber}` : "Protocol run started");
+      navigate({ to: "/protocols/$id", params: { id: runId } });
+    },
+    onError: (error) => toast.error(publicProtocolError(error)),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: ({ id, archived }: { id: string; archived: boolean }) => setProtocolTemplateArchived(id, archived),
+    onSuccess: async (_data, vars) => { await invalidateTemplates(); toast.success(vars.archived ? "Archived" : "Restored"); },
+    onError: (error) => toast.error(publicProtocolError(error)),
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => duplicateProtocolTemplate(id),
+    onSuccess: async () => { await invalidateTemplates(); toast.success("Duplicated"); },
+    onError: (error) => toast.error(publicProtocolError(error)),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => softDeleteProtocolTemplate(id),
+    onSuccess: async () => { await invalidateTemplates(); toast.success("Template deleted"); },
+    onError: (error) => toast.error(publicProtocolError(error)),
+  });
+
+  const saveTemplateMutation = useMutation({
+    mutationFn: ({ id, input }: SaveTemplateVars) => saveProtocolTemplate(id, input),
+    onSuccess: () => invalidateTemplates(),
+    onError: (error) => toast.error(publicProtocolError(error)),
+  });
+
+  const stepsMutation = useMutation({
+    mutationFn: ({ template, steps }: StepsVars) => saveProtocolTemplate(template.id, { ...templateToInput(template), steps }),
+    onSuccess: () => invalidateTemplates(),
+    onError: (error) => toast.error(publicProtocolError(error)),
+  });
+
+  if (templatesQ.isError || runsQ.isError) {
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Protocols unavailable"
+        description="The shared protocols data could not be loaded."
+        actionLabel="Retry"
+        onAction={() => { void templatesQ.refetch(); void runsQ.refetch(); }}
+      />
+    );
+  }
+
   const templateCols: Column<ProtocolTemplate>[] = [
     { key: "title", header: "Template", render: (t) => (
       <div>
@@ -124,7 +207,7 @@ function ProtocolsPage() {
     { key: "lastRun", header: "Last Run", render: (t) => <span className="text-xs text-muted-foreground">{t.lastRunAt ? timeAgo(t.lastRunAt) : "Never"}</span> },
     { key: "actions", header: "", className: "w-[110px] text-right", render: (t) => (
       <div className="flex justify-end gap-1">
-        <Button size="sm" variant="ghost" disabled={!canWrite} onClick={(e) => { e.stopPropagation(); const run = startRun(t.id, { assignedUser: me }); if (run) { toast.success(`Started ${run.runNumber}`); navigate({ to: "/protocols/$id", params: { id: run.id } }); } }}>
+        <Button size="sm" variant="ghost" disabled={!canWrite || startRunMutation.isPending} onClick={(e) => { e.stopPropagation(); startRunMutation.mutate(t.id); }}>
           <Play className="h-3.5 w-3.5" />
         </Button>
         <DropdownMenu>
@@ -132,9 +215,9 @@ function ProtocolsPage() {
             <Button size="sm" variant="ghost"><MoreHorizontal className="h-3.5 w-3.5" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setEditingTemplate(t)}><Edit className="mr-2 h-3.5 w-3.5" />Edit</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { const c = duplicateTemplate(t.id); if (c) toast.success("Duplicated"); }}><Copy className="mr-2 h-3.5 w-3.5" />Duplicate</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { updateTemplate(t.id, { archived: !t.archived }); toast.success(t.archived ? "Restored" : "Archived"); }}><Archive className="mr-2 h-3.5 w-3.5" />{t.archived ? "Restore" : "Archive"}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setEditingTemplateId(t.id)}><Edit className="mr-2 h-3.5 w-3.5" />Edit</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => duplicateMutation.mutate(t.id)}><Copy className="mr-2 h-3.5 w-3.5" />Duplicate</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => archiveMutation.mutate({ id: t.id, archived: !t.archived })}><Archive className="mr-2 h-3.5 w-3.5" />{t.archived ? "Restore" : "Archive"}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onClick={() => setConfirmDelete(t)}><Trash2 className="mr-2 h-3.5 w-3.5" />Delete</DropdownMenuItem>
           </DropdownMenuContent>
@@ -187,13 +270,7 @@ function ProtocolsPage() {
                   templates.filter((t) => !t.archived).map((t) => (
                     <DropdownMenuItem
                       key={t.id}
-                      onClick={() => {
-                        const run = startRun(t.id, { assignedUser: me });
-                        if (run) {
-                          toast.success(`Started ${run.runNumber}`);
-                          navigate({ to: "/protocols/$id", params: { id: run.id } });
-                        }
-                      }}
+                      onClick={() => startRunMutation.mutate(t.id)}
                     >
                       <span className="truncate">{t.title}</span>
                       <span className="ml-auto text-[10px] text-muted-foreground">{t.category}</span>
@@ -243,22 +320,25 @@ function ProtocolsPage() {
         <DataTable
           data={filteredTemplates}
           columns={templateCols}
-          onRowClick={(t) => setEditingTemplate(t)}
-          emptyState={<EmptyState icon={ListChecks} title={q ? "No matching records" : "No templates yet"} description={q ? "No records match the selected filters." : "Create the first protocol template to standardise repeatable procedures."} />}
+          onRowClick={(t) => setEditingTemplateId(t.id)}
+          emptyState={<EmptyState icon={ListChecks} title={templatesQ.isLoading ? "Loading templates" : q ? "No matching records" : "No templates yet"} description={templatesQ.isLoading ? "Loading shared protocol data." : q ? "No records match the selected filters." : "Create the first protocol template to standardise repeatable procedures."} />}
         />
       ) : (
         <DataTable
           data={filteredRuns}
           columns={runCols}
           onRowClick={(r) => navigate({ to: "/protocols/$id", params: { id: r.id } })}
-          emptyState={<EmptyState icon={Play} title={(q || statusFilter !== "all") ? "No matching records" : "No protocol runs yet"} description={(q || statusFilter !== "all") ? "No records match the selected filters." : "Start a protocol run to track repeatable IT procedures."} />}
+          emptyState={<EmptyState icon={Play} title={runsQ.isLoading ? "Loading runs" : (q || statusFilter !== "all") ? "No matching records" : "No protocol runs yet"} description={runsQ.isLoading ? "Loading shared protocol data." : (q || statusFilter !== "all") ? "No records match the selected filters." : "Start a protocol run to track repeatable IT procedures."} />}
         />
       )}
 
       <TemplateDrawer
-        open={showCreate || !!editingTemplate}
-        template={editingTemplate}
-        onClose={() => { setShowCreate(false); setEditingTemplate(null); }}
+        open={showCreate || !!editingTemplateId}
+        templates={templates}
+        templateId={editingTemplateId}
+        onClose={() => { setShowCreate(false); setEditingTemplateId(null); }}
+        saveMutation={saveTemplateMutation}
+        stepsMutation={stepsMutation}
       />
 
       <ConfirmDialog
@@ -268,36 +348,61 @@ function ProtocolsPage() {
         description={`"${confirmDelete?.title}" will be permanently removed.`}
         confirmLabel="Delete"
         destructive
-        onConfirm={() => { if (confirmDelete) { deleteTemplate(confirmDelete.id); toast.success("Template deleted"); setConfirmDelete(null); } }}
+        onConfirm={() => { if (confirmDelete) { deleteMutation.mutate(confirmDelete.id); setConfirmDelete(null); } }}
       />
     </div>
   );
 }
 
 // ----- Template drawer (create + edit + step builder) -----
-function TemplateDrawer({ open, template, onClose }: { open: boolean; template: ProtocolTemplate | null; onClose: () => void }) {
+function TemplateDrawer({
+  open, templates, templateId, onClose, saveMutation, stepsMutation,
+}: {
+  open: boolean;
+  templates: ProtocolTemplate[];
+  templateId: string | null;
+  onClose: () => void;
+  saveMutation: UseMutationResult<string, Error, SaveTemplateVars>;
+  stepsMutation: UseMutationResult<string, Error, StepsVars>;
+}) {
+  const template = templateId ? templates.find((t) => t.id === templateId) ?? null : null;
   const editing = !!template;
-  const blank: ProtocolTemplate = {
-    id: "", title: "", category: "Operations", description: "", purpose: "", scope: "", preconditions: "",
-    assignedTeam: "", estimatedMinutes: 30, approvalRequired: false, recurrence: "none",
-    requiredAssetIds: [], requiredKnowledgeIds: [], tags: [], visibility: "internal", steps: [],
-    createdAt: "", updatedAt: "",
-  };
-  const [form, setForm] = useState<ProtocolTemplate>(template ?? blank);
+  const [form, setForm] = useState<ProtocolTemplateInput>(template ? templateToInput(template) : BLANK_TEMPLATE);
 
   // Re-init when opening a different template
-  useMemo(() => { setForm(template ?? blank); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [template, open]);
+  useMemo(() => { setForm(template ? templateToInput(template) : BLANK_TEMPLATE); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [template, open]);
 
   const save = () => {
     if (!form.title.trim()) { toast.error("Title is required"); return; }
-    if (editing && template) {
-      updateTemplate(template.id, form as any);
-      toast.success("Template updated");
-    } else {
-      createTemplate(form as any);
-      toast.success("Template created");
-    }
-    onClose();
+    saveMutation.mutate({ id: template?.id ?? null, input: form }, {
+      onSuccess: () => { toast.success(editing ? "Template updated" : "Template created"); onClose(); },
+    });
+  };
+
+  const addStep = () => {
+    if (!template) return;
+    const newStep: ProtocolStep = {
+      id: crypto.randomUUID(), title: "New step", instructions: "", required: false,
+      notesAllowed: true, evidenceAllowed: true, approvalCheckpoint: false,
+    };
+    stepsMutation.mutate({ template, steps: [...template.steps, newStep] });
+  };
+  const updateStep = (stepId: string, patch: Partial<ProtocolStep>) => {
+    if (!template) return;
+    stepsMutation.mutate({ template, steps: template.steps.map((s) => s.id === stepId ? { ...s, ...patch } : s) });
+  };
+  const deleteStep = (stepId: string) => {
+    if (!template) return;
+    stepsMutation.mutate({ template, steps: template.steps.filter((s) => s.id !== stepId) });
+  };
+  const moveStep = (stepId: string, dir: -1 | 1) => {
+    if (!template) return;
+    const idx = template.steps.findIndex((s) => s.id === stepId);
+    const next = idx + dir;
+    if (idx < 0 || next < 0 || next >= template.steps.length) return;
+    const steps = [...template.steps];
+    [steps[idx], steps[next]] = [steps[next], steps[idx]];
+    stepsMutation.mutate({ template, steps });
   };
 
   return (
@@ -337,7 +442,7 @@ function TemplateDrawer({ open, template, onClose }: { open: boolean; template: 
           </div>
           <div>
             <Label>Visibility</Label>
-            <Select value={form.visibility} onValueChange={(v) => setForm({ ...form, visibility: v as any })}>
+            <Select value={form.visibility} onValueChange={(v) => setForm({ ...form, visibility: v as ProtocolTemplateInput["visibility"] })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="internal">Internal</SelectItem>
@@ -362,7 +467,7 @@ function TemplateDrawer({ open, template, onClose }: { open: boolean; template: 
           <div className="rounded-lg border border-border/60 bg-card/40 p-3">
             <div className="mb-2 flex items-center justify-between">
               <div className="text-sm font-medium">Checklist Steps ({template.steps.length})</div>
-              <Button size="sm" variant="outline" onClick={() => addStep(template.id)}><Plus className="mr-1 h-3 w-3" />Add Step</Button>
+              <Button size="sm" variant="outline" onClick={addStep} disabled={stepsMutation.isPending}><Plus className="mr-1 h-3 w-3" />Add Step</Button>
             </div>
             <div className="space-y-2">
               {template.steps.length === 0 && <p className="text-xs text-muted-foreground">No steps yet.</p>}
@@ -370,16 +475,16 @@ function TemplateDrawer({ open, template, onClose }: { open: boolean; template: 
                 <div key={s.id} className="rounded-md border border-border/60 bg-background/50 p-2">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs text-muted-foreground">{i + 1}.</span>
-                    <Input className="h-7 flex-1" value={s.title} onChange={(e) => updateStep(template.id, s.id, { title: e.target.value })} />
-                    <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => moveStep(template.id, s.id, -1)}>↑</Button>
-                    <Button size="sm" variant="ghost" disabled={i === template.steps.length - 1} onClick={() => moveStep(template.id, s.id, 1)}>↓</Button>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteStep(template.id, s.id)}><Trash2 className="h-3 w-3" /></Button>
+                    <Input className="h-7 flex-1" value={s.title} onChange={(e) => updateStep(s.id, { title: e.target.value })} />
+                    <Button size="sm" variant="ghost" disabled={i === 0 || stepsMutation.isPending} onClick={() => moveStep(s.id, -1)}>↑</Button>
+                    <Button size="sm" variant="ghost" disabled={i === template.steps.length - 1 || stepsMutation.isPending} onClick={() => moveStep(s.id, 1)}>↓</Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" disabled={stepsMutation.isPending} onClick={() => deleteStep(s.id)}><Trash2 className="h-3 w-3" /></Button>
                   </div>
-                  <Textarea className="mt-2" rows={2} placeholder="Instructions" value={s.instructions} onChange={(e) => updateStep(template.id, s.id, { instructions: e.target.value })} />
+                  <Textarea className="mt-2" rows={2} placeholder="Instructions" value={s.instructions} onChange={(e) => updateStep(s.id, { instructions: e.target.value })} />
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
-                    <label className="flex items-center gap-1.5"><Checkbox checked={s.required} onCheckedChange={(c) => updateStep(template.id, s.id, { required: !!c })} />Required</label>
-                    <label className="flex items-center gap-1.5"><Checkbox checked={s.approvalCheckpoint} onCheckedChange={(c) => updateStep(template.id, s.id, { approvalCheckpoint: !!c })} />Approval checkpoint</label>
-                    <label className="flex items-center gap-1.5"><Checkbox checked={s.evidenceAllowed} onCheckedChange={(c) => updateStep(template.id, s.id, { evidenceAllowed: !!c })} />Evidence</label>
+                    <label className="flex items-center gap-1.5"><Checkbox checked={s.required} onCheckedChange={(c) => updateStep(s.id, { required: !!c })} />Required</label>
+                    <label className="flex items-center gap-1.5"><Checkbox checked={s.approvalCheckpoint} onCheckedChange={(c) => updateStep(s.id, { approvalCheckpoint: !!c })} />Approval checkpoint</label>
+                    <label className="flex items-center gap-1.5"><Checkbox checked={s.evidenceAllowed} onCheckedChange={(c) => updateStep(s.id, { evidenceAllowed: !!c })} />Evidence</label>
                   </div>
                 </div>
               ))}

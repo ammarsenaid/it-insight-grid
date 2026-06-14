@@ -1,8 +1,9 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Play, Pause, CheckCircle2, AlertTriangle, X, ShieldCheck,
-  Download, MessageSquare, FileText, Server, Ticket as TicketIcon, User,
+  Download, Server, User,
   Calendar, Clock, ListChecks, Send,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -15,11 +16,13 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Button as Btn } from "@/components/ui/button";
 import { formatDate, timeAgo } from "@/components/common/format";
-import { useProtocols, updateRun, updateRunStep, setRunStatus, addApproval, addRunComment, runProgress } from "@/lib/protocols/store";
-import type { ProtocolStatus } from "@/lib/protocols/types";
+import { protocolRunsKeys, protocolRunsQuery, protocolTemplatesQuery } from "@/lib/protocols/queries";
+import {
+  addProtocolRunApproval, addProtocolRunComment, publicProtocolError, runProgress,
+  setProtocolRunStatus, updateProtocolRunStep,
+} from "@/lib/protocols/protocols";
+import type { ProtocolRunStepPatch, ProtocolStatus } from "@/lib/protocols/types";
 import { useRole, can } from "@/lib/permissions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -40,29 +43,74 @@ const STATUS_LABEL: Record<ProtocolStatus, string> = {
   cancelled: "Cancelled",
 };
 
-function meForRole(role: string): string {
-  switch (role) {
-    case "super_admin":
-    case "it_admin": return "alice.it";
-    case "sd_lead":
-    case "helpdesk": return "bob.admin";
-    default: return "carol.netops";
-  }
-}
-
 function ProtocolRunPage() {
   const { id } = Route.useParams();
-  const { runs, templates } = useProtocols();
   const navigate = useNavigate();
   const role = useRole();
-  const me = meForRole(role);
   const canWrite = can("tasks.write", role);
+  const qc = useQueryClient();
+
+  const runsQ = useQuery(protocolRunsQuery());
+  const templatesQ = useQuery(protocolTemplatesQuery());
+  const runs = useMemo(() => runsQ.data ?? [], [runsQ.data]);
+  const templates = useMemo(() => templatesQ.data ?? [], [templatesQ.data]);
 
   const run = runs.find((r) => r.id === id);
   const template = useMemo(() => run ? templates.find((t) => t.id === run.templateId) : null, [run, templates]);
 
   const [commentDraft, setCommentDraft] = useState("");
   const [tab, setTab] = useState("overview");
+
+  const invalidateRuns = () => qc.invalidateQueries({ queryKey: protocolRunsKeys.all });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ runId, status }: { runId: string; status: ProtocolStatus }) => setProtocolRunStatus(runId, status),
+    onSuccess: async (_data, vars) => { await invalidateRuns(); toast.success(`Status → ${STATUS_LABEL[vars.status]}`); },
+    onError: (error) => toast.error(publicProtocolError(error)),
+  });
+
+  const stepMutation = useMutation({
+    mutationFn: ({ runId, stepId, patch }: { runId: string; stepId: string; patch: ProtocolRunStepPatch }) => updateProtocolRunStep(runId, stepId, patch),
+    onSuccess: () => invalidateRuns(),
+    onError: (error) => toast.error(publicProtocolError(error)),
+  });
+
+  const approvalMutation = useMutation({
+    mutationFn: ({ runId, decision, comment }: { runId: string; decision: "approved" | "rejected"; comment?: string }) => addProtocolRunApproval(runId, decision, comment),
+    onSuccess: async (_data, vars) => {
+      await invalidateRuns();
+      if (vars.decision === "approved") toast.success("Approved");
+      else toast.error("Rejected");
+    },
+    onError: (error) => toast.error(publicProtocolError(error)),
+  });
+
+  const commentMutation = useMutation({
+    mutationFn: ({ runId, body }: { runId: string; body: string }) => addProtocolRunComment(runId, body),
+    onSuccess: () => invalidateRuns(),
+    onError: (error) => toast.error(publicProtocolError(error)),
+  });
+
+  if (runsQ.isError || templatesQ.isError) {
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Protocol run unavailable"
+        description="The shared protocols data could not be loaded."
+        actionLabel="Retry"
+        onAction={() => { void runsQ.refetch(); void templatesQ.refetch(); }}
+      />
+    );
+  }
+
+  if (runsQ.isLoading || templatesQ.isLoading) {
+    return (
+      <div>
+        <PageHeader title="Protocol Run" />
+        <EmptyState icon={ListChecks} title="Loading run" description="Loading protocol run data." />
+      </div>
+    );
+  }
 
   if (!run || !template) {
     return (
@@ -80,9 +128,9 @@ function ProtocolRunPage() {
   const requiredDone = template.steps.filter((s) => s.required && run.steps.find((rs) => rs.stepId === s.id)?.completed).length;
   const allRequiredDone = requiredDone >= totalRequired;
 
-  const setStatus = (st: ProtocolStatus) => { setRunStatus(run.id, st); toast.success(`Status → ${STATUS_LABEL[st]}`); };
+  const setStatus = (st: ProtocolStatus) => statusMutation.mutate({ runId: run.id, status: st });
   const toggleStep = (stepId: string, completed: boolean) => {
-    updateRunStep(run.id, stepId, { completed, completedBy: completed ? me : undefined, completedAt: completed ? new Date().toISOString() : undefined });
+    stepMutation.mutate({ runId: run.id, stepId, patch: { completed } });
   };
 
   const isTerminal = ["completed","completed_with_issues","failed","cancelled"].includes(run.status);
@@ -134,8 +182,8 @@ function ProtocolRunPage() {
             )}
             {run.status === "waiting_approval" && (
               <>
-                <Button size="sm" onClick={() => { addApproval(run.id, "approved", me); toast.success("Approved"); }}><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />Approve</Button>
-                <Button size="sm" variant="outline" className="text-destructive" onClick={() => { addApproval(run.id, "rejected", me, "Rejected"); toast.error("Rejected"); }}><X className="mr-1.5 h-3.5 w-3.5" />Reject</Button>
+                <Button size="sm" onClick={() => approvalMutation.mutate({ runId: run.id, decision: "approved" })}><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />Approve</Button>
+                <Button size="sm" variant="outline" className="text-destructive" onClick={() => approvalMutation.mutate({ runId: run.id, decision: "rejected", comment: "Rejected" })}><X className="mr-1.5 h-3.5 w-3.5" />Reject</Button>
               </>
             )}
             <Button size="sm" variant="outline" disabled={!allRequiredDone} onClick={() => setStatus("completed")}>
@@ -189,14 +237,14 @@ function ProtocolRunPage() {
                           className="text-xs"
                           rows={2}
                           value={rs?.notes ?? ""}
-                          onChange={(e) => updateRunStep(run.id, step.id, { notes: e.target.value })}
+                          onChange={(e) => stepMutation.mutate({ runId: run.id, stepId: step.id, patch: { notes: e.target.value } })}
                         />
                         {step.evidenceAllowed && (
                           <Input
                             placeholder="Evidence (URL / reference)"
                             className="text-xs"
                             value={rs?.evidence ?? ""}
-                            onChange={(e) => updateRunStep(run.id, step.id, { evidence: e.target.value })}
+                            onChange={(e) => stepMutation.mutate({ runId: run.id, stepId: step.id, patch: { evidence: e.target.value } })}
                           />
                         )}
                       </div>
@@ -267,7 +315,17 @@ function ProtocolRunPage() {
               {canWrite && (
                 <div className="flex gap-2">
                   <Textarea rows={2} placeholder="Add a comment..." value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} className="text-xs" />
-                  <Button size="sm" onClick={() => { if (commentDraft.trim()) { addRunComment(run.id, commentDraft.trim(), me); setCommentDraft(""); } }}><Send className="h-3.5 w-3.5" /></Button>
+                  <Button
+                    size="sm"
+                    disabled={commentMutation.isPending}
+                    onClick={() => {
+                      const body = commentDraft.trim();
+                      if (!body) return;
+                      commentMutation.mutate({ runId: run.id, body }, { onSuccess: () => setCommentDraft("") });
+                    }}
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               )}
             </TabsContent>

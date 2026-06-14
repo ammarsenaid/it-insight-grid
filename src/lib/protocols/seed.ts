@@ -40,9 +40,11 @@ function tmpl(t: Partial<ProtocolTemplate> & { title: string; category: string; 
     tags: t.tags ?? [],
     visibility: t.visibility ?? "internal",
     steps: t.steps,
+    archived: t.archived ?? false,
     createdAt: daysAgo(60),
     updatedAt: daysAgo(7),
     lastRunAt: t.lastRunAt,
+    deletedAt: t.deletedAt ?? null,
   };
 }
 

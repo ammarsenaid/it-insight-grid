@@ -45,10 +45,11 @@ export interface ProtocolTemplate {
   tags: string[];
   visibility: "internal" | "restricted";
   steps: ProtocolStep[];
-  archived?: boolean;
+  archived: boolean;
   lastRunAt?: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 }
 
 export interface ProtocolRunStep {
@@ -100,6 +101,20 @@ export interface ProtocolRun {
   updatedAt: string;
 }
 
+export type ProtocolTemplateInput = Omit<ProtocolTemplate, "id" | "archived" | "lastRunAt" | "createdAt" | "updatedAt" | "deletedAt">;
+
+export interface StartProtocolRunInput {
+  assignedUser?: string;
+  dueDate?: string;
+  linkedTicketId?: string;
+  linkedAssetId?: string;
+  linkedTaskId?: string;
+}
+
+export type ProtocolRunStepPatch = Partial<Omit<ProtocolRunStep, "stepId">>;
+
+// Legacy browser-local store shape, retained for the non-authoritative
+// cross-module reads in src/routes/index.tsx and src/routes/search.tsx.
 export interface ProtocolState {
   templates: ProtocolTemplate[];
   runs: ProtocolRun[];

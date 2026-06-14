@@ -838,3 +838,66 @@ requires explicit approval under `AGENTS.md`.
   are RPC-only.
 - SQL was not executed. Disposable-database and browser runtime validation
   remain required; the protected live database remains untouched.
+
+## Milestone 29 - Organization-Scoped Protocols Backend
+
+- Replaced the Protocols list and run-detail routes' reads and writes with
+  typed Supabase and TanStack Query contracts (`src/lib/protocols/types.ts`,
+  `src/lib/protocols/protocols.ts`, `src/lib/protocols/queries.ts`); the
+  browser-local `src/lib/protocols/store.ts` is no longer imported or
+  authoritative.
+- Added organization-scoped `protocol_templates`, `protocol_runs`, and
+  `protocol_run_comments` tables (templates carry a jsonb `steps` array and
+  soft-delete columns; runs carry jsonb `steps`/`approvals` arrays and a jsonb
+  `links` object for cross-module ticket/asset/task references; comments are a
+  separate table mirroring the Tasks comment pattern), all with least-privilege
+  RLS gated on `protocols.view` (read) and `protocols.manage` (full access,
+  including writes). Only `protocol_templates` supports soft delete/restore;
+  `protocol_runs` are immutable history once created.
+- Added `prepare_protocol_templates_write`/`prepare_protocol_runs_write`/
+  `prepare_protocol_run_comments_write` triggers that derive
+  `organization_id`, `created_by`/`updated_by`, forbid cross-organization
+  moves, and maintain `updated_at`, plus an `assert_protocols_manage()` helper
+  used by every mutating RPC.
+- Revoked all direct authenticated table writes and exposed
+  `list_protocol_templates`, `list_protocol_runs`, `save_protocol_template`,
+  `set_protocol_template_archived`, `duplicate_protocol_template`,
+  `soft_delete_protocol_template`, `restore_protocol_template`,
+  `start_protocol_run`, `set_protocol_run_status`, `update_protocol_run_step`,
+  `add_protocol_run_approval`, and `add_protocol_run_comment` as
+  permission-checked, empty-search-path RPCs.
+- `save_protocol_template` validates title length, a non-empty `steps` jsonb
+  array with titled steps, `recurrence`, and `visibility`.
+  `duplicate_protocol_template` appends " (Copy)" to the title, regenerates
+  step ids, and resets `archived`/`last_run_at`. `start_protocol_run`
+  allocates sequential `PR-####` run numbers per organization, copies the
+  template's steps into the run, sets status to `in_progress`, stores the
+  `links` payload, and updates the template's `last_run_at`.
+  `update_protocol_run_step` derives `completedBy`/`completedAt` from the
+  caller's profile and clears them when a step is uncompleted.
+  `set_protocol_run_status` records `completed_at`/`final_summary` on terminal
+  statuses and validates the status value. `add_protocol_run_approval` records
+  an approval/rejection (server-derived `by`), resuming the run on approval and
+  marking it failed on rejection. `add_protocol_run_comment` resolves the
+  author's display name via `profiles`, mirroring `list_tasks`' comment
+  pattern.
+- Added an RBAC-alignment grant of `protocols.manage` to the `sd_lead`,
+  `helpdesk`, and `technician` roles, matching the frontend's existing
+  `tasks.write` capability gate used by the Protocols UI.
+- Added transaction-backed disposable QA covering RLS enablement, direct-write
+  denial on all three tables, `save_protocol_template` validation (steps
+  array/title/recurrence/visibility), template duplication, run start with
+  sequential numbering and copied steps/links, run step updates (including
+  uncompletion clearing audit fields and rejection of unknown step ids/invalid
+  patches), run status transitions including approval/rejection flows, comment
+  authoring with profile display names, soft delete/restore/hard-delete
+  rejection for templates, hard-delete rejection for runs, and organization
+  isolation for both reads and every mutating RPC.
+- Added a static frontend/SQL assertion script
+  (`scripts/qa/production_hardening_protocols.sh`) verifying the Protocols
+  routes no longer use the local store, use the new service layer and React
+  Query keys, that all 12 RPCs are wired up, that destructive operations are
+  RPC-only, and spot-checking the RLS/RBAC/validation contract against the
+  migration and QA SQL.
+- SQL was not executed. Disposable-database and browser runtime validation
+  remain required; the protected live database remains untouched.
