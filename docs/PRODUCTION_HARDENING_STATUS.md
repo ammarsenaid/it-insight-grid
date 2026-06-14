@@ -1109,3 +1109,22 @@ requires explicit approval under `AGENTS.md`.
 - No SQL was added or executed. Browser role testing and disposable-database
   RLS verification remain required; the protected live database remains
   untouched.
+
+## Milestone 34 - Repository-Side Pending Migration Promotion Planning
+
+- Added `docs/PENDING_MIGRATION_PROMOTION_PLAN_20260614.md` to freeze the exact
+  dependency order for all twelve pending production migrations and pair each
+  migration with its transaction-backed QA SQL, frontend consumers, existing
+  static QA coverage, and required disposable-database validation.
+- Added `scripts/qa/production_hardening_pending_migration_plan.sh`, a read-only
+  static guard that verifies the plan, complete SQL/QA manifest, dependency
+  order, audit NO-GO reference, live-database refusal language, disposable-only
+  approval boundary, and all major dependent modules.
+- No pending SQL file was moved into `supabase/migrations/`, and no SQL or
+  migration was executed. No database connection was made; the live database
+  remains untouched.
+- Actual migration promotion and disposable full-chain execution are separate
+  later milestones. Disposable database execution requires explicit human
+  approval before any database, migration, SQL QA, concurrency, or storage
+  validation command is run; disposable success would not authorize a live
+  deployment.
