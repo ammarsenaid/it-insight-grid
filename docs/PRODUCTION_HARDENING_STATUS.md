@@ -1527,3 +1527,53 @@ Validation:
 
 Remaining:
 - Commit and push only after the full validation command completes successfully.
+
+## Milestone 75 - Clean Deployment Replay Test
+
+Date: 2026-06-14
+
+Status: BLOCKED - repository gate added; database/schema comparison not executed.
+
+Acceptance assessment:
+- All 22 tracked migrations are present in `supabase/migrations/`.
+- No production SQL remains hidden under `supabase/pending/`.
+- Milestone 74 records a successful clean disposable replay.
+- Equivalence with the current live schema is not yet proven because this
+  workspace has no PostgreSQL/Supabase CLI tooling and no approved schema-only
+  live dump. No database was contacted in this milestone.
+
+Repository changes:
+- Added `scripts/qa/verify_clean_deployment_schema_equivalence.sh` to compare
+  normalized replay/live schema-only dumps and retain a failure diff.
+- Added `scripts/qa/production_hardening_clean_deployment_replay.sh` with pass
+  and policy-difference regression cases.
+- Added `docs/CLEAN_DEPLOYMENT_REPLAY_TEST_20260614.md` with the exact execution
+  and evidence requirements.
+- Ignored local `.artifacts/` evidence and temporary replay-test directories.
+
+Release gate:
+- Do not claim clean-deployment equivalence or real production readiness until
+  an explicitly approved run applies all 22 migrations to a fresh Supabase
+  baseline and the schema-equivalence verifier reports `PASS` against a
+  schema-only live export.
+
+## Milestone 76 - Clean Deployment Replay Schema Equivalence Executed
+
+Date: 2026-06-14
+
+Status: PASSED.
+
+Acceptance evidence:
+- Disposable database was reset from the clean pre-ITKC Supabase baseline.
+- All 22 tracked migrations under  replayed successfully.
+- Current live database was read only with .
+- Replay and live schema-only dumps were compared with .
+- Initial schema diff contained only internal  owner-role grants.
+- After normalizing those internal owner-role grants, the verifier reported .
+- No missing application tables, functions, policies, or grants were found.
+- No hidden production SQL remains under .
+- No live database write was performed.
+- No service restart was performed.
+
+Evidence directory:
+-

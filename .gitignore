@@ -15,6 +15,10 @@ dist-ssr
 .tanstack/**
 .nitro
 *.local
+.clean-replay-test.*
+
+# Local database validation evidence (schema only; never commit credentials/data)
+.artifacts/
 
 # Local environment and key material
 .env
