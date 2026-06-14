@@ -1334,3 +1334,60 @@ The live database final state was verified as:
 ### Important note
 
 The live database was not a clean baseline when Milestone 41 started. It already contained Service Desk, ticket configuration, ticket attachments, notifications, organization foundation, and CMDB tables. Therefore, the workflow was reclassified from “full clean baseline migration” to “current-live-state continuation with protected backups.”
+
+## Milestone 69 — Organization Context Fix + Final Authenticated Smoke Checkpoint
+
+Status: PASSED
+
+Date: 2026-06-14
+
+Production hardening checkpoint after resolving authenticated backend 403 errors.
+
+Confirmed root cause:
+- Authenticated user had platform_admin and required permissions.
+- Backend RLS policies required `organization_id = current_organization_id()`.
+- Live database had zero organizations and zero organization memberships.
+- `current_organization_id()` failed with: `Exactly one active organization context is required`.
+
+Live data fix applied:
+- Created one active organization:
+  - Name: IT Knowledge Center
+  - Slug: it-knowledge-center
+  - ID: ab83d1a0-2159-4d39-9101-91f6024ece2e
+- Created one active organization membership for:
+  - User: amar.senaid@gmail.com
+  - User ID: a77572fc-e400-453c-aed6-3e64d3b6cbe1
+
+Pre-fix backup:
+- `/opt/it-knowledge-center/backups/pre-org-context-fix-20260614_160511`
+
+Post-fix backup:
+- `/opt/it-knowledge-center/backups/post-org-context-fix-auth-smoke-pass-20260614_161545`
+- SHA256:
+  - `18e34fc6f81dcf490806e70bb332e5f0c1af228d646186d587e8af3c9dec4dc5`
+
+Final authenticated browser smoke result:
+- Login: PASS
+- Routes: 25
+- Passed: 25
+- Failed: 0
+- Console errors: 0
+- Tooltip errors: 0
+- HTTP errors: 0
+- Forbidden errors: 0
+- Non-auth HTTP errors: 0
+- Unexpected failed requests: 0
+- Expected notification HEAD aborts: 26
+
+Final auth smoke summary:
+- `/home/mit/itkc_temp_browser_validation_20260614_152822/auth-smoke-v3-results-2026-06-14T16-12-29-716Z/summary.json`
+
+Repository state at checkpoint:
+- Branch: `hardening/production-readiness-20260612`
+- Commit before this documentation update: `c8d630cccf6e2eed1c8f049303e618b84c194739`
+
+Boundary:
+- This milestone documents the completed live organization-context fix.
+- No schema changes were made in this milestone.
+- No service restart was required.
+- Temporary browser automation still exists and should be removed only after the full production validation is finalized.
