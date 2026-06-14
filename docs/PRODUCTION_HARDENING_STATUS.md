@@ -1128,3 +1128,22 @@ requires explicit approval under `AGENTS.md`.
   approval before any database, migration, SQL QA, concurrency, or storage
   validation command is run; disposable success would not authorize a live
   deployment.
+
+## Milestone 35 - Disposable Validation Runner Preparation
+
+- Added `scripts/qa/run_disposable_full_chain_validation.sh` as a guarded,
+  preparation-only template for the later disposable full-chain validation.
+  It requires explicit disposable target variables, refuses known live
+  database names, requires a `disposable` or `staging` name marker, prints the
+  complete twelve-migration and twelve-QA-SQL order, and requires a typed
+  confirmation phrase.
+- The runner exits before every database command. Its migration-apply and QA
+  SQL sections are comments only; actual database execution requires a
+  separate later milestone with explicit human approval.
+- Added `scripts/qa/production_hardening_disposable_runner.sh` to statically
+  verify the ordered manifests, refusal and confirmation guards, pre-execution
+  exit, inactive command placeholders, and references to the Milestone 34 plan
+  and NO-GO audit.
+- No database was touched and no migration was executed. The runner is not
+  allowed to perform database work in this milestone; actual disposable
+  execution remains a separate later approval step.
