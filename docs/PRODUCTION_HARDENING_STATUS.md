@@ -1425,3 +1425,76 @@ Repository hardening action:
 Reason:
 - The live runtime wrapper is outside the repository.
 - This checkpoint preserves the production wrapper logic in git so the static asset fix can be restored after server rebuild, accidental deletion, or future deployment migration.
+
+## Milestone 73 — Final Production Checkpoint
+
+Status: PASSED
+
+Date: 2026-06-14
+
+Final production validation checkpoint for the current hardening branch.
+
+Confirmed live state:
+- Branch: `hardening/production-readiness-20260612`
+- Frontend service: active
+- Frontend HTTP status: 200
+- Supabase core containers healthy:
+  - `supabase-auth`
+  - `supabase-db`
+  - `supabase-kong`
+  - `supabase-rest`
+- Repository clean and pushed.
+- No DB change was made during the final checkpoint.
+- No repo change was made during the final checkpoint.
+- No service restart was made during the final checkpoint.
+
+Organization context:
+- One active organization exists.
+- One active organization membership exists.
+- Organization ID: `ab83d1a0-2159-4d39-9101-91f6024ece2e`
+- Organization name: `IT Knowledge Center`
+- Organization slug: `it-knowledge-center`
+- User: `amar.senaid@gmail.com`
+- `current_organization_id()` returns the expected organization.
+- `is_platform_admin()` returns true.
+- `has_permission('cmdb.view')` returns true.
+
+Authenticated UI validation:
+- Login: PASS
+- Routes checked: 25
+- Routes passed: 25
+- Routes failed: 0
+- Console errors: 0
+- Tooltip errors: 0
+- Unexpected failed requests: 0
+- HTTP errors: 0
+- Forbidden errors: 0
+- Non-auth HTTP errors: 0
+- Expected notification HEAD aborts: 26
+
+Runtime wrapper:
+- Live runtime wrapper checksum:
+  - `208e8b05b2c379b0baa8219b01ded010437bc56d77362e8ce19f003279ba1901`
+- Repository recovery wrapper checksum matches live wrapper.
+- Current root assets verified:
+  - All referenced assets exist on disk.
+  - All referenced assets return HTTP 200.
+- Runtime wrapper asset serving is verified.
+
+Backup checkpoint:
+- `/opt/it-knowledge-center/backups/post-org-context-fix-auth-smoke-pass-20260614_161545`
+- Backup SHA256:
+  - `18e34fc6f81dcf490806e70bb332e5f0c1af228d646186d587e8af3c9dec4dc5`
+
+Cleanup:
+- Temporary browser automation folder deleted:
+  - `/home/mit/itkc_temp_browser_validation_20260614_152822`
+
+Final result:
+- FINAL PRODUCTION CHECKPOINT PASSED.
+- Authenticated UI smoke: PASSED.
+- 403 authorization issue: FIXED.
+- Organization context: PRESENT.
+- Runtime wrapper asset serving: VERIFIED.
+- Post-fix backup: PRESENT.
+- Temporary browser automation: DELETED.
