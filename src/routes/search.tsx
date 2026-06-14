@@ -1,14 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { FileText, Server, Network, CheckSquare, StickyNote, Search, BookOpen, ListChecks, Play } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchInput } from "@/components/common/SearchInput";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { useData } from "@/lib/data/store";
 import { useKnowledge, getAncestry } from "@/lib/knowledge/store";
 import { useTeamArticles } from "@/lib/knowledge/useTeamArticles";
-import { useProtocols } from "@/lib/protocols/store";
+import { cmdbAssetsQuery } from "@/lib/cmdb/queries";
+import { ipamAddressesQuery } from "@/lib/ipam/queries";
+import { tasksQuery } from "@/lib/tasks/queries";
+import { notesQuery } from "@/lib/notes/queries";
+import { protocolTemplatesQuery, protocolRunsQuery } from "@/lib/protocols/queries";
 
 export const Route = createFileRoute("/search")({
   validateSearch: (s: Record<string, unknown>) => ({ q: typeof s.q === "string" ? s.q : "" }),
@@ -17,10 +21,14 @@ export const Route = createFileRoute("/search")({
 });
 
 function SearchPage() {
-  const data = useData();
   const knowledge = useKnowledge();
-  const protocols = useProtocols();
   const backend = useTeamArticles();
+  const assetsQ = useQuery(cmdbAssetsQuery());
+  const addressesQ = useQuery(ipamAddressesQuery());
+  const tasksQ = useQuery(tasksQuery());
+  const notesQ = useQuery(notesQuery());
+  const protocolTemplatesQ = useQuery(protocolTemplatesQuery());
+  const protocolRunsQ = useQuery(protocolRunsQuery());
   const initial = Route.useSearch().q;
   const [q, setQ] = useState(initial);
   const ql = q.toLowerCase();
@@ -38,16 +46,16 @@ function SearchPage() {
             has(n.status),
         )
       : [],
-    assets: ql ? data.assets.filter((a) => has(a.hostname) || has(a.displayName) || has(a.ipAddress)) : [],
-    ipam: ql ? data.ipam.filter((i) => has(i.ipAddress) || has(i.hostname)) : [],
-    tasks: ql ? data.tasks.filter((t) => has(t.title)) : [],
-    notes: ql ? data.notes.filter((n) => has(n.title) || has(n.content)) : [],
-    protocolTemplates: ql ? protocols.templates.filter((t) => has(t.title) || has(t.category) || t.tags.some((tg) => has(tg))) : [],
-    protocolRuns: ql ? protocols.runs.filter((r) => has(r.templateTitle) || has(r.runNumber) || has(r.assignedUser ?? "")) : [],
+    assets: ql ? (assetsQ.data ?? []).filter((a) => has(a.hostname) || has(a.displayName) || has(a.ipAddress)) : [],
+    ipam: ql ? (addressesQ.data ?? []).filter((i) => has(i.ipAddress) || has(i.hostname)) : [],
+    tasks: ql ? (tasksQ.data ?? []).filter((t) => has(t.title)) : [],
+    notes: ql ? (notesQ.data ?? []).filter((n) => has(n.title) || has(n.content)) : [],
+    protocolTemplates: ql ? (protocolTemplatesQ.data ?? []).filter((t) => has(t.title) || has(t.category) || t.tags.some((tg) => has(tg))) : [],
+    protocolRuns: ql ? (protocolRunsQ.data ?? []).filter((r) => has(r.templateTitle) || has(r.runNumber) || has(r.assignedUser ?? "")) : [],
     backendArticles: ql
       ? backend.articles.filter((a) => has(a.title) || has(a.excerpt ?? "") || has(a.status))
       : [],
-  }), [data, knowledge, protocols, backend, ql]);
+  }), [knowledge, assetsQ.data, addressesQ.data, tasksQ.data, notesQ.data, protocolTemplatesQ.data, protocolRunsQ.data, backend, ql]);
 
   const total = Object.values(results).reduce((a, b) => a + b.length, 0);
 
