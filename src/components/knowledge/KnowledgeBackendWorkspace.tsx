@@ -671,7 +671,7 @@ export function KnowledgeBackendWorkspace() {
               editingArticle={editingArticle}
               setEditingArticle={setEditingArticle}
               onOpenArticle={(id) => { setSelection({ kind: "article", id }); setEditingArticle(false); }}
-              onSelectSpace={(id) => setSelection({ kind: "space", id })}
+              onSelectSpace={(id) => setSelection(id ? { kind: "space", id } : null)}
               onNewSpace={() => setSpaceDialog({ open: true, initial: null })}
               onEditSpace={(s) => setSpaceDialog({ open: true, initial: s })}
               onArchiveSpace={handleArchiveSpace}
