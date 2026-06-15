@@ -1043,7 +1043,7 @@ function SelectionView(p: SelectionViewProps) {
     return (
       <div className="space-y-3 overflow-y-auto">
         <div className="flex items-start gap-2">
-          <Header icon={<Library className="h-4 w-4 text-primary" />} label="Book" title={space.name} subtitle={space.description ?? undefined} />
+          <Header icon={<Book className="h-4 w-4 text-primary" />} label="Book" title={space.name} subtitle={space.description ?? undefined} />
           <div className="ml-auto flex flex-wrap items-center gap-1">
             {perms.create && !space.is_archived && (
               <Button size="sm" variant="secondary" className="h-7 text-xs"
