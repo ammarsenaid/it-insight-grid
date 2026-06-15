@@ -1082,44 +1082,146 @@ function SelectionView(p: SelectionViewProps) {
     if (!space) return <NotFound />;
     const cats = data.categories.filter((c) => c.space_id === space.id);
     const arts = data.articles.filter((a) => a.space_id === space.id);
+    const chapterCount = cats.filter((c) => !c.is_archived).length;
+    const pageCount = arts.filter((a) => a.status !== "archived").length;
     return (
-      <div className="space-y-3 overflow-y-auto">
-        <div className="flex items-start gap-2">
-          <Header icon={<Book className="h-4 w-4 text-primary" />} label="Book" title={space.name} subtitle={space.description ?? undefined} />
-          <div className="ml-auto flex flex-wrap items-center gap-1">
-            {perms.create && !space.is_archived && (
-              <Button size="sm" variant="secondary" className="h-7 text-xs"
-                onClick={() => p.onNewArticle(space.id, null)}>
-                <Plus className="mr-1 h-3 w-3" /> Article
-              </Button>
-            )}
-            {perms.update && !space.is_archived && (
-              <Button size="sm" variant="secondary" className="h-7 text-xs"
-                onClick={() => p.onNewCategory(space.id, cats.length * 10)}>
-                <Plus className="mr-1 h-3 w-3" /> Category
-              </Button>
-            )}
-            {perms.manageTeam && (
-              <>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onEditSpace(space)}>
-                  <Pencil className="mr-1 h-3 w-3" /> Edit
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto max-w-4xl space-y-6 pb-6">
+          {/* Book hero */}
+          <div className="flex flex-wrap items-end gap-5 border-b border-border/30 pb-5">
+            <BookCover title={space.name} size="lg" />
+            <div className="min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => p.onSelectSpace("")}
+                className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+              >
+                <Library className="h-3 w-3" /> Shelf
+                <ChevronRight className="h-3 w-3 opacity-60" />
+                <span className="text-foreground/80">Book</span>
+              </button>
+              <h2 className="font-serif text-3xl font-bold tracking-tight">{space.name}</h2>
+              {space.description && (
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{space.description}</p>
+              )}
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1"><BookMarked className="h-3 w-3" /> {chapterCount} chapter{chapterCount === 1 ? "" : "s"}</span>
+                <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /> {pageCount} page{pageCount === 1 ? "" : "s"}</span>
+                <span>Updated {formatDate(space.updated_at)}</span>
+                {space.is_archived && <Badge variant="outline" className="h-4 text-[10px]">Archived</Badge>}
+              </div>
+            </div>
+            <div className="ml-auto flex flex-wrap items-center gap-1">
+              {perms.create && !space.is_archived && (
+                <Button size="sm" variant="secondary" className="h-7 text-xs"
+                  onClick={() => p.onNewArticle(space.id, null)}>
+                  <Plus className="mr-1 h-3 w-3" /> Page
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onArchiveSpace(space)}>
-                  {space.is_archived ? <><RotateCcw className="mr-1 h-3 w-3" /> Restore</> : <><Archive className="mr-1 h-3 w-3" /> Archive</>}
+              )}
+              {perms.update && !space.is_archived && (
+                <Button size="sm" variant="secondary" className="h-7 text-xs"
+                  onClick={() => p.onNewCategory(space.id, cats.length * 10)}>
+                  <Plus className="mr-1 h-3 w-3" /> Chapter
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => p.onDeleteSpace(space)}>
-                  <Trash2 className="mr-1 h-3 w-3" />
-                </Button>
-              </>
-            )}
+              )}
+              {perms.manageTeam && (
+                <>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onEditSpace(space)}>
+                    <Pencil className="mr-1 h-3 w-3" /> Edit
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onArchiveSpace(space)}>
+                    {space.is_archived ? <><RotateCcw className="mr-1 h-3 w-3" /> Restore</> : <><Archive className="mr-1 h-3 w-3" /> Archive</>}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => p.onDeleteSpace(space)}>
+                    <Trash2 className="mr-1 h-3 w-3" />
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Chapters */}
+          {cats.filter((c) => !c.is_archived).length === 0 && arts.filter((a) => !a.category_id).length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/40 p-8 text-center text-xs text-muted-foreground">
+              This book is empty. Add a chapter or a page to get started.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {cats.filter((c) => !c.is_archived).map((c) => {
+                const chArts = arts.filter((a) => a.category_id === c.id && a.status !== "archived");
+                return (
+                  <section key={c.id} className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
+                    <div className="mb-3 flex items-start gap-2">
+                      <BookMarked className="mt-0.5 h-4 w-4 shrink-0 text-primary/80" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-serif text-base font-semibold leading-tight">{c.name}</h3>
+                        {c.description && <p className="mt-0.5 text-xs text-muted-foreground">{c.description}</p>}
+                      </div>
+                      <Badge variant="outline" className="h-5 shrink-0 text-[10px]">
+                        {chArts.length} page{chArts.length === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
+                    {chArts.length === 0 ? (
+                      <p className="px-1 text-[11px] text-muted-foreground/70">No pages in this chapter yet.</p>
+                    ) : (
+                      <ul className="divide-y divide-border/20">
+                        {chArts.map((a) => (
+                          <li key={a.id}>
+                            <button
+                              type="button"
+                              onClick={() => onOpenArticle(a.id)}
+                              className="group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
+                            >
+                              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                              <span className="truncate text-sm font-medium group-hover:text-primary">{a.title}</span>
+                              {a.status !== "published" && (
+                                <Badge variant="outline" className="h-4 text-[9px]">{STATUS_LABEL[a.status]}</Badge>
+                              )}
+                              <span className="ml-auto text-[10px] text-muted-foreground/70">{formatDate(a.updated_at)}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                );
+              })}
+
+              {/* Loose pages directly under the book */}
+              {(() => {
+                const loose = arts.filter((a) => !a.category_id && a.status !== "archived");
+                if (loose.length === 0) return null;
+                return (
+                  <section className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="font-serif text-base font-semibold leading-tight">Loose pages</h3>
+                      <Badge variant="outline" className="ml-auto h-5 text-[10px]">{loose.length}</Badge>
+                    </div>
+                    <ul className="divide-y divide-border/20">
+                      {loose.map((a) => (
+                        <li key={a.id}>
+                          <button
+                            type="button"
+                            onClick={() => onOpenArticle(a.id)}
+                            className="group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
+                          >
+                            <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                            <span className="truncate text-sm font-medium group-hover:text-primary">{a.title}</span>
+                            {a.status !== "published" && (
+                              <Badge variant="outline" className="h-4 text-[9px]">{STATUS_LABEL[a.status]}</Badge>
+                            )}
+                            <span className="ml-auto text-[10px] text-muted-foreground/70">{formatDate(a.updated_at)}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })()}
+            </div>
+          )}
         </div>
-        <Meta items={[
-          ["Slug", space.slug],
-          ["Updated", formatDate(space.updated_at)],
-          ["Archived", space.is_archived ? "Yes" : "No"],
-        ]} />
-        <ArticleTable articles={arts} categories={cats} onOpen={onOpenArticle} />
       </div>
     );
   }
