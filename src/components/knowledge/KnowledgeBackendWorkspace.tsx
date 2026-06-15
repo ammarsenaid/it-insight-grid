@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import {
   Library,
-  FolderTree,
+  Book,
+  BookOpen,
+  BookMarked,
   FileText,
   ChevronRight,
   ChevronDown,
@@ -99,6 +101,66 @@ const STATUS_LABEL: Record<string, string> = {
   published: "Published",
   archived: "Archived",
 };
+
+// ---- BookStack-style book cover ----
+const BOOK_COVER_GRADIENTS = [
+  "from-rose-500 to-rose-700",
+  "from-amber-500 to-amber-700",
+  "from-emerald-500 to-emerald-700",
+  "from-sky-500 to-sky-700",
+  "from-violet-500 to-violet-700",
+  "from-fuchsia-500 to-fuchsia-700",
+  "from-teal-500 to-teal-700",
+  "from-orange-500 to-orange-700",
+  "from-indigo-500 to-indigo-700",
+  "from-cyan-500 to-cyan-700",
+  "from-lime-500 to-lime-700",
+  "from-pink-500 to-pink-700",
+];
+function bookCoverClass(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return BOOK_COVER_GRADIENTS[Math.abs(h) % BOOK_COVER_GRADIENTS.length];
+}
+
+function BookCover({
+  title,
+  size = "md",
+  className,
+}: {
+  title: string;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
+  const dims =
+    size === "sm" ? "h-16 w-12 text-[10px]" :
+    size === "lg" ? "h-40 w-28 text-base" :
+    "h-28 w-20 text-xs";
+  const initial = (title.trim()[0] ?? "?").toUpperCase();
+  return (
+    <div
+      className={cn(
+        "relative shrink-0 overflow-hidden rounded-r-md rounded-l-sm bg-gradient-to-br shadow-lg ring-1 ring-black/30",
+        bookCoverClass(title),
+        dims,
+        className,
+      )}
+      aria-hidden
+    >
+      {/* spine */}
+      <div className="absolute inset-y-0 left-0 w-[6px] bg-black/25" />
+      <div className="absolute inset-y-0 left-[6px] w-px bg-white/20" />
+      {/* initial */}
+      <div className="absolute inset-0 flex items-center justify-center pl-1">
+        <span className="font-serif font-bold uppercase text-white/95 drop-shadow-sm">
+          {initial}
+        </span>
+      </div>
+      {/* sheen */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/0 via-white/0 to-white/15" />
+    </div>
+  );
+}
 
 export function KnowledgeBackendWorkspace() {
   const { teams, contextLoading, contextError, refresh, loading: authLoading } = useAuth();
@@ -360,7 +422,7 @@ export function KnowledgeBackendWorkspace() {
     if (perms.update && !s.is_archived) {
       items.push(
         <DropdownMenuItem key="newcat" onClick={() => setCategoryDialog({ open: true, initial: null, spaceId: s.id })}>
-          <FolderTree className="mr-2 h-3.5 w-3.5" /> New category
+          <BookMarked className="mr-2 h-3.5 w-3.5" /> New chapter
         </DropdownMenuItem>,
       );
     }
@@ -383,7 +445,7 @@ export function KnowledgeBackendWorkspace() {
     if (perms.create && !c.is_archived) {
       items.push(
         <DropdownMenuItem key="newart" onClick={() => setArticleDialog({ open: true, initial: null, spaceId: c.space_id, categoryId: c.id })}>
-          <FileText className="mr-2 h-3.5 w-3.5" /> New article
+          <FileText className="mr-2 h-3.5 w-3.5" /> New page
         </DropdownMenuItem>,
       );
     }
@@ -470,7 +532,7 @@ export function KnowledgeBackendWorkspace() {
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">Create</DropdownMenuLabel>
                   {canNewSpace && (
                     <DropdownMenuItem onClick={() => setSpaceDialog({ open: true, initial: null })}>
-                      <Library className="mr-2 h-3.5 w-3.5" /> New space
+                      <Library className="mr-2 h-3.5 w-3.5" /> New book
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem
@@ -478,14 +540,14 @@ export function KnowledgeBackendWorkspace() {
                     title={!selectedSpaceId ? "Select a space first" : undefined}
                     onClick={() => selectedSpaceId && setCategoryDialog({ open: true, initial: null, spaceId: selectedSpaceId })}
                   >
-                    <FolderTree className="mr-2 h-3.5 w-3.5" /> New category
+                    <BookMarked className="mr-2 h-3.5 w-3.5" /> New chapter
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={!canNewArticle}
                     title={!selectedSpaceId ? "Select a space or category first" : undefined}
                     onClick={() => selectedSpaceId && setArticleDialog({ open: true, initial: null, spaceId: selectedSpaceId, categoryId: selectedCategoryId })}
                   >
-                    <FileText className="mr-2 h-3.5 w-3.5" /> New article
+                    <FileText className="mr-2 h-3.5 w-3.5" /> New page
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -609,6 +671,7 @@ export function KnowledgeBackendWorkspace() {
               editingArticle={editingArticle}
               setEditingArticle={setEditingArticle}
               onOpenArticle={(id) => { setSelection({ kind: "article", id }); setEditingArticle(false); }}
+              onSelectSpace={(id) => setSelection(id ? { kind: "space", id } : null)}
               onNewSpace={() => setSpaceDialog({ open: true, initial: null })}
               onEditSpace={(s) => setSpaceDialog({ open: true, initial: s })}
               onArchiveSpace={handleArchiveSpace}
@@ -749,7 +812,7 @@ function SpaceRow({
           {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
         <button type="button" onClick={() => onSelect({ kind: "space", id: space.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title={space.name}>
-          <Library className={cn("h-3.5 w-3.5 shrink-0", space.is_archived ? "text-muted-foreground" : "text-primary")} />
+          <Book className={cn("h-3.5 w-3.5 shrink-0", space.is_archived ? "text-muted-foreground" : "text-primary")} />
           <span className={cn("truncate font-semibold", space.is_archived && "italic text-muted-foreground")}>{space.name}</span>
         </button>
         {menu && <RowMenu>{menu}</RowMenu>}
@@ -775,7 +838,7 @@ function SpaceRow({
             <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} renderArticleMenu={renderArticleMenu} />
           ))}
           {categories.length === 0 && uncategorized.length === 0 && (
-            <li className="px-2 py-1 text-[11px] text-muted-foreground/70">Empty space</li>
+            <li className="px-2 py-1 text-[11px] text-muted-foreground/70">Empty book</li>
           )}
         </ul>
       )}
@@ -810,7 +873,7 @@ function CategoryRow({
           {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
         <button type="button" onClick={() => onSelect({ kind: "category", id: category.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title={category.name}>
-          <FolderTree className={cn("h-3.5 w-3.5 shrink-0", category.is_archived ? "text-muted-foreground" : "text-primary/70")} />
+          <BookMarked className={cn("h-3.5 w-3.5 shrink-0", category.is_archived ? "text-muted-foreground" : "text-primary/70")} />
           <span className={cn("truncate font-medium", category.is_archived && "italic text-muted-foreground")}>{category.name}</span>
           <span className="ml-1 text-[10px] text-muted-foreground/70">{articles.length}</span>
         </button>
@@ -819,7 +882,7 @@ function CategoryRow({
       {isOpen && (
         <ul className="ml-3 space-y-0.5 border-l border-border/30 pl-2">
           {articles.map((a) => <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} renderArticleMenu={renderArticleMenu} />)}
-          {articles.length === 0 && <li className="px-2 py-1 text-[11px] text-muted-foreground/70">No articles</li>}
+          {articles.length === 0 && <li className="px-2 py-1 text-[11px] text-muted-foreground/70">No pages</li>}
         </ul>
       )}
     </li>
@@ -872,6 +935,7 @@ interface SelectionViewProps {
   editingArticle: boolean;
   setEditingArticle: (v: boolean) => void;
   onOpenArticle: (id: string) => void;
+  onSelectSpace: (id: string) => void;
   onNewSpace: () => void;
   onEditSpace: (s: KbSpace) => void;
   onArchiveSpace: (s: KbSpace) => void;
@@ -902,72 +966,112 @@ function SelectionView(p: SelectionViewProps) {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Library className="h-6 w-6" />
             </div>
-            <h3 className="text-base font-semibold text-foreground">Create your first knowledge space</h3>
+            <h3 className="text-base font-semibold text-foreground">Create your first book</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Organize your documentation into spaces, categories and articles.
+              Organise your documentation into books, chapters and pages.
             </p>
             {perms.manageTeam ? (
               <Button size="sm" className="mt-5" onClick={p.onNewSpace}>
-                <Plus className="mr-1 h-3 w-3" /> Create space
+                <Plus className="mr-1 h-3 w-3" /> Create book
               </Button>
             ) : (
               <p className="mt-5 text-xs text-muted-foreground/80">
-                Ask a team manager to create the first space.
+                Ask a team manager to create the first book.
               </p>
             )}
             <p className="mt-4 text-[11px] text-muted-foreground/70">
-              Example: Infrastructure, Applications, Security or Service Desk.
+              For example: Infrastructure, Applications, Security or Service Desk.
             </p>
           </div>
         </div>
       );
     }
+    // BookStack-style "Shelf" overview — colored book covers for every space in the team.
+    const visibleSpaces = data.spaces.filter((s) => !s.is_archived);
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted-foreground">
-        <div className="w-full max-w-sm rounded-2xl border border-border/40 bg-white/[0.02] p-6">
-          <FileText className="mx-auto mb-3 h-6 w-6 opacity-60" />
-          <h3 className="text-base font-semibold text-foreground">Select an article</h3>
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            Choose an article from the explorer or create a new one.
-          </p>
-          <div className="mt-1 text-[11px] text-muted-foreground/70">
-            Tip: press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search.
-          </div>
-        </div>
-        {p.recent.length > 0 && (
-          <div className="w-full max-w-sm rounded-xl border border-border/40 bg-white/[0.02] p-3 text-left">
-            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <Clock className="h-3 w-3" /> Recently viewed
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto max-w-5xl space-y-6 p-1 pb-6">
+          <div className="flex items-end justify-between gap-3 border-b border-border/30 pb-3">
+            <div>
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Library className="h-3 w-3" /> Shelf
+              </div>
+              <h2 className="mt-1 font-serif text-2xl font-bold text-foreground">All books</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {visibleSpaces.length} {visibleSpaces.length === 1 ? "book" : "books"} · pick one to read its chapters and pages.
+              </p>
             </div>
-            <ul className="space-y-1 text-xs">
-              {p.recent.map((r) => {
-                const exists = data.articles.some((a) => a.id === r.id);
-                return (
-                  <li key={r.id} className="group flex items-center gap-1">
-                    <button
-                      type="button"
-                      disabled={!exists}
-                      onClick={() => exists && onOpenArticle(r.id)}
-                      className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-foreground/80 hover:bg-white/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                      title={exists ? r.title : "No longer accessible"}
-                    >
-                      <FileText className="h-3 w-3 shrink-0" />
-                      <span className="truncate">{r.title}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
-                      onClick={() => p.onForgetRecent(r.id)}
-                      aria-label="Remove"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="hidden text-[10px] text-muted-foreground/70 sm:block">
+              Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search
+            </div>
           </div>
-        )}
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {visibleSpaces.map((s) => {
+              const chapterCount = data.categories.filter((c) => c.space_id === s.id && !c.is_archived).length;
+              const pageCount = data.articles.filter((a) => a.space_id === s.id && a.status !== "archived").length;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => p.onSelectSpace(s.id)}
+                  className="group flex flex-col items-start gap-3 rounded-xl border border-border/40 bg-white/[0.02] p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-white/[0.04]"
+                >
+                  <div className="flex w-full items-start gap-3">
+                    <BookCover title={s.name} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <div className="line-clamp-2 font-serif text-sm font-semibold leading-tight text-foreground group-hover:text-primary">
+                        {s.name}
+                      </div>
+                      {s.description && (
+                        <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{s.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex w-full items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground/80">
+                    <span>{chapterCount} ch · {pageCount} pg</span>
+                    <span>Updated {formatDate(s.updated_at)}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {p.recent.length > 0 && (
+            <div className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
+              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <Clock className="h-3 w-3" /> Recently read
+              </div>
+              <ul className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
+                {p.recent.map((r) => {
+                  const exists = data.articles.some((a) => a.id === r.id);
+                  return (
+                    <li key={r.id} className="group flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={!exists}
+                        onClick={() => exists && onOpenArticle(r.id)}
+                        className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-foreground/80 hover:bg-white/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                        title={exists ? r.title : "No longer accessible"}
+                      >
+                        <FileText className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{r.title}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
+                        onClick={() => p.onForgetRecent(r.id)}
+                        aria-label="Remove"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -978,44 +1082,146 @@ function SelectionView(p: SelectionViewProps) {
     if (!space) return <NotFound />;
     const cats = data.categories.filter((c) => c.space_id === space.id);
     const arts = data.articles.filter((a) => a.space_id === space.id);
+    const chapterCount = cats.filter((c) => !c.is_archived).length;
+    const pageCount = arts.filter((a) => a.status !== "archived").length;
     return (
-      <div className="space-y-3 overflow-y-auto">
-        <div className="flex items-start gap-2">
-          <Header icon={<Library className="h-4 w-4 text-primary" />} label="Space" title={space.name} subtitle={space.description ?? undefined} />
-          <div className="ml-auto flex flex-wrap items-center gap-1">
-            {perms.create && !space.is_archived && (
-              <Button size="sm" variant="secondary" className="h-7 text-xs"
-                onClick={() => p.onNewArticle(space.id, null)}>
-                <Plus className="mr-1 h-3 w-3" /> Article
-              </Button>
-            )}
-            {perms.update && !space.is_archived && (
-              <Button size="sm" variant="secondary" className="h-7 text-xs"
-                onClick={() => p.onNewCategory(space.id, cats.length * 10)}>
-                <Plus className="mr-1 h-3 w-3" /> Category
-              </Button>
-            )}
-            {perms.manageTeam && (
-              <>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onEditSpace(space)}>
-                  <Pencil className="mr-1 h-3 w-3" /> Edit
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto max-w-4xl space-y-6 pb-6">
+          {/* Book hero */}
+          <div className="flex flex-wrap items-end gap-5 border-b border-border/30 pb-5">
+            <BookCover title={space.name} size="lg" />
+            <div className="min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => p.onSelectSpace("")}
+                className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+              >
+                <Library className="h-3 w-3" /> Shelf
+                <ChevronRight className="h-3 w-3 opacity-60" />
+                <span className="text-foreground/80">Book</span>
+              </button>
+              <h2 className="font-serif text-3xl font-bold tracking-tight">{space.name}</h2>
+              {space.description && (
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{space.description}</p>
+              )}
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1"><BookMarked className="h-3 w-3" /> {chapterCount} chapter{chapterCount === 1 ? "" : "s"}</span>
+                <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /> {pageCount} page{pageCount === 1 ? "" : "s"}</span>
+                <span>Updated {formatDate(space.updated_at)}</span>
+                {space.is_archived && <Badge variant="outline" className="h-4 text-[10px]">Archived</Badge>}
+              </div>
+            </div>
+            <div className="ml-auto flex flex-wrap items-center gap-1">
+              {perms.create && !space.is_archived && (
+                <Button size="sm" variant="secondary" className="h-7 text-xs"
+                  onClick={() => p.onNewArticle(space.id, null)}>
+                  <Plus className="mr-1 h-3 w-3" /> Page
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onArchiveSpace(space)}>
-                  {space.is_archived ? <><RotateCcw className="mr-1 h-3 w-3" /> Restore</> : <><Archive className="mr-1 h-3 w-3" /> Archive</>}
+              )}
+              {perms.update && !space.is_archived && (
+                <Button size="sm" variant="secondary" className="h-7 text-xs"
+                  onClick={() => p.onNewCategory(space.id, cats.length * 10)}>
+                  <Plus className="mr-1 h-3 w-3" /> Chapter
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => p.onDeleteSpace(space)}>
-                  <Trash2 className="mr-1 h-3 w-3" />
-                </Button>
-              </>
-            )}
+              )}
+              {perms.manageTeam && (
+                <>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onEditSpace(space)}>
+                    <Pencil className="mr-1 h-3 w-3" /> Edit
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onArchiveSpace(space)}>
+                    {space.is_archived ? <><RotateCcw className="mr-1 h-3 w-3" /> Restore</> : <><Archive className="mr-1 h-3 w-3" /> Archive</>}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => p.onDeleteSpace(space)}>
+                    <Trash2 className="mr-1 h-3 w-3" />
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Chapters */}
+          {cats.filter((c) => !c.is_archived).length === 0 && arts.filter((a) => !a.category_id).length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/40 p-8 text-center text-xs text-muted-foreground">
+              This book is empty. Add a chapter or a page to get started.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {cats.filter((c) => !c.is_archived).map((c) => {
+                const chArts = arts.filter((a) => a.category_id === c.id && a.status !== "archived");
+                return (
+                  <section key={c.id} className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
+                    <div className="mb-3 flex items-start gap-2">
+                      <BookMarked className="mt-0.5 h-4 w-4 shrink-0 text-primary/80" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-serif text-base font-semibold leading-tight">{c.name}</h3>
+                        {c.description && <p className="mt-0.5 text-xs text-muted-foreground">{c.description}</p>}
+                      </div>
+                      <Badge variant="outline" className="h-5 shrink-0 text-[10px]">
+                        {chArts.length} page{chArts.length === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
+                    {chArts.length === 0 ? (
+                      <p className="px-1 text-[11px] text-muted-foreground/70">No pages in this chapter yet.</p>
+                    ) : (
+                      <ul className="divide-y divide-border/20">
+                        {chArts.map((a) => (
+                          <li key={a.id}>
+                            <button
+                              type="button"
+                              onClick={() => onOpenArticle(a.id)}
+                              className="group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
+                            >
+                              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                              <span className="truncate text-sm font-medium group-hover:text-primary">{a.title}</span>
+                              {a.status !== "published" && (
+                                <Badge variant="outline" className="h-4 text-[9px]">{STATUS_LABEL[a.status]}</Badge>
+                              )}
+                              <span className="ml-auto text-[10px] text-muted-foreground/70">{formatDate(a.updated_at)}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                );
+              })}
+
+              {/* Loose pages directly under the book */}
+              {(() => {
+                const loose = arts.filter((a) => !a.category_id && a.status !== "archived");
+                if (loose.length === 0) return null;
+                return (
+                  <section className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="font-serif text-base font-semibold leading-tight">Loose pages</h3>
+                      <Badge variant="outline" className="ml-auto h-5 text-[10px]">{loose.length}</Badge>
+                    </div>
+                    <ul className="divide-y divide-border/20">
+                      {loose.map((a) => (
+                        <li key={a.id}>
+                          <button
+                            type="button"
+                            onClick={() => onOpenArticle(a.id)}
+                            className="group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
+                          >
+                            <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                            <span className="truncate text-sm font-medium group-hover:text-primary">{a.title}</span>
+                            {a.status !== "published" && (
+                              <Badge variant="outline" className="h-4 text-[9px]">{STATUS_LABEL[a.status]}</Badge>
+                            )}
+                            <span className="ml-auto text-[10px] text-muted-foreground/70">{formatDate(a.updated_at)}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })()}
+            </div>
+          )}
         </div>
-        <Meta items={[
-          ["Slug", space.slug],
-          ["Updated", formatDate(space.updated_at)],
-          ["Archived", space.is_archived ? "Yes" : "No"],
-        ]} />
-        <ArticleTable articles={arts} categories={cats} onOpen={onOpenArticle} />
       </div>
     );
   }
@@ -1029,8 +1235,8 @@ function SelectionView(p: SelectionViewProps) {
       <div className="space-y-3 overflow-y-auto">
         <div className="flex items-start gap-2">
           <Header
-            icon={<FolderTree className="h-4 w-4 text-primary/80" />}
-            label="Category"
+            icon={<BookMarked className="h-4 w-4 text-primary/80" />}
+            label="Chapter"
             title={cat.name}
             subtitle={cat.description ?? undefined}
             breadcrumb={space?.name}
@@ -1136,7 +1342,7 @@ function ArticleTable({ articles, categories, onOpen }: {
   articles: KbArticle[]; categories: KbCategory[]; onOpen: (id: string) => void;
 }) {
   if (articles.length === 0) {
-    return <div className="rounded-xl border border-dashed border-border/40 p-6 text-center text-xs text-muted-foreground">No articles here.</div>;
+    return <div className="rounded-xl border border-dashed border-border/40 p-6 text-center text-xs text-muted-foreground">No pages here.</div>;
   }
   const catName = new Map(categories.map((c) => [c.id, c.name]));
   return (
@@ -1145,7 +1351,7 @@ function ArticleTable({ articles, categories, onOpen }: {
         <thead className="bg-white/[0.03] text-left text-[11px] uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-3 py-2 font-medium">Title</th>
-            <th className="px-3 py-2 font-medium">Category</th>
+            <th className="px-3 py-2 font-medium">Chapter</th>
             <th className="px-3 py-2 font-medium">Status</th>
             <th className="px-3 py-2 font-medium">Rev</th>
             <th className="px-3 py-2 font-medium">Updated</th>
