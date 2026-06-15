@@ -48,7 +48,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createAdminUser } from "@/lib/admin-users/create-user";
+import { createAdminUser, setAdminUserActive } from "@/lib/admin-users/create-user";
 import {
   adminUserFormOptionsQuery,
   adminUsersKeys,
@@ -108,6 +108,7 @@ function AdminUsersPage() {
   const [tab, setTab] = useState<"active" | "inactive">("active");
   const [q, setQ] = useState("");
   const [details, setDetails] = useState<AdminUser | null>(null);
+  const [statusActionUserId, setStatusActionUserId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [draft, setDraft] = useState<UserDraft>(EMPTY_USER);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -167,6 +168,43 @@ function AdminUsersPage() {
     }
     setCreateError(null);
     createMutation.mutate();
+  }
+
+  async function handleSetUserActive(user: AdminUser, isActive: boolean) {
+    if (!session?.access_token) {
+      toast.error("User status was not updated", {
+        description: "Your session is no longer available.",
+      });
+      return;
+    }
+
+    const action = isActive ? "enable" : "disable";
+    if (!window.confirm(`Do you want to ${action} ${user.displayName}?`)) return;
+
+    setStatusActionUserId(user.id);
+
+    try {
+      const result = await setAdminUserActive({
+        accessToken: session.access_token,
+        userId: user.id,
+        isActive,
+      });
+
+      if (!result.ok) {
+        toast.error("User status was not updated", { description: result.error });
+        return;
+      }
+
+      toast.success("User status updated");
+      setDetails(null);
+      refetch();
+    } catch (error) {
+      toast.error("User status was not updated", {
+        description: error instanceof Error ? error.message : "Unexpected error",
+      });
+    } finally {
+      setStatusActionUserId(null);
+    }
   }
 
   if (!allowed) {
@@ -286,8 +324,11 @@ function AdminUsersPage() {
                           Edit user (backend pending)
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => toast.info(BACKEND_ACTION_PENDING)}>
-                          {user.isActive ? "Disable" : "Enable"} user (backend pending)
+                        <DropdownMenuItem
+                          disabled={statusActionUserId === user.id}
+                          onClick={() => handleSetUserActive(user, !user.isActive)}
+                        >
+                          {user.isActive ? "Disable" : "Enable"} user
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

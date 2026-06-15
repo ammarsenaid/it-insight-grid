@@ -32,3 +32,11 @@ export interface CreateAdminUserInput {
 export type CreateAdminUserResult =
   | { ok: true; userId: string; invited: boolean }
   | { ok: false; error: string };
+
+export interface SetAdminUserActiveInput {
+  accessToken: string;
+  userId: string;
+  isActive: boolean;
+}
+
+export type AdminUserMutationResult = { ok: true; userId: string } | { ok: false; error: string };
