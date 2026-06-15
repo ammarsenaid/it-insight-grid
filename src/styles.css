@@ -1865,3 +1865,256 @@ body.compact-mode .glass-card {
     display: none;
   }
 }
+
+/* ITKC Knowledge Redesign Next article details polish */
+.kb-article-view > div:first-child > .mt-2.flex {
+  position: relative;
+  margin-top: 1.15rem;
+  padding: 0.75rem;
+  border: 1px solid hsl(var(--border) / 0.38);
+  border-radius: 1.15rem;
+  background:
+    linear-gradient(180deg, hsl(220 64% 8% / 0.58), hsl(220 70% 6% / 0.38)),
+    radial-gradient(circle at top left, hsl(var(--primary) / 0.08), transparent 16rem);
+}
+
+.kb-article-view > div:first-child > .mt-2.flex::before {
+  content: "Page details";
+  margin-right: 0.25rem;
+  color: hsl(214 24% 68%);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.kb-article-view > div:first-child > .mt-2.flex [data-slot="badge"],
+.kb-article-view > div:first-child > .mt-2.flex .inline-flex,
+.kb-article-view > div:first-child > .mt-2.flex > span {
+  min-height: 1.95rem;
+  border-radius: 999px;
+  border-color: hsl(var(--border) / 0.42);
+  background: hsl(220 72% 5% / 0.5);
+  color: hsl(214 36% 86%);
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.035);
+}
+
+.kb-article-view > div:first-child > .mt-2.flex [data-slot="badge"]:first-child,
+.kb-article-view > div:first-child > .mt-2.flex > span:first-of-type {
+  border-color: hsl(126 66% 53% / 0.35);
+  background: hsl(126 66% 53% / 0.1);
+  color: hsl(126 66% 78%);
+}
+
+.kb-article-view > div:first-child > .mt-2.flex .bg-secondary,
+.kb-article-view > div:first-child > .mt-2.flex [class*="bg-secondary"] {
+  border-color: hsl(var(--primary) / 0.32);
+  background: hsl(var(--primary) / 0.12) !important;
+  color: hsl(214 52% 92%);
+}
+
+.kb-article-view .prose-knowledge {
+  max-width: 62rem !important;
+  padding: clamp(1.7rem, 2.4vw, 2.8rem);
+}
+
+.kb-article-view .prose-knowledge > :first-child {
+  margin-top: 0;
+}
+
+.kb-article-view .prose-knowledge > :last-child {
+  margin-bottom: 0;
+}
+
+.kb-article-view .prose-knowledge h1 {
+  font-size: clamp(1.8rem, 2.6vw, 2.55rem);
+}
+
+.kb-article-view .prose-knowledge h2 {
+  margin-top: 2rem;
+  margin-bottom: 0.8rem;
+  font-size: clamp(1.35rem, 1.8vw, 1.75rem);
+}
+
+.kb-article-view .prose-knowledge h3 {
+  margin-top: 1.6rem;
+  margin-bottom: 0.65rem;
+  font-size: clamp(1.08rem, 1.35vw, 1.25rem);
+}
+
+.kb-article-view .prose-knowledge hr {
+  margin: 1.8rem 0;
+  border-color: hsl(var(--border) / 0.36);
+}
+
+.kb-article-view .prose-knowledge a {
+  color: hsl(var(--primary));
+  text-decoration: none;
+  border-bottom: 1px solid hsl(var(--primary) / 0.35);
+}
+
+.kb-article-view .prose-knowledge a:hover {
+  border-bottom-color: hsl(var(--primary));
+}
+
+.kb-article-view .prose-knowledge table {
+  width: 100%;
+  overflow: hidden;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid hsl(var(--border) / 0.42);
+  border-radius: 1rem;
+}
+
+.kb-article-view .prose-knowledge th {
+  background: hsl(220 70% 7% / 0.72);
+  color: hsl(214 30% 82%);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.kb-article-view .prose-knowledge th,
+.kb-article-view .prose-knowledge td {
+  border-bottom: 1px solid hsl(var(--border) / 0.28);
+  padding: 0.85rem 1rem;
+}
+
+.kb-article-view .prose-knowledge tr:last-child td {
+  border-bottom: 0;
+}
+
+.kb-article-view .prose-knowledge tr:hover td {
+  background: hsl(var(--primary) / 0.045);
+}
+
+.kb-article-view article + div > div {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem !important;
+  padding: 1.1rem !important;
+}
+
+.kb-article-view article + div > div::before {
+  content: "Attachments";
+  display: block;
+  margin-bottom: 0.75rem;
+  color: hsl(214 24% 70%);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.kb-article-view article + div button,
+.kb-article-view article + div [role="button"] {
+  border-radius: 0.9rem;
+  border: 1px solid hsl(var(--border) / 0.42);
+  background: hsl(220 70% 6% / 0.42);
+}
+
+.kb-article-view article + div button:hover,
+.kb-article-view article + div [role="button"]:hover {
+  border-color: hsl(var(--primary) / 0.44);
+  background: hsl(var(--primary) / 0.12);
+}
+
+.kb-docs-context .kb-context-inner > div:first-child .rounded-2xl {
+  position: relative;
+  overflow: hidden;
+}
+
+.kb-docs-context .kb-context-inner > div:first-child .rounded-2xl::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: auto 1rem 0 1rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.42), transparent);
+}
+
+.kb-context-inner .grid.gap-2.text-xs {
+  margin-top: 1.05rem;
+}
+
+.kb-context-inner .grid.gap-2.text-xs > div {
+  min-height: 2.65rem;
+  border: 1px solid hsl(var(--border) / 0.3);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.kb-context-inner .grid.gap-2.text-xs > div:hover {
+  transform: translateX(2px);
+  border-color: hsl(var(--primary) / 0.28);
+  background: hsl(var(--primary) / 0.075) !important;
+}
+
+.kb-context-inner .grid.gap-2.text-xs > div span:first-child {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.kb-context-inner .grid.gap-2.text-xs > div span:last-child {
+  color: hsl(214 44% 94%);
+}
+
+.kb-docs-reader .rounded-xl.border.border-dashed,
+.kb-empty-state {
+  position: relative;
+  overflow: hidden;
+  border-style: solid !important;
+  background:
+    radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.115), transparent 18rem),
+    linear-gradient(180deg, hsl(220 60% 9% / 0.62), hsl(220 70% 6% / 0.42)) !important;
+}
+
+.kb-docs-reader .rounded-xl.border.border-dashed::before,
+.kb-empty-state::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(hsl(var(--primary) / 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--primary) / 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(circle at center, black, transparent 70%);
+  opacity: 0.4;
+}
+
+.kb-docs-reader .rounded-xl.border.border-dashed > *,
+.kb-empty-state > * {
+  position: relative;
+  z-index: 1;
+}
+
+.kb-markdown-preview {
+  color: hsl(214 34% 86%);
+}
+
+.kb-markdown-preview .prose-knowledge {
+  max-width: 58rem;
+}
+
+.kb-markdown-toolbar button[variant="secondary"],
+.kb-markdown-toolbar button[class*="bg-secondary"] {
+  background: hsl(var(--primary) / 0.16) !important;
+  color: hsl(214 54% 96%) !important;
+}
+
+.kb-pro-shell ::selection {
+  background: hsl(var(--primary) / 0.34);
+  color: hsl(214 54% 98%);
+}
+
+@media (max-width: 980px) {
+  .kb-article-view > div:first-child > .mt-2.flex::before {
+    width: 100%;
+  }
+
+  .kb-article-view .prose-knowledge {
+    padding: 1.2rem;
+  }
+}
