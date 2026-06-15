@@ -1012,16 +1012,7 @@ function SelectionView(p: SelectionViewProps) {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => p.onOpenArticle && void 0}
-                  onClickCapture={() => { /* select via parent */ }}
-                  onMouseDown={(e) => { e.preventDefault(); }}
-                  onClick={() => {
-                    // delegate: the parent passes setSelection through onOpenArticle for pages only,
-                    // so use the closure variable directly by triggering p.onOpenArticle if a single page,
-                    // otherwise select the space via window event – simpler: dispatch through onOpenArticle is not available.
-                    // We expose a local selection setter via a custom call here:
-                    (p as unknown as { __selectSpace?: (id: string) => void }).__selectSpace?.(s.id);
-                  }}
+                  onClick={() => p.onSelectSpace(s.id)}
                   className="group flex flex-col items-start gap-3 rounded-xl border border-border/40 bg-white/[0.02] p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-white/[0.04]"
                 >
                   <div className="flex w-full items-start gap-3">
