@@ -54,10 +54,7 @@ import { formatDate } from "@/components/common/format";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import {
-  fetchArticleRevisions,
-  useKnowledgeBackend,
-} from "@/lib/knowledge/useKnowledgeBackend";
+import { fetchArticleRevisions, useKnowledgeBackend } from "@/lib/knowledge/useKnowledgeBackend";
 import { useKnowledgePermissions } from "@/lib/knowledge/permissions";
 import {
   deleteArticle,
@@ -67,7 +64,10 @@ import {
   updateCategory,
   updateSpace,
 } from "@/lib/knowledge/mutations";
-import { archiveArticle as reviewArchiveArticle, restoreArticleToDraft } from "@/lib/knowledge/review";
+import {
+  archiveArticle as reviewArchiveArticle,
+  restoreArticleToDraft,
+} from "@/lib/knowledge/review";
 import { SpaceFormDialog } from "./dialogs/SpaceFormDialog";
 import { CategoryFormDialog } from "./dialogs/CategoryFormDialog";
 import { ArticleFormDialog } from "./dialogs/ArticleFormDialog";
@@ -133,9 +133,11 @@ function BookCover({
   className?: string;
 }) {
   const dims =
-    size === "sm" ? "h-16 w-12 text-[10px]" :
-    size === "lg" ? "h-40 w-28 text-base" :
-    "h-28 w-20 text-xs";
+    size === "sm"
+      ? "h-16 w-12 text-[10px]"
+      : size === "lg"
+        ? "h-40 w-28 text-base"
+        : "h-28 w-20 text-xs";
   const initial = (title.trim()[0] ?? "?").toUpperCase();
   return (
     <div
@@ -186,9 +188,11 @@ export function KnowledgeBackendWorkspace() {
   const [tagFilter, setTagFilter] = useState<string | "">("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const { items: recent, track: trackRecent, forget: forgetRecent } = useRecentlyViewed(activeTeamId);
-
-
+  const {
+    items: recent,
+    track: trackRecent,
+    forget: forgetRecent,
+  } = useRecentlyViewed(activeTeamId);
 
   // Dialogs
   const [spaceDialog, setSpaceDialog] = useState<{ open: boolean; initial: KbSpace | null }>({
@@ -196,16 +200,26 @@ export function KnowledgeBackendWorkspace() {
     initial: null,
   });
   const [categoryDialog, setCategoryDialog] = useState<{
-    open: boolean; initial: KbCategory | null; spaceId: string | null;
+    open: boolean;
+    initial: KbCategory | null;
+    spaceId: string | null;
   }>({ open: false, initial: null, spaceId: null });
   const [articleDialog, setArticleDialog] = useState<{
-    open: boolean; initial: KbArticle | null; spaceId?: string; categoryId?: string | null;
+    open: boolean;
+    initial: KbArticle | null;
+    spaceId?: string;
+    categoryId?: string | null;
   }>({ open: false, initial: null });
   const [tagsDialog, setTagsDialog] = useState<{
-    open: boolean; articleId?: string;
+    open: boolean;
+    articleId?: string;
   }>({ open: false });
   const [confirm, setConfirm] = useState<{
-    open: boolean; title: string; description?: string; destructive?: boolean; onConfirm: () => void;
+    open: boolean;
+    title: string;
+    description?: string;
+    destructive?: boolean;
+    onConfirm: () => void;
   } | null>(null);
 
   useEffect(() => {
@@ -244,7 +258,6 @@ export function KnowledgeBackendWorkspace() {
     navigate({ to: "/documents", search: { article: undefined }, replace: true });
   }, [search.article, data, activeTeamId, navigate]);
 
-
   // Leave edit mode when switching to a non-article selection
   useEffect(() => {
     if (!selection || selection.kind !== "article") setEditingArticle(false);
@@ -272,11 +285,11 @@ export function KnowledgeBackendWorkspace() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-
   const toggle = (id: string) =>
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
 
@@ -315,9 +328,10 @@ export function KnowledgeBackendWorkspace() {
     for (const a of data.articles) {
       if (!showArchived && a.status === "archived") continue;
       if (statusFilter !== "all" && a.status !== statusFilter) continue;
-      if (tagFilter && !(tagIdsByArticle.get(a.id)?.has(tagFilter))) continue;
+      if (tagFilter && !tagIdsByArticle.get(a.id)?.has(tagFilter)) continue;
       if (ql) {
-        const hay = `${a.title} ${a.excerpt ?? ""} ${(tagsByArticle.get(a.id) ?? []).join(" ")}`.toLowerCase();
+        const hay =
+          `${a.title} ${a.excerpt ?? ""} ${(tagsByArticle.get(a.id) ?? []).join(" ")}`.toLowerCase();
         if (!hay.includes(ql)) continue;
       }
       m.add(a.id);
@@ -328,7 +342,13 @@ export function KnowledgeBackendWorkspace() {
   // ---- Auth/team gating ----
   if (authLoading || contextLoading) return <WorkspaceSkeleton />;
   if (contextError) {
-    return <ErrorState title="Account context failed" message={contextError} onRetry={() => void refresh()} />;
+    return (
+      <ErrorState
+        title="Account context failed"
+        message={contextError}
+        onRetry={() => void refresh()}
+      />
+    );
   }
   if (teams.length === 0) {
     return (
@@ -352,18 +372,28 @@ export function KnowledgeBackendWorkspace() {
         : `"${s.name}" will be hidden from the default view. Categories and articles inside it remain in the database.`,
       onConfirm: async () => {
         const r = await updateSpace({ id: s.id, is_archived: !s.is_archived });
-        if (r.error) toast.error(r.error); else { toast.success(s.is_archived ? "Space restored." : "Space archived."); reload(); }
+        if (r.error) toast.error(r.error);
+        else {
+          toast.success(s.is_archived ? "Space restored." : "Space archived.");
+          reload();
+        }
       },
     });
 
   const handleDeleteSpace = (s: KbSpace) =>
     setConfirm({
-      open: true, destructive: true,
+      open: true,
+      destructive: true,
       title: "Delete space",
       description: `Permanently delete "${s.name}" and ALL categories and articles inside it. This cannot be undone.`,
       onConfirm: async () => {
         const r = await deleteSpace(s.id);
-        if (r.error) toast.error(r.error); else { toast.success("Space deleted."); if (selection?.kind === "space" && selection.id === s.id) setSelection(null); reload(); }
+        if (r.error) toast.error(r.error);
+        else {
+          toast.success("Space deleted.");
+          if (selection?.kind === "space" && selection.id === s.id) setSelection(null);
+          reload();
+        }
       },
     });
 
@@ -371,32 +401,50 @@ export function KnowledgeBackendWorkspace() {
     setConfirm({
       open: true,
       title: c.is_archived ? "Restore category" : "Archive category",
-      description: c.is_archived ? `"${c.name}" will be visible again.` : `"${c.name}" will be hidden from the default view.`,
+      description: c.is_archived
+        ? `"${c.name}" will be visible again.`
+        : `"${c.name}" will be hidden from the default view.`,
       onConfirm: async () => {
         const r = await updateCategory({ id: c.id, is_archived: !c.is_archived });
-        if (r.error) toast.error(r.error); else { toast.success(c.is_archived ? "Category restored." : "Category archived."); reload(); }
+        if (r.error) toast.error(r.error);
+        else {
+          toast.success(c.is_archived ? "Category restored." : "Category archived.");
+          reload();
+        }
       },
     });
 
   const handleDeleteCategory = (c: KbCategory) =>
     setConfirm({
-      open: true, destructive: true,
+      open: true,
+      destructive: true,
       title: "Delete category",
       description: `Permanently delete "${c.name}". Articles in it must first be moved or deleted (DB will block otherwise).`,
       onConfirm: async () => {
         const r = await deleteCategory(c.id);
-        if (r.error) toast.error(r.error); else { toast.success("Category deleted."); if (selection?.kind === "category" && selection.id === c.id) setSelection(null); reload(); }
+        if (r.error) toast.error(r.error);
+        else {
+          toast.success("Category deleted.");
+          if (selection?.kind === "category" && selection.id === c.id) setSelection(null);
+          reload();
+        }
       },
     });
 
   const handleDeleteArticle = (a: KbArticle) =>
     setConfirm({
-      open: true, destructive: true,
+      open: true,
+      destructive: true,
       title: "Delete article",
       description: `Permanently delete "${a.title}" and its revision history. This cannot be undone.`,
       onConfirm: async () => {
         const r = await deleteArticle(a.id);
-        if (r.error) toast.error(r.error); else { toast.success("Article deleted."); if (selection?.kind === "article" && selection.id === a.id) setSelection(null); reload(); }
+        if (r.error) toast.error(r.error);
+        else {
+          toast.success("Article deleted.");
+          if (selection?.kind === "article" && selection.id === a.id) setSelection(null);
+          reload();
+        }
       },
     });
 
@@ -404,15 +452,18 @@ export function KnowledgeBackendWorkspace() {
     setConfirm({
       open: true,
       title: a.status === "archived" ? "Restore article" : "Archive article",
-      description: a.status === "archived"
-        ? `Restore "${a.title}" to draft so it can be edited again.`
-        : `Archive "${a.title}". It will be hidden from the default view; content and history are preserved.`,
+      description:
+        a.status === "archived"
+          ? `Restore "${a.title}" to draft so it can be edited again.`
+          : `Archive "${a.title}". It will be hidden from the default view; content and history are preserved.`,
       onConfirm: async () => {
-        const r = a.status === "archived"
-          ? await restoreArticleToDraft(a)
-          : await reviewArchiveArticle(a);
+        const r =
+          a.status === "archived" ? await restoreArticleToDraft(a) : await reviewArchiveArticle(a);
         if (r.error) toast.error(r.error);
-        else { toast.success(a.status === "archived" ? "Article restored." : "Article archived."); reload(); }
+        else {
+          toast.success(a.status === "archived" ? "Article restored." : "Article archived.");
+          reload();
+        }
       },
     });
 
@@ -421,7 +472,10 @@ export function KnowledgeBackendWorkspace() {
     const items: React.ReactNode[] = [];
     if (perms.update && !s.is_archived) {
       items.push(
-        <DropdownMenuItem key="newcat" onClick={() => setCategoryDialog({ open: true, initial: null, spaceId: s.id })}>
+        <DropdownMenuItem
+          key="newcat"
+          onClick={() => setCategoryDialog({ open: true, initial: null, spaceId: s.id })}
+        >
           <BookMarked className="mr-2 h-3.5 w-3.5" /> New chapter
         </DropdownMenuItem>,
       );
@@ -434,7 +488,15 @@ export function KnowledgeBackendWorkspace() {
       );
       items.push(
         <DropdownMenuItem key="arch" onClick={() => handleArchiveSpace(s)}>
-          {s.is_archived ? <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</> : <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>}
+          {s.is_archived ? (
+            <>
+              <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
+            </>
+          ) : (
+            <>
+              <Archive className="mr-2 h-3.5 w-3.5" /> Archive
+            </>
+          )}
         </DropdownMenuItem>,
       );
     }
@@ -444,20 +506,36 @@ export function KnowledgeBackendWorkspace() {
     const items: React.ReactNode[] = [];
     if (perms.create && !c.is_archived) {
       items.push(
-        <DropdownMenuItem key="newart" onClick={() => setArticleDialog({ open: true, initial: null, spaceId: c.space_id, categoryId: c.id })}>
+        <DropdownMenuItem
+          key="newart"
+          onClick={() =>
+            setArticleDialog({ open: true, initial: null, spaceId: c.space_id, categoryId: c.id })
+          }
+        >
           <FileText className="mr-2 h-3.5 w-3.5" /> New page
         </DropdownMenuItem>,
       );
     }
     if (perms.update) {
       items.push(
-        <DropdownMenuItem key="rename" onClick={() => setCategoryDialog({ open: true, initial: c, spaceId: c.space_id })}>
+        <DropdownMenuItem
+          key="rename"
+          onClick={() => setCategoryDialog({ open: true, initial: c, spaceId: c.space_id })}
+        >
           <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
         </DropdownMenuItem>,
       );
       items.push(
         <DropdownMenuItem key="arch" onClick={() => handleArchiveCategory(c)}>
-          {c.is_archived ? <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</> : <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>}
+          {c.is_archived ? (
+            <>
+              <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
+            </>
+          ) : (
+            <>
+              <Archive className="mr-2 h-3.5 w-3.5" /> Archive
+            </>
+          )}
         </DropdownMenuItem>,
       );
     }
@@ -466,7 +544,13 @@ export function KnowledgeBackendWorkspace() {
   const renderArticleMenu = (a: KbArticle) => {
     const items: React.ReactNode[] = [];
     items.push(
-      <DropdownMenuItem key="open" onClick={() => { setSelection({ kind: "article", id: a.id }); setEditingArticle(false); }}>
+      <DropdownMenuItem
+        key="open"
+        onClick={() => {
+          setSelection({ kind: "article", id: a.id });
+          setEditingArticle(false);
+        }}
+      >
         <FileText className="mr-2 h-3.5 w-3.5" /> Open
       </DropdownMenuItem>,
     );
@@ -478,28 +562,41 @@ export function KnowledgeBackendWorkspace() {
       );
       items.push(
         <DropdownMenuItem key="arch" onClick={() => handleArchiveArticle(a)}>
-          {a.status === "archived" ? <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</> : <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>}
+          {a.status === "archived" ? (
+            <>
+              <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
+            </>
+          ) : (
+            <>
+              <Archive className="mr-2 h-3.5 w-3.5" /> Archive
+            </>
+          )}
         </DropdownMenuItem>,
       );
     }
     return <>{items}</>;
   };
 
-
   return (
-    <div className="space-y-3">
+    <div className="kb-pro-shell space-y-4">
       {/* Header / status bar */}
-      <div className="glass-card flex flex-wrap items-center gap-2 rounded-2xl p-3">
+      <div className="kb-pro-toolbar glass-card flex flex-wrap items-center gap-2 rounded-2xl p-3">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">Team</span>
           {teams.length === 1 ? (
-            <Badge variant="secondary" className="h-6">{teams[0].name}</Badge>
+            <Badge variant="secondary" className="h-6">
+              {teams[0].name}
+            </Badge>
           ) : (
             <Select value={activeTeamId ?? undefined} onValueChange={(v) => setActiveTeamId(v)}>
-              <SelectTrigger className="h-8 w-56 text-xs"><SelectValue placeholder="Select a team" /></SelectTrigger>
+              <SelectTrigger className="h-8 w-56 text-xs">
+                <SelectValue placeholder="Select a team" />
+              </SelectTrigger>
               <SelectContent>
                 {teams.map((t) => (
-                  <SelectItem key={t.id} value={t.id} className="text-xs">{t.name}</SelectItem>
+                  <SelectItem key={t.id} value={t.id} className="text-xs">
+                    {t.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -508,14 +605,19 @@ export function KnowledgeBackendWorkspace() {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {(() => {
             const selectedSpaceId =
-              selection?.kind === "space" ? selection.id :
-              selection?.kind === "category" ? data?.categories.find((c) => c.id === selection.id)?.space_id ?? null :
-              selection?.kind === "article" ? data?.articles.find((a) => a.id === selection.id)?.space_id ?? null :
-              null;
+              selection?.kind === "space"
+                ? selection.id
+                : selection?.kind === "category"
+                  ? (data?.categories.find((c) => c.id === selection.id)?.space_id ?? null)
+                  : selection?.kind === "article"
+                    ? (data?.articles.find((a) => a.id === selection.id)?.space_id ?? null)
+                    : null;
             const selectedCategoryId =
-              selection?.kind === "category" ? selection.id :
-              selection?.kind === "article" ? data?.articles.find((a) => a.id === selection.id)?.category_id ?? null :
-              null;
+              selection?.kind === "category"
+                ? selection.id
+                : selection?.kind === "article"
+                  ? (data?.articles.find((a) => a.id === selection.id)?.category_id ?? null)
+                  : null;
             const canNewSpace = perms.manageTeam;
             const canNewCategory = perms.update && !!selectedSpaceId;
             const canNewArticle = perms.create && !!selectedSpaceId;
@@ -529,7 +631,9 @@ export function KnowledgeBackendWorkspace() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">Create</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Create
+                  </DropdownMenuLabel>
                   {canNewSpace && (
                     <DropdownMenuItem onClick={() => setSpaceDialog({ open: true, initial: null })}>
                       <Library className="mr-2 h-3.5 w-3.5" /> New book
@@ -538,14 +642,25 @@ export function KnowledgeBackendWorkspace() {
                   <DropdownMenuItem
                     disabled={!canNewCategory}
                     title={!selectedSpaceId ? "Select a space first" : undefined}
-                    onClick={() => selectedSpaceId && setCategoryDialog({ open: true, initial: null, spaceId: selectedSpaceId })}
+                    onClick={() =>
+                      selectedSpaceId &&
+                      setCategoryDialog({ open: true, initial: null, spaceId: selectedSpaceId })
+                    }
                   >
                     <BookMarked className="mr-2 h-3.5 w-3.5" /> New chapter
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={!canNewArticle}
                     title={!selectedSpaceId ? "Select a space or category first" : undefined}
-                    onClick={() => selectedSpaceId && setArticleDialog({ open: true, initial: null, spaceId: selectedSpaceId, categoryId: selectedCategoryId })}
+                    onClick={() =>
+                      selectedSpaceId &&
+                      setArticleDialog({
+                        open: true,
+                        initial: null,
+                        spaceId: selectedSpaceId,
+                        categoryId: selectedCategoryId,
+                      })
+                    }
                   >
                     <FileText className="mr-2 h-3.5 w-3.5" /> New page
                   </DropdownMenuItem>
@@ -554,7 +669,12 @@ export function KnowledgeBackendWorkspace() {
             );
           })()}
           {perms.update && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setTagsDialog({ open: true })}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={() => setTagsDialog({ open: true })}
+            >
               <TagsIcon className="mr-1 h-3 w-3" /> Tags
             </Button>
           )}
@@ -572,9 +692,9 @@ export function KnowledgeBackendWorkspace() {
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="kb-pro-grid grid gap-4 lg:grid-cols-[minmax(300px,376px)_minmax(0,1fr)]">
         {/* Tree */}
-        <aside className="glass-card flex h-[calc(100vh-280px)] min-h-[480px] flex-col rounded-2xl p-3">
+        <aside className="kb-pro-tree glass-card flex h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col rounded-2xl p-4">
           <div className="relative mb-2">
             <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -589,7 +709,9 @@ export function KnowledgeBackendWorkspace() {
           <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px]">
             <Filter className="h-3 w-3 text-muted-foreground" />
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-              <SelectTrigger className="h-7 w-[120px] text-[11px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-7 w-[120px] text-[11px]">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
@@ -600,16 +722,30 @@ export function KnowledgeBackendWorkspace() {
               </SelectContent>
             </Select>
             {data && data.tags.length > 0 && (
-              <Select value={tagFilter || "__all__"} onValueChange={(v) => setTagFilter(v === "__all__" ? "" : v)}>
-                <SelectTrigger className="h-7 w-[120px] text-[11px]"><SelectValue placeholder="Tag" /></SelectTrigger>
+              <Select
+                value={tagFilter || "__all__"}
+                onValueChange={(v) => setTagFilter(v === "__all__" ? "" : v)}
+              >
+                <SelectTrigger className="h-7 w-[120px] text-[11px]">
+                  <SelectValue placeholder="Tag" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">All tags</SelectItem>
-                  {data.tags.map((t) => <SelectItem key={t.id} value={t.id}>#{t.name}</SelectItem>)}
+                  {data.tags.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      #{t.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
             <label className="ml-auto flex items-center gap-1 text-muted-foreground">
-              <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="h-3 w-3 accent-primary" />
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+                className="h-3 w-3 accent-primary"
+              />
               Archived
             </label>
           </div>
@@ -621,9 +757,13 @@ export function KnowledgeBackendWorkspace() {
               <InlineError message={error} onRetry={() => void reload()} />
             ) : !data || data.spaces.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
-                {perms.manageTeam ? "No spaces yet — create the first one to begin." : "No spaces in this team yet."}
+                {perms.manageTeam
+                  ? "No spaces yet — create the first one to begin."
+                  : "No spaces in this team yet."}
               </div>
-            ) : filteredArticleIds && filteredArticleIds.size === 0 && (!!ql || statusFilter !== "all" || !!tagFilter) ? (
+            ) : filteredArticleIds &&
+              filteredArticleIds.size === 0 &&
+              (!!ql || statusFilter !== "all" || !!tagFilter) ? (
               <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
                 No matching articles
               </div>
@@ -635,7 +775,9 @@ export function KnowledgeBackendWorkspace() {
                     <SpaceRow
                       key={space.id}
                       space={space}
-                      categories={data.categories.filter((c) => c.space_id === space.id && (showArchived || !c.is_archived))}
+                      categories={data.categories.filter(
+                        (c) => c.space_id === space.id && (showArchived || !c.is_archived),
+                      )}
                       articles={data.articles.filter((a) => a.space_id === space.id)}
                       expanded={expanded}
                       toggle={toggle}
@@ -653,9 +795,8 @@ export function KnowledgeBackendWorkspace() {
           </div>
         </aside>
 
-
         {/* Main */}
-        <section className="glass-card flex h-[calc(100vh-280px)] min-h-[480px] flex-col overflow-hidden rounded-2xl p-4">
+        <section className="kb-pro-main glass-card flex h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col overflow-hidden rounded-2xl p-6">
           {loading && !data ? (
             <ContentSkeleton />
           ) : error ? (
@@ -670,17 +811,26 @@ export function KnowledgeBackendWorkspace() {
               perms={perms}
               editingArticle={editingArticle}
               setEditingArticle={setEditingArticle}
-              onOpenArticle={(id) => { setSelection({ kind: "article", id }); setEditingArticle(false); }}
+              onOpenArticle={(id) => {
+                setSelection({ kind: "article", id });
+                setEditingArticle(false);
+              }}
               onSelectSpace={(id) => setSelection(id ? { kind: "space", id } : null)}
               onNewSpace={() => setSpaceDialog({ open: true, initial: null })}
               onEditSpace={(s) => setSpaceDialog({ open: true, initial: s })}
               onArchiveSpace={handleArchiveSpace}
               onDeleteSpace={handleDeleteSpace}
-              onNewCategory={(spaceId, sortOrder) => setCategoryDialog({ open: true, initial: null, spaceId })}
-              onEditCategory={(c) => setCategoryDialog({ open: true, initial: c, spaceId: c.space_id })}
+              onNewCategory={(spaceId, sortOrder) =>
+                setCategoryDialog({ open: true, initial: null, spaceId })
+              }
+              onEditCategory={(c) =>
+                setCategoryDialog({ open: true, initial: c, spaceId: c.space_id })
+              }
               onArchiveCategory={handleArchiveCategory}
               onDeleteCategory={handleDeleteCategory}
-              onNewArticle={(spaceId, categoryId) => setArticleDialog({ open: true, initial: null, spaceId, categoryId })}
+              onNewArticle={(spaceId, categoryId) =>
+                setArticleDialog({ open: true, initial: null, spaceId, categoryId })
+              }
               onEditArticleMeta={(a) => setArticleDialog({ open: true, initial: a })}
               onDeleteArticle={handleDeleteArticle}
               onArchiveArticle={handleArchiveArticle}
@@ -701,7 +851,10 @@ export function KnowledgeBackendWorkspace() {
             onOpenChange={(o) => setSpaceDialog((s) => ({ ...s, open: o }))}
             teamId={activeTeamId}
             initial={spaceDialog.initial}
-            onSaved={(id) => { reload(); setSelection({ kind: "space", id }); }}
+            onSaved={(id) => {
+              reload();
+              setSelection({ kind: "space", id });
+            }}
           />
           {categoryDialog.spaceId && (
             <CategoryFormDialog
@@ -711,9 +864,14 @@ export function KnowledgeBackendWorkspace() {
               spaceId={categoryDialog.spaceId}
               initial={categoryDialog.initial}
               defaultSortOrder={
-                data ? data.categories.filter((c) => c.space_id === categoryDialog.spaceId).length * 10 : 0
+                data
+                  ? data.categories.filter((c) => c.space_id === categoryDialog.spaceId).length * 10
+                  : 0
               }
-              onSaved={(id) => { reload(); setSelection({ kind: "category", id }); }}
+              onSaved={(id) => {
+                reload();
+                setSelection({ kind: "category", id });
+              }}
             />
           )}
           <ArticleFormDialog
@@ -725,7 +883,10 @@ export function KnowledgeBackendWorkspace() {
             initial={articleDialog.initial}
             defaultSpaceId={articleDialog.spaceId}
             defaultCategoryId={articleDialog.categoryId ?? null}
-            onSaved={(id) => { reload(); setSelection({ kind: "article", id }); }}
+            onSaved={(id) => {
+              reload();
+              setSelection({ kind: "article", id });
+            }}
           />
           <TagsEditorDialog
             open={tagsDialog.open}
@@ -733,7 +894,9 @@ export function KnowledgeBackendWorkspace() {
             teamId={activeTeamId}
             articleId={tagsDialog.articleId}
             allTags={data?.tags ?? []}
-            assignedTagIds={tagsDialog.articleId ? tagIdsByArticle.get(tagsDialog.articleId) : undefined}
+            assignedTagIds={
+              tagsDialog.articleId ? tagIdsByArticle.get(tagsDialog.articleId) : undefined
+            }
             canUpdate={perms.update}
             canDelete={perms.delete}
             onChange={reload}
@@ -748,7 +911,10 @@ export function KnowledgeBackendWorkspace() {
           description={confirm.description}
           destructive={confirm.destructive}
           confirmLabel={confirm.destructive ? "Delete" : "Confirm"}
-          onConfirm={() => { confirm.onConfirm(); setConfirm(null); }}
+          onConfirm={() => {
+            confirm.onConfirm();
+            setConfirm(null);
+          }}
         />
       )}
     </div>
@@ -778,8 +944,18 @@ function RowMenu({ children }: { children: React.ReactNode }) {
 }
 
 function SpaceRow({
-  space, categories, articles, expanded, toggle, selection, onSelect, matched, filterActive,
-  renderSpaceMenu, renderCategoryMenu, renderArticleMenu,
+  space,
+  categories,
+  articles,
+  expanded,
+  toggle,
+  selection,
+  onSelect,
+  matched,
+  filterActive,
+  renderSpaceMenu,
+  renderCategoryMenu,
+  renderArticleMenu,
 }: {
   space: KbSpace;
   categories: KbCategory[];
@@ -807,13 +983,43 @@ function SpaceRow({
 
   return (
     <li>
-      <div className={cn("group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]", isSelected && "bg-primary/15 text-primary")}>
-        <button type="button" onClick={() => toggle(space.id)} className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground">
-          {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+      <div
+        className={cn(
+          "group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]",
+          isSelected && "bg-primary/15 text-primary",
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => toggle(space.id)}
+          className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground"
+        >
+          {isOpen ? (
+            <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
         </button>
-        <button type="button" onClick={() => onSelect({ kind: "space", id: space.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title={space.name}>
-          <Book className={cn("h-3.5 w-3.5 shrink-0", space.is_archived ? "text-muted-foreground" : "text-primary")} />
-          <span className={cn("truncate font-semibold", space.is_archived && "italic text-muted-foreground")}>{space.name}</span>
+        <button
+          type="button"
+          onClick={() => onSelect({ kind: "space", id: space.id })}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          title={space.name}
+        >
+          <Book
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              space.is_archived ? "text-muted-foreground" : "text-primary",
+            )}
+          />
+          <span
+            className={cn(
+              "truncate font-semibold",
+              space.is_archived && "italic text-muted-foreground",
+            )}
+          >
+            {space.name}
+          </span>
         </button>
         {menu && <RowMenu>{menu}</RowMenu>}
       </div>
@@ -835,7 +1041,13 @@ function SpaceRow({
             />
           ))}
           {uncategorized.map((a) => (
-            <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} renderArticleMenu={renderArticleMenu} />
+            <ArticleRow
+              key={a.id}
+              article={a}
+              selection={selection}
+              onSelect={onSelect}
+              renderArticleMenu={renderArticleMenu}
+            />
           ))}
           {categories.length === 0 && uncategorized.length === 0 && (
             <li className="px-2 py-1 text-[11px] text-muted-foreground/70">Empty book</li>
@@ -847,8 +1059,15 @@ function SpaceRow({
 }
 
 function CategoryRow({
-  category, articles, expanded, toggle, selection, onSelect, filterActive,
-  renderCategoryMenu, renderArticleMenu,
+  category,
+  articles,
+  expanded,
+  toggle,
+  selection,
+  onSelect,
+  filterActive,
+  renderCategoryMenu,
+  renderArticleMenu,
 }: {
   category: KbCategory;
   articles: KbArticle[];
@@ -868,29 +1087,76 @@ function CategoryRow({
 
   return (
     <li>
-      <div className={cn("group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]", isSelected && "bg-primary/15 text-primary")}>
-        <button type="button" onClick={() => toggle(category.id)} className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground">
-          {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+      <div
+        className={cn(
+          "group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]",
+          isSelected && "bg-primary/15 text-primary",
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => toggle(category.id)}
+          className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground"
+        >
+          {isOpen ? (
+            <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
         </button>
-        <button type="button" onClick={() => onSelect({ kind: "category", id: category.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title={category.name}>
-          <BookMarked className={cn("h-3.5 w-3.5 shrink-0", category.is_archived ? "text-muted-foreground" : "text-primary/70")} />
-          <span className={cn("truncate font-medium", category.is_archived && "italic text-muted-foreground")}>{category.name}</span>
+        <button
+          type="button"
+          onClick={() => onSelect({ kind: "category", id: category.id })}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          title={category.name}
+        >
+          <BookMarked
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              category.is_archived ? "text-muted-foreground" : "text-primary/70",
+            )}
+          />
+          <span
+            className={cn(
+              "truncate font-medium",
+              category.is_archived && "italic text-muted-foreground",
+            )}
+          >
+            {category.name}
+          </span>
           <span className="ml-1 text-[10px] text-muted-foreground/70">{articles.length}</span>
         </button>
         {menu && <RowMenu>{menu}</RowMenu>}
       </div>
       {isOpen && (
         <ul className="ml-3 space-y-0.5 border-l border-border/30 pl-2">
-          {articles.map((a) => <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} renderArticleMenu={renderArticleMenu} />)}
-          {articles.length === 0 && <li className="px-2 py-1 text-[11px] text-muted-foreground/70">No pages</li>}
+          {articles.map((a) => (
+            <ArticleRow
+              key={a.id}
+              article={a}
+              selection={selection}
+              onSelect={onSelect}
+              renderArticleMenu={renderArticleMenu}
+            />
+          ))}
+          {articles.length === 0 && (
+            <li className="px-2 py-1 text-[11px] text-muted-foreground/70">No pages</li>
+          )}
         </ul>
       )}
     </li>
   );
 }
 
-function ArticleRow({ article, selection, onSelect, renderArticleMenu }: {
-  article: KbArticle; selection: Selection; onSelect: (s: Selection) => void;
+function ArticleRow({
+  article,
+  selection,
+  onSelect,
+  renderArticleMenu,
+}: {
+  article: KbArticle;
+  selection: Selection;
+  onSelect: (s: Selection) => void;
   renderArticleMenu?: (a: KbArticle) => React.ReactNode;
 }) {
   const isSelected = selection?.kind === "article" && selection.id === article.id;
@@ -914,14 +1180,21 @@ function ArticleRow({ article, selection, onSelect, renderArticleMenu }: {
           <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <span className="truncate">{article.title}</span>
         </button>
-        {article.status === "draft" && <Badge variant="outline" className="h-4 text-[9px]">Draft</Badge>}
-        {article.status === "archived" && <Badge variant="outline" className="h-4 text-[9px]">Arch</Badge>}
+        {article.status === "draft" && (
+          <Badge variant="outline" className="h-4 text-[9px]">
+            Draft
+          </Badge>
+        )}
+        {article.status === "archived" && (
+          <Badge variant="outline" className="h-4 text-[9px]">
+            Arch
+          </Badge>
+        )}
         {menu && <RowMenu>{menu}</RowMenu>}
       </div>
     </li>
   );
 }
-
 
 // ----------------- Main content -----------------
 
@@ -998,18 +1271,24 @@ function SelectionView(p: SelectionViewProps) {
               </div>
               <h2 className="mt-1 font-serif text-2xl font-bold text-foreground">All books</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                {visibleSpaces.length} {visibleSpaces.length === 1 ? "book" : "books"} · pick one to read its chapters and pages.
+                {visibleSpaces.length} {visibleSpaces.length === 1 ? "book" : "books"} · pick one to
+                read its chapters and pages.
               </p>
             </div>
             <div className="hidden text-[10px] text-muted-foreground/70 sm:block">
-              Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search
+              Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to
+              search
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {visibleSpaces.map((s) => {
-              const chapterCount = data.categories.filter((c) => c.space_id === s.id && !c.is_archived).length;
-              const pageCount = data.articles.filter((a) => a.space_id === s.id && a.status !== "archived").length;
+              const chapterCount = data.categories.filter(
+                (c) => c.space_id === s.id && !c.is_archived,
+              ).length;
+              const pageCount = data.articles.filter(
+                (a) => a.space_id === s.id && a.status !== "archived",
+              ).length;
               return (
                 <button
                   key={s.id}
@@ -1024,12 +1303,16 @@ function SelectionView(p: SelectionViewProps) {
                         {s.name}
                       </div>
                       {s.description && (
-                        <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{s.description}</p>
+                        <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
+                          {s.description}
+                        </p>
                       )}
                     </div>
                   </div>
                   <div className="flex w-full items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground/80">
-                    <span>{chapterCount} ch · {pageCount} pg</span>
+                    <span>
+                      {chapterCount} ch · {pageCount} pg
+                    </span>
                     <span>Updated {formatDate(s.updated_at)}</span>
                   </div>
                 </button>
@@ -1076,7 +1359,6 @@ function SelectionView(p: SelectionViewProps) {
     );
   }
 
-
   if (selection.kind === "space") {
     const space = data.spaces.find((s) => s.id === selection.id);
     if (!space) return <NotFound />;
@@ -1105,34 +1387,74 @@ function SelectionView(p: SelectionViewProps) {
                 <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{space.description}</p>
               )}
               <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1"><BookMarked className="h-3 w-3" /> {chapterCount} chapter{chapterCount === 1 ? "" : "s"}</span>
-                <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /> {pageCount} page{pageCount === 1 ? "" : "s"}</span>
+                <span className="inline-flex items-center gap-1">
+                  <BookMarked className="h-3 w-3" /> {chapterCount} chapter
+                  {chapterCount === 1 ? "" : "s"}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <FileText className="h-3 w-3" /> {pageCount} page{pageCount === 1 ? "" : "s"}
+                </span>
                 <span>Updated {formatDate(space.updated_at)}</span>
-                {space.is_archived && <Badge variant="outline" className="h-4 text-[10px]">Archived</Badge>}
+                {space.is_archived && (
+                  <Badge variant="outline" className="h-4 text-[10px]">
+                    Archived
+                  </Badge>
+                )}
               </div>
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-1">
               {perms.create && !space.is_archived && (
-                <Button size="sm" variant="secondary" className="h-7 text-xs"
-                  onClick={() => p.onNewArticle(space.id, null)}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 text-xs"
+                  onClick={() => p.onNewArticle(space.id, null)}
+                >
                   <Plus className="mr-1 h-3 w-3" /> Page
                 </Button>
               )}
               {perms.update && !space.is_archived && (
-                <Button size="sm" variant="secondary" className="h-7 text-xs"
-                  onClick={() => p.onNewCategory(space.id, cats.length * 10)}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 text-xs"
+                  onClick={() => p.onNewCategory(space.id, cats.length * 10)}
+                >
                   <Plus className="mr-1 h-3 w-3" /> Chapter
                 </Button>
               )}
               {perms.manageTeam && (
                 <>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onEditSpace(space)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={() => p.onEditSpace(space)}
+                  >
                     <Pencil className="mr-1 h-3 w-3" /> Edit
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onArchiveSpace(space)}>
-                    {space.is_archived ? <><RotateCcw className="mr-1 h-3 w-3" /> Restore</> : <><Archive className="mr-1 h-3 w-3" /> Archive</>}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={() => p.onArchiveSpace(space)}
+                  >
+                    {space.is_archived ? (
+                      <>
+                        <RotateCcw className="mr-1 h-3 w-3" /> Restore
+                      </>
+                    ) : (
+                      <>
+                        <Archive className="mr-1 h-3 w-3" /> Archive
+                      </>
+                    )}
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => p.onDeleteSpace(space)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs text-destructive"
+                    onClick={() => p.onDeleteSpace(space)}
+                  >
                     <Trash2 className="mr-1 h-3 w-3" />
                   </Button>
                 </>
@@ -1141,51 +1463,71 @@ function SelectionView(p: SelectionViewProps) {
           </div>
 
           {/* Chapters */}
-          {cats.filter((c) => !c.is_archived).length === 0 && arts.filter((a) => !a.category_id).length === 0 ? (
+          {cats.filter((c) => !c.is_archived).length === 0 &&
+          arts.filter((a) => !a.category_id).length === 0 ? (
             <div className="rounded-xl border border-dashed border-border/40 p-8 text-center text-xs text-muted-foreground">
               This book is empty. Add a chapter or a page to get started.
             </div>
           ) : (
             <div className="space-y-4">
-              {cats.filter((c) => !c.is_archived).map((c) => {
-                const chArts = arts.filter((a) => a.category_id === c.id && a.status !== "archived");
-                return (
-                  <section key={c.id} className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
-                    <div className="mb-3 flex items-start gap-2">
-                      <BookMarked className="mt-0.5 h-4 w-4 shrink-0 text-primary/80" />
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-serif text-base font-semibold leading-tight">{c.name}</h3>
-                        {c.description && <p className="mt-0.5 text-xs text-muted-foreground">{c.description}</p>}
+              {cats
+                .filter((c) => !c.is_archived)
+                .map((c) => {
+                  const chArts = arts.filter(
+                    (a) => a.category_id === c.id && a.status !== "archived",
+                  );
+                  return (
+                    <section
+                      key={c.id}
+                      className="rounded-xl border border-border/40 bg-white/[0.02] p-4"
+                    >
+                      <div className="mb-3 flex items-start gap-2">
+                        <BookMarked className="mt-0.5 h-4 w-4 shrink-0 text-primary/80" />
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-serif text-base font-semibold leading-tight">
+                            {c.name}
+                          </h3>
+                          {c.description && (
+                            <p className="mt-0.5 text-xs text-muted-foreground">{c.description}</p>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="h-5 shrink-0 text-[10px]">
+                          {chArts.length} page{chArts.length === 1 ? "" : "s"}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="h-5 shrink-0 text-[10px]">
-                        {chArts.length} page{chArts.length === 1 ? "" : "s"}
-                      </Badge>
-                    </div>
-                    {chArts.length === 0 ? (
-                      <p className="px-1 text-[11px] text-muted-foreground/70">No pages in this chapter yet.</p>
-                    ) : (
-                      <ul className="divide-y divide-border/20">
-                        {chArts.map((a) => (
-                          <li key={a.id}>
-                            <button
-                              type="button"
-                              onClick={() => onOpenArticle(a.id)}
-                              className="group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
-                            >
-                              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
-                              <span className="truncate text-sm font-medium group-hover:text-primary">{a.title}</span>
-                              {a.status !== "published" && (
-                                <Badge variant="outline" className="h-4 text-[9px]">{STATUS_LABEL[a.status]}</Badge>
-                              )}
-                              <span className="ml-auto text-[10px] text-muted-foreground/70">{formatDate(a.updated_at)}</span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-                );
-              })}
+                      {chArts.length === 0 ? (
+                        <p className="px-1 text-[11px] text-muted-foreground/70">
+                          No pages in this chapter yet.
+                        </p>
+                      ) : (
+                        <ul className="divide-y divide-border/20">
+                          {chArts.map((a) => (
+                            <li key={a.id}>
+                              <button
+                                type="button"
+                                onClick={() => onOpenArticle(a.id)}
+                                className="group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
+                              >
+                                <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                                <span className="truncate text-sm font-medium group-hover:text-primary">
+                                  {a.title}
+                                </span>
+                                {a.status !== "published" && (
+                                  <Badge variant="outline" className="h-4 text-[9px]">
+                                    {STATUS_LABEL[a.status]}
+                                  </Badge>
+                                )}
+                                <span className="ml-auto text-[10px] text-muted-foreground/70">
+                                  {formatDate(a.updated_at)}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </section>
+                  );
+                })}
 
               {/* Loose pages directly under the book */}
               {(() => {
@@ -1195,8 +1537,12 @@ function SelectionView(p: SelectionViewProps) {
                   <section className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
                     <div className="mb-3 flex items-center gap-2">
                       <FileText className="h-4 w-4 text-muted-foreground" />
-                      <h3 className="font-serif text-base font-semibold leading-tight">Loose pages</h3>
-                      <Badge variant="outline" className="ml-auto h-5 text-[10px]">{loose.length}</Badge>
+                      <h3 className="font-serif text-base font-semibold leading-tight">
+                        Loose pages
+                      </h3>
+                      <Badge variant="outline" className="ml-auto h-5 text-[10px]">
+                        {loose.length}
+                      </Badge>
                     </div>
                     <ul className="divide-y divide-border/20">
                       {loose.map((a) => (
@@ -1207,11 +1553,17 @@ function SelectionView(p: SelectionViewProps) {
                             className="group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
                           >
                             <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
-                            <span className="truncate text-sm font-medium group-hover:text-primary">{a.title}</span>
+                            <span className="truncate text-sm font-medium group-hover:text-primary">
+                              {a.title}
+                            </span>
                             {a.status !== "published" && (
-                              <Badge variant="outline" className="h-4 text-[9px]">{STATUS_LABEL[a.status]}</Badge>
+                              <Badge variant="outline" className="h-4 text-[9px]">
+                                {STATUS_LABEL[a.status]}
+                              </Badge>
                             )}
-                            <span className="ml-auto text-[10px] text-muted-foreground/70">{formatDate(a.updated_at)}</span>
+                            <span className="ml-auto text-[10px] text-muted-foreground/70">
+                              {formatDate(a.updated_at)}
+                            </span>
                           </button>
                         </li>
                       ))}
@@ -1243,33 +1595,63 @@ function SelectionView(p: SelectionViewProps) {
           />
           <div className="ml-auto flex flex-wrap items-center gap-1">
             {perms.create && !cat.is_archived && (
-              <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => p.onNewArticle(cat.space_id, cat.id)}>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 text-xs"
+                onClick={() => p.onNewArticle(cat.space_id, cat.id)}
+              >
                 <Plus className="mr-1 h-3 w-3" /> Article
               </Button>
             )}
             {perms.update && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onEditCategory(cat)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => p.onEditCategory(cat)}
+              >
                 <Pencil className="mr-1 h-3 w-3" /> Edit
               </Button>
             )}
             {perms.update && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => p.onArchiveCategory(cat)}>
-                {cat.is_archived ? <><RotateCcw className="mr-1 h-3 w-3" /> Restore</> : <><Archive className="mr-1 h-3 w-3" /> Archive</>}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => p.onArchiveCategory(cat)}
+              >
+                {cat.is_archived ? (
+                  <>
+                    <RotateCcw className="mr-1 h-3 w-3" /> Restore
+                  </>
+                ) : (
+                  <>
+                    <Archive className="mr-1 h-3 w-3" /> Archive
+                  </>
+                )}
               </Button>
             )}
             {perms.delete && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => p.onDeleteCategory(cat)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs text-destructive"
+                onClick={() => p.onDeleteCategory(cat)}
+              >
                 <Trash2 className="mr-1 h-3 w-3" />
               </Button>
             )}
           </div>
         </div>
-        <Meta items={[
-          ["Slug", cat.slug],
-          ["Sort order", String(cat.sort_order)],
-          ["Updated", formatDate(cat.updated_at)],
-          ["Archived", cat.is_archived ? "Yes" : "No"],
-        ]} />
+        <Meta
+          items={[
+            ["Slug", cat.slug],
+            ["Sort order", String(cat.sort_order)],
+            ["Updated", formatDate(cat.updated_at)],
+            ["Archived", cat.is_archived ? "Yes" : "No"],
+          ]}
+        />
         <ArticleTable articles={arts} categories={[cat]} onOpen={onOpenArticle} />
       </div>
     );
@@ -1289,7 +1671,9 @@ function SelectionView(p: SelectionViewProps) {
         canUpdate={perms.update}
         canDelete={perms.delete}
         canApprove={perms.manageTeam}
-        onSaved={() => { p.onReload(); }}
+        onSaved={() => {
+          p.onReload();
+        }}
         onClose={() => p.setEditingArticle(false)}
       />
     );
@@ -1313,14 +1697,30 @@ function SelectionView(p: SelectionViewProps) {
   );
 }
 
-function Header({ icon, label, title, subtitle, breadcrumb }: {
-  icon: React.ReactNode; label: string; title: string; subtitle?: string; breadcrumb?: string;
+function Header({
+  icon,
+  label,
+  title,
+  subtitle,
+  breadcrumb,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  subtitle?: string;
+  breadcrumb?: string;
 }) {
   return (
     <div>
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-        {icon}<span>{label}</span>
-        {breadcrumb && (<><ChevronRight className="h-3 w-3" /><span className="normal-case tracking-normal">{breadcrumb}</span></>)}
+        {icon}
+        <span>{label}</span>
+        {breadcrumb && (
+          <>
+            <ChevronRight className="h-3 w-3" />
+            <span className="normal-case tracking-normal">{breadcrumb}</span>
+          </>
+        )}
       </div>
       <h2 className="mt-1 text-xl font-semibold">{title}</h2>
       {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
@@ -1332,17 +1732,30 @@ function Meta({ items }: { items: Array<[string, string]> }) {
   return (
     <div className="flex flex-wrap gap-3 rounded-lg border border-border/40 bg-white/[0.02] p-2 text-xs text-muted-foreground">
       {items.map(([k, v]) => (
-        <div key={k}><span className="text-muted-foreground/70">{k}: </span><span className="text-foreground/80">{v}</span></div>
+        <div key={k}>
+          <span className="text-muted-foreground/70">{k}: </span>
+          <span className="text-foreground/80">{v}</span>
+        </div>
       ))}
     </div>
   );
 }
 
-function ArticleTable({ articles, categories, onOpen }: {
-  articles: KbArticle[]; categories: KbCategory[]; onOpen: (id: string) => void;
+function ArticleTable({
+  articles,
+  categories,
+  onOpen,
+}: {
+  articles: KbArticle[];
+  categories: KbCategory[];
+  onOpen: (id: string) => void;
 }) {
   if (articles.length === 0) {
-    return <div className="rounded-xl border border-dashed border-border/40 p-6 text-center text-xs text-muted-foreground">No pages here.</div>;
+    return (
+      <div className="rounded-xl border border-dashed border-border/40 p-6 text-center text-xs text-muted-foreground">
+        No pages here.
+      </div>
+    );
   }
   const catName = new Map(categories.map((c) => [c.id, c.name]));
   return (
@@ -1359,15 +1772,31 @@ function ArticleTable({ articles, categories, onOpen }: {
         </thead>
         <tbody className="divide-y divide-border/30">
           {articles.map((a) => (
-            <tr key={a.id} className="cursor-pointer hover:bg-white/[0.03]" onClick={() => onOpen(a.id)}>
+            <tr
+              key={a.id}
+              className="cursor-pointer hover:bg-white/[0.03]"
+              onClick={() => onOpen(a.id)}
+            >
               <td className="px-3 py-2">
                 <div className="font-medium">{a.title}</div>
-                {a.excerpt && <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{a.excerpt}</div>}
+                {a.excerpt && (
+                  <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                    {a.excerpt}
+                  </div>
+                )}
               </td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">{a.category_id ? catName.get(a.category_id) ?? "—" : "—"}</td>
-              <td className="px-3 py-2 text-xs"><Badge variant="outline" className="h-5">{STATUS_LABEL[a.status] ?? a.status}</Badge></td>
+              <td className="px-3 py-2 text-xs text-muted-foreground">
+                {a.category_id ? (catName.get(a.category_id) ?? "—") : "—"}
+              </td>
+              <td className="px-3 py-2 text-xs">
+                <Badge variant="outline" className="h-5">
+                  {STATUS_LABEL[a.status] ?? a.status}
+                </Badge>
+              </td>
               <td className="px-3 py-2 text-xs text-muted-foreground">{a.revision_number}</td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">{formatDate(a.updated_at)}</td>
+              <td className="px-3 py-2 text-xs text-muted-foreground">
+                {formatDate(a.updated_at)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -1377,13 +1806,31 @@ function ArticleTable({ articles, categories, onOpen }: {
 }
 
 function ArticleView({
-  article, tags, breadcrumb, teamId, canUpdate, canDelete,
-  onEditContent, onEditMeta, onEditTags, onDelete, onArchive, onReload,
+  article,
+  tags,
+  breadcrumb,
+  teamId,
+  canUpdate,
+  canDelete,
+  onEditContent,
+  onEditMeta,
+  onEditTags,
+  onDelete,
+  onArchive,
+  onReload,
 }: {
-  article: KbArticle; tags: string[]; breadcrumb: string; teamId: string;
-  canUpdate: boolean; canDelete: boolean;
-  onEditContent: () => void; onEditMeta: () => void; onEditTags: () => void;
-  onDelete: () => void; onArchive: () => void; onReload: () => void;
+  article: KbArticle;
+  tags: string[];
+  breadcrumb: string;
+  teamId: string;
+  canUpdate: boolean;
+  canDelete: boolean;
+  onEditContent: () => void;
+  onEditMeta: () => void;
+  onEditTags: () => void;
+  onDelete: () => void;
+  onArchive: () => void;
+  onReload: () => void;
 }) {
   type Tab = "content" | "outline" | "review" | "revisions" | "audit";
   const [tab, setTab] = useState<Tab>("content");
@@ -1414,11 +1861,18 @@ function ArticleView({
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
       {/* Header */}
       <div>
-        <nav className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground" aria-label="Breadcrumb">
+        <nav
+          className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground"
+          aria-label="Breadcrumb"
+        >
           {breadcrumbParts.map((p, i) => (
             <span key={`${p}-${i}`} className="flex items-center gap-1">
               {i > 0 && <ChevronRight className="h-3 w-3 opacity-60" />}
-              <span className={cn("truncate", i === breadcrumbParts.length - 1 && "text-foreground/80")}>{p}</span>
+              <span
+                className={cn("truncate", i === breadcrumbParts.length - 1 && "text-foreground/80")}
+              >
+                {p}
+              </span>
             </span>
           ))}
         </nav>
@@ -1431,7 +1885,13 @@ function ArticleView({
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-1">
             {canUpdate && (
-              <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onEditContent} title="Open the editor">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 text-xs"
+                onClick={onEditContent}
+                title="Open the editor"
+              >
                 <Pencil className="mr-1 h-3 w-3" /> Write
               </Button>
             )}
@@ -1446,7 +1906,13 @@ function ArticleView({
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="More actions" title="More actions">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  aria-label="More actions"
+                  title="More actions"
+                >
                   <MoreHorizontal className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -1469,9 +1935,13 @@ function ArticleView({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={onArchive}>
                       {article.status === "archived" ? (
-                        <><RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore</>
+                        <>
+                          <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
+                        </>
                       ) : (
-                        <><Archive className="mr-2 h-3.5 w-3.5" /> Archive</>
+                        <>
+                          <Archive className="mr-2 h-3.5 w-3.5" /> Archive
+                        </>
                       )}
                     </DropdownMenuItem>
                   </>
@@ -1479,7 +1949,10 @@ function ArticleView({
                 {canDelete && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                    <DropdownMenuItem
+                      onClick={onDelete}
+                      className="text-destructive focus:text-destructive"
+                    >
                       <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete…
                     </DropdownMenuItem>
                   </>
@@ -1492,11 +1965,19 @@ function ArticleView({
           <Badge variant="outline">{STATUS_LABEL[article.status] ?? article.status}</Badge>
           <Badge variant="outline">{article.visibility}</Badge>
           <Badge variant="outline">rev {article.revision_number}</Badge>
-          {article.published_at && <span className="text-muted-foreground">Published {formatDate(article.published_at)}</span>}
+          {article.published_at && (
+            <span className="text-muted-foreground">
+              Published {formatDate(article.published_at)}
+            </span>
+          )}
           <span className="text-muted-foreground">Updated {formatDate(article.updated_at)}</span>
           {tags.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
-              {tags.map((t) => <Badge key={t} variant="secondary" className="h-5 text-[10px]">#{t}</Badge>)}
+              {tags.map((t) => (
+                <Badge key={t} variant="secondary" className="h-5 text-[10px]">
+                  #{t}
+                </Badge>
+              ))}
             </div>
           )}
         </div>
@@ -1529,9 +2010,11 @@ function ArticleView({
         {tab === "content" && (
           <div className="space-y-3">
             <article className="prose-knowledge mx-auto max-w-3xl rounded-xl border border-border/40 bg-white/[0.02] p-6">
-              {article.content_markdown
-                ? <Markdown source={article.content_markdown} />
-                : <p className="text-sm text-muted-foreground">This article has no content yet.</p>}
+              {article.content_markdown ? (
+                <Markdown source={article.content_markdown} />
+              ) : (
+                <p className="text-sm text-muted-foreground">This article has no content yet.</p>
+              )}
             </article>
             <div className="mx-auto max-w-3xl">
               <AttachmentsPanel articleId={article.id} teamId={teamId} canUpdate={canUpdate} />
@@ -1580,11 +2063,23 @@ function ArticleView({
 }
 
 function RevisionsPanel({
-  articleId, teamId, canRestore, currentRev, onRestored,
+  articleId,
+  teamId,
+  canRestore,
+  currentRev,
+  onRestored,
 }: {
-  articleId: string; teamId: string; canRestore: boolean; currentRev: number; onRestored: () => void;
+  articleId: string;
+  teamId: string;
+  canRestore: boolean;
+  currentRev: number;
+  onRestored: () => void;
 }) {
-  const [state, setState] = useState<{ loading: boolean; error: string | null; revs: KbRevision[] }>({ loading: true, error: null, revs: [] });
+  const [state, setState] = useState<{
+    loading: boolean;
+    error: string | null;
+    revs: KbRevision[];
+  }>({ loading: true, error: null, revs: [] });
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1595,25 +2090,39 @@ function RevisionsPanel({
       if (res.error) setState({ loading: false, error: res.error, revs: [] });
       else setState({ loading: false, error: null, revs: res.data ?? [] });
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [articleId, teamId, currentRev]);
 
   async function handleRestore(r: KbRevision) {
     if (!canRestore) return;
-    if (!confirm(`Restore article to revision v${r.version_number}? A new revision will be created.`)) return;
+    if (
+      !confirm(`Restore article to revision v${r.version_number}? A new revision will be created.`)
+    )
+      return;
     setBusyId(r.id);
     const res = await restoreArticleRevision(articleId, r);
     setBusyId(null);
-    if (res.error) { toast.error(res.error); return; }
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
     toast.success(`Restored to v${r.version_number}.`);
     onRestored();
   }
 
   return (
     <aside className="min-h-0 overflow-y-auto rounded-xl border border-border/40 bg-white/[0.02] p-3">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Revision history</div>
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Revision history
+      </div>
       {state.loading ? (
-        <div className="space-y-2"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></div>
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+        </div>
       ) : state.error ? (
         <div className="text-xs text-destructive">{state.error}</div>
       ) : state.revs.length === 0 ? (
@@ -1623,14 +2132,21 @@ function RevisionsPanel({
           {state.revs.map((r) => (
             <li key={r.id} className="rounded-md border border-border/30 p-2">
               <div className="flex items-center justify-between">
-                <span className="font-medium">v{r.version_number}{r.version_number === currentRev && " (current)"}</span>
-                <Badge variant="outline" className="h-4 text-[10px]">{STATUS_LABEL[r.status] ?? r.status}</Badge>
+                <span className="font-medium">
+                  v{r.version_number}
+                  {r.version_number === currentRev && " (current)"}
+                </span>
+                <Badge variant="outline" className="h-4 text-[10px]">
+                  {STATUS_LABEL[r.status] ?? r.status}
+                </Badge>
               </div>
               <div className="mt-0.5 text-muted-foreground">{formatDate(r.created_at)}</div>
               <div className="mt-0.5 truncate text-foreground/80">{r.title}</div>
               {canRestore && r.version_number !== currentRev && (
                 <Button
-                  size="sm" variant="ghost" className="mt-1 h-6 px-2 text-[11px]"
+                  size="sm"
+                  variant="ghost"
+                  className="mt-1 h-6 px-2 text-[11px]"
                   disabled={busyId === r.id}
                   onClick={() => void handleRestore(r)}
                 >
@@ -1659,23 +2175,42 @@ function WorkspaceSkeleton() {
 function TreeSkeleton() {
   return (
     <div className="space-y-2">
-      {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-6 w-full" />)}
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Skeleton key={i} className="h-6 w-full" />
+      ))}
     </div>
   );
 }
 
 function ContentSkeleton() {
   return (
-    <div className="space-y-3"><Skeleton className="h-6 w-1/3" /><Skeleton className="h-4 w-2/3" /><Skeleton className="h-40 w-full" /></div>
+    <div className="space-y-3">
+      <Skeleton className="h-6 w-1/3" />
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-40 w-full" />
+    </div>
   );
 }
 
-function ErrorState({ title, message, onRetry }: { title: string; message: string; onRetry: () => void }) {
+function ErrorState({
+  title,
+  message,
+  onRetry,
+}: {
+  title: string;
+  message: string;
+  onRetry: () => void;
+}) {
   return (
     <div className="glass-card flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
       <AlertCircle className="h-6 w-6 text-destructive" />
-      <div><div className="text-base font-medium">{title}</div><p className="mt-1 text-sm text-muted-foreground">{message}</p></div>
-      <Button size="sm" onClick={onRetry}><RefreshCw className="mr-1 h-3 w-3" /> Retry</Button>
+      <div>
+        <div className="text-base font-medium">{title}</div>
+        <p className="mt-1 text-sm text-muted-foreground">{message}</p>
+      </div>
+      <Button size="sm" onClick={onRetry}>
+        <RefreshCw className="mr-1 h-3 w-3" /> Retry
+      </Button>
     </div>
   );
 }
@@ -1686,12 +2221,18 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
       <div>
         <AlertCircle className="mx-auto mb-2 h-5 w-5 text-destructive" />
         <p className="text-sm text-muted-foreground">{message}</p>
-        <Button size="sm" className="mt-3" onClick={onRetry}><RefreshCw className="mr-1 h-3 w-3" /> Retry</Button>
+        <Button size="sm" className="mt-3" onClick={onRetry}>
+          <RefreshCw className="mr-1 h-3 w-3" /> Retry
+        </Button>
       </div>
     </div>
   );
 }
 
 function NotFound() {
-  return <div className="grid h-full place-items-center text-sm text-muted-foreground">Item not found.</div>;
+  return (
+    <div className="grid h-full place-items-center text-sm text-muted-foreground">
+      Item not found.
+    </div>
+  );
 }
