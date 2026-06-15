@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import {
   Library,
-  FolderTree,
+  Book,
+  BookOpen,
+  BookMarked,
   FileText,
   ChevronRight,
   ChevronDown,
