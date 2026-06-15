@@ -692,7 +692,7 @@ export function KnowledgeBackendWorkspace() {
         </div>
       </div>
 
-      <div className="kb-pro-grid grid gap-4 lg:grid-cols-[minmax(300px,376px)_minmax(0,1fr)]">
+      <div className="kb-docs-layout kb-pro-grid grid gap-4 xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)_minmax(260px,320px)]">
         {/* Tree */}
         <aside className="kb-pro-tree glass-card flex h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col rounded-2xl p-4">
           <div className="relative mb-2">
@@ -796,7 +796,7 @@ export function KnowledgeBackendWorkspace() {
         </aside>
 
         {/* Main */}
-        <section className="kb-pro-main glass-card flex h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col overflow-hidden rounded-2xl p-6">
+        <section className="kb-pro-main kb-docs-reader glass-card flex h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col overflow-hidden rounded-2xl p-6">
           {loading && !data ? (
             <ContentSkeleton />
           ) : error ? (
@@ -841,6 +841,27 @@ export function KnowledgeBackendWorkspace() {
             />
           )}
         </section>
+
+        <aside className="kb-docs-context glass-card hidden h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col overflow-hidden rounded-2xl p-5 xl:flex">
+          {data && (
+            <KnowledgeContextPanel
+              data={data}
+              selection={selection}
+              teamId={activeTeamId}
+              recent={recent}
+              onSelect={setSelection}
+              onOpenArticle={(id) => {
+                setSelection({ kind: "article", id });
+                setEditingArticle(false);
+              }}
+              onNewCategory={(spaceId) => setCategoryDialog({ open: true, initial: null, spaceId })}
+              onNewArticle={(spaceId, categoryId) =>
+                setArticleDialog({ open: true, initial: null, spaceId, categoryId })
+              }
+              perms={perms}
+            />
+          )}
+        </aside>
       </div>
 
       {/* Dialogs */}
@@ -1229,6 +1250,242 @@ interface SelectionViewProps {
   onReload: () => void;
   recent: Array<{ id: string; title: string; teamId: string; at: number }>;
   onForgetRecent: (id: string) => void;
+}
+
+function KnowledgeContextPanel({
+  data,
+  selection,
+  teamId,
+  recent,
+  onSelect,
+  onOpenArticle,
+  onNewCategory,
+  onNewArticle,
+  perms,
+}: {
+  data: SelectionViewProps["data"];
+  selection: Selection;
+  teamId: string | null;
+  recent: SelectionViewProps["recent"];
+  onSelect: (selection: Selection) => void;
+  onOpenArticle: (id: string) => void;
+  onNewCategory: (spaceId: string) => void;
+  onNewArticle: (spaceId: string, categoryId: string | null) => void;
+  perms: SelectionViewProps["perms"];
+}) {
+  const selectedArticle =
+    selection?.kind === "article"
+      ? (data.articles.find((article) => article.id === selection.id) ?? null)
+      : null;
+
+  const selectedCategory =
+    selection?.kind === "category"
+      ? (data.categories.find((category) => category.id === selection.id) ?? null)
+      : selectedArticle?.category_id
+        ? (data.categories.find((category) => category.id === selectedArticle.category_id) ?? null)
+        : null;
+
+  const selectedSpace =
+    selection?.kind === "space"
+      ? (data.spaces.find((space) => space.id === selection.id) ?? null)
+      : selectedCategory
+        ? (data.spaces.find((space) => space.id === selectedCategory.space_id) ?? null)
+        : selectedArticle
+          ? (data.spaces.find((space) => space.id === selectedArticle.space_id) ?? null)
+          : null;
+
+  const visibleSpaces = data.spaces.filter((space) => !space.is_archived);
+  const chaptersInBook = selectedSpace
+    ? data.categories.filter(
+        (category) => category.space_id === selectedSpace.id && !category.is_archived,
+      )
+    : [];
+  const pagesInChapter = selectedCategory
+    ? data.articles.filter(
+        (article) => article.category_id === selectedCategory.id && article.status !== "archived",
+      )
+    : [];
+  const pagesInBook = selectedSpace
+    ? data.articles.filter(
+        (article) => article.space_id === selectedSpace.id && article.status !== "archived",
+      )
+    : [];
+
+  const contextItems: Array<KbCategory | KbArticle> = selectedCategory
+    ? pagesInChapter
+    : chaptersInBook;
+
+  const title = selectedArticle
+    ? "Page details"
+    : selectedCategory
+      ? "In this chapter"
+      : selectedSpace
+        ? "In this book"
+        : "Library overview";
+
+  const recentForTeam = recent.filter((item) => !teamId || item.teamId === teamId);
+
+  return (
+    <div className="kb-context-inner flex h-full min-h-0 flex-col gap-4">
+      <div>
+        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          {title}
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-border/40 bg-white/[0.025] p-4">
+          {selectedArticle ? (
+            <>
+              <div className="flex items-start gap-3">
+                <FileText className="mt-0.5 h-5 w-5 text-primary" />
+                <div className="min-w-0">
+                  <div className="line-clamp-2 text-sm font-semibold">{selectedArticle.title}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {selectedCategory?.name ?? "Loose page"}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-2 text-xs">
+                <ContextMeta
+                  label="Status"
+                  value={STATUS_LABEL[selectedArticle.status] ?? selectedArticle.status}
+                />
+                <ContextMeta label="Revision" value={`rev ${selectedArticle.revision_number}`} />
+                <ContextMeta label="Updated" value={formatDate(selectedArticle.updated_at)} />
+                <ContextMeta label="Visibility" value={selectedArticle.visibility} />
+              </div>
+            </>
+          ) : selectedCategory ? (
+            <>
+              <div className="flex items-start gap-3">
+                <BookMarked className="mt-0.5 h-5 w-5 text-primary" />
+                <div className="min-w-0">
+                  <div className="line-clamp-2 text-sm font-semibold">{selectedCategory.name}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {pagesInChapter.length} page{pagesInChapter.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+              </div>
+              {perms.create && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="mt-4 h-8 w-full text-xs"
+                  onClick={() => onNewArticle(selectedCategory.space_id, selectedCategory.id)}
+                >
+                  <Plus className="mr-1 h-3 w-3" /> Add page
+                </Button>
+              )}
+            </>
+          ) : selectedSpace ? (
+            <>
+              <div className="flex items-start gap-3">
+                <Book className="mt-0.5 h-5 w-5 text-primary" />
+                <div className="min-w-0">
+                  <div className="line-clamp-2 text-sm font-semibold">{selectedSpace.name}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {chaptersInBook.length} chapter{chaptersInBook.length === 1 ? "" : "s"} ·{" "}
+                    {pagesInBook.length} page{pagesInBook.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+              </div>
+              {perms.update && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="mt-4 h-8 w-full text-xs"
+                  onClick={() => onNewCategory(selectedSpace.id)}
+                >
+                  <Plus className="mr-1 h-3 w-3" /> Add chapter
+                </Button>
+              )}
+            </>
+          ) : (
+            <div className="flex items-start gap-3">
+              <Library className="mt-0.5 h-5 w-5 text-primary" />
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">All shelves</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {visibleSpaces.length} book{visibleSpaces.length === 1 ? "" : "s"} available
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {(selectedSpace || selectedCategory) && (
+        <div className="min-h-0">
+          <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+            {selectedCategory ? "Pages" : "Chapters"}
+          </div>
+          <div className="kb-context-list max-h-[260px] space-y-1 overflow-y-auto pr-1">
+            {contextItems.slice(0, 8).map((item) => {
+              const isArticle = "revision_number" in item;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="group flex w-full items-center gap-2 rounded-xl border border-transparent px-3 py-2 text-left text-xs hover:border-primary/25 hover:bg-primary/10"
+                  onClick={() =>
+                    isArticle ? onOpenArticle(item.id) : onSelect({ kind: "category", id: item.id })
+                  }
+                >
+                  {isArticle ? (
+                    <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                  ) : (
+                    <BookMarked className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {"title" in item ? item.title : item.name}
+                  </span>
+                </button>
+              );
+            })}
+
+            {contextItems.length === 0 && (
+              <div className="rounded-xl border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
+                Nothing here yet.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-auto">
+        <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          Recently opened
+        </div>
+        <div className="space-y-1">
+          {recentForTeam.slice(0, 4).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+              onClick={() => onOpenArticle(item.id)}
+            >
+              <FileText className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{item.title}</span>
+            </button>
+          ))}
+
+          {recentForTeam.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border/30 p-3 text-center text-xs text-muted-foreground">
+              No recent pages.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContextMeta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.035] px-3 py-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="max-w-[9rem] truncate font-medium text-foreground/85">{value}</span>
+    </div>
+  );
 }
 
 function SelectionView(p: SelectionViewProps) {

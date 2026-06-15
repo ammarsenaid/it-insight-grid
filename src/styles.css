@@ -681,3 +681,61 @@ body.compact-mode .glass-card {
     padding: 1.15rem;
   }
 }
+
+/* ITKC Knowledge Redesign Edit 1 structure */
+.kb-docs-layout {
+  align-items: stretch;
+}
+
+.kb-docs-reader {
+  background:
+    radial-gradient(circle at 16% 0%, hsl(var(--primary) / 0.08), transparent 26rem),
+    radial-gradient(circle at 88% 16%, hsl(258 90% 60% / 0.055), transparent 24rem),
+    linear-gradient(180deg, hsl(var(--card) / 0.94), hsl(var(--card) / 0.72));
+}
+
+.kb-docs-context {
+  position: relative;
+  border: 1px solid hsl(var(--border) / 0.48);
+  background:
+    radial-gradient(circle at top right, hsl(var(--primary) / 0.075), transparent 18rem),
+    linear-gradient(180deg, hsl(var(--card) / 0.9), hsl(var(--card) / 0.68));
+  box-shadow:
+    0 22px 60px hsl(220 80% 4% / 0.28),
+    inset 0 1px 0 hsl(0 0% 100% / 0.035);
+}
+
+.kb-context-inner {
+  overflow: hidden;
+}
+
+.kb-context-list {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.45) hsl(var(--background) / 0.35);
+}
+
+.kb-context-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.kb-context-list::-webkit-scrollbar-track {
+  background: hsl(var(--background) / 0.35);
+  border-radius: 999px;
+}
+
+.kb-context-list::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.45);
+  border-radius: 999px;
+}
+
+@media (min-width: 1280px) {
+  .kb-docs-layout {
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) minmax(260px, 320px) !important;
+  }
+}
+
+@media (max-width: 1279px) {
+  .kb-docs-context {
+    display: none;
+  }
+}
