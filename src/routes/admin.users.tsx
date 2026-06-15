@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   Building2,
@@ -16,9 +16,11 @@ import { toast } from "sonner";
 
 import { DetailsDrawer } from "@/components/common/DetailsDrawer";
 import { EmptyState } from "@/components/common/EmptyState";
+import { FormDrawer } from "@/components/common/FormDrawer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,9 +30,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { adminUsersQuery } from "@/lib/admin-users/queries";
+import { createAdminUser } from "@/lib/admin-users/create-user";
+import {
+  adminUserFormOptionsQuery,
+  adminUsersKeys,
+  adminUsersQuery,
+} from "@/lib/admin-users/queries";
 import { formatAdminUsersError } from "@/lib/admin-users/errors";
 import type { AdminUser } from "@/lib/admin-users/types";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -42,6 +65,23 @@ export const Route = createFileRoute("/admin/users")({
 });
 
 const BACKEND_ACTION_PENDING = "Backend action pending";
+const NO_SELECTION = "none";
+
+type UserDraft = {
+  displayName: string;
+  email: string;
+  roleId: string | null;
+  teamId: string | null;
+  isActive: boolean;
+};
+
+const EMPTY_USER: UserDraft = {
+  displayName: "",
+  email: "",
+  roleId: null,
+  teamId: null,
+  isActive: true,
+};
 
 function listLabel(values: string[], fallback = "—"): string {
   return values.length > 0 ? values.join(", ") : fallback;
@@ -52,14 +92,46 @@ function AdminUsersPage() {
   const role = useRole();
   const allowed = can("admin.users", role);
   const enabled = Boolean(session?.user) && allowed;
-  const { data = [], isLoading, isError, error, refetch } = useQuery({
+  const queryClient = useQueryClient();
+  const {
+    data = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     ...adminUsersQuery(),
     enabled,
   });
+  const optionsQuery = useQuery({ ...adminUserFormOptionsQuery(), enabled });
 
   const [tab, setTab] = useState<"active" | "inactive">("active");
   const [q, setQ] = useState("");
   const [details, setDetails] = useState<AdminUser | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [draft, setDraft] = useState<UserDraft>(EMPTY_USER);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      if (!session?.access_token) throw new Error("Your session is no longer available.");
+      return createAdminUser({ ...draft, accessToken: session.access_token });
+    },
+    onSuccess: (result) => {
+      if (!result.ok) {
+        setCreateError(result.error);
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: adminUsersKeys.all });
+      setCreateOpen(false);
+      setDraft(EMPTY_USER);
+      setCreateError(null);
+      toast.success(result.invited ? "User created and invite sent" : "Inactive user created");
+    },
+    onError: (mutationError) => {
+      setCreateError(formatAdminUsersError(mutationError, "Failed to create user"));
+    },
+  });
 
   const visible = useMemo(() => {
     const list = data.filter((user) => (tab === "active" ? user.isActive : !user.isActive));
@@ -75,6 +147,27 @@ function AdminUsersPage() {
       ].some((value) => value.toLowerCase().includes(needle)),
     );
   }, [data, q, tab]);
+
+  function openCreate() {
+    setDraft(EMPTY_USER);
+    setCreateError(null);
+    createMutation.reset();
+    setCreateOpen(true);
+  }
+
+  function submitCreate() {
+    if (createMutation.isPending) return;
+    if (!draft.displayName.trim()) {
+      setCreateError("Display name is required.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) {
+      setCreateError("Enter a valid email address.");
+      return;
+    }
+    setCreateError(null);
+    createMutation.mutate();
+  }
 
   if (!allowed) {
     return (
@@ -95,7 +188,7 @@ function AdminUsersPage() {
         title="Users"
         description="Manage workspace users and access."
         actions={
-          <Button size="sm" onClick={() => toast.info(BACKEND_ACTION_PENDING)}>
+          <Button size="sm" onClick={openCreate}>
             <Plus className="mr-1.5 h-4 w-4" /> Add user
           </Button>
         }
@@ -139,7 +232,11 @@ function AdminUsersPage() {
           <EmptyState
             icon={Users}
             title={q.trim() ? "No users match your filters" : `No ${tab} users`}
-            description={q.trim() ? "Adjust search or change the tab." : "No matching profiles were returned by Supabase."}
+            description={
+              q.trim()
+                ? "Adjust search or change the tab."
+                : "No matching profiles were returned by Supabase."
+            }
             className="m-4"
           />
         ) : (
@@ -159,7 +256,9 @@ function AdminUsersPage() {
                 <TableRow key={user.id} className="cursor-pointer" onClick={() => setDetails(user)}>
                   <TableCell>
                     <div className="font-medium">{user.displayName}</div>
-                    <div className="text-xs text-muted-foreground">{user.email ?? "Email unavailable"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {user.email ?? "Email unavailable"}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">Not available</TableCell>
                   <TableCell className="text-sm">{listLabel(user.teamNames)}</TableCell>
@@ -167,15 +266,22 @@ function AdminUsersPage() {
                     <StatusBadge label={listLabel(user.roleNames, "No global role")} tone="info" />
                   </TableCell>
                   <TableCell>
-                    <StatusBadge label={user.isActive ? "active" : "inactive"} tone={user.isActive ? "success" : "muted"} />
+                    <StatusBadge
+                      label={user.isActive ? "active" : "inactive"}
+                      tone={user.isActive ? "success" : "muted"}
+                    />
                   </TableCell>
                   <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setDetails(user)}>View details</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setDetails(user)}>
+                          View details
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => toast.info(BACKEND_ACTION_PENDING)}>
                           Edit user (backend pending)
                         </DropdownMenuItem>
@@ -193,16 +299,136 @@ function AdminUsersPage() {
         )}
       </SectionCard>
 
+      <FormDrawer
+        open={createOpen}
+        onOpenChange={(open) => {
+          if (!createMutation.isPending) setCreateOpen(open);
+        }}
+        title="Add user"
+        description="Create a real Supabase account and assign its initial access."
+        onSubmit={submitCreate}
+        submitLabel={createMutation.isPending ? "Creating…" : "Create user"}
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="new-user-display-name" className="text-xs">
+            Display name
+          </Label>
+          <Input
+            id="new-user-display-name"
+            value={draft.displayName}
+            onChange={(event) => setDraft({ ...draft, displayName: event.target.value })}
+            maxLength={120}
+            autoComplete="name"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="new-user-email" className="text-xs">
+            Email
+          </Label>
+          <Input
+            id="new-user-email"
+            type="email"
+            value={draft.email}
+            onChange={(event) => setDraft({ ...draft, email: event.target.value })}
+            maxLength={320}
+            autoComplete="email"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Initial global role</Label>
+          <Select
+            value={draft.roleId ?? NO_SELECTION}
+            onValueChange={(value) =>
+              setDraft({ ...draft, roleId: value === NO_SELECTION ? null : value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="No global role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_SELECTION}>No global role</SelectItem>
+              {(optionsQuery.data?.roles ?? []).map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Team</Label>
+          <Select
+            value={draft.teamId ?? NO_SELECTION}
+            onValueChange={(value) =>
+              setDraft({ ...draft, teamId: value === NO_SELECTION ? null : value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="No team" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_SELECTION}>No team</SelectItem>
+              {(optionsQuery.data?.teams ?? []).map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border/40 p-3">
+          <div>
+            <Label htmlFor="new-user-active" className="text-xs">
+              Active account
+            </Label>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Active users receive an invite. Inactive users are created disabled without an invite.
+            </p>
+          </div>
+          <Switch
+            id="new-user-active"
+            checked={draft.isActive}
+            onCheckedChange={(checked) => setDraft({ ...draft, isActive: checked })}
+          />
+        </div>
+        {optionsQuery.isError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Could not load roles or teams</AlertTitle>
+            <AlertDescription>
+              {formatAdminUsersError(optionsQuery.error, "Unexpected error")}
+            </AlertDescription>
+          </Alert>
+        )}
+        {createError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>User was not created</AlertTitle>
+            <AlertDescription>{createError}</AlertDescription>
+          </Alert>
+        )}
+      </FormDrawer>
+
       <DetailsDrawer
         open={Boolean(details)}
         onOpenChange={(open) => !open && setDetails(null)}
         title={details?.displayName ?? ""}
-        description={details ? `${listLabel(details.roleNames, "No global role")} · ${listLabel(details.teamNames, "No team")}` : undefined}
-        actions={details && (
-          <Button size="sm" variant="secondary" onClick={() => toast.info(BACKEND_ACTION_PENDING)}>
-            Edit (backend pending)
-          </Button>
-        )}
+        description={
+          details
+            ? `${listLabel(details.roleNames, "No global role")} · ${listLabel(details.teamNames, "No team")}`
+            : undefined
+        }
+        actions={
+          details && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => toast.info(BACKEND_ACTION_PENDING)}
+            >
+              Edit (backend pending)
+            </Button>
+          )
+        }
       >
         {details && <UserDetails user={details} />}
       </DetailsDrawer>
@@ -218,13 +444,18 @@ function UserDetails({ user }: { user: AdminUser }) {
           <Info icon={Mail} label="Email" value={user.email ?? "Email unavailable"} />
           <Info icon={Building2} label="Department" value="Not available" />
           <Info icon={Users} label="Team" value={listLabel(user.teamNames, "No team")} />
-          <Info icon={ShieldCheck} label="Role" value={listLabel(user.roleNames, "No global role")} />
+          <Info
+            icon={ShieldCheck}
+            label="Role"
+            value={listLabel(user.roleNames, "No global role")}
+          />
         </dl>
       </SectionCard>
 
       <SectionCard title="Account data">
         <p className="text-xs text-muted-foreground">
-          Ticket, task, document, notes, and activity summaries are not available from the admin users backend yet.
+          Ticket, task, document, notes, and activity summaries are not available from the admin
+          users backend yet.
         </p>
       </SectionCard>
     </div>

@@ -1,6 +1,6 @@
 import { getSupabase } from "@/integrations/supabase/client";
 import { asRow, asRows, type SbRow } from "@/lib/service-desk/sb";
-import type { AdminUser } from "./types";
+import type { AdminUser, AdminUserFormOptions } from "./types";
 
 function str(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -73,4 +73,28 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
       updatedAt: str(row.updated_at),
     };
   });
+}
+
+export async function listAdminUserFormOptions(): Promise<AdminUserFormOptions> {
+  const sb = getSupabase();
+  const [rolesResult, teamsResult] = await Promise.all([
+    sb
+      .from("roles")
+      .select("id, name")
+      .eq("role_scope", "platform")
+      .order("name", { ascending: true }),
+    sb.from("teams").select("id, name").order("name", { ascending: true }),
+  ]);
+
+  if (rolesResult.error) throw rolesResult.error;
+  if (teamsResult.error) throw teamsResult.error;
+
+  return {
+    roles: asRows<SbRow>(rolesResult.data)
+      .map((row) => ({ id: str(row.id), name: str(row.name) }))
+      .filter((option) => option.id && option.name),
+    teams: asRows<SbRow>(teamsResult.data)
+      .map((row) => ({ id: str(row.id), name: str(row.name) }))
+      .filter((option) => option.id && option.name),
+  };
 }

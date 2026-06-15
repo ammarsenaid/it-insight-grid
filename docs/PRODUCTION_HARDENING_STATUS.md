@@ -1582,3 +1582,35 @@ Acceptance evidence:
 
 Evidence directory:
 - `/opt/it-knowledge-center/app/.artifacts/clean-deployment-replay/20260614_190728`
+
+## Milestone 77 - Real Admin User Creation
+
+Date: 2026-06-15
+
+Status: IMPLEMENTED - local validation pending.
+
+Implementation:
+- Restored the existing Add user drawer with display name, email, initial
+  platform role, optional team, and active status fields.
+- Added a same-origin TanStack server route that verifies the caller's Supabase
+  access token and requires an active `platform_admin` assignment before any write.
+- Kept `SUPABASE_SERVICE_ROLE_KEY` in `.server.ts` code and server-only runtime
+  configuration; no privileged key is imported by browser code.
+- Active accounts are created with `inviteUserByEmail`; inactive accounts are
+  created banned and unconfirmed without sending an invite.
+- The server creates/updates `public.profiles`, assigns an optional global role,
+  and assigns optional team membership. Failed metadata setup triggers auth-user
+  cleanup and reports whether manual cleanup is required.
+- Added visible drawer errors and refreshed the real Supabase user list after a
+  successful creation.
+
+Validation required before commit:
+- `scripts/qa/production_hardening_admin_users.sh`
+- `bunx tsc --noEmit`
+- `bun run build`
+
+Operational notes:
+- Deployment must provide `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` only to
+  the server runtime. Their values were not inspected during this milestone.
+- No database connection, migration, service restart, or live user creation was
+  performed.
