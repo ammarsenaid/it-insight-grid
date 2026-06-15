@@ -1,6 +1,6 @@
 # Production Hardening Status
 
-Last updated: 2026-06-14
+Last updated: 2026-06-15
 
 ## Current Progress
 
@@ -42,6 +42,7 @@ Last updated: 2026-06-14
 - Completed milestone: 36 - Disposable Full-Chain Execution Plan Review
 - Completed milestone: 37 - Disposable Database Preflight Only
 - Completed milestone: 38 - Disposable Execution Commands Preparation Only
+- Completed milestone: 77 - Admin Users Live-Data Integration
 - Active milestone: none; disposable execution remains unapproved.
 - Repository inventory completed without reading secret-bearing files.
 - Existing uncommitted ticket-attachment SQL and QA changes identified and
@@ -121,6 +122,10 @@ Last updated: 2026-06-14
   permission-gated Supabase query layers instead of stale browser-local rows.
 - The Audit Log now reads the append-only, RLS-protected Service Desk audit
   table instead of seeded browser-local activity.
+- Admin Users now reads RLS-protected profiles, global roles, and team
+  memberships from Supabase. Unsupported account mutations and unavailable
+  profile metadata are explicitly identified instead of modifying browser-local
+  demo data.
 
 ## Changed Files
 
