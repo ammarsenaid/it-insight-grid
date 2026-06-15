@@ -102,6 +102,66 @@ const STATUS_LABEL: Record<string, string> = {
   archived: "Archived",
 };
 
+// ---- BookStack-style book cover ----
+const BOOK_COVER_GRADIENTS = [
+  "from-rose-500 to-rose-700",
+  "from-amber-500 to-amber-700",
+  "from-emerald-500 to-emerald-700",
+  "from-sky-500 to-sky-700",
+  "from-violet-500 to-violet-700",
+  "from-fuchsia-500 to-fuchsia-700",
+  "from-teal-500 to-teal-700",
+  "from-orange-500 to-orange-700",
+  "from-indigo-500 to-indigo-700",
+  "from-cyan-500 to-cyan-700",
+  "from-lime-500 to-lime-700",
+  "from-pink-500 to-pink-700",
+];
+function bookCoverClass(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return BOOK_COVER_GRADIENTS[Math.abs(h) % BOOK_COVER_GRADIENTS.length];
+}
+
+function BookCover({
+  title,
+  size = "md",
+  className,
+}: {
+  title: string;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
+  const dims =
+    size === "sm" ? "h-16 w-12 text-[10px]" :
+    size === "lg" ? "h-40 w-28 text-base" :
+    "h-28 w-20 text-xs";
+  const initial = (title.trim()[0] ?? "?").toUpperCase();
+  return (
+    <div
+      className={cn(
+        "relative shrink-0 overflow-hidden rounded-r-md rounded-l-sm bg-gradient-to-br shadow-lg ring-1 ring-black/30",
+        bookCoverClass(title),
+        dims,
+        className,
+      )}
+      aria-hidden
+    >
+      {/* spine */}
+      <div className="absolute inset-y-0 left-0 w-[6px] bg-black/25" />
+      <div className="absolute inset-y-0 left-[6px] w-px bg-white/20" />
+      {/* initial */}
+      <div className="absolute inset-0 flex items-center justify-center pl-1">
+        <span className="font-serif font-bold uppercase text-white/95 drop-shadow-sm">
+          {initial}
+        </span>
+      </div>
+      {/* sheen */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/0 via-white/0 to-white/15" />
+    </div>
+  );
+}
+
 export function KnowledgeBackendWorkspace() {
   const { teams, contextLoading, contextError, refresh, loading: authLoading } = useAuth();
 
