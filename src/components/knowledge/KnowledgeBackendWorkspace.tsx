@@ -811,7 +811,7 @@ function SpaceRow({
           {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
         <button type="button" onClick={() => onSelect({ kind: "space", id: space.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title={space.name}>
-          <Library className={cn("h-3.5 w-3.5 shrink-0", space.is_archived ? "text-muted-foreground" : "text-primary")} />
+          <Book className={cn("h-3.5 w-3.5 shrink-0", space.is_archived ? "text-muted-foreground" : "text-primary")} />
           <span className={cn("truncate font-semibold", space.is_archived && "italic text-muted-foreground")}>{space.name}</span>
         </button>
         {menu && <RowMenu>{menu}</RowMenu>}
