@@ -1572,3 +1572,296 @@ body.compact-mode .glass-card {
     display: none;
   }
 }
+
+/* ITKC Knowledge Redesign Next sidebar reader actions */
+.kb-pro-shell {
+  padding-top: 0.45rem;
+}
+
+.kb-pro-toolbar {
+  position: relative;
+  overflow: hidden;
+}
+
+.kb-pro-toolbar::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, hsl(var(--primary) / 0.12), transparent 28%),
+    radial-gradient(circle at 95% 50%, hsl(var(--primary) / 0.07), transparent 16rem);
+  opacity: 0.75;
+}
+
+.kb-pro-toolbar > * {
+  position: relative;
+  z-index: 1;
+}
+
+.kb-pro-toolbar .font-semibold,
+.kb-pro-toolbar [class*="font-semibold"] {
+  color: hsl(214 44% 94%);
+}
+
+.kb-pro-toolbar button:first-of-type,
+.kb-pro-toolbar button[class*="bg-primary"] {
+  min-width: 5.6rem;
+  border-radius: 0.95rem;
+  box-shadow:
+    0 12px 30px hsl(var(--primary) / 0.24),
+    inset 0 1px 0 hsl(0 0% 100% / 0.18);
+}
+
+.kb-pro-tree {
+  overflow: hidden;
+}
+
+.kb-pro-tree::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 5rem;
+  background: linear-gradient(180deg, transparent, hsl(220 72% 5% / 0.78));
+}
+
+.kb-pro-tree .relative.mb-2 {
+  margin-bottom: 0.85rem;
+}
+
+.kb-pro-tree .mb-2.flex {
+  margin-bottom: 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.28);
+}
+
+.kb-pro-tree .kb-scroll {
+  position: relative;
+  z-index: 1;
+}
+
+.kb-pro-tree ul {
+  position: relative;
+}
+
+.kb-pro-tree ul ul {
+  margin-left: 0.28rem;
+  padding-left: 0.95rem;
+  border-left: 1px solid hsl(var(--primary) / 0.16);
+}
+
+.kb-pro-tree ul ul ul {
+  border-left-color: hsl(var(--primary) / 0.1);
+}
+
+.kb-tree-row {
+  position: relative;
+}
+
+.kb-tree-row::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, hsl(var(--primary) / 0.08), transparent);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.kb-tree-row:hover::after,
+.kb-tree-row.bg-primary\/15::after {
+  opacity: 1;
+}
+
+.kb-tree-row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.kb-tree-row.bg-primary\/15 {
+  color: hsl(214 48% 96%) !important;
+}
+
+.kb-tree-row.bg-primary\/15 svg {
+  color: hsl(var(--primary)) !important;
+  filter: drop-shadow(0 0 10px hsl(var(--primary) / 0.35));
+}
+
+.kb-tree-row .text-\[10px\],
+.kb-tree-row [class*="text-[10px]"] {
+  color: hsl(214 22% 70%);
+}
+
+.kb-docs-reader > div:first-child button,
+.kb-article-view > div:first-child button {
+  min-height: 2.75rem;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border) / 0.42);
+  background: hsl(220 68% 7% / 0.54);
+  padding-inline: 1rem;
+  color: hsl(214 36% 90%);
+}
+
+.kb-docs-reader > div:first-child button:hover,
+.kb-article-view > div:first-child button:hover {
+  border-color: hsl(var(--primary) / 0.46);
+  background: hsl(var(--primary) / 0.13);
+  box-shadow: 0 12px 28px hsl(var(--primary) / 0.12);
+}
+
+.kb-docs-reader > div:first-child button[title*="Read"],
+.kb-article-view > div:first-child button[title*="Read"],
+.kb-docs-reader > div:first-child button:has(svg + span),
+.kb-article-view > div:first-child button:has(svg + span) {
+  gap: 0.5rem;
+}
+
+.kb-article-view h2 {
+  text-shadow: 0 12px 42px hsl(220 80% 2% / 0.55);
+}
+
+.kb-article-view > div:first-child > .mt-1.flex > div:first-child {
+  max-width: min(100%, 58rem);
+}
+
+.kb-article-view > div:first-child > .mt-1.flex > div:last-child {
+  align-items: center;
+}
+
+.kb-article-view > div:first-child > .mt-2.flex {
+  padding-top: 0.15rem;
+}
+
+.kb-article-view > div:nth-child(2) {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(180deg, hsl(218 58% 10% / 0.96), hsl(218 58% 10% / 0.82));
+  backdrop-filter: blur(14px);
+}
+
+.kb-article-view > div:nth-child(2) button {
+  color: hsl(214 24% 72%);
+}
+
+.kb-article-view > div:nth-child(2) button:hover {
+  color: hsl(214 42% 96%);
+  background: hsl(var(--primary) / 0.08);
+}
+
+.kb-article-view > div:nth-child(2) button.border-primary {
+  color: hsl(214 52% 98%);
+}
+
+.kb-article-view .prose-knowledge {
+  margin-top: 0.6rem;
+}
+
+.kb-article-view .prose-knowledge p {
+  max-width: 54rem;
+}
+
+.kb-article-view article + div {
+  margin-top: 0.85rem;
+}
+
+.kb-docs-context {
+  overflow: hidden;
+}
+
+.kb-docs-context::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 4.5rem;
+  background: linear-gradient(180deg, transparent, hsl(220 72% 5% / 0.72));
+}
+
+.kb-context-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.kb-context-inner > div:first-child .rounded-2xl {
+  padding: 1.05rem;
+}
+
+.kb-context-inner .line-clamp-2.text-sm.font-semibold {
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.kb-context-inner button.w-full {
+  min-height: 2.75rem;
+  font-weight: 650;
+}
+
+.kb-context-list {
+  padding-right: 0.2rem;
+}
+
+.kb-context-list button {
+  background: hsl(220 70% 7% / 0.24);
+}
+
+.kb-context-list button:hover {
+  transform: translateX(2px);
+}
+
+.kb-context-inner .mt-auto {
+  padding-top: 0.95rem;
+  border-top: 1px solid hsl(var(--border) / 0.28);
+}
+
+.kb-context-inner .mt-auto button {
+  min-height: 2.35rem;
+  border: 1px solid transparent;
+}
+
+.kb-context-inner .mt-auto button:hover {
+  border-color: hsl(var(--primary) / 0.22);
+}
+
+.kb-empty-state {
+  min-height: 8.5rem;
+  font-size: 0.9rem;
+}
+
+.kb-docs-reader .grid.grid-cols-2 button,
+.kb-docs-reader .grid.sm\:grid-cols-3 button,
+.kb-docs-reader .grid.lg\:grid-cols-4 button {
+  min-height: 12rem;
+  border-radius: 1.35rem;
+}
+
+.kb-docs-reader .grid.grid-cols-2 button:hover,
+.kb-docs-reader .grid.sm\:grid-cols-3 button:hover,
+.kb-docs-reader .grid.lg\:grid-cols-4 button:hover {
+  box-shadow:
+    0 24px 60px hsl(220 90% 3% / 0.36),
+    0 0 0 1px hsl(var(--primary) / 0.26);
+}
+
+@media (min-width: 1280px) {
+  .kb-docs-reader {
+    min-width: 0;
+  }
+
+  .kb-docs-context {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .kb-pro-toolbar {
+    min-height: auto;
+  }
+
+  .kb-pro-tree::after,
+  .kb-docs-context::after {
+    display: none;
+  }
+}
