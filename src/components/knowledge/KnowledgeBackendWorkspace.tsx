@@ -985,7 +985,7 @@ function SpaceRow({
     <li>
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]",
+          "kb-tree-row kb-tree-space group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]",
           isSelected && "bg-primary/15 text-primary",
         )}
       >
@@ -1050,7 +1050,9 @@ function SpaceRow({
             />
           ))}
           {categories.length === 0 && uncategorized.length === 0 && (
-            <li className="px-2 py-1 text-[11px] text-muted-foreground/70">Empty book</li>
+            <li className="kb-tree-empty px-2 py-1 text-[11px] text-muted-foreground/70">
+              Empty book
+            </li>
           )}
         </ul>
       )}
@@ -1089,7 +1091,7 @@ function CategoryRow({
     <li>
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]",
+          "kb-tree-row kb-tree-space group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]",
           isSelected && "bg-primary/15 text-primary",
         )}
       >
@@ -1140,7 +1142,9 @@ function CategoryRow({
             />
           ))}
           {articles.length === 0 && (
-            <li className="px-2 py-1 text-[11px] text-muted-foreground/70">No pages</li>
+            <li className="kb-tree-empty px-2 py-1 text-[11px] text-muted-foreground/70">
+              No pages
+            </li>
           )}
         </ul>
       )}
@@ -1166,7 +1170,7 @@ function ArticleRow({
     <li>
       <div
         className={cn(
-          "group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-white/[0.04]",
+          "kb-tree-row kb-tree-article group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-white/[0.04]",
           isSelected && "bg-primary/15 text-primary",
           dim && "opacity-60",
         )}
@@ -1506,7 +1510,7 @@ function SelectionView(p: SelectionViewProps) {
                               <button
                                 type="button"
                                 onClick={() => onOpenArticle(a.id)}
-                                className="group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
+                                className="kb-page-row group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
                               >
                                 <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
                                 <span className="truncate text-sm font-medium group-hover:text-primary">
@@ -1550,7 +1554,7 @@ function SelectionView(p: SelectionViewProps) {
                           <button
                             type="button"
                             onClick={() => onOpenArticle(a.id)}
-                            className="group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
+                            className="kb-page-row group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
                           >
                             <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
                             <span className="truncate text-sm font-medium group-hover:text-primary">
@@ -1584,7 +1588,7 @@ function SelectionView(p: SelectionViewProps) {
     const space = data.spaces.find((s) => s.id === cat.space_id);
     const arts = data.articles.filter((a) => a.category_id === cat.id);
     return (
-      <div className="space-y-3 overflow-y-auto">
+      <div className="kb-view-panel space-y-3 overflow-y-auto">
         <div className="flex items-start gap-2">
           <Header
             icon={<BookMarked className="h-4 w-4 text-primary/80" />}
@@ -1730,7 +1734,7 @@ function Header({
 
 function Meta({ items }: { items: Array<[string, string]> }) {
   return (
-    <div className="flex flex-wrap gap-3 rounded-lg border border-border/40 bg-white/[0.02] p-2 text-xs text-muted-foreground">
+    <div className="kb-meta-bar flex flex-wrap gap-3 rounded-lg border border-border/40 bg-white/[0.02] p-2 text-xs text-muted-foreground">
       {items.map(([k, v]) => (
         <div key={k}>
           <span className="text-muted-foreground/70">{k}: </span>
@@ -1752,14 +1756,14 @@ function ArticleTable({
 }) {
   if (articles.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/40 p-6 text-center text-xs text-muted-foreground">
+      <div className="kb-empty-state rounded-xl border border-dashed border-border/40 p-6 text-center text-xs text-muted-foreground">
         No pages here.
       </div>
     );
   }
   const catName = new Map(categories.map((c) => [c.id, c.name]));
   return (
-    <div className="overflow-hidden rounded-xl border border-border/40">
+    <div className="kb-table-card overflow-hidden rounded-xl border border-border/40">
       <table className="min-w-full text-sm">
         <thead className="bg-white/[0.03] text-left text-[11px] uppercase tracking-wide text-muted-foreground">
           <tr>
@@ -1858,7 +1862,7 @@ function ArticleView({
   ];
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
+    <div className="kb-article-view grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
       {/* Header */}
       <div>
         <nav

@@ -457,3 +457,227 @@ body.compact-mode .glass-card {
     padding: 1rem;
   }
 }
+
+/* ITKC Knowledge UI Step 2 polish */
+.kb-pro-shell {
+  padding-top: 0.15rem;
+}
+
+.kb-pro-toolbar {
+  margin-top: 0.25rem;
+  margin-bottom: 0.15rem;
+  min-height: 4.6rem;
+}
+
+.kb-pro-tree {
+  position: relative;
+  padding: 1.25rem;
+}
+
+.kb-pro-tree::before {
+  content: "Library";
+  display: block;
+  margin-bottom: 0.9rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.kb-pro-tree .kb-scroll {
+  padding-right: 0.35rem;
+}
+
+.kb-tree-row {
+  min-height: 2rem;
+  border: 1px solid transparent;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.kb-tree-row:hover {
+  border-color: hsl(var(--border) / 0.38);
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary) / 0.1),
+    hsl(var(--primary) / 0.025)
+  ) !important;
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.035);
+}
+
+.kb-tree-row.bg-primary\/15 {
+  border-color: hsl(var(--primary) / 0.32);
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary) / 0.24),
+    hsl(var(--primary) / 0.08)
+  ) !important;
+}
+
+.kb-tree-space span.truncate,
+.kb-tree-row span.truncate {
+  letter-spacing: -0.01em;
+}
+
+.kb-tree-article {
+  margin-top: 0.1rem;
+  margin-bottom: 0.1rem;
+}
+
+.kb-tree-empty {
+  margin: 0.2rem 0 0.35rem 1.35rem;
+  border-left: 1px solid hsl(var(--border) / 0.26);
+  color: hsl(var(--muted-foreground) / 0.62);
+  font-style: italic;
+}
+
+.kb-pro-main {
+  padding: clamp(1.25rem, 1.75vw, 2rem);
+}
+
+.kb-view-panel,
+.kb-article-view {
+  height: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  padding-right: 0.15rem;
+}
+
+.kb-pro-main h2,
+.kb-pro-main h3 {
+  letter-spacing: -0.035em;
+}
+
+.kb-meta-bar {
+  gap: 0.55rem;
+  border-radius: 999px;
+  background: hsl(var(--background) / 0.32);
+  padding: 0.55rem 0.75rem;
+}
+
+.kb-meta-bar > div {
+  border-radius: 999px;
+  background: hsl(var(--foreground) / 0.035);
+  padding: 0.25rem 0.5rem;
+}
+
+.kb-empty-state {
+  display: grid;
+  min-height: 7rem;
+  place-items: center;
+  border-color: hsl(var(--border) / 0.42);
+  background:
+    radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.08), transparent 18rem),
+    hsl(var(--background) / 0.24);
+  color: hsl(var(--muted-foreground));
+}
+
+.kb-page-row {
+  border: 1px solid transparent;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.kb-page-row:hover {
+  border-color: hsl(var(--primary) / 0.22);
+  background: hsl(var(--primary) / 0.08) !important;
+}
+
+.kb-table-card {
+  background: linear-gradient(180deg, hsl(var(--background) / 0.32), hsl(var(--background) / 0.18));
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.035);
+}
+
+.kb-table-card table {
+  table-layout: fixed;
+}
+
+.kb-table-card th,
+.kb-table-card td {
+  vertical-align: middle;
+}
+
+.kb-table-card tr {
+  transition: background 150ms ease;
+}
+
+.kb-markdown-editor {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border-color: hsl(var(--border) / 0.5);
+  background:
+    radial-gradient(circle at top left, hsl(var(--primary) / 0.055), transparent 20rem),
+    hsl(var(--background) / 0.42);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.035),
+    0 18px 42px hsl(220 80% 4% / 0.2);
+}
+
+.kb-markdown-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 3.25rem;
+  background: hsl(var(--background) / 0.76);
+  backdrop-filter: blur(14px);
+}
+
+.kb-markdown-toolbar button {
+  border-radius: 0.75rem;
+}
+
+.kb-markdown-textarea {
+  min-height: clamp(20rem, 48vh, 40rem);
+  resize: none;
+  padding: 1.25rem !important;
+  color: hsl(var(--foreground) / 0.92);
+  font-size: 0.92rem;
+  line-height: 1.9;
+  caret-color: hsl(var(--primary));
+}
+
+.kb-markdown-preview {
+  min-height: clamp(20rem, 48vh, 40rem);
+  overflow: auto;
+  padding: 1.25rem;
+}
+
+.kb-editor-shell {
+  overflow: hidden;
+}
+
+.kb-editor-body {
+  border-radius: 1rem;
+}
+
+.kb-editor-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin-inline: -0.25rem;
+  background:
+    linear-gradient(180deg, transparent, hsl(var(--card) / 0.92) 18%), hsl(var(--card) / 0.88);
+  backdrop-filter: blur(16px);
+}
+
+@media (min-width: 1280px) {
+  .kb-pro-grid {
+    grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1280px) {
+  .kb-pro-main {
+    padding: 1.15rem;
+  }
+}

@@ -1,5 +1,17 @@
 import { useRef, useState } from "react";
-import { Bold, Italic, Heading, List, ListOrdered, Code, Link as LinkIcon, CheckSquare, Quote, Eye, Pencil } from "lucide-react";
+import {
+  Bold,
+  Italic,
+  Heading,
+  List,
+  ListOrdered,
+  Code,
+  Link as LinkIcon,
+  CheckSquare,
+  Quote,
+  Eye,
+  Pencil,
+} from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -63,8 +75,13 @@ export function MarkdownEditor({
   };
 
   return (
-    <div className={cn("rounded-xl border border-border/50 bg-background/40", className)}>
-      <div className="flex flex-wrap items-center gap-1 border-b border-border/40 px-2 py-1.5">
+    <div
+      className={cn(
+        "kb-markdown-editor rounded-xl border border-border/50 bg-background/40",
+        className,
+      )}
+    >
+      <div className="kb-markdown-toolbar flex flex-wrap items-center gap-1 border-b border-border/40 px-2 py-1.5">
         {TOOLS.map((t) => (
           <Button
             key={t.label}
@@ -106,10 +123,10 @@ export function MarkdownEditor({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder ?? "Write Markdown… **bold**, *italic*, # headings, - lists"}
-          className="min-h-[180px] rounded-none border-0 bg-transparent font-mono text-[13px] focus-visible:ring-0"
+          className="kb-markdown-textarea min-h-[180px] rounded-none border-0 bg-transparent font-mono text-[13px] focus-visible:ring-0"
         />
       ) : (
-        <div className="min-h-[180px] px-3 py-3">
+        <div className="kb-markdown-preview min-h-[180px] px-3 py-3">
           {value.trim() ? (
             <Markdown source={value} />
           ) : (

@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Save, Send, RotateCcw, X, CheckCircle2, XCircle, Upload, ArrowLeftCircle } from "lucide-react";
+import {
+  Save,
+  Send,
+  RotateCcw,
+  X,
+  CheckCircle2,
+  XCircle,
+  Upload,
+  ArrowLeftCircle,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -18,7 +27,6 @@ import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { updateArticle } from "@/lib/knowledge/mutations";
 import {
   approveForPublication,
-  
   publishApproved,
   requestChanges,
   restoreArticleToDraft,
@@ -53,7 +61,10 @@ type CommentPrompt =
   | { kind: "withdraw"; required: false }
   | null;
 
-const PROMPT_META: Record<Exclude<NonNullable<CommentPrompt>["kind"], never>, { title: string; description: string; confirmLabel: string; placeholder: string }> = {
+const PROMPT_META: Record<
+  Exclude<NonNullable<CommentPrompt>["kind"], never>,
+  { title: string; description: string; confirmLabel: string; placeholder: string }
+> = {
   submit: {
     title: "Submit for review",
     description: "Send this draft to reviewers. Add an optional note for them.",
@@ -138,7 +149,10 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
     if (titleDirty) patch.title = trimmedTitle;
     const res = await updateArticle(patch);
     setBusy(false);
-    if (res.error) { toast.error(res.error); return; }
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
     initialRef.current = content;
     initialTitleRef.current = trimmedTitle;
     setTitle(trimmedTitle);
@@ -146,12 +160,14 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
     onSaved();
   }
 
-
   async function doRestore() {
     setBusy(true);
     const res = await restoreArticleToDraft(article);
     setBusy(false);
-    if (res.error) { toast.error(res.error); return; }
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
     toast.success("Article restored to draft.");
     onSaved();
   }
@@ -192,11 +208,21 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
 
     let res;
     switch (prompt.kind) {
-      case "submit": res = await submitForReview(article, trimmed || null); break;
-      case "approve": res = await approveForPublication(article, trimmed || null); break;
-      case "request_changes": res = await requestChanges(article, trimmed); break;
-      case "publish": res = await publishApproved(article, trimmed || null); break;
-      case "withdraw": res = await withdrawFromReview(article, trimmed || null); break;
+      case "submit":
+        res = await submitForReview(article, trimmed || null);
+        break;
+      case "approve":
+        res = await approveForPublication(article, trimmed || null);
+        break;
+      case "request_changes":
+        res = await requestChanges(article, trimmed);
+        break;
+      case "publish":
+        res = await publishApproved(article, trimmed || null);
+        break;
+      case "withdraw":
+        res = await withdrawFromReview(article, trimmed || null);
+        break;
     }
     setBusy(false);
 
@@ -228,14 +254,20 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
   const status = article.status;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
+    <div className="kb-editor-shell flex h-full min-h-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Editing</span>
-        <Badge variant="outline" className="h-5">{STATUS_LABEL[status] ?? status}</Badge>
-        <Badge variant="outline" className="h-5">rev {article.revision_number}</Badge>
+        <Badge variant="outline" className="h-5">
+          {STATUS_LABEL[status] ?? status}
+        </Badge>
+        <Badge variant="outline" className="h-5">
+          rev {article.revision_number}
+        </Badge>
         <div className="ml-auto flex items-center gap-2 text-xs">
           {dirty ? (
-            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-300">Unsaved changes</span>
+            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-300">
+              Unsaved changes
+            </span>
           ) : (
             <span className="text-muted-foreground">Up to date</span>
           )}
@@ -243,7 +275,10 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="kb-article-title" className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        <Label
+          htmlFor="kb-article-title"
+          className="text-[11px] uppercase tracking-wide text-muted-foreground"
+        >
           Article title
         </Label>
         <Input
@@ -256,54 +291,84 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
           aria-invalid={titleInvalid}
           className={`h-9 text-base font-semibold ${titleInvalid ? "border-destructive focus-visible:ring-destructive" : ""}`}
         />
-        {titleInvalid && (
-          <p className="text-xs text-destructive">Title is required.</p>
-        )}
+        {titleInvalid && <p className="text-xs text-destructive">Title is required.</p>}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="kb-editor-body min-h-0 flex-1 overflow-auto">
         <MarkdownEditor value={content} onChange={setContent} rows={20} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-2">
+      <div className="kb-editor-footer flex flex-wrap items-center gap-2 border-t border-border/40 pt-3">
         <Button variant="ghost" size="sm" onClick={tryClose} disabled={busy}>
           <X className="mr-1 h-3.5 w-3.5" /> Close editor
         </Button>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {canUpdate && status !== "archived" && (
-            <Button variant="secondary" size="sm" onClick={() => void saveDraft()} disabled={!dirty || busy || titleInvalid}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void saveDraft()}
+              disabled={!dirty || busy || titleInvalid}
+            >
               <Save className="mr-1 h-3.5 w-3.5" /> Save draft
             </Button>
           )}
 
           {/* Workflow actions */}
           {canUpdate && status === "draft" && (
-            <Button size="sm" onClick={() => openPrompt({ kind: "submit", required: false })} disabled={busy || titleInvalid}>
+            <Button
+              size="sm"
+              onClick={() => openPrompt({ kind: "submit", required: false })}
+              disabled={busy || titleInvalid}
+            >
               <Send className="mr-1 h-3.5 w-3.5" /> Submit for review
             </Button>
           )}
           {canUpdate && status === "in_review" && (
-            <Button variant="ghost" size="sm" onClick={() => openPrompt({ kind: "withdraw", required: false })} disabled={busy}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openPrompt({ kind: "withdraw", required: false })}
+              disabled={busy}
+            >
               <ArrowLeftCircle className="mr-1 h-3.5 w-3.5" /> Withdraw
             </Button>
           )}
           {canApprove && status === "in_review" && (
             <>
-              <Button variant="ghost" size="sm" onClick={() => openPrompt({ kind: "request_changes", required: true })} disabled={busy}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => openPrompt({ kind: "request_changes", required: true })}
+                disabled={busy}
+              >
                 <XCircle className="mr-1 h-3.5 w-3.5" /> Request changes
               </Button>
-              <Button size="sm" onClick={() => openPrompt({ kind: "approve", required: false })} disabled={busy}>
+              <Button
+                size="sm"
+                onClick={() => openPrompt({ kind: "approve", required: false })}
+                disabled={busy}
+              >
                 <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Approve
               </Button>
             </>
           )}
           {canApprove && status === "approved" && (
-            <Button variant="ghost" size="sm" onClick={() => openPrompt({ kind: "request_changes", required: true })} disabled={busy}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openPrompt({ kind: "request_changes", required: true })}
+              disabled={busy}
+            >
               <XCircle className="mr-1 h-3.5 w-3.5" /> Request changes
             </Button>
           )}
           {canUpdate && status === "approved" && (
-            <Button size="sm" onClick={() => openPrompt({ kind: "publish", required: false })} disabled={busy || titleInvalid}>
+            <Button
+              size="sm"
+              onClick={() => openPrompt({ kind: "publish", required: false })}
+              disabled={busy || titleInvalid}
+            >
               <Upload className="mr-1 h-3.5 w-3.5" /> Publish
             </Button>
           )}
@@ -316,8 +381,12 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
         </div>
       </div>
 
-
-      <Dialog open={!!prompt} onOpenChange={(o) => { if (!o) setPrompt(null); }}>
+      <Dialog
+        open={!!prompt}
+        onOpenChange={(o) => {
+          if (!o) setPrompt(null);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           {prompt && (
             <>
@@ -333,8 +402,13 @@ export function ArticleContentEditor({ article, canUpdate, canApprove, onSaved, 
                 maxLength={2000}
               />
               <DialogFooter>
-                <Button variant="ghost" onClick={() => setPrompt(null)} disabled={busy}>Cancel</Button>
-                <Button onClick={() => void confirmPrompt()} disabled={busy || (prompt.required && !comment.trim())}>
+                <Button variant="ghost" onClick={() => setPrompt(null)} disabled={busy}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => void confirmPrompt()}
+                  disabled={busy || (prompt.required && !comment.trim())}
+                >
                   {PROMPT_META[prompt.kind].confirmLabel}
                 </Button>
               </DialogFooter>
