@@ -12,7 +12,7 @@ export const Route = createFileRoute("/documents")({
       {
         name: "description",
         content:
-          "Browse the team knowledge base — spaces, categories and articles served live from the backend.",
+          "Browse the team knowledge base — books, chapters and pages served live from the backend.",
       },
     ],
   }),
@@ -24,7 +24,7 @@ function KnowledgeBasePage() {
     <div>
       <PageHeader
         title="Knowledge Base"
-        description="Spaces, categories and articles for your IT documentation."
+        description="Books, chapters and pages for your IT documentation."
       />
 
       <KnowledgeBackendWorkspace />
