@@ -1043,3 +1043,289 @@ body.compact-mode .glass-card {
     min-height: 420px;
   }
 }
+
+/* ITKC Knowledge Redesign Edit 3 reader context polish */
+.kb-docs-reader {
+  position: relative;
+}
+
+.kb-docs-reader::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, hsl(var(--primary) / 0.035), transparent 18rem),
+    radial-gradient(circle at 45% 0%, hsl(213 100% 65% / 0.075), transparent 22rem);
+  opacity: 0.85;
+}
+
+.kb-docs-reader > * {
+  position: relative;
+  z-index: 1;
+}
+
+.kb-article-view {
+  gap: 1.15rem;
+}
+
+.kb-article-view > div:first-child {
+  padding: clamp(0.35rem, 0.8vw, 0.8rem) 0 1.25rem;
+}
+
+.kb-article-view nav {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border) / 0.35);
+  background: hsl(220 70% 6% / 0.38);
+  padding: 0.35rem 0.65rem;
+}
+
+.kb-article-view h2 {
+  margin-top: 0.75rem;
+  max-width: 64rem;
+}
+
+.kb-article-view h2 + p {
+  max-width: 52rem;
+  color: hsl(214 26% 76%);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.kb-article-view > div:first-child > .mt-1.flex {
+  align-items: center;
+}
+
+.kb-article-view > div:first-child > .mt-2.flex {
+  margin-top: 1rem;
+  gap: 0.45rem;
+}
+
+.kb-article-view > div:first-child > .mt-2.flex > span,
+.kb-article-view > div:first-child > .mt-2.flex [data-slot="badge"] {
+  min-height: 1.75rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border) / 0.48);
+  background: hsl(220 70% 6% / 0.42);
+  padding-inline: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.kb-article-view > div:nth-child(2) {
+  gap: 0.5rem;
+  border-bottom-color: hsl(var(--border) / 0.46);
+  padding-left: 0.1rem;
+}
+
+.kb-article-view > div:nth-child(2) button {
+  min-height: 2.35rem;
+  border-radius: 0.95rem 0.95rem 0 0;
+  padding-inline: 0.9rem;
+  font-size: 0.82rem;
+}
+
+.kb-article-view > div:nth-child(2) button.border-primary {
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.16), hsl(var(--primary) / 0.035));
+  box-shadow: inset 0 -2px 0 hsl(var(--primary));
+}
+
+.kb-article-view > div:nth-child(3) {
+  padding-right: 0.25rem;
+}
+
+.kb-article-view .prose-knowledge {
+  position: relative;
+  overflow: hidden;
+  min-height: 8.5rem;
+}
+
+.kb-article-view .prose-knowledge::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.035), transparent 36%),
+    radial-gradient(circle at 10% 0%, hsl(var(--primary) / 0.085), transparent 18rem);
+}
+
+.kb-article-view .prose-knowledge > * {
+  position: relative;
+  z-index: 1;
+}
+
+.kb-article-view .prose-knowledge p:only-child {
+  color: hsl(214 28% 76%);
+  font-size: 1.05rem;
+}
+
+.kb-article-view .prose-knowledge h1,
+.kb-article-view .prose-knowledge h2,
+.kb-article-view .prose-knowledge h3 {
+  color: hsl(214 42% 94%);
+  letter-spacing: -0.04em;
+}
+
+.kb-article-view .prose-knowledge ul,
+.kb-article-view .prose-knowledge ol {
+  padding-left: 1.25rem;
+}
+
+.kb-article-view .prose-knowledge li {
+  margin: 0.35rem 0;
+}
+
+.kb-article-view .prose-knowledge blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  border-radius: 0.8rem;
+  background: hsl(var(--primary) / 0.085);
+  padding: 0.9rem 1rem;
+  color: hsl(214 34% 84%);
+}
+
+.kb-docs-context {
+  backdrop-filter: blur(18px);
+}
+
+.kb-context-inner {
+  gap: 1.05rem;
+}
+
+.kb-context-inner > div:first-child .rounded-2xl {
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.04),
+    0 12px 34px hsl(220 80% 3% / 0.18);
+}
+
+.kb-context-inner .text-sm.font-semibold {
+  color: hsl(214 45% 94%);
+  letter-spacing: -0.02em;
+}
+
+.kb-context-inner .text-xs.text-muted-foreground {
+  color: hsl(214 25% 72%);
+}
+
+.kb-context-inner button.w-full {
+  justify-content: center;
+  border: 1px solid hsl(var(--border) / 0.48);
+  background: hsl(220 70% 7% / 0.5);
+}
+
+.kb-context-inner button.w-full:hover {
+  border-color: hsl(var(--primary) / 0.5);
+  background: hsl(var(--primary) / 0.14);
+}
+
+.kb-context-list {
+  max-height: 18rem;
+}
+
+.kb-context-list button {
+  position: relative;
+  overflow: hidden;
+}
+
+.kb-context-list button::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, hsl(var(--primary) / 0.14), transparent);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.kb-context-list button:hover::before {
+  opacity: 1;
+}
+
+.kb-context-list button > * {
+  position: relative;
+  z-index: 1;
+}
+
+.kb-context-inner [class*="rounded-xl"][class*="bg-white"] {
+  min-height: 2.45rem;
+}
+
+.kb-pro-tree {
+  box-shadow:
+    0 24px 70px hsl(220 90% 3% / 0.28),
+    inset 0 1px 0 hsl(0 0% 100% / 0.04);
+}
+
+.kb-pro-tree .kb-scroll > ul {
+  padding-bottom: 1rem;
+}
+
+.kb-tree-row {
+  font-size: 0.9rem;
+}
+
+.kb-tree-row + ul {
+  margin-top: 0.15rem;
+}
+
+.kb-tree-article {
+  min-height: 2.25rem;
+}
+
+.kb-tree-empty {
+  padding-left: 0.75rem;
+}
+
+.kb-empty-state {
+  border-style: solid;
+}
+
+.kb-page-row {
+  min-height: 2.65rem;
+  padding-inline: 0.75rem;
+}
+
+.kb-page-row:hover {
+  transform: translateX(2px);
+}
+
+.kb-table-card {
+  overflow: hidden;
+  border-radius: 1.1rem;
+}
+
+.kb-table-card thead {
+  background: hsl(220 70% 7% / 0.62);
+}
+
+.kb-table-card tbody tr:hover {
+  background: hsl(var(--primary) / 0.07);
+}
+
+.kb-markdown-editor {
+  border-radius: 1.35rem;
+}
+
+.kb-markdown-toolbar {
+  border-bottom-color: hsl(var(--border) / 0.45);
+}
+
+.kb-markdown-toolbar button {
+  min-height: 2rem;
+  min-width: 2rem;
+}
+
+.kb-markdown-textarea {
+  color: hsl(214 35% 88%) !important;
+}
+
+.kb-editor-footer {
+  min-height: 4rem;
+  align-items: center;
+}
