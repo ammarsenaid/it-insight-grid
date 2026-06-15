@@ -422,7 +422,7 @@ export function KnowledgeBackendWorkspace() {
     if (perms.update && !s.is_archived) {
       items.push(
         <DropdownMenuItem key="newcat" onClick={() => setCategoryDialog({ open: true, initial: null, spaceId: s.id })}>
-          <BookMarked className="mr-2 h-3.5 w-3.5" /> New category
+          <BookMarked className="mr-2 h-3.5 w-3.5" /> New chapter
         </DropdownMenuItem>,
       );
     }
@@ -445,7 +445,7 @@ export function KnowledgeBackendWorkspace() {
     if (perms.create && !c.is_archived) {
       items.push(
         <DropdownMenuItem key="newart" onClick={() => setArticleDialog({ open: true, initial: null, spaceId: c.space_id, categoryId: c.id })}>
-          <FileText className="mr-2 h-3.5 w-3.5" /> New article
+          <FileText className="mr-2 h-3.5 w-3.5" /> New page
         </DropdownMenuItem>,
       );
     }
@@ -532,7 +532,7 @@ export function KnowledgeBackendWorkspace() {
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">Create</DropdownMenuLabel>
                   {canNewSpace && (
                     <DropdownMenuItem onClick={() => setSpaceDialog({ open: true, initial: null })}>
-                      <Library className="mr-2 h-3.5 w-3.5" /> New space
+                      <Library className="mr-2 h-3.5 w-3.5" /> New book
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem
@@ -540,14 +540,14 @@ export function KnowledgeBackendWorkspace() {
                     title={!selectedSpaceId ? "Select a space first" : undefined}
                     onClick={() => selectedSpaceId && setCategoryDialog({ open: true, initial: null, spaceId: selectedSpaceId })}
                   >
-                    <BookMarked className="mr-2 h-3.5 w-3.5" /> New category
+                    <BookMarked className="mr-2 h-3.5 w-3.5" /> New chapter
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={!canNewArticle}
                     title={!selectedSpaceId ? "Select a space or category first" : undefined}
                     onClick={() => selectedSpaceId && setArticleDialog({ open: true, initial: null, spaceId: selectedSpaceId, categoryId: selectedCategoryId })}
                   >
-                    <FileText className="mr-2 h-3.5 w-3.5" /> New article
+                    <FileText className="mr-2 h-3.5 w-3.5" /> New page
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -837,7 +837,7 @@ function SpaceRow({
             <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} renderArticleMenu={renderArticleMenu} />
           ))}
           {categories.length === 0 && uncategorized.length === 0 && (
-            <li className="px-2 py-1 text-[11px] text-muted-foreground/70">Empty space</li>
+            <li className="px-2 py-1 text-[11px] text-muted-foreground/70">Empty book</li>
           )}
         </ul>
       )}
@@ -881,7 +881,7 @@ function CategoryRow({
       {isOpen && (
         <ul className="ml-3 space-y-0.5 border-l border-border/30 pl-2">
           {articles.map((a) => <ArticleRow key={a.id} article={a} selection={selection} onSelect={onSelect} renderArticleMenu={renderArticleMenu} />)}
-          {articles.length === 0 && <li className="px-2 py-1 text-[11px] text-muted-foreground/70">No articles</li>}
+          {articles.length === 0 && <li className="px-2 py-1 text-[11px] text-muted-foreground/70">No pages</li>}
         </ul>
       )}
     </li>
@@ -964,21 +964,21 @@ function SelectionView(p: SelectionViewProps) {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Library className="h-6 w-6" />
             </div>
-            <h3 className="text-base font-semibold text-foreground">Create your first knowledge space</h3>
+            <h3 className="text-base font-semibold text-foreground">Create your first book</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Organize your documentation into spaces, categories and articles.
+              Organise your documentation into books, chapters and pages.
             </p>
             {perms.manageTeam ? (
               <Button size="sm" className="mt-5" onClick={p.onNewSpace}>
-                <Plus className="mr-1 h-3 w-3" /> Create space
+                <Plus className="mr-1 h-3 w-3" /> Create book
               </Button>
             ) : (
               <p className="mt-5 text-xs text-muted-foreground/80">
-                Ask a team manager to create the first space.
+                Ask a team manager to create the first book.
               </p>
             )}
             <p className="mt-4 text-[11px] text-muted-foreground/70">
-              Example: Infrastructure, Applications, Security or Service Desk.
+              For example: Infrastructure, Applications, Security or Service Desk.
             </p>
           </div>
         </div>
@@ -988,9 +988,9 @@ function SelectionView(p: SelectionViewProps) {
       <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted-foreground">
         <div className="w-full max-w-sm rounded-2xl border border-border/40 bg-white/[0.02] p-6">
           <FileText className="mx-auto mb-3 h-6 w-6 opacity-60" />
-          <h3 className="text-base font-semibold text-foreground">Select an article</h3>
+          <h3 className="text-base font-semibold text-foreground">Open a page</h3>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            Choose an article from the explorer or create a new one.
+            Pick a page from the shelf, or create a new one.
           </p>
           <div className="mt-1 text-[11px] text-muted-foreground/70">
             Tip: press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search.
@@ -1043,7 +1043,7 @@ function SelectionView(p: SelectionViewProps) {
     return (
       <div className="space-y-3 overflow-y-auto">
         <div className="flex items-start gap-2">
-          <Header icon={<Library className="h-4 w-4 text-primary" />} label="Space" title={space.name} subtitle={space.description ?? undefined} />
+          <Header icon={<Library className="h-4 w-4 text-primary" />} label="Book" title={space.name} subtitle={space.description ?? undefined} />
           <div className="ml-auto flex flex-wrap items-center gap-1">
             {perms.create && !space.is_archived && (
               <Button size="sm" variant="secondary" className="h-7 text-xs"
@@ -1092,7 +1092,7 @@ function SelectionView(p: SelectionViewProps) {
         <div className="flex items-start gap-2">
           <Header
             icon={<BookMarked className="h-4 w-4 text-primary/80" />}
-            label="Category"
+            label="Chapter"
             title={cat.name}
             subtitle={cat.description ?? undefined}
             breadcrumb={space?.name}
@@ -1198,7 +1198,7 @@ function ArticleTable({ articles, categories, onOpen }: {
   articles: KbArticle[]; categories: KbCategory[]; onOpen: (id: string) => void;
 }) {
   if (articles.length === 0) {
-    return <div className="rounded-xl border border-dashed border-border/40 p-6 text-center text-xs text-muted-foreground">No articles here.</div>;
+    return <div className="rounded-xl border border-dashed border-border/40 p-6 text-center text-xs text-muted-foreground">No pages here.</div>;
   }
   const catName = new Map(categories.map((c) => [c.id, c.name]));
   return (
@@ -1207,7 +1207,7 @@ function ArticleTable({ articles, categories, onOpen }: {
         <thead className="bg-white/[0.03] text-left text-[11px] uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-3 py-2 font-medium">Title</th>
-            <th className="px-3 py-2 font-medium">Category</th>
+            <th className="px-3 py-2 font-medium">Chapter</th>
             <th className="px-3 py-2 font-medium">Status</th>
             <th className="px-3 py-2 font-medium">Rev</th>
             <th className="px-3 py-2 font-medium">Updated</th>
