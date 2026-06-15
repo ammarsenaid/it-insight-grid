@@ -362,7 +362,7 @@ export function KnowledgeBackendWorkspace() {
     if (perms.update && !s.is_archived) {
       items.push(
         <DropdownMenuItem key="newcat" onClick={() => setCategoryDialog({ open: true, initial: null, spaceId: s.id })}>
-          <FolderTree className="mr-2 h-3.5 w-3.5" /> New category
+          <BookMarked className="mr-2 h-3.5 w-3.5" /> New category
         </DropdownMenuItem>,
       );
     }
@@ -480,7 +480,7 @@ export function KnowledgeBackendWorkspace() {
                     title={!selectedSpaceId ? "Select a space first" : undefined}
                     onClick={() => selectedSpaceId && setCategoryDialog({ open: true, initial: null, spaceId: selectedSpaceId })}
                   >
-                    <FolderTree className="mr-2 h-3.5 w-3.5" /> New category
+                    <BookMarked className="mr-2 h-3.5 w-3.5" /> New category
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={!canNewArticle}
@@ -812,7 +812,7 @@ function CategoryRow({
           {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
         <button type="button" onClick={() => onSelect({ kind: "category", id: category.id })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title={category.name}>
-          <FolderTree className={cn("h-3.5 w-3.5 shrink-0", category.is_archived ? "text-muted-foreground" : "text-primary/70")} />
+          <BookMarked className={cn("h-3.5 w-3.5 shrink-0", category.is_archived ? "text-muted-foreground" : "text-primary/70")} />
           <span className={cn("truncate font-medium", category.is_archived && "italic text-muted-foreground")}>{category.name}</span>
           <span className="ml-1 text-[10px] text-muted-foreground/70">{articles.length}</span>
         </button>
@@ -1031,7 +1031,7 @@ function SelectionView(p: SelectionViewProps) {
       <div className="space-y-3 overflow-y-auto">
         <div className="flex items-start gap-2">
           <Header
-            icon={<FolderTree className="h-4 w-4 text-primary/80" />}
+            icon={<BookMarked className="h-4 w-4 text-primary/80" />}
             label="Category"
             title={cat.name}
             subtitle={cat.description ?? undefined}
