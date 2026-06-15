@@ -934,6 +934,7 @@ interface SelectionViewProps {
   editingArticle: boolean;
   setEditingArticle: (v: boolean) => void;
   onOpenArticle: (id: string) => void;
+  onSelectSpace: (id: string) => void;
   onNewSpace: () => void;
   onEditSpace: (s: KbSpace) => void;
   onArchiveSpace: (s: KbSpace) => void;
