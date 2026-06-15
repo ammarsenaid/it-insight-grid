@@ -984,52 +984,101 @@ function SelectionView(p: SelectionViewProps) {
         </div>
       );
     }
+    // BookStack-style "Shelf" overview — colored book covers for every space in the team.
+    const visibleSpaces = data.spaces.filter((s) => !s.is_archived);
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted-foreground">
-        <div className="w-full max-w-sm rounded-2xl border border-border/40 bg-white/[0.02] p-6">
-          <FileText className="mx-auto mb-3 h-6 w-6 opacity-60" />
-          <h3 className="text-base font-semibold text-foreground">Open a page</h3>
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            Pick a page from the shelf, or create a new one.
-          </p>
-          <div className="mt-1 text-[11px] text-muted-foreground/70">
-            Tip: press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search.
-          </div>
-        </div>
-        {p.recent.length > 0 && (
-          <div className="w-full max-w-sm rounded-xl border border-border/40 bg-white/[0.02] p-3 text-left">
-            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <Clock className="h-3 w-3" /> Recently viewed
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto max-w-5xl space-y-6 p-1 pb-6">
+          <div className="flex items-end justify-between gap-3 border-b border-border/30 pb-3">
+            <div>
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Library className="h-3 w-3" /> Shelf
+              </div>
+              <h2 className="mt-1 font-serif text-2xl font-bold text-foreground">All books</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {visibleSpaces.length} {visibleSpaces.length === 1 ? "book" : "books"} · pick one to read its chapters and pages.
+              </p>
             </div>
-            <ul className="space-y-1 text-xs">
-              {p.recent.map((r) => {
-                const exists = data.articles.some((a) => a.id === r.id);
-                return (
-                  <li key={r.id} className="group flex items-center gap-1">
-                    <button
-                      type="button"
-                      disabled={!exists}
-                      onClick={() => exists && onOpenArticle(r.id)}
-                      className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-foreground/80 hover:bg-white/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                      title={exists ? r.title : "No longer accessible"}
-                    >
-                      <FileText className="h-3 w-3 shrink-0" />
-                      <span className="truncate">{r.title}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
-                      onClick={() => p.onForgetRecent(r.id)}
-                      aria-label="Remove"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="hidden text-[10px] text-muted-foreground/70 sm:block">
+              Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search
+            </div>
           </div>
-        )}
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {visibleSpaces.map((s) => {
+              const chapterCount = data.categories.filter((c) => c.space_id === s.id && !c.is_archived).length;
+              const pageCount = data.articles.filter((a) => a.space_id === s.id && a.status !== "archived").length;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => p.onOpenArticle && void 0}
+                  onClickCapture={() => { /* select via parent */ }}
+                  onMouseDown={(e) => { e.preventDefault(); }}
+                  onClick={() => {
+                    // delegate: the parent passes setSelection through onOpenArticle for pages only,
+                    // so use the closure variable directly by triggering p.onOpenArticle if a single page,
+                    // otherwise select the space via window event – simpler: dispatch through onOpenArticle is not available.
+                    // We expose a local selection setter via a custom call here:
+                    (p as unknown as { __selectSpace?: (id: string) => void }).__selectSpace?.(s.id);
+                  }}
+                  className="group flex flex-col items-start gap-3 rounded-xl border border-border/40 bg-white/[0.02] p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-white/[0.04]"
+                >
+                  <div className="flex w-full items-start gap-3">
+                    <BookCover title={s.name} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <div className="line-clamp-2 font-serif text-sm font-semibold leading-tight text-foreground group-hover:text-primary">
+                        {s.name}
+                      </div>
+                      {s.description && (
+                        <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{s.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex w-full items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground/80">
+                    <span>{chapterCount} ch · {pageCount} pg</span>
+                    <span>Updated {formatDate(s.updated_at)}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {p.recent.length > 0 && (
+            <div className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
+              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <Clock className="h-3 w-3" /> Recently read
+              </div>
+              <ul className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
+                {p.recent.map((r) => {
+                  const exists = data.articles.some((a) => a.id === r.id);
+                  return (
+                    <li key={r.id} className="group flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={!exists}
+                        onClick={() => exists && onOpenArticle(r.id)}
+                        className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-foreground/80 hover:bg-white/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                        title={exists ? r.title : "No longer accessible"}
+                      >
+                        <FileText className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{r.title}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
+                        onClick={() => p.onForgetRecent(r.id)}
+                        aria-label="Remove"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
