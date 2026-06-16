@@ -39,4 +39,11 @@ export interface SetAdminUserActiveInput {
   isActive: boolean;
 }
 
+export interface UpdateAdminUserInput {
+  accessToken: string;
+  userId: string;
+  displayName: string;
+  isActive: boolean;
+}
+
 export type AdminUserMutationResult = { ok: true; userId: string } | { ok: false; error: string };
