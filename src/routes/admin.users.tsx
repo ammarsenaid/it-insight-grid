@@ -48,7 +48,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createAdminUser, setAdminUserActive } from "@/lib/admin-users/create-user";
+import {
+  createAdminUser,
+  setAdminUserActive,
+  updateAdminUser,
+} from "@/lib/admin-users/create-user";
 import {
   adminUserFormOptionsQuery,
   adminUsersKeys,
@@ -113,6 +117,10 @@ function AdminUsersPage() {
   const [draft, setDraft] = useState<UserDraft>(EMPTY_USER);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  const [editUser, setEditUser] = useState<AdminUser | null>(null);
+  const [editDraft, setEditDraft] = useState<UserDraft>(EMPTY_USER);
+  const [editError, setEditError] = useState<string | null>(null);
+
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!session?.access_token) throw new Error("Your session is no longer available.");
@@ -131,6 +139,35 @@ function AdminUsersPage() {
     },
     onError: (mutationError) => {
       setCreateError(formatAdminUsersError(mutationError, "Failed to create user"));
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!session?.access_token) throw new Error("Your session is no longer available.");
+      if (!editUser) throw new Error("No user is selected for editing.");
+      return updateAdminUser({
+        accessToken: session.access_token,
+        userId: editUser.id,
+        displayName: editDraft.displayName,
+        isActive: editDraft.isActive,
+      });
+    },
+    onSuccess: (result) => {
+      if (!result.ok) {
+        setEditError(result.error);
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: adminUsersKeys.all });
+      setEditUser(null);
+      setEditDraft(EMPTY_USER);
+      setEditError(null);
+      toast.success("User updated");
+      refetch();
+    },
+    onError: (mutationError) => {
+      setEditError(formatAdminUsersError(mutationError, "Failed to update user"));
     },
   });
 
@@ -168,6 +205,34 @@ function AdminUsersPage() {
     }
     setCreateError(null);
     createMutation.mutate();
+  }
+
+  function openEdit(user: AdminUser) {
+    setDetails(null);
+    setEditUser(user);
+    setEditDraft({
+      displayName: user.displayName,
+      email: user.email ?? "",
+      roleId: null,
+      teamId: null,
+      isActive: user.isActive,
+    });
+    setEditError(null);
+    updateMutation.reset();
+  }
+
+  function submitEdit() {
+    if (updateMutation.isPending) return;
+    if (!editUser) {
+      setEditError("No user is selected for editing.");
+      return;
+    }
+    if (!editDraft.displayName.trim()) {
+      setEditError("Display name is required.");
+      return;
+    }
+    setEditError(null);
+    updateMutation.mutate();
   }
 
   async function handleSetUserActive(user: AdminUser, isActive: boolean) {
@@ -320,7 +385,7 @@ function AdminUsersPage() {
                         <DropdownMenuItem onClick={() => setDetails(user)}>
                           View user details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toast.info(BACKEND_ACTION_PENDING)}>
+                        <DropdownMenuItem onClick={() => openEdit(user)}>
                           Edit user
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -450,6 +515,74 @@ function AdminUsersPage() {
         )}
       </FormDrawer>
 
+      <FormDrawer
+        open={Boolean(editUser)}
+        onOpenChange={(open) => {
+          if (!updateMutation.isPending && !open) {
+            setEditUser(null);
+            setEditDraft(EMPTY_USER);
+            setEditError(null);
+          }
+        }}
+        title={editUser ? `Edit ${editUser.displayName}` : "Edit user"}
+        description="Update the user's display name and account status."
+        onSubmit={submitEdit}
+        submitLabel={updateMutation.isPending ? "Saving…" : "Save changes"}
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-user-display-name" className="text-xs">
+            Display name
+          </Label>
+          <Input
+            id="edit-user-display-name"
+            value={editDraft.displayName}
+            onChange={(event) => setEditDraft({ ...editDraft, displayName: event.target.value })}
+            maxLength={120}
+            autoComplete="name"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-user-email" className="text-xs">
+            Email
+          </Label>
+          <Input
+            id="edit-user-email"
+            type="email"
+            value={editDraft.email}
+            disabled
+            className="opacity-80"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Email editing is intentionally locked to avoid breaking authentication.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border/40 p-3">
+          <div>
+            <Label htmlFor="edit-user-active" className="text-xs">
+              Active account
+            </Label>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Disabled users cannot sign in until the account is enabled again.
+            </p>
+          </div>
+          <Switch
+            id="edit-user-active"
+            checked={editDraft.isActive}
+            onCheckedChange={(checked) => setEditDraft({ ...editDraft, isActive: checked })}
+          />
+        </div>
+
+        {editError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>User was not updated</AlertTitle>
+            <AlertDescription>{editError}</AlertDescription>
+          </Alert>
+        )}
+      </FormDrawer>
+
       <DetailsDrawer
         open={Boolean(details)}
         onOpenChange={(open) => !open && setDetails(null)}
@@ -461,12 +594,8 @@ function AdminUsersPage() {
         }
         actions={
           details && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => toast.info(BACKEND_ACTION_PENDING)}
-            >
-              Edit (backend pending)
+            <Button size="sm" variant="secondary" onClick={() => openEdit(details)}>
+              Edit user
             </Button>
           )
         }
