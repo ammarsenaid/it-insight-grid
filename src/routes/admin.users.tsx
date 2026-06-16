@@ -318,10 +318,10 @@ function AdminUsersPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => setDetails(user)}>
-                          View details
+                          View user details
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => toast.info(BACKEND_ACTION_PENDING)}>
-                          Edit user (backend pending)
+                          Edit user
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem

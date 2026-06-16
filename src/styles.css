@@ -2118,3 +2118,41 @@ body.compact-mode .glass-card {
     padding: 1.2rem;
   }
 }
+
+/* ITKC Admin Users action menu polish */
+[data-radix-popper-content-wrapper] [role="menu"] {
+  border-radius: 1rem !important;
+  border: 1px solid hsl(var(--border) / 0.48) !important;
+  background:
+    radial-gradient(circle at top left, hsl(var(--primary) / 0.08), transparent 14rem),
+    linear-gradient(180deg, hsl(218 52% 11% / 0.98), hsl(220 62% 8% / 0.98)) !important;
+  box-shadow:
+    0 26px 70px hsl(220 90% 3% / 0.42),
+    inset 0 1px 0 hsl(0 0% 100% / 0.05) !important;
+  overflow: hidden;
+  padding: 0.45rem !important;
+}
+
+[data-radix-popper-content-wrapper] [role="menuitem"] {
+  min-height: 2.65rem;
+  border-radius: 0.75rem !important;
+  color: hsl(214 36% 90%) !important;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+[data-radix-popper-content-wrapper] [role="menuitem"]:hover,
+[data-radix-popper-content-wrapper] [role="menuitem"]:focus {
+  background: hsl(var(--primary) / 0.13) !important;
+  color: hsl(214 54% 98%) !important;
+}
+
+[data-radix-popper-content-wrapper] [role="menuitem"][data-disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+[data-radix-popper-content-wrapper] [role="separator"] {
+  background: hsl(var(--border) / 0.36) !important;
+  margin-block: 0.35rem !important;
+}
