@@ -1708,7 +1708,8 @@ function HomePane({
                       <BookMarked className="h-3 w-3" /> {chapters}
                     </span>
                   </div>
-                </button>
+                </div>
+
               );
             })}
           </div>
