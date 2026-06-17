@@ -1081,22 +1081,19 @@ function SpaceTreeNode({
     <li className="mb-0.5">
       <div
         className={cn(
-          "group relative flex items-center gap-0.5 rounded-lg pr-1 transition-all",
-          isSel
-            ? "bg-gradient-to-r from-primary/15 to-primary/5 ring-1 ring-inset ring-primary/20"
-            : "hover:bg-white/[0.04]",
+          "group relative flex items-center gap-0.5 rounded-md pr-1 transition-colors",
+          isSel ? "bg-white/[0.06]" : "hover:bg-white/[0.03]",
         )}
       >
-
         {isSel && (
           <span
             aria-hidden
-            className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary"
+            className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full bg-foreground/70"
           />
         )}
         <button
           onClick={() => toggle(space.id)}
-          className="grid h-7 w-4 place-items-center text-muted-foreground/70 transition-colors hover:text-foreground"
+          className="grid h-6 w-4 place-items-center text-muted-foreground/60 transition-colors hover:text-foreground"
           aria-label={open ? "Collapse" : "Expand"}
         >
           {open ? (
@@ -1107,28 +1104,27 @@ function SpaceTreeNode({
         </button>
         <button
           onClick={() => onSelect({ kind: "space", id: space.id })}
-          className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 text-left text-[12.5px]"
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left text-[12.5px]"
           title={space.name}
         >
           <span
             className={cn(
-              "grid h-5 w-5 shrink-0 place-items-center rounded-md bg-gradient-to-br shadow-sm ring-1 ring-inset ring-white/15",
+              "grid h-4 w-4 shrink-0 place-items-center rounded bg-gradient-to-br",
               accent,
             )}
           >
-            <Icon className="h-3 w-3 text-white/95" />
+            <Icon className="h-2.5 w-2.5 text-white/95" />
           </span>
-
           <span
             className={cn(
-              "truncate font-semibold tracking-tight",
-              isSel ? "text-primary" : "text-foreground/90",
+              "truncate",
+              isSel ? "font-medium text-foreground" : "text-foreground/80",
               space.is_archived && "italic text-muted-foreground",
             )}
           >
             {space.name}
           </span>
-          <span className="ml-auto rounded-full bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground/80 opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="ml-auto text-[9.5px] tabular-nums text-muted-foreground/50">
             {categories.length + visibleArticles.length}
           </span>
         </button>
