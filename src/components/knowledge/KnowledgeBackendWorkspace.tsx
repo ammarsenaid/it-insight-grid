@@ -2480,9 +2480,9 @@ function SectionHeading({
 
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-card/40 px-3 py-2">
-      <div className="text-xl font-semibold tracking-tight">{value}</div>
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+    <div className="rounded-lg border border-border/60 bg-card/50 px-3 py-2 backdrop-blur">
+      <div className="text-lg font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
     </div>
