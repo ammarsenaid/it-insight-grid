@@ -436,7 +436,7 @@ function RequesterCreateDrawer({
   onCreated: () => void;
 }) {
   const mutation = useMutation({
-    mutationFn: (values: import("@/components/service-desk/TicketComposer").TicketComposerValues) =>
+    mutationFn: (values: TicketComposerValues) =>
       createTicket(userId, {
         subject: values.subject,
         description: values.description,
