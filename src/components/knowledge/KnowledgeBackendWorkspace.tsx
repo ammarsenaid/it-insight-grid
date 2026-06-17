@@ -2314,7 +2314,7 @@ function ArticleView({
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-          <Badge variant="outline">{STATUS_LABEL[article.status] ?? article.status}</Badge>
+          <StatusPill status={article.status} />
           <Badge variant="outline">{article.visibility}</Badge>
           <Badge variant="outline">rev {article.revision_number}</Badge>
           {article.published_at && (
