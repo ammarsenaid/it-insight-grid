@@ -47,6 +47,10 @@ import {
   CheckCircle2,
   Loader2,
   PencilLine,
+  Eye,
+  Share2,
+  Info,
+  User as UserIcon,
 } from "lucide-react";
 
 
@@ -2302,259 +2306,450 @@ function ArticlePane({
   const TABS: Array<{ id: Tab; label: string; icon: typeof ListIcon }> = [
     { id: "content", label: "Content", icon: FileText },
     { id: "outline", label: "Outline", icon: ListIcon },
-    { id: "review", label: "Review", icon: History },
+    { id: "review", label: "Review", icon: CheckCircle2 },
     { id: "revisions", label: "Revisions", icon: History },
-    { id: "audit", label: "Audit", icon: History },
+    { id: "audit", label: "Audit", icon: Clock },
   ];
 
-  return (
-    <article className="space-y-6">
-      <nav className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {space && (
-          <button onClick={() => onOpenSpace(space.id)} className="hover:text-foreground">
-            {space.name}
-          </button>
-        )}
-        {category && (
-          <>
-            <ChevronRight className="h-3 w-3 opacity-60" />
-            <button
-              onClick={() => onOpenCategory(category.id)}
-              className="hover:text-foreground"
-            >
-              {category.name}
-            </button>
-          </>
-        )}
-        <ChevronRight className="h-3 w-3 opacity-60" />
-        <span className="text-primary">{article.title}</span>
-      </nav>
+  const updatedByLabel = article.updated_by
+    ? article.updated_by.slice(0, 8)
+    : "—";
 
-      <header className="space-y-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:flex-wrap sm:items-start sm:justify-between">
-          <div className="min-w-0 space-y-3">
-            <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">
-              {article.title}
-            </h1>
-            {article.excerpt && (
-              <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
-                {article.excerpt}
-              </p>
-            )}
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-            {canUpdate && (
-              <Button
-                variant="secondary"
-                size="sm"
-                className="h-8"
-                onClick={onEditContent}
-              >
-                <Pencil className="mr-1.5 h-3.5 w-3.5" /> Write
-              </Button>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  aria-label="More"
-                >
-                  <MoreHorizontal className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                {canUpdate && (
-                  <DropdownMenuItem onClick={onEditMeta}>
-                    <Pencil className="mr-2 h-3.5 w-3.5" /> Edit details
-                  </DropdownMenuItem>
-                )}
-                {canUpdate && (
-                  <DropdownMenuItem onClick={onEditTags}>
-                    <TagsIcon className="mr-2 h-3.5 w-3.5" /> Edit tags
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={handleCopyLink}>
-                  <Link2 className="mr-2 h-3.5 w-3.5" /> Copy link
-                </DropdownMenuItem>
-                {canUpdate && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={onArchive}>
-                      {article.status === "archived" ? (
-                        <>
-                          <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
-                        </>
-                      ) : (
-                        <>
-                          <Archive className="mr-2 h-3.5 w-3.5" /> Archive
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {canDelete && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={onDelete}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete…
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <StatusPill status={article.status} />
-          <Badge variant="outline" className="h-5">
-            {article.visibility}
-          </Badge>
-          <Badge variant="outline" className="h-5">
-            rev {article.revision_number}
-          </Badge>
-          {articleTags.map((t) => (
-            <Badge
-              key={t}
-              variant="outline"
-              className="border-border/40 text-[10px] font-normal"
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <article className="min-w-0 space-y-6">
+        {/* Breadcrumb */}
+        <nav className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          {space && (
+            <button
+              onClick={() => onOpenSpace(space.id)}
+              className="transition-colors hover:text-foreground"
             >
-              <TagIcon className="mr-1 h-2.5 w-2.5" />
-              {t}
-            </Badge>
-          ))}
-          <span className="opacity-60">·</span>
-          <span>Updated {formatDate(article.updated_at)}</span>
-          {article.published_at && (
+              {space.name}
+            </button>
+          )}
+          {category && (
             <>
-              <span className="opacity-60">·</span>
-              <span>Published {formatDate(article.published_at)}</span>
+              <ChevronRight className="h-3 w-3 opacity-60" />
+              <button
+                onClick={() => onOpenCategory(category.id)}
+                className="transition-colors hover:text-foreground"
+              >
+                {category.name}
+              </button>
             </>
           )}
-        </div>
-      </header>
+          <ChevronRight className="h-3 w-3 opacity-60" />
+          <span className="font-medium text-primary">{article.title}</span>
+        </nav>
 
-      {/* Tabs */}
-      <div className="-mb-px flex flex-wrap items-center gap-1 overflow-x-auto border-b border-border/40">
-        {TABS.map((t) => {
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-1.5 text-xs font-medium transition-colors",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <t.icon className="h-3 w-3" /> {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {tab === "content" && (
-        <div className="space-y-6">
-          <div className="rounded-2xl border border-border/60 bg-card/30 px-5 py-8 md:px-8 md:py-10">
-            <div className="kb-manuscript prose-knowledge mx-auto max-w-3xl">
-              {article.content_markdown ? (
-                <Markdown source={article.content_markdown} />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  This page has no content yet.
+        {/* Title + action bar */}
+        <header className="space-y-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 space-y-3">
+              <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+                {article.title}
+              </h1>
+              {article.excerpt && (
+                <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+                  {article.excerpt}
                 </p>
               )}
             </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {canUpdate && (
+                <div className="flex h-9 overflow-hidden rounded-lg shadow-sm shadow-primary/20">
+                  <Button
+                    size="sm"
+                    className="h-9 gap-1.5 rounded-none rounded-l-lg bg-primary px-3.5 text-primary-foreground hover:bg-primary/90"
+                    onClick={onEditContent}
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        className="h-9 w-7 rounded-none rounded-r-lg border-l border-primary-foreground/20 bg-primary p-0 text-primary-foreground hover:bg-primary/90"
+                        aria-label="Edit options"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={onEditContent}>
+                        <PencilLine className="mr-2 h-3.5 w-3.5" /> Edit content
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onEditMeta}>
+                        <Info className="mr-2 h-3.5 w-3.5" /> Edit details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onEditTags}>
+                        <TagsIcon className="mr-2 h-3.5 w-3.5" /> Edit tags
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 gap-1.5"
+                onClick={() => setTab("content")}
+              >
+                <Eye className="h-3.5 w-3.5" /> Preview
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 gap-1.5"
+                onClick={handleCopyLink}
+              >
+                <Share2 className="h-3.5 w-3.5" /> Share
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-9 w-9"
+                    aria-label="More"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={handleCopyLink}>
+                    <Link2 className="mr-2 h-3.5 w-3.5" /> Copy link
+                  </DropdownMenuItem>
+                  {canUpdate && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={onArchive}>
+                        {article.status === "archived" ? (
+                          <>
+                            <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
+                          </>
+                        ) : (
+                          <>
+                            <Archive className="mr-2 h-3.5 w-3.5" /> Archive
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {canDelete && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={onDelete}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete…
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-          <div className="mx-auto max-w-3xl">
-            <AttachmentsPanel
+
+          {/* Status / meta row */}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <StatusPill status={article.status} />
+            <span className="inline-flex h-6 items-center gap-1 rounded-full border border-border/40 bg-white/[0.03] px-2.5 capitalize">
+              <UserIcon className="h-3 w-3" /> {article.visibility}
+            </span>
+            <span className="inline-flex h-6 items-center rounded-full border border-border/40 bg-white/[0.03] px-2.5 font-medium">
+              Rev {article.revision_number}
+            </span>
+            <span className="opacity-60">·</span>
+            <span>
+              Updated {formatDate(article.updated_at)}
+              {article.updated_by && (
+                <> by <span className="text-foreground/80">{updatedByLabel}</span></>
+              )}
+            </span>
+          </div>
+        </header>
+
+        {/* Tabs */}
+        <div className="-mb-px flex flex-wrap items-center gap-1 overflow-x-auto border-b border-border/40">
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors",
+                  active
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <t.icon className="h-3.5 w-3.5" /> {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {tab === "content" && (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-border/60 bg-card/30 px-5 py-8 md:px-10 md:py-10">
+              <div className="kb-manuscript prose-knowledge max-w-none">
+                {article.content_markdown ? (
+                  <Markdown source={article.content_markdown} />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    This page has no content yet.
+                  </p>
+                )}
+              </div>
+            </div>
+            {(prev || next) && (
+              <div className="grid grid-cols-2 gap-3">
+                {prev ? (
+                  <button
+                    onClick={() => onOpenArticle(prev.id)}
+                    className="group rounded-xl border border-border/60 bg-card/30 p-4 text-left transition-colors hover:border-primary/40 hover:bg-card/60"
+                  >
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <ArrowLeft className="h-3 w-3" /> Previous
+                    </div>
+                    <div className="mt-1 truncate text-sm font-medium group-hover:text-primary">
+                      {prev.title}
+                    </div>
+                  </button>
+                ) : (
+                  <span />
+                )}
+                {next ? (
+                  <button
+                    onClick={() => onOpenArticle(next.id)}
+                    className="group rounded-xl border border-border/60 bg-card/30 p-4 text-right transition-colors hover:border-primary/40 hover:bg-card/60"
+                  >
+                    <div className="flex items-center justify-end gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Next <ChevronRight className="h-3 w-3" />
+                    </div>
+                    <div className="mt-1 truncate text-sm font-medium group-hover:text-primary">
+                      {next.title}
+                    </div>
+                  </button>
+                ) : (
+                  <span />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {tab === "outline" && (
+          <div className="max-w-3xl">
+            <ArticleTOC markdown={article.content_markdown ?? ""} />
+          </div>
+        )}
+        {tab === "review" && (
+          <div className="max-w-3xl">
+            <ReviewTimelinePanel
               articleId={article.id}
               teamId={teamId}
-              canUpdate={canUpdate}
+              refreshKey={`${article.revision_number}:${article.status}`}
             />
           </div>
-          {(prev || next) && (
-            <div className="mx-auto grid max-w-3xl grid-cols-2 gap-3">
-              {prev ? (
-                <button
-                  onClick={() => onOpenArticle(prev.id)}
-                  className="rounded-xl border border-border/60 bg-card/30 p-4 text-left transition-colors hover:border-primary/40 hover:bg-card/60"
-                >
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    ← Previous
-                  </div>
-                  <div className="mt-1 truncate text-sm font-medium">
-                    {prev.title}
-                  </div>
-                </button>
-              ) : (
-                <span />
-              )}
-              {next ? (
-                <button
-                  onClick={() => onOpenArticle(next.id)}
-                  className="rounded-xl border border-border/60 bg-card/30 p-4 text-right transition-colors hover:border-primary/40 hover:bg-card/60"
-                >
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Next →
-                  </div>
-                  <div className="mt-1 truncate text-sm font-medium">
-                    {next.title}
-                  </div>
-                </button>
-              ) : (
-                <span />
-              )}
+        )}
+        {tab === "revisions" && (
+          <div className="max-w-3xl">
+            <RevisionsPanel
+              articleId={article.id}
+              teamId={teamId}
+              canRestore={canUpdate}
+              currentRev={article.revision_number}
+              onRestored={onReload}
+            />
+          </div>
+        )}
+        {tab === "audit" && (
+          <div className="max-w-3xl">
+            <AuditLogPanel
+              teamId={teamId}
+              entityType="article"
+              entityId={article.id}
+              title="Page audit"
+              limit={50}
+            />
+          </div>
+        )}
+      </article>
+
+      {/* Right rail */}
+      <aside className="space-y-5 xl:sticky xl:top-4 xl:self-start">
+        {/* Page Details */}
+        <section className="rounded-2xl border border-border/60 bg-card/30 p-5">
+          <header className="mb-4 flex items-center gap-1.5 text-sm font-semibold">
+            Page Details <Info className="h-3.5 w-3.5 text-muted-foreground" />
+          </header>
+          <dl className="space-y-3 text-sm">
+            <div className="flex items-start justify-between gap-3">
+              <dt className="text-muted-foreground">Book</dt>
+              <dd className="min-w-0 text-right">
+                {space ? (
+                  <button
+                    onClick={() => onOpenSpace(space.id)}
+                    className="truncate font-medium text-primary hover:underline"
+                  >
+                    {space.name}
+                  </button>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </dd>
             </div>
-          )}
-        </div>
-      )}
-      {tab === "outline" && (
-        <div className="mx-auto max-w-3xl">
-          <ArticleTOC markdown={article.content_markdown ?? ""} />
-        </div>
-      )}
-      {tab === "review" && (
-        <div className="mx-auto max-w-3xl">
-          <ReviewTimelinePanel
+            <div className="flex items-start justify-between gap-3">
+              <dt className="text-muted-foreground">Chapter</dt>
+              <dd className="min-w-0 text-right">
+                {category ? (
+                  <button
+                    onClick={() => onOpenCategory(category.id)}
+                    className="truncate font-medium text-primary hover:underline"
+                  >
+                    {category.name}
+                  </button>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </dd>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <dt className="text-muted-foreground">Owner</dt>
+              <dd className="flex items-center gap-1.5 font-medium">
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
+                  {(article.created_by ?? "?").slice(0, 1).toUpperCase()}
+                </span>
+                <span className="truncate">
+                  {article.created_by ? article.created_by.slice(0, 8) : "—"}
+                </span>
+              </dd>
+            </div>
+            {article.updated_by && article.updated_by !== article.created_by && (
+              <div className="flex items-start justify-between gap-3">
+                <dt className="text-muted-foreground">Contributors</dt>
+                <dd className="flex items-center gap-1">
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-500/15 text-[10px] font-semibold text-emerald-300">
+                    {article.updated_by.slice(0, 1).toUpperCase()}
+                  </span>
+                </dd>
+              </div>
+            )}
+            <div className="space-y-2 border-t border-border/40 pt-3">
+              <dt className="text-muted-foreground">Tags</dt>
+              <dd className="flex flex-wrap gap-1.5">
+                {articleTags.length === 0 && (
+                  <span className="text-xs text-muted-foreground">No tags</span>
+                )}
+                {articleTags.map((t) => (
+                  <Badge
+                    key={t}
+                    variant="outline"
+                    className="h-6 gap-1 border-border/40 bg-white/[0.03] px-2 text-[11px] font-normal"
+                  >
+                    <TagIcon className="h-2.5 w-2.5" />
+                    {t}
+                  </Badge>
+                ))}
+                {canUpdate && (
+                  <button
+                    onClick={onEditTags}
+                    className="inline-flex h-6 items-center gap-0.5 rounded-full border border-dashed border-border/50 px-2 text-[11px] text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
+                  >
+                    <Plus className="h-2.5 w-2.5" />
+                  </button>
+                )}
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        {/* Outline mini-card */}
+        <section className="rounded-2xl border border-border/60 bg-card/30 p-5">
+          <header className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+            Outline <Info className="h-3.5 w-3.5 text-muted-foreground" />
+          </header>
+          <MiniOutline markdown={article.content_markdown ?? ""} />
+        </section>
+
+        {/* Attachments */}
+        <section className="rounded-2xl border border-border/60 bg-card/30 p-5">
+          <AttachmentsPanel
             articleId={article.id}
             teamId={teamId}
-            refreshKey={`${article.revision_number}:${article.status}`}
+            canUpdate={canUpdate}
           />
-        </div>
-      )}
-      {tab === "revisions" && (
-        <div className="mx-auto max-w-3xl">
-          <RevisionsPanel
-            articleId={article.id}
-            teamId={teamId}
-            canRestore={canUpdate}
-            currentRev={article.revision_number}
-            onRestored={onReload}
-          />
-        </div>
-      )}
-      {tab === "audit" && (
-        <div className="mx-auto max-w-3xl">
-          <AuditLogPanel
-            teamId={teamId}
-            entityType="article"
-            entityId={article.id}
-            title="Page audit"
-            limit={50}
-          />
-        </div>
-      )}
-    </article>
+        </section>
+      </aside>
+    </div>
   );
 }
+
+function MiniOutline({ markdown }: { markdown: string }) {
+  const items = useMemo(() => {
+    const out: Array<{ level: number; text: string; slug: string }> = [];
+    if (!markdown) return out;
+    const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+    let inCode = false;
+    for (const raw of lines) {
+      if (raw.startsWith("```")) {
+        inCode = !inCode;
+        continue;
+      }
+      if (inCode) continue;
+      const m = /^(#{1,4})\s+(.*)$/.exec(raw);
+      if (!m) continue;
+      const text = m[2].trim();
+      if (!text) continue;
+      const slug = text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+        .slice(0, 80);
+      out.push({ level: m[1].length, text, slug });
+    }
+    return out.slice(0, 12);
+  }, [markdown]);
+
+  if (items.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Add headings to see the outline.
+      </p>
+    );
+  }
+  const minLevel = Math.min(...items.map((i) => i.level));
+  return (
+    <ul className="space-y-1.5 text-sm">
+      {items.map((i, idx) => (
+        <li
+          key={`${i.slug}-${idx}`}
+          style={{ paddingLeft: `${(i.level - minLevel) * 10}px` }}
+        >
+          <a
+            href={`#${i.slug}`}
+            onClick={(e) => {
+              e.preventDefault();
+              const el = document.getElementById(i.slug);
+              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="flex items-center gap-2 truncate text-muted-foreground transition-colors hover:text-primary"
+          >
+            <span className="h-1 w-1 shrink-0 rounded-full bg-current opacity-60" />
+            <span className="truncate">{i.text}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 
 // ============================================================
 // Revisions panel (kept inline — used by article tabs)
