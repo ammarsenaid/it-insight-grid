@@ -30,8 +30,10 @@ import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TicketsIndexRouteImport } from './routes/tickets.index'
 import { Route as ProtocolsIndexRouteImport } from './routes/protocols.index'
+import { Route as TicketsNewRouteImport } from './routes/tickets.new'
 import { Route as TicketsIdRouteImport } from './routes/tickets.$id'
 import { Route as ServiceCatalogIdRouteImport } from './routes/service-catalog.$id'
+import { Route as RequestsNewRouteImport } from './routes/requests.new'
 import { Route as ProtocolsIdRouteImport } from './routes/protocols.$id'
 import { Route as ApiAdminUsersRouteImport } from './routes/api.admin-users'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -148,6 +150,11 @@ const ProtocolsIndexRoute = ProtocolsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProtocolsRoute,
 } as any)
+const TicketsNewRoute = TicketsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => TicketsRoute,
+} as any)
 const TicketsIdRoute = TicketsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -157,6 +164,11 @@ const ServiceCatalogIdRoute = ServiceCatalogIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => ServiceCatalogRoute,
+} as any)
+const RequestsNewRoute = RequestsNewRouteImport.update({
+  id: '/requests/new',
+  path: '/requests/new',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ProtocolsIdRoute = ProtocolsIdRouteImport.update({
   id: '/$id',
@@ -239,8 +251,10 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
+  '/requests/new': typeof RequestsNewRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/tickets/new': typeof TicketsNewRoute
   '/protocols/': typeof ProtocolsIndexRoute
   '/tickets/': typeof TicketsIndexRoute
 }
@@ -272,8 +286,10 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
+  '/requests/new': typeof RequestsNewRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/tickets/new': typeof TicketsNewRoute
   '/protocols': typeof ProtocolsIndexRoute
   '/tickets': typeof TicketsIndexRoute
 }
@@ -308,8 +324,10 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
+  '/requests/new': typeof RequestsNewRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/tickets/new': typeof TicketsNewRoute
   '/protocols/': typeof ProtocolsIndexRoute
   '/tickets/': typeof TicketsIndexRoute
 }
@@ -345,8 +363,10 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/api/admin-users'
     | '/protocols/$id'
+    | '/requests/new'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/tickets/new'
     | '/protocols/'
     | '/tickets/'
   fileRoutesByTo: FileRoutesByTo
@@ -378,8 +398,10 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/api/admin-users'
     | '/protocols/$id'
+    | '/requests/new'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/tickets/new'
     | '/protocols'
     | '/tickets'
   id:
@@ -413,8 +435,10 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/api/admin-users'
     | '/protocols/$id'
+    | '/requests/new'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/tickets/new'
     | '/protocols/'
     | '/tickets/'
   fileRoutesById: FileRoutesById
@@ -448,6 +472,7 @@ export interface RootRouteChildren {
   AdminTicketSettingsRoute: typeof AdminTicketSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRoute
+  RequestsNewRoute: typeof RequestsNewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -599,6 +624,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtocolsIndexRouteImport
       parentRoute: typeof ProtocolsRoute
     }
+    '/tickets/new': {
+      id: '/tickets/new'
+      path: '/new'
+      fullPath: '/tickets/new'
+      preLoaderRoute: typeof TicketsNewRouteImport
+      parentRoute: typeof TicketsRoute
+    }
     '/tickets/$id': {
       id: '/tickets/$id'
       path: '/$id'
@@ -612,6 +644,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/service-catalog/$id'
       preLoaderRoute: typeof ServiceCatalogIdRouteImport
       parentRoute: typeof ServiceCatalogRoute
+    }
+    '/requests/new': {
+      id: '/requests/new'
+      path: '/requests/new'
+      fullPath: '/requests/new'
+      preLoaderRoute: typeof RequestsNewRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/protocols/$id': {
       id: '/protocols/$id'
@@ -714,11 +753,13 @@ const ServiceCatalogRouteWithChildren = ServiceCatalogRoute._addFileChildren(
 
 interface TicketsRouteChildren {
   TicketsIdRoute: typeof TicketsIdRoute
+  TicketsNewRoute: typeof TicketsNewRoute
   TicketsIndexRoute: typeof TicketsIndexRoute
 }
 
 const TicketsRouteChildren: TicketsRouteChildren = {
   TicketsIdRoute: TicketsIdRoute,
+  TicketsNewRoute: TicketsNewRoute,
   TicketsIndexRoute: TicketsIndexRoute,
 }
 
@@ -754,6 +795,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminTicketSettingsRoute: AdminTicketSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
   ApiAdminUsersRoute: ApiAdminUsersRoute,
+  RequestsNewRoute: RequestsNewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

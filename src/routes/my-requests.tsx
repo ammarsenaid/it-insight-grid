@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -82,7 +82,7 @@ const SUGGESTED_CATEGORIES = REQUEST_CATEGORIES.map((c) => c.value);
 
 function MyRequests() {
   const { session, loading: authLoading } = useAuth();
-  
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const userId = session?.user?.id ?? "";
 
@@ -173,9 +173,12 @@ function MyRequests() {
         description="Track your submitted requests and respond when needed."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => setCreateOpen(true)} size="sm">
-              <Plus className="mr-1.5 h-4 w-4" /> New request
+            <Button asChild size="sm">
+              <Link to="/requests/new">
+                <Plus className="mr-1.5 h-4 w-4" /> New request
+              </Link>
             </Button>
+
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -331,7 +334,7 @@ function MyRequests() {
                   title="No requests yet"
                   description="Submit a request and the IT team will get back to you."
                   actionLabel="New request"
-                  onAction={() => setCreateOpen(true)}
+                  onAction={() => navigate({ to: "/requests/new" })}
                 />
 
               ) : (
