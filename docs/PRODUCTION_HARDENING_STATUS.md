@@ -1614,3 +1614,43 @@ Operational notes:
   the server runtime. Their values were not inspected during this milestone.
 - No database connection, migration, service restart, or live user creation was
   performed.
+
+## M2 — Knowledge Shelves (BookStack-parity top-level)
+
+Status: STAGED ONLY. Migration not applied. Frontend gracefully falls back
+to empty shelves/shelfBooks until the migration runs.
+
+Files:
+- `supabase/pending/20260618000000_knowledge_shelves.sql` — adds
+  `public.knowledge_shelves` and `public.knowledge_shelf_books` (M:N
+  shelf↔book junction matching BookStack), grants to authenticated +
+  service_role, RLS via `public.has_permission('knowledge.*', team_id)`,
+  audit-protection trigger mirroring `knowledge_spaces`.
+- `supabase/pending/20260618000000_knowledge_shelves.qa.sql` —
+  transaction-rollback harness: RLS-enabled assertions, grant assertions,
+  anon-denial assertions, slug/name CHECK assertions, composite-FK
+  cross-team-guard assertions, trigger-installed assertion.
+- `src/lib/knowledge/backend-types.ts` — new `KbShelf` and `KbShelfBook`
+  types; `KnowledgeBackendData` extended with `shelves` and `shelfBooks`.
+- `src/lib/knowledge/useKnowledgeBackend.ts` — loads both new tables in
+  parallel with existing reads; ignores per-table errors so the workspace
+  keeps working before the migration is applied.
+
+Authorization model: identical to existing `knowledge_*` tables — auth-only,
+no anon grants, RLS scoped through `has_permission`. Junction inserts/deletes
+require `knowledge.update` on the owning team.
+
+Validation required before commit:
+- Apply `supabase/pending/20260618000000_knowledge_shelves.sql` to a
+  disposable database.
+- Run `supabase/pending/20260618000000_knowledge_shelves.qa.sql` against the
+  same disposable database; the transaction must reach `rollback` with no
+  assertion failures.
+- `bunx tsc --noEmit`
+- `bun run build`
+
+Operational notes:
+- No database connection, migration, or service restart was performed.
+- UI for shelves (overview pane, shelf CRUD dialogs, book↔shelf assignment)
+  is deferred to M2.5 so the workspace stays usable before the migration
+  is applied.
