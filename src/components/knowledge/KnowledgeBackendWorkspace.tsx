@@ -1577,6 +1577,7 @@ function HomePane({
                 <span className="hidden w-24 text-right text-[11px] text-muted-foreground md:inline">
                   {formatDate(a.updated_at)}
                 </span>
+                <ChevronRight className="hidden h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
               </button>
             ))}
           </div>
