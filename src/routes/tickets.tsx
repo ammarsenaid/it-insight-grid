@@ -791,117 +791,57 @@ function RowActions({
 function CreateTicketDrawer({
   open, onOpenChange, userId, onCreated,
 }: { open: boolean; onOpenChange: (o: boolean) => void; userId: string; onCreated: () => void }) {
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
-  const [type, setType] = useState<TicketType>("incident");
-  const [category, setCategory] = useState<string>(SUGGESTED_CATEGORIES[0]);
-  const [subcategory, setSubcategory] = useState("");
-  const [priority, setPriority] = useState<TicketPriority>("normal");
-  const [tags, setTags] = useState("");
-
-  const reset = () => {
-    setSubject(""); setDescription(""); setType("incident"); setCategory(SUGGESTED_CATEGORIES[0]);
-    setSubcategory(""); setPriority("normal"); setTags("");
-  };
+  const categories = useMemo(
+    () =>
+      SUGGESTED_CATEGORIES.map((c) => ({
+        value: c,
+        label: c,
+        description: CATEGORY_META[c]?.description ?? "",
+        icon: CATEGORY_META[c]?.icon ?? HelpCircle,
+      })),
+    [],
+  );
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: TicketComposerValues) => {
       const input: CreateTicketInput = {
-        subject: subject.trim(),
-        description: description.trim(),
-        type,
-        category,
-        subcategory: subcategory.trim() || null,
-        priority,
-        tags: tags.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
+        subject: values.subject,
+        description: values.description,
+        type: values.type,
+        category: values.category,
+        subcategory: values.subcategory || null,
+        priority: values.priority,
+        tags: values.tags,
       };
       return createTicket(userId, input);
     },
     onSuccess: (t) => {
       toast.success(`Ticket ${t.ticketNumber} created`, { description: t.subject });
-      reset();
+      onOpenChange(false);
       onCreated();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Create failed"),
   });
 
-  const handleSubmit = () => {
-    if (!userId) return toast.error("You must be signed in");
-    if (subject.trim().length < 4) return toast.error("Subject must be at least 4 characters");
-    if (description.trim().length < 8) return toast.error("Description must be at least 8 characters");
-    mutation.mutate();
-  };
-
   return (
-    <FormDrawer
+    <TicketComposer
       open={open}
-      onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}
+      onOpenChange={onOpenChange}
       title="Create ticket"
       description="The ticket will be created under your account. Assign and route after submission."
-      submitLabel={mutation.isPending ? "Creating…" : "Create ticket"}
-      onSubmit={handleSubmit}
-    >
-      <Row label="Category *">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {SUGGESTED_CATEGORIES.map((c) => {
-            const meta = CATEGORY_META[c];
-            const Icon = meta?.icon ?? HelpCircle;
-            const active = category === c;
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCategory(c)}
-                className={`flex flex-col items-start gap-1.5 rounded-xl border p-2.5 text-left transition-all ${
-                  active
-                    ? "border-primary/60 bg-primary/10 ring-1 ring-primary/40"
-                    : "border-border/60 bg-background/40 hover:border-border hover:bg-white/[0.03]"
-                }`}
-              >
-                <Icon className={`h-4 w-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
-                <div className="text-xs font-medium leading-tight">{c}</div>
-                {meta && <div className="text-[10px] leading-tight text-muted-foreground">{meta.description}</div>}
-              </button>
-            );
-          })}
-        </div>
-      </Row>
-      <Row label="Subject *">
-        <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Short summary of the issue or request" />
-      </Row>
-      <Row label="Description *">
-        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="Provide steps, error messages, impacted users…" />
-      </Row>
-      <div className="grid grid-cols-2 gap-3">
-        <Row label="Type">
-          <Select value={type} onValueChange={(v) => setType(v as TicketType)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{TICKET_TYPES.map((t) => <SelectItem key={t} value={t}>{cap(t)}</SelectItem>)}</SelectContent>
-          </Select>
-        </Row>
-        <Row label="Priority">
-          <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{TICKET_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{cap(p)}</SelectItem>)}</SelectContent>
-          </Select>
-        </Row>
-        <Row label="Subcategory">
-          <Input value={subcategory} onChange={(e) => setSubcategory(e.target.value)} placeholder="Optional" />
-        </Row>
-        <Row label="Tags">
-          <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="comma, separated" />
-        </Row>
-      </div>
-
-    </FormDrawer>
+      submitLabel="Create ticket"
+      pending={mutation.isPending}
+      categories={categories}
+      defaultType="incident"
+      showType
+      showSubcategory
+      showTags
+      ticketTypes={TICKET_TYPES}
+      onSubmit={(values) => {
+        if (!userId) return toast.error("You must be signed in");
+        mutation.mutate(values);
+      }}
+    />
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
-      {children}
-    </div>
-  );
-}
