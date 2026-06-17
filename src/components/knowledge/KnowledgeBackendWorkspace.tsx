@@ -1773,8 +1773,30 @@ function SpacePane({
 
       {/* Chapters */}
       {visibleCats.length === 0 && loosePages.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/40 p-8 text-center text-xs text-muted-foreground">
-          This book is empty. Add a chapter or a page to get started.
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/50 bg-card/30 p-10 text-center">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+            <BookMarked className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-sm font-medium">This book is empty</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Add a chapter to organise pages, or drop in a loose page.
+            </p>
+          </div>
+          {(perms.update || perms.create) && !space.is_archived && (
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+              {perms.update && (
+                <Button size="sm" variant="secondary" className="h-8 text-xs" onClick={onNewCategory}>
+                  <Plus className="mr-1 h-3 w-3" /> New chapter
+                </Button>
+              )}
+              {perms.create && (
+                <Button size="sm" className="h-8 text-xs" onClick={onNewArticle}>
+                  <Plus className="mr-1 h-3 w-3" /> New page
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-8">
@@ -1784,8 +1806,9 @@ function SpacePane({
             );
             return (
               <div key={c.id}>
-                <div className="mb-3 flex items-end justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="mb-3 flex items-end justify-between gap-3 border-b border-border/40 pb-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <BookMarked className="h-4 w-4 shrink-0 text-primary/70" />
                     <button
                       onClick={() => onOpenCategory(c.id)}
                       className="truncate text-lg font-semibold tracking-tight hover:text-primary"
@@ -1793,12 +1816,12 @@ function SpacePane({
                       {c.name}
                     </button>
                     {c.description && (
-                      <p className="line-clamp-1 text-sm text-muted-foreground">
-                        {c.description}
-                      </p>
+                      <span className="hidden truncate text-xs text-muted-foreground md:inline">
+                        — {c.description}
+                      </span>
                     )}
                   </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                     {pages.length} page{pages.length === 1 ? "" : "s"}
                   </span>
                 </div>
