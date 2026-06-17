@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { KnowledgeBackendWorkspace } from "@/components/knowledge/KnowledgeBackendWorkspace";
 
 export const Route = createFileRoute("/documents")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -10,8 +9,7 @@ export const Route = createFileRoute("/documents")({
       { title: "Knowledge Base · IT Knowledge Center" },
       {
         name: "description",
-        content:
-          "Browse the team knowledge base — books, chapters and pages served live from the backend.",
+        content: "Knowledge base.",
       },
     ],
   }),
@@ -19,9 +17,5 @@ export const Route = createFileRoute("/documents")({
 });
 
 function KnowledgeBasePage() {
-  return (
-    <div className="-mt-2">
-      <KnowledgeBackendWorkspace />
-    </div>
-  );
+  return <div />;
 }
