@@ -51,6 +51,11 @@ import {
   Share2,
   Info,
   User as UserIcon,
+  Star,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Palette,
+  Check,
 } from "lucide-react";
 
 
