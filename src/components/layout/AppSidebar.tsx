@@ -55,7 +55,7 @@ const groups = [
       { title: "Tickets", url: "/tickets", icon: Ticket },
       { title: "My Requests", url: "/my-requests", icon: Inbox },
       { title: "Service Catalog", url: "/service-catalog", icon: ShoppingBag },
-      { title: "Notifications", url: "/notifications", icon: Bell },
+      
     ],
   },
   {
