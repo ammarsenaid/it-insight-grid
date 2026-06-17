@@ -1997,8 +1997,21 @@ function CategoryPane({
       </div>
 
       {visible.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/40 p-8 text-center text-xs text-muted-foreground">
-          No pages here yet.
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/50 bg-card/30 p-10 text-center">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-sm font-medium">No pages in this chapter</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Create the first page to start documenting this topic.
+            </p>
+          </div>
+          {perms.create && !category.is_archived && (
+            <Button size="sm" className="mt-1 h-8 text-xs" onClick={onNewArticle}>
+              <Plus className="mr-1 h-3 w-3" /> New page
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
