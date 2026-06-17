@@ -806,3 +806,202 @@ function KV({ k, v, icon: Icon }: { k: string; v: React.ReactNode; icon?: React.
     </div>
   );
 }
+
+// ---------- New presentation helpers ----------
+
+function pickCategoryIcon(category: string | null | undefined): React.ComponentType<{ className?: string }> {
+  const c = (category ?? "").toLowerCase();
+  if (c.includes("hardware") || c.includes("laptop") || c.includes("device")) return Laptop;
+  if (c.includes("software") || c.includes("app")) return AppWindow;
+  if (c.includes("account") || c.includes("access") || c.includes("user")) return UserCircle2;
+  if (c.includes("network") || c.includes("wifi") || c.includes("vpn")) return Wifi;
+  if (c.includes("print")) return Printer;
+  if (c.includes("mail") || c.includes("email")) return Mail;
+  if (c.includes("security") || c.includes("incident")) return ShieldAlert;
+  return HelpCircle;
+}
+
+function priorityIconColor(p: TicketPriority): string {
+  return p === "critical" ? "text-[#FF7C91]"
+    : p === "high" ? "text-[#FFC86B]"
+    : p === "normal" ? "text-[#5B8CFF]"
+    : "text-muted-foreground";
+}
+
+function HeroFact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 min-w-0 truncate">{children}</div>
+    </div>
+  );
+}
+
+function Avatar({ text, tone = "violet" }: { text: string; tone?: "violet" | "emerald" | "blue" }) {
+  const toneClass = tone === "emerald"
+    ? "bg-[#52D6A4]/20 text-[#52D6A4] ring-[#52D6A4]/30"
+    : tone === "blue"
+      ? "bg-[#5B8CFF]/20 text-[#5B8CFF] ring-[#5B8CFF]/30"
+      : "bg-[#A78BFA]/20 text-[#C4B5FD] ring-[#A78BFA]/30";
+  return (
+    <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold ring-1 ${toneClass}`}>
+      {text}
+    </span>
+  );
+}
+
+function TabPill({ value, icon: Icon, label, count }: { value: string; icon: React.ComponentType<{ className?: string }>; label: string; count?: number }) {
+  return (
+    <TabsTrigger
+      value={value}
+      className="gap-1.5 rounded-lg border border-transparent bg-transparent px-3 py-1.5 text-xs text-muted-foreground transition data-[state=active]:border-primary/40 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+      {typeof count === "number" && count > 0 && (
+        <span className="ml-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] text-muted-foreground data-[state=active]:bg-primary/20">{count}</span>
+      )}
+    </TabsTrigger>
+  );
+}
+
+function ConversationList({
+  comments,
+  pmap,
+  userId,
+}: {
+  comments: { id: string; authorId: string; body: string; internal: boolean; createdAt: string }[];
+  pmap: Map<string, { id: string; displayName: string }>;
+  userId: string;
+}) {
+  if (comments.length === 0) {
+    return <p className="text-xs text-muted-foreground">No messages yet.</p>;
+  }
+  return (
+    <div className="space-y-3">
+      {comments.map((c) => {
+        const name = nameOf(c.authorId, pmap);
+        const mine = c.authorId === userId;
+        const initials = name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
+        return (
+          <div key={c.id} className="flex items-start gap-3">
+            <Avatar text={initials} tone={mine ? "violet" : "blue"} />
+            <div className={`min-w-0 flex-1 rounded-xl border p-3 ${c.internal ? "border-[#FFC86B]/30 bg-[#FFC86B]/5" : "border-border/40 bg-background/30"}`}>
+              <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
+                <span className="font-medium">
+                  {name}
+                  {c.internal && (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded bg-[#FFC86B]/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-[#FFC86B]">
+                      <Lock className="h-2.5 w-2.5" /> Internal
+                    </span>
+                  )}
+                </span>
+                <span className="text-muted-foreground" suppressHydrationWarning>{timeAgo(c.createdAt)}</span>
+              </div>
+              <p className="whitespace-pre-line text-sm">{c.body}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ReplyComposer({
+  value,
+  onChange,
+  onSend,
+  pending,
+  internal,
+  setInternal,
+  internalAllowed,
+  me,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSend: () => void;
+  pending: boolean;
+  internal: boolean;
+  setInternal: (v: boolean) => void;
+  internalAllowed: boolean;
+  me: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <Avatar text={me} tone="violet" />
+      <div className="min-w-0 flex-1 rounded-xl border border-border/50 bg-background/40 focus-within:border-primary/40">
+        <Textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={internal ? "Add an internal note (visible only to IT)…" : "Type your reply…"}
+          rows={3}
+          disabled={pending}
+          className="resize-none border-0 bg-transparent px-3 py-2 text-sm shadow-none focus-visible:ring-0"
+        />
+        <div className="flex items-center justify-between gap-2 border-t border-border/40 px-2 py-1.5">
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Button type="button" size="icon" variant="ghost" className="h-7 w-7"><Paperclip className="h-3.5 w-3.5" /></Button>
+            <Button type="button" size="icon" variant="ghost" className="h-7 w-7"><Smile className="h-3.5 w-3.5" /></Button>
+            <Button type="button" size="icon" variant="ghost" className="h-7 w-7"><AtSign className="h-3.5 w-3.5" /></Button>
+            <Button type="button" size="icon" variant="ghost" className="h-7 w-7"><ImageIcon className="h-3.5 w-3.5" /></Button>
+            {internalAllowed && (
+              <label className="ml-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} className="accent-primary" />
+                <Lock className="h-3 w-3" /> Internal
+              </label>
+            )}
+          </div>
+          <Button size="sm" onClick={onSend} disabled={pending} className="gap-1.5">
+            <Send className="h-3.5 w-3.5" />
+            {pending ? "Sending…" : "Send Reply"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ k, v }: { k: React.ReactNode; v: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-xs text-muted-foreground">{k}</span>
+      <span className="text-right text-sm">{v}</span>
+    </div>
+  );
+}
+
+function PersonRow({ label, name, tone }: { label: string; name: string | null; tone: "violet" | "emerald" }) {
+  const initials = (name ?? "—").split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      {name ? (
+        <span className="inline-flex items-center gap-2 text-sm">
+          <Avatar text={initials} tone={tone} />
+          <span className="truncate">{name}</span>
+        </span>
+      ) : (
+        <span className="text-sm text-[#FFC86B]">Unassigned</span>
+      )}
+    </div>
+  );
+}
+
+function activityToneBg(tone: string) {
+  switch (tone) {
+    case "success": return "bg-[#52D6A4]/15";
+    case "danger":  return "bg-[#FF7C91]/15";
+    case "warning": return "bg-[#FFC86B]/15";
+    case "info":    return "bg-[#5B8CFF]/15";
+    default:        return "bg-muted/40";
+  }
+}
+function activityToneFg(tone: string) {
+  switch (tone) {
+    case "success": return "text-[#52D6A4]";
+    case "danger":  return "text-[#FF7C91]";
+    case "warning": return "text-[#FFC86B]";
+    case "info":    return "text-[#5B8CFF]";
+    default:        return "text-muted-foreground";
+  }
+}
