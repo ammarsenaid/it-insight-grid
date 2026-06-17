@@ -1243,6 +1243,8 @@ function MainPane(p: MainPaneProps) {
         onOpenSpace={(id) => setSelection({ kind: "space", id })}
         onOpenArticle={openArticle}
         onNewSpace={p.onNewSpace}
+        onNewArticle={(spaceId) => p.onNewArticle(spaceId, null)}
+        onReload={p.onReload}
       />
     );
   }
@@ -1353,6 +1355,8 @@ function HomePane({
   onOpenSpace,
   onOpenArticle,
   onNewSpace,
+  onNewArticle,
+  onReload,
 }: {
   data: MainPaneProps["data"];
   recent: MainPaneProps["recent"];
@@ -1362,10 +1366,19 @@ function HomePane({
   onOpenSpace: (id: string) => void;
   onOpenArticle: (id: string) => void;
   onNewSpace: () => void;
+  onNewArticle: (spaceId: string) => void;
+  onReload: () => void;
 }) {
   const visibleSpaces = data.spaces.filter((s) => !s.is_archived);
+  const archivedSpaces = data.spaces.filter((s) => s.is_archived).length;
+  const visibleCategories = data.categories.filter((c) => !c.is_archived).length;
   const publishedCount = data.articles.filter((a) => a.status === "published").length;
+  const draftCount = data.articles.filter(
+    (a) => a.status === "draft" || a.status === "in_review",
+  ).length;
+  const archivedPages = data.articles.filter((a) => a.status === "archived").length;
   const totalPages = data.articles.filter((a) => a.status !== "archived").length;
+  const firstSpaceId = visibleSpaces[0]?.id ?? null;
   const recentlyUpdated = useMemo(
     () =>
       [...data.articles]
@@ -1403,24 +1416,59 @@ function HomePane({
       {/* Hero */}
       <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/15 via-card/60 to-card/40 p-6 md:p-8">
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
-        <div className="relative flex flex-col gap-4">
-          <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
-            <Sparkles className="h-3 w-3" /> Knowledge Center
+        <div className="relative flex flex-col gap-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                <Sparkles className="h-3 w-3" /> Knowledge Center
+              </div>
+              <h1 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight md:text-4xl">
+                Your team's living source of truth.
+              </h1>
+              <p className="mt-2 max-w-xl text-sm text-muted-foreground md:text-[15px]">
+                Browse runbooks, onboarding guides and architectural decisions —
+                organised the way your team actually works.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {perms.manageTeam && (
+                <Button size="sm" className="h-8 text-xs" onClick={onNewSpace}>
+                  <Plus className="mr-1 h-3 w-3" /> New book
+                </Button>
+              )}
+              {perms.create && firstSpaceId && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 text-xs"
+                  onClick={() => onNewArticle(firstSpaceId)}
+                >
+                  <FileText className="mr-1 h-3 w-3" /> New page
+                </Button>
+              )}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={onReload}
+                title="Refresh"
+                aria-label="Refresh"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
-          <h1 className="max-w-2xl text-2xl font-semibold tracking-tight md:text-4xl">
-            Your team's living source of truth.
-          </h1>
-          <p className="max-w-xl text-sm text-muted-foreground md:text-base">
-            Browse runbooks, onboarding guides and architectural decisions —
-            organised the way your team actually works.
-          </p>
-          <div className="mt-2 grid grid-cols-3 gap-3 text-sm md:max-w-md">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <Stat label="Books" value={visibleSpaces.length} />
+            <Stat label="Chapters" value={visibleCategories} />
+            <Stat label="Pages" value={totalPages} />
             <Stat label="Published" value={publishedCount} />
-            <Stat label="Total pages" value={totalPages} />
+            <Stat label="In progress" value={draftCount} />
+            <Stat label="Archived" value={archivedSpaces + archivedPages} />
           </div>
         </div>
       </div>
+
 
       {/* Books grid */}
       <div>
@@ -2432,9 +2480,9 @@ function SectionHeading({
 
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-card/40 px-3 py-2">
-      <div className="text-xl font-semibold tracking-tight">{value}</div>
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+    <div className="rounded-lg border border-border/60 bg-card/50 px-3 py-2 backdrop-blur">
+      <div className="text-lg font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
     </div>
