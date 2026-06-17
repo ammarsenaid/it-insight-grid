@@ -28,6 +28,7 @@ import { MetricCard } from "@/components/common/MetricCard";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { FormDrawer } from "@/components/common/FormDrawer";
+import { TicketComposer, type TicketComposerValues } from "@/components/service-desk/TicketComposer";
 import { timeAgo } from "@/components/common/format";
 
 import { Button } from "@/components/ui/button";
