@@ -24,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useData, updateSettings } from "@/lib/data/store";
 import { CommandPalette } from "@/components/common/CommandPalette";
-import { NotificationDrawer } from "@/components/common/NotificationDrawer";
+import { NotificationPopover } from "@/components/common/NotificationPopover";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -34,7 +34,7 @@ import { unreadNotificationsQuery } from "@/lib/service-desk/queries";
 export function TopHeader() {
   const [q, setQ] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
+  
   const navigate = useNavigate();
   const data = useData();
   const { profile, user, session, signOut, isPlatformAdmin } = useAuth();
@@ -75,7 +75,7 @@ export function TopHeader() {
         <SidebarTrigger className="h-9 w-9" />
 
         <form
-          className="relative ml-2 hidden flex-1 max-w-xl md:block"
+          className="relative ml-2 hidden w-full max-w-sm md:block"
           onSubmit={(e) => {
             e.preventDefault();
             navigate({ to: "/search", search: { q } as never });
@@ -94,7 +94,7 @@ export function TopHeader() {
           </kbd>
         </form>
 
-        <div className="flex flex-1 items-center justify-end gap-2 md:flex-none">
+        <div className="ml-auto flex items-center justify-end gap-2">
           <Button size="icon" variant="ghost" className="md:hidden" onClick={() => setPaletteOpen(true)} aria-label="Search">
             <Search className="h-4 w-4" />
           </Button>
@@ -102,21 +102,24 @@ export function TopHeader() {
           {/* Quick Create hidden until Phase 2 backend permission checks. */}
 
 
-          {/* Notification bell — opens drawer */}
-          <Button
-            size="icon"
-            variant="ghost"
-            className="relative"
-            onClick={() => setNotifOpen(true)}
-            aria-label="Notifications"
-          >
-            <Bell className="h-4 w-4" />
-            {unread > 0 && (
-              <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--destructive)] px-1 text-[9px] font-bold text-destructive-foreground">
-                {unread}
-              </span>
-            )}
-          </Button>
+          {/* Notification bell — opens compact popover */}
+          <NotificationPopover
+            trigger={
+              <Button
+                size="icon"
+                variant="ghost"
+                className="relative"
+                aria-label="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+                {unread > 0 && (
+                  <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--destructive)] px-1 text-[9px] font-bold text-destructive-foreground">
+                    {unread}
+                  </span>
+                )}
+              </Button>
+            }
+          />
 
           {/* Profile menu */}
           <DropdownMenu>
@@ -180,7 +183,6 @@ export function TopHeader() {
       </header>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
-      <NotificationDrawer open={notifOpen} onOpenChange={setNotifOpen} />
     </>
   );
 }
