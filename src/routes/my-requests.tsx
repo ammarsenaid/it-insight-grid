@@ -434,32 +434,20 @@ function RequesterCreateDrawer({
   userId: string;
   onCreated: () => void;
 }) {
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState(SUGGESTED_CATEGORIES[0]);
-  const [priority, setPriority] = useState<TicketPriority>("normal");
-
-  const reset = () => {
-    setSubject("");
-    setDescription("");
-    setCategory(SUGGESTED_CATEGORIES[0]);
-    setPriority("normal");
-  };
-
   const mutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (values: import("@/components/service-desk/TicketComposer").TicketComposerValues) =>
       createTicket(userId, {
-        subject: subject.trim(),
-        description: description.trim(),
+        subject: values.subject,
+        description: values.description,
         type: "request",
-        category,
-        priority,
+        category: values.category,
+        priority: values.priority,
+        tags: values.tags,
       }),
     onSuccess: (t) => {
       toast.success(`Request ${t.ticketNumber} submitted`, {
         description: "You'll be notified when IT responds.",
       });
-      reset();
       onOpenChange(false);
       onCreated();
     },
@@ -467,87 +455,23 @@ function RequesterCreateDrawer({
   });
 
   return (
-    <FormDrawer
+    <TicketComposer
       open={open}
-      onOpenChange={(o) => {
-        if (!o) reset();
-        onOpenChange(o);
-      }}
+      onOpenChange={onOpenChange}
       title="Submit a new request"
       description="The IT team will pick this up shortly and respond inside this portal."
-      submitLabel={mutation.isPending ? "Submitting…" : "Submit request"}
-      onSubmit={() => {
+      submitLabel="Submit request"
+      pending={mutation.isPending}
+      categories={REQUEST_CATEGORIES}
+      defaultType="request"
+      showType={false}
+      showSubcategory={false}
+      showTags
+      onSubmit={(values) => {
         if (!userId) return toast.error("You must be signed in");
-        if (subject.trim().length < 4) return toast.error("Subject too short");
-        if (description.trim().length < 8)
-          return toast.error("Please describe the issue (at least 8 characters)");
-        mutation.mutate();
+        mutation.mutate(values);
       }}
-    >
-      <div className="space-y-2">
-        <Label className="text-xs">
-          What do you need help with? <span className="text-destructive">*</span>
-        </Label>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {REQUEST_CATEGORIES.map((c) => {
-            const Icon = c.icon;
-            const active = category === c.value;
-            return (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => setCategory(c.value)}
-                className={`group flex flex-col items-start gap-1.5 rounded-xl border p-2.5 text-left transition-all ${
-                  active
-                    ? "border-primary/60 bg-primary/10 ring-1 ring-primary/40"
-                    : "border-border/60 bg-background/40 hover:border-border hover:bg-white/[0.03]"
-                }`}
-              >
-                <Icon className={`h-4 w-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
-                <div className="text-xs font-medium leading-tight">{c.label}</div>
-                <div className="text-[10px] leading-tight text-muted-foreground">{c.description}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label className="text-xs">
-          Subject <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          placeholder="Short summary"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label className="text-xs">
-          Description <span className="text-destructive">*</span>
-        </Label>
-        <Textarea
-          rows={4}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Please describe the issue or request"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label className="text-xs">Priority</Label>
-        <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PRIORITIES.map((p) => (
-              <SelectItem key={p} value={p}>
-                {cap(p)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-    </FormDrawer>
+    />
   );
 }
+
