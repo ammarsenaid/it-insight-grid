@@ -33,8 +33,8 @@ import { Route as ProtocolsIndexRouteImport } from './routes/protocols.index'
 import { Route as TicketsNewRouteImport } from './routes/tickets.new'
 import { Route as TicketsIdRouteImport } from './routes/tickets.$id'
 import { Route as ServiceCatalogIdRouteImport } from './routes/service-catalog.$id'
+import { Route as RequestsNewRouteImport } from './routes/requests.new'
 import { Route as ProtocolsIdRouteImport } from './routes/protocols.$id'
-import { Route as MyRequestsNewRouteImport } from './routes/my-requests.new'
 import { Route as ApiAdminUsersRouteImport } from './routes/api.admin-users'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTicketSettingsRouteImport } from './routes/admin.ticket-settings'
@@ -165,15 +165,15 @@ const ServiceCatalogIdRoute = ServiceCatalogIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ServiceCatalogRoute,
 } as any)
+const RequestsNewRoute = RequestsNewRouteImport.update({
+  id: '/requests/new',
+  path: '/requests/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProtocolsIdRoute = ProtocolsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => ProtocolsRoute,
-} as any)
-const MyRequestsNewRoute = MyRequestsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => MyRequestsRoute,
 } as any)
 const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
   id: '/api/admin-users',
@@ -229,7 +229,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
-  '/my-requests': typeof MyRequestsRouteWithChildren
+  '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
   '/notifications': typeof NotificationsRoute
   '/protocols': typeof ProtocolsRouteWithChildren
@@ -250,8 +250,8 @@ export interface FileRoutesByFullPath {
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
-  '/my-requests/new': typeof MyRequestsNewRoute
   '/protocols/$id': typeof ProtocolsIdRoute
+  '/requests/new': typeof RequestsNewRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
   '/tickets/new': typeof TicketsNewRoute
@@ -266,7 +266,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
-  '/my-requests': typeof MyRequestsRouteWithChildren
+  '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
   '/notifications': typeof NotificationsRoute
   '/recycle-bin': typeof RecycleBinRoute
@@ -285,8 +285,8 @@ export interface FileRoutesByTo {
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
-  '/my-requests/new': typeof MyRequestsNewRoute
   '/protocols/$id': typeof ProtocolsIdRoute
+  '/requests/new': typeof RequestsNewRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
   '/tickets/new': typeof TicketsNewRoute
@@ -302,7 +302,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/ipam': typeof IpamRoute
-  '/my-requests': typeof MyRequestsRouteWithChildren
+  '/my-requests': typeof MyRequestsRoute
   '/notes': typeof NotesRoute
   '/notifications': typeof NotificationsRoute
   '/protocols': typeof ProtocolsRouteWithChildren
@@ -323,8 +323,8 @@ export interface FileRoutesById {
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
-  '/my-requests/new': typeof MyRequestsNewRoute
   '/protocols/$id': typeof ProtocolsIdRoute
+  '/requests/new': typeof RequestsNewRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
   '/tickets/new': typeof TicketsNewRoute
@@ -362,8 +362,8 @@ export interface FileRouteTypes {
     | '/admin/ticket-settings'
     | '/admin/users'
     | '/api/admin-users'
-    | '/my-requests/new'
     | '/protocols/$id'
+    | '/requests/new'
     | '/service-catalog/$id'
     | '/tickets/$id'
     | '/tickets/new'
@@ -397,8 +397,8 @@ export interface FileRouteTypes {
     | '/admin/ticket-settings'
     | '/admin/users'
     | '/api/admin-users'
-    | '/my-requests/new'
     | '/protocols/$id'
+    | '/requests/new'
     | '/service-catalog/$id'
     | '/tickets/$id'
     | '/tickets/new'
@@ -434,8 +434,8 @@ export interface FileRouteTypes {
     | '/admin/ticket-settings'
     | '/admin/users'
     | '/api/admin-users'
-    | '/my-requests/new'
     | '/protocols/$id'
+    | '/requests/new'
     | '/service-catalog/$id'
     | '/tickets/$id'
     | '/tickets/new'
@@ -451,7 +451,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   DocumentsRoute: typeof DocumentsRoute
   IpamRoute: typeof IpamRoute
-  MyRequestsRoute: typeof MyRequestsRouteWithChildren
+  MyRequestsRoute: typeof MyRequestsRoute
   NotesRoute: typeof NotesRoute
   NotificationsRoute: typeof NotificationsRoute
   ProtocolsRoute: typeof ProtocolsRouteWithChildren
@@ -472,6 +472,7 @@ export interface RootRouteChildren {
   AdminTicketSettingsRoute: typeof AdminTicketSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRoute
+  RequestsNewRoute: typeof RequestsNewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -644,19 +645,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServiceCatalogIdRouteImport
       parentRoute: typeof ServiceCatalogRoute
     }
+    '/requests/new': {
+      id: '/requests/new'
+      path: '/requests/new'
+      fullPath: '/requests/new'
+      preLoaderRoute: typeof RequestsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/protocols/$id': {
       id: '/protocols/$id'
       path: '/$id'
       fullPath: '/protocols/$id'
       preLoaderRoute: typeof ProtocolsIdRouteImport
       parentRoute: typeof ProtocolsRoute
-    }
-    '/my-requests/new': {
-      id: '/my-requests/new'
-      path: '/new'
-      fullPath: '/my-requests/new'
-      preLoaderRoute: typeof MyRequestsNewRouteImport
-      parentRoute: typeof MyRequestsRoute
     }
     '/api/admin-users': {
       id: '/api/admin-users'
@@ -724,18 +725,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface MyRequestsRouteChildren {
-  MyRequestsNewRoute: typeof MyRequestsNewRoute
-}
-
-const MyRequestsRouteChildren: MyRequestsRouteChildren = {
-  MyRequestsNewRoute: MyRequestsNewRoute,
-}
-
-const MyRequestsRouteWithChildren = MyRequestsRoute._addFileChildren(
-  MyRequestsRouteChildren,
-)
-
 interface ProtocolsRouteChildren {
   ProtocolsIdRoute: typeof ProtocolsIdRoute
   ProtocolsIndexRoute: typeof ProtocolsIndexRoute
@@ -785,7 +774,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DocumentsRoute: DocumentsRoute,
   IpamRoute: IpamRoute,
-  MyRequestsRoute: MyRequestsRouteWithChildren,
+  MyRequestsRoute: MyRequestsRoute,
   NotesRoute: NotesRoute,
   NotificationsRoute: NotificationsRoute,
   ProtocolsRoute: ProtocolsRouteWithChildren,
@@ -806,6 +795,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminTicketSettingsRoute: AdminTicketSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
   ApiAdminUsersRoute: ApiAdminUsersRoute,
+  RequestsNewRoute: RequestsNewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
