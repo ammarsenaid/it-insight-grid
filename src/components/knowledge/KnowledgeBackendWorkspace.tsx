@@ -618,43 +618,66 @@ export function KnowledgeBackendWorkspace() {
       </div>
 
       {/* Layout */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
         {/* ───────── Sidebar ───────── */}
         <aside className="lg:sticky lg:top-4 lg:h-[calc(100vh-9rem)]">
-          <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/40 backdrop-blur">
-            <div className="border-b border-border/50 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 ring-1 ring-primary/30">
+          <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-card/70 to-card/30 shadow-lg shadow-black/10 backdrop-blur-xl">
+            {/* Header */}
+            <div className="relative border-b border-border/50 px-4 pb-3 pt-4">
+              <div
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
+              />
+              <div className="mb-3 flex items-center gap-2.5">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/40 via-primary/20 to-primary/5 ring-1 ring-inset ring-primary/30 shadow-inner shadow-primary/10">
                   <Library className="h-4 w-4 text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold tracking-tight">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13px] font-semibold tracking-tight">
                     Knowledge Library
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {data?.spaces.filter((s) => !s.is_archived).length ?? 0} books ·{" "}
-                    {data?.articles.filter((a) => a.status !== "archived").length ?? 0}{" "}
-                    pages
+                  <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Book className="h-2.5 w-2.5" />
+                      {data?.spaces.filter((s) => !s.is_archived).length ?? 0}
+                    </span>
+                    <span className="opacity-40">·</span>
+                    <span className="inline-flex items-center gap-1">
+                      <FileText className="h-2.5 w-2.5" />
+                      {data?.articles.filter((a) => a.status !== "archived").length ?? 0}
+                    </span>
+                    {data && data.tags.length > 0 && (
+                      <>
+                        <span className="opacity-40">·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <TagIcon className="h-2.5 w-2.5" />
+                          {data.tags.length}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="relative">
-                <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <div className="group relative">
+                <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input
                   ref={searchInputRef}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search pages, tags…  (/)"
-                  className="h-9 pl-8 text-sm"
+                  placeholder="Search pages, tags…"
+                  className="h-9 border-border/50 bg-background/40 pl-8 pr-10 text-[13px] transition-colors focus-visible:bg-background/70"
                 />
+                <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border/60 bg-background/60 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                  /
+                </kbd>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-                <Filter className="h-3 w-3 text-muted-foreground" />
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <Filter className="h-3 w-3 text-muted-foreground/70" />
                 <Select
                   value={statusFilter}
                   onValueChange={(v) => setStatusFilter(v as StatusFilter)}
                 >
-                  <SelectTrigger className="h-7 w-[112px] text-[11px]">
+                  <SelectTrigger className="h-6 w-[108px] border-border/40 bg-background/30 px-2 text-[10.5px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -671,7 +694,7 @@ export function KnowledgeBackendWorkspace() {
                     value={tagFilter || "__all__"}
                     onValueChange={(v) => setTagFilter(v === "__all__" ? "" : v)}
                   >
-                    <SelectTrigger className="h-7 w-[100px] text-[11px]">
+                    <SelectTrigger className="h-6 w-[92px] border-border/40 bg-background/30 px-2 text-[10.5px]">
                       <SelectValue placeholder="Tag" />
                     </SelectTrigger>
                     <SelectContent>
@@ -684,7 +707,7 @@ export function KnowledgeBackendWorkspace() {
                     </SelectContent>
                   </Select>
                 )}
-                <label className="ml-auto flex items-center gap-1 text-muted-foreground">
+                <label className="ml-auto flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground">
                   <input
                     type="checkbox"
                     checked={showArchived}
@@ -696,21 +719,32 @@ export function KnowledgeBackendWorkspace() {
               </div>
             </div>
 
-            <nav className="min-h-0 flex-1 overflow-auto p-2">
+            <nav className="min-h-0 flex-1 overflow-auto px-2 py-2">
               <button
                 onClick={() => setSelection({ kind: "home" })}
                 className={cn(
-                  "mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors",
+                  "mb-2 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-all",
                   selection.kind === "home"
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-gradient-to-r from-primary/20 to-primary/5 text-primary shadow-sm shadow-primary/10 ring-1 ring-inset ring-primary/20"
                     : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
                 )}
               >
-                <Compass className="h-4 w-4" /> Overview
+                <Compass className={cn("h-4 w-4", selection.kind === "home" && "text-primary")} />
+                <span>Overview</span>
+                {selection.kind === "home" && (
+                  <Sparkles className="ml-auto h-3 w-3 text-primary/70" />
+                )}
               </button>
 
-              <div className="mb-1 mt-3 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-                Books
+              <div className="mb-1.5 mt-3 flex items-center justify-between px-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+                  Books
+                </div>
+                {data && data.spaces.length > 0 && (
+                  <span className="rounded-full bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground/80">
+                    {data.spaces.filter((s) => showArchived || !s.is_archived).length}
+                  </span>
+                )}
               </div>
 
               {loading && !data ? (
@@ -718,13 +752,16 @@ export function KnowledgeBackendWorkspace() {
               ) : error ? (
                 <InlineError message={error} onRetry={() => void reload()} />
               ) : !data || data.spaces.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
-                  {perms.manageTeam
-                    ? "No books yet — create the first one."
-                    : "No books in this team yet."}
+                <div className="mx-1 rounded-xl border border-dashed border-border/40 bg-background/20 p-5 text-center">
+                  <Book className="mx-auto mb-2 h-5 w-5 text-muted-foreground/60" />
+                  <div className="text-xs text-muted-foreground">
+                    {perms.manageTeam
+                      ? "No books yet — create the first one."
+                      : "No books in this team yet."}
+                  </div>
                 </div>
               ) : (
-                <ul className="space-y-0.5">
+                <ul className="space-y-px">
                   {data.spaces
                     .filter((s) => showArchived || !s.is_archived)
                     .map((space) => (
