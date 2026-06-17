@@ -24,8 +24,6 @@ const EMPTY: KnowledgeBackendData = {
   articles: [],
   tags: [],
   articleTags: [],
-  shelves: [],
-  shelfBooks: [],
 };
 
 export function useKnowledgeBackend(teamId: string | null) {
