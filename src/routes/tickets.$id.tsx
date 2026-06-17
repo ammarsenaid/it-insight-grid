@@ -870,7 +870,7 @@ function ConversationList({
   pmap,
   userId,
 }: {
-  comments: { id: string; authorId: string; body: string; internal: boolean; createdAt: string }[];
+  comments: { id: string; authorId: string | null; body: string; internal: boolean; createdAt: string }[];
   pmap: Map<string, { id: string; displayName: string }>;
   userId: string;
 }) {
