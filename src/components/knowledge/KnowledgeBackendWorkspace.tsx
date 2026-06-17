@@ -1097,28 +1097,29 @@ function SpaceTreeNode({
         )}
         <button
           onClick={() => toggle(space.id)}
-          className="grid h-7 w-6 place-items-center text-muted-foreground/70 transition-colors hover:text-foreground"
+          className="grid h-7 w-4 place-items-center text-muted-foreground/70 transition-colors hover:text-foreground"
           aria-label={open ? "Collapse" : "Expand"}
         >
           {open ? (
-            <ChevronDown className="h-3.5 w-3.5" />
+            <ChevronDown className="h-3 w-3" />
           ) : (
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-3 w-3" />
           )}
         </button>
         <button
           onClick={() => onSelect({ kind: "space", id: space.id })}
-          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left text-[13px]"
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 text-left text-[12.5px]"
           title={space.name}
         >
           <span
             className={cn(
-              "grid h-5 w-5 shrink-0 place-items-center rounded-md bg-gradient-to-br ring-1 ring-inset ring-white/10",
-              spaceAccent(space.id),
+              "grid h-5 w-5 shrink-0 place-items-center rounded-md bg-gradient-to-br shadow-sm ring-1 ring-inset ring-white/15",
+              accent,
             )}
           >
-            <Book className="h-3 w-3 text-white/90" />
+            <Icon className="h-3 w-3 text-white/95" />
           </span>
+
           <span
             className={cn(
               "truncate font-semibold tracking-tight",
