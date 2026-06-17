@@ -164,6 +164,42 @@ function BookCover({
   );
 }
 
+// ---- Polished accents (mirrors the preview workspace look) ----
+const ACCENT_GRADIENTS = [
+  "from-rose-500/80 to-orange-500/70",
+  "from-emerald-500/80 to-teal-500/70",
+  "from-indigo-500/80 to-violet-500/70",
+  "from-sky-500/80 to-cyan-500/70",
+  "from-amber-500/80 to-pink-500/70",
+  "from-fuchsia-500/80 to-purple-500/70",
+];
+function spaceAccent(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return ACCENT_GRADIENTS[Math.abs(h) % ACCENT_GRADIENTS.length];
+}
+
+const STATUS_PILL: Record<string, string> = {
+  draft: "border-slate-500/30 bg-slate-500/10 text-slate-200",
+  in_review: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+  approved: "border-sky-500/30 bg-sky-500/10 text-sky-200",
+  published: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+  archived: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300",
+};
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium",
+        STATUS_PILL[status] ?? "border-border/40 bg-white/[0.04] text-muted-foreground",
+      )}
+    >
+      {STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
+
+
 export function KnowledgeBackendWorkspace() {
   const { teams, contextLoading, contextError, refresh, loading: authLoading } = useAuth();
 
