@@ -618,43 +618,66 @@ export function KnowledgeBackendWorkspace() {
       </div>
 
       {/* Layout */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
         {/* ───────── Sidebar ───────── */}
         <aside className="lg:sticky lg:top-4 lg:h-[calc(100vh-9rem)]">
-          <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/40 backdrop-blur">
-            <div className="border-b border-border/50 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 ring-1 ring-primary/30">
+          <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-card/70 to-card/30 shadow-lg shadow-black/10 backdrop-blur-xl">
+            {/* Header */}
+            <div className="relative border-b border-border/50 px-4 pb-3 pt-4">
+              <div
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
+              />
+              <div className="mb-3 flex items-center gap-2.5">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/40 via-primary/20 to-primary/5 ring-1 ring-inset ring-primary/30 shadow-inner shadow-primary/10">
                   <Library className="h-4 w-4 text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold tracking-tight">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13px] font-semibold tracking-tight">
                     Knowledge Library
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {data?.spaces.filter((s) => !s.is_archived).length ?? 0} books ·{" "}
-                    {data?.articles.filter((a) => a.status !== "archived").length ?? 0}{" "}
-                    pages
+                  <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Book className="h-2.5 w-2.5" />
+                      {data?.spaces.filter((s) => !s.is_archived).length ?? 0}
+                    </span>
+                    <span className="opacity-40">·</span>
+                    <span className="inline-flex items-center gap-1">
+                      <FileText className="h-2.5 w-2.5" />
+                      {data?.articles.filter((a) => a.status !== "archived").length ?? 0}
+                    </span>
+                    {data && data.tags.length > 0 && (
+                      <>
+                        <span className="opacity-40">·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <TagIcon className="h-2.5 w-2.5" />
+                          {data.tags.length}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="relative">
-                <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <div className="group relative">
+                <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input
                   ref={searchInputRef}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search pages, tags…  (/)"
-                  className="h-9 pl-8 text-sm"
+                  placeholder="Search pages, tags…"
+                  className="h-9 border-border/50 bg-background/40 pl-8 pr-10 text-[13px] transition-colors focus-visible:bg-background/70"
                 />
+                <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border/60 bg-background/60 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                  /
+                </kbd>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-                <Filter className="h-3 w-3 text-muted-foreground" />
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <Filter className="h-3 w-3 text-muted-foreground/70" />
                 <Select
                   value={statusFilter}
                   onValueChange={(v) => setStatusFilter(v as StatusFilter)}
                 >
-                  <SelectTrigger className="h-7 w-[112px] text-[11px]">
+                  <SelectTrigger className="h-6 w-[108px] border-border/40 bg-background/30 px-2 text-[10.5px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -671,7 +694,7 @@ export function KnowledgeBackendWorkspace() {
                     value={tagFilter || "__all__"}
                     onValueChange={(v) => setTagFilter(v === "__all__" ? "" : v)}
                   >
-                    <SelectTrigger className="h-7 w-[100px] text-[11px]">
+                    <SelectTrigger className="h-6 w-[92px] border-border/40 bg-background/30 px-2 text-[10.5px]">
                       <SelectValue placeholder="Tag" />
                     </SelectTrigger>
                     <SelectContent>
@@ -684,7 +707,7 @@ export function KnowledgeBackendWorkspace() {
                     </SelectContent>
                   </Select>
                 )}
-                <label className="ml-auto flex items-center gap-1 text-muted-foreground">
+                <label className="ml-auto flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground">
                   <input
                     type="checkbox"
                     checked={showArchived}
@@ -696,21 +719,32 @@ export function KnowledgeBackendWorkspace() {
               </div>
             </div>
 
-            <nav className="min-h-0 flex-1 overflow-auto p-2">
+            <nav className="min-h-0 flex-1 overflow-auto px-2 py-2">
               <button
                 onClick={() => setSelection({ kind: "home" })}
                 className={cn(
-                  "mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors",
+                  "mb-2 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-all",
                   selection.kind === "home"
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-gradient-to-r from-primary/20 to-primary/5 text-primary shadow-sm shadow-primary/10 ring-1 ring-inset ring-primary/20"
                     : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
                 )}
               >
-                <Compass className="h-4 w-4" /> Overview
+                <Compass className={cn("h-4 w-4", selection.kind === "home" && "text-primary")} />
+                <span>Overview</span>
+                {selection.kind === "home" && (
+                  <Sparkles className="ml-auto h-3 w-3 text-primary/70" />
+                )}
               </button>
 
-              <div className="mb-1 mt-3 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-                Books
+              <div className="mb-1.5 mt-3 flex items-center justify-between px-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+                  Books
+                </div>
+                {data && data.spaces.length > 0 && (
+                  <span className="rounded-full bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground/80">
+                    {data.spaces.filter((s) => showArchived || !s.is_archived).length}
+                  </span>
+                )}
               </div>
 
               {loading && !data ? (
@@ -718,13 +752,16 @@ export function KnowledgeBackendWorkspace() {
               ) : error ? (
                 <InlineError message={error} onRetry={() => void reload()} />
               ) : !data || data.spaces.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
-                  {perms.manageTeam
-                    ? "No books yet — create the first one."
-                    : "No books in this team yet."}
+                <div className="mx-1 rounded-xl border border-dashed border-border/40 bg-background/20 p-5 text-center">
+                  <Book className="mx-auto mb-2 h-5 w-5 text-muted-foreground/60" />
+                  <div className="text-xs text-muted-foreground">
+                    {perms.manageTeam
+                      ? "No books yet — create the first one."
+                      : "No books in this team yet."}
+                  </div>
                 </div>
               ) : (
-                <ul className="space-y-0.5">
+                <ul className="space-y-px">
                   {data.spaces
                     .filter((s) => showArchived || !s.is_archived)
                     .map((space) => (
@@ -1004,13 +1041,21 @@ function SpaceTreeNode({
     <li className="mb-0.5">
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-lg pr-1 transition-colors",
-          isSel ? "bg-primary/10" : "hover:bg-white/[0.04]",
+          "group relative flex items-center gap-1 rounded-lg pr-1 transition-all",
+          isSel
+            ? "bg-gradient-to-r from-primary/15 to-primary/5 ring-1 ring-inset ring-primary/20"
+            : "hover:bg-white/[0.04]",
         )}
       >
+        {isSel && (
+          <span
+            aria-hidden
+            className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary"
+          />
+        )}
         <button
           onClick={() => toggle(space.id)}
-          className="grid h-7 w-6 place-items-center text-muted-foreground hover:text-foreground"
+          className="grid h-7 w-6 place-items-center text-muted-foreground/70 transition-colors hover:text-foreground"
           aria-label={open ? "Collapse" : "Expand"}
         >
           {open ? (
@@ -1021,28 +1066,37 @@ function SpaceTreeNode({
         </button>
         <button
           onClick={() => onSelect({ kind: "space", id: space.id })}
-          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left text-sm"
+          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left text-[13px]"
           title={space.name}
         >
           <span
             className={cn(
-              "h-2 w-2 shrink-0 rounded-full bg-gradient-to-br",
+              "grid h-5 w-5 shrink-0 place-items-center rounded-md bg-gradient-to-br ring-1 ring-inset ring-white/10",
               spaceAccent(space.id),
             )}
-          />
+          >
+            <Book className="h-3 w-3 text-white/90" />
+          </span>
           <span
             className={cn(
-              "truncate font-medium",
-              isSel ? "text-primary" : "text-foreground",
+              "truncate font-semibold tracking-tight",
+              isSel ? "text-primary" : "text-foreground/90",
               space.is_archived && "italic text-muted-foreground",
             )}
           >
             {space.name}
           </span>
+          <span className="ml-auto rounded-full bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground/80 opacity-0 transition-opacity group-hover:opacity-100">
+            {categories.length + visibleArticles.length}
+          </span>
         </button>
       </div>
       {open && (
-        <div className="ml-6 border-l border-border/40 pl-2">
+        <div className="relative ml-[14px] mt-0.5 pl-3">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-1 left-0 top-1 w-px bg-gradient-to-b from-border/60 via-border/40 to-transparent"
+          />
           {categories.map((c) => (
             <CategoryTreeNode
               key={c.id}
@@ -1064,7 +1118,7 @@ function SpaceTreeNode({
             />
           ))}
           {categories.length === 0 && uncategorized.length === 0 && (
-            <div className="px-2 py-1 text-[11px] text-muted-foreground/70">
+            <div className="px-2 py-1.5 text-[10.5px] italic text-muted-foreground/60">
               Empty book
             </div>
           )}
@@ -1095,16 +1149,18 @@ function CategoryTreeNode({
   const isSel = selection.kind === "category" && selection.id === category.id;
   if (filterActive && articles.length === 0) return null;
   return (
-    <div className="py-0.5">
+    <div className="py-px">
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-md pr-1",
-          isSel ? "bg-primary/10" : "hover:bg-white/[0.04]",
+          "group flex items-center gap-1 rounded-md pr-1 transition-colors",
+          isSel
+            ? "bg-primary/10 ring-1 ring-inset ring-primary/15"
+            : "hover:bg-white/[0.035]",
         )}
       >
         <button
           onClick={() => toggle(category.id)}
-          className="grid h-6 w-5 place-items-center text-muted-foreground hover:text-foreground"
+          className="grid h-6 w-5 place-items-center text-muted-foreground/60 transition-colors hover:text-foreground"
           aria-label={open ? "Collapse" : "Expand"}
         >
           {open ? (
@@ -1116,27 +1172,36 @@ function CategoryTreeNode({
         <button
           onClick={() => onSelect({ kind: "category", id: category.id })}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-2 py-1 text-left text-[13px]",
-            isSel ? "text-primary" : "text-muted-foreground hover:text-foreground",
+            "flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left text-[12.5px]",
+            isSel ? "text-primary" : "text-foreground/75 hover:text-foreground",
           )}
           title={category.name}
         >
-          <BookMarked className="h-3.5 w-3.5 shrink-0 opacity-70" />
+          <BookMarked
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              isSel ? "text-primary/80" : "text-muted-foreground/70",
+            )}
+          />
           <span
             className={cn(
-              "truncate",
+              "truncate font-medium",
               category.is_archived && "italic text-muted-foreground",
             )}
           >
             {category.name}
           </span>
-          <span className="ml-auto text-[10px] text-muted-foreground/70">
+          <span className="ml-auto rounded-full bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground/70">
             {articles.length}
           </span>
         </button>
       </div>
       {open && (
-        <div className="ml-5 border-l border-border/30 pl-2">
+        <div className="relative ml-[10px] pl-3">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-1 left-0 top-1 w-px bg-border/30"
+          />
           {articles.map((a) => (
             <ArticleTreeRow
               key={a.id}
@@ -1146,7 +1211,7 @@ function CategoryTreeNode({
             />
           ))}
           {articles.length === 0 && (
-            <div className="px-2 py-1 text-[10px] text-muted-foreground/70">
+            <div className="px-2 py-1 text-[10px] italic text-muted-foreground/60">
               No pages
             </div>
           )}
@@ -1170,19 +1235,41 @@ function ArticleTreeRow({
     <button
       onClick={() => onSelect({ kind: "article", id: article.id })}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[12.5px] transition-colors",
+        "group relative flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[12.5px] transition-all",
         isSel
-          ? "bg-primary/15 text-primary"
+          ? "bg-primary/15 font-medium text-primary"
           : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
         article.status === "archived" && "opacity-60",
       )}
       title={article.title}
     >
-      <FileText className="h-3 w-3 shrink-0 opacity-60" />
+      {isSel && (
+        <span
+          aria-hidden
+          className="absolute left-0 top-1/2 h-3.5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary"
+        />
+      )}
+      <FileText
+        className={cn(
+          "h-3 w-3 shrink-0",
+          isSel ? "text-primary/80" : "text-muted-foreground/60 group-hover:text-foreground/70",
+        )}
+      />
       <span className="truncate">{article.title}</span>
       {article.status === "draft" && (
-        <Badge variant="outline" className="ml-auto h-4 shrink-0 text-[9px]">
+        <Badge
+          variant="outline"
+          className="ml-auto h-4 shrink-0 border-amber-500/30 bg-amber-500/10 px-1 text-[9px] text-amber-300/90"
+        >
           Draft
+        </Badge>
+      )}
+      {article.status === "in_review" && (
+        <Badge
+          variant="outline"
+          className="ml-auto h-4 shrink-0 border-blue-500/30 bg-blue-500/10 px-1 text-[9px] text-blue-300/90"
+        >
+          Review
         </Badge>
       )}
     </button>
