@@ -416,14 +416,14 @@ function HomePane({
           title="Books"
           hint="Top-level collections, grouped by domain."
         />
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           {spaces.map((s) => {
             const pages = articles.filter((a) => a.space_id === s.id).length;
             return (
               <button
                 key={s.id}
                 onClick={() => onOpenSpace(s.id)}
-                className="group relative overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70"
+                className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
               >
                 <div
                   className={cn(
@@ -440,8 +440,8 @@ function HomePane({
                   >
                     <BookOpen className="h-5 w-5" />
                   </div>
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold tracking-tight">
+                  <div className="min-w-0 flex-1">
+                    <div className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight group-hover:text-primary">
                       {s.name}
                     </div>
                     <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -449,7 +449,7 @@ function HomePane({
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
+                <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-[11px] text-muted-foreground">
                   <span>{pages} pages</span>
                   <span>Updated {formatDate(s.updated_at)}</span>
                 </div>

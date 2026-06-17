@@ -1477,7 +1477,7 @@ function HomePane({
           title="Books"
           hint="Top-level collections."
         />
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           {visibleSpaces.map((s) => {
             const accent = spaceAccent(s.id);
             const chapters = data.categories.filter(
@@ -1490,7 +1490,7 @@ function HomePane({
               <button
                 key={s.id}
                 onClick={() => onOpenSpace(s.id)}
-                className="group relative overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70"
+                className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
               >
                 <div
                   className={cn(
@@ -1507,8 +1507,8 @@ function HomePane({
                   >
                     <BookOpen className="h-5 w-5" />
                   </div>
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold tracking-tight group-hover:text-primary">
+                  <div className="min-w-0 flex-1">
+                    <div className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight group-hover:text-primary">
                       {s.name}
                     </div>
                     {s.description && (
@@ -1518,9 +1518,14 @@ function HomePane({
                     )}
                   </div>
                 </div>
-                <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>
-                    {chapters} ch · {pages} pg
+                <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1">
+                      <BookMarked className="h-3 w-3" /> {chapters}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <FileText className="h-3 w-3" /> {pages}
+                    </span>
                   </span>
                   <span>Updated {formatDate(s.updated_at)}</span>
                 </div>
@@ -1543,7 +1548,7 @@ function HomePane({
               <button
                 key={a.id}
                 onClick={() => onOpenArticle(a.id)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03] sm:gap-4 sm:px-5"
+                className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03] sm:gap-4 sm:px-5"
               >
                 <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/[0.05] text-muted-foreground">
                   <FileText className="h-4 w-4" />
@@ -1572,6 +1577,7 @@ function HomePane({
                 <span className="hidden w-24 text-right text-[11px] text-muted-foreground md:inline">
                   {formatDate(a.updated_at)}
                 </span>
+                <ChevronRight className="hidden h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
               </button>
             ))}
           </div>
