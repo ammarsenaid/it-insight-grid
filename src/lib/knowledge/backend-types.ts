@@ -83,10 +83,36 @@ export interface KbRevision {
 
 export type BackendNodeType = "space" | "category" | "article";
 
+export interface KbShelf {
+  id: string;
+  team_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  cover_color: string | null;
+  sort_order: number;
+  is_archived: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KbShelfBook {
+  shelf_id: string;
+  space_id: string;
+  team_id: string;
+  sort_order: number;
+  added_at: string;
+}
+
 export interface KnowledgeBackendData {
   spaces: KbSpace[];
   categories: KbCategory[];
   articles: KbArticle[];
   tags: KbTag[];
   articleTags: KbArticleTag[];
+  /** Empty until the knowledge_shelves migration is applied. */
+  shelves: KbShelf[];
+  /** Empty until the knowledge_shelves migration is applied. */
+  shelfBooks: KbShelfBook[];
 }
