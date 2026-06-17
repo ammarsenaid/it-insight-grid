@@ -1243,6 +1243,8 @@ function MainPane(p: MainPaneProps) {
         onOpenSpace={(id) => setSelection({ kind: "space", id })}
         onOpenArticle={openArticle}
         onNewSpace={p.onNewSpace}
+        onNewArticle={(spaceId) => p.onNewArticle(spaceId, null)}
+        onReload={p.onReload}
       />
     );
   }
