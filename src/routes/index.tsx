@@ -115,7 +115,7 @@ function meForRole(role: Role) {
 
 function primaryCreateForRole(role: Role): { label: string; to: string; show: boolean } {
   if (isReadOnly(role)) return { label: "", to: "/", show: false };
-  if (isRequester(role)) return { label: "Submit Request", to: "/service-catalog", show: true };
+  if (isRequester(role)) return { label: "New Request", to: "/my-requests", show: true };
   if (role === "doc_editor") return { label: "New Knowledge Page", to: "/documents", show: true };
   if (role === "helpdesk" || role === "technician" || role === "sd_lead" || role === "network_admin")
     return { label: "New Ticket", to: "/tickets", show: true };
