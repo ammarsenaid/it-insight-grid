@@ -51,6 +51,11 @@ import {
   Share2,
   Info,
   User as UserIcon,
+  Star,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Palette,
+  Check,
 } from "lucide-react";
 
 
@@ -106,6 +111,16 @@ import { AttachmentsPanel } from "./AttachmentsPanel";
 import { AuditLogPanel } from "./AuditLogPanel";
 import { ArticleTOC } from "./ArticleTOC";
 import { useRecentlyViewed } from "@/lib/knowledge/recent";
+import {
+  COVER_ACCENTS,
+  COVER_ICONS,
+  getBookCover,
+  setBookCover,
+  clearBookCover,
+  useBookCovers,
+  type CoverIconKey,
+} from "@/lib/knowledge/bookCovers";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type {
   ArticleStatus,
   KbArticle,
@@ -141,20 +156,122 @@ const STATUS_PILL: Record<string, string> = {
   archived: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300",
 };
 
-// Deterministic accent gradient per book.
-const ACCENT_GRADIENTS = [
-  "from-rose-500/80 to-orange-500/70",
-  "from-emerald-500/80 to-teal-500/70",
-  "from-indigo-500/80 to-violet-500/70",
-  "from-sky-500/80 to-cyan-500/70",
-  "from-amber-500/80 to-pink-500/70",
-  "from-fuchsia-500/80 to-purple-500/70",
-];
-function spaceAccent(seed: string): string {
+// Deterministic accent gradient per book (used as fallback when no override).
+const ACCENT_GRADIENTS = COVER_ACCENTS;
+function deterministicAccent(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
   return ACCENT_GRADIENTS[Math.abs(h) % ACCENT_GRADIENTS.length];
 }
+function spaceAccent(seed: string): string {
+  return getBookCover(seed)?.accent ?? deterministicAccent(seed);
+}
+
+const COVER_ICON_MAP: Record<CoverIconKey, typeof Book> = {
+  book: Book,
+  bookOpen: BookOpen,
+  bookMarked: BookMarked,
+  library: Library,
+  compass: Compass,
+  sparkles: Sparkles,
+  lightbulb: Lightbulb,
+  zap: Zap,
+  fileText: FileText,
+  star: Star,
+};
+
+function spaceIcon(seed: string): typeof Book {
+  const key = getBookCover(seed)?.icon as CoverIconKey | undefined;
+  return (key && COVER_ICON_MAP[key]) || Book;
+}
+
+function BookCoverPicker({
+  spaceId,
+  trigger,
+}: {
+  spaceId: string;
+  trigger: React.ReactNode;
+}) {
+  // Subscribe so the picker re-renders the current selection live.
+  useBookCovers();
+  const current = getBookCover(spaceId);
+  const accent = current?.accent ?? deterministicAccent(spaceId);
+  const iconKey: CoverIconKey = (current?.icon as CoverIconKey) ?? "book";
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-4">
+        <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Palette className="h-3.5 w-3.5" /> Book cover
+        </div>
+
+        <div className="mb-3">
+          <div className="mb-1.5 text-[10.5px] font-medium uppercase tracking-wide text-muted-foreground/70">
+            Color
+          </div>
+          <div className="grid grid-cols-5 gap-1.5">
+            {COVER_ACCENTS.map((a) => {
+              const selected = accent === a;
+              return (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => setBookCover(spaceId, { accent: a, icon: iconKey })}
+                  className={cn(
+                    "relative grid h-9 w-full place-items-center rounded-md bg-gradient-to-br ring-1 ring-inset ring-white/10 transition-transform hover:scale-105",
+                    a,
+                    selected && "ring-2 ring-primary",
+                  )}
+                  aria-label="Pick color"
+                >
+                  {selected && <Check className="h-3.5 w-3.5 text-white" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mb-3">
+          <div className="mb-1.5 text-[10.5px] font-medium uppercase tracking-wide text-muted-foreground/70">
+            Icon
+          </div>
+          <div className="grid grid-cols-5 gap-1.5">
+            {COVER_ICONS.map((key) => {
+              const Icon = COVER_ICON_MAP[key];
+              const selected = iconKey === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setBookCover(spaceId, { accent, icon: key })}
+                  className={cn(
+                    "grid h-9 w-full place-items-center rounded-md border border-border/40 bg-background/40 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground",
+                    selected && "border-primary text-primary",
+                  )}
+                  aria-label={`Pick ${key}`}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {current && (
+          <button
+            type="button"
+            onClick={() => clearBookCover(spaceId)}
+            className="w-full rounded-md border border-border/40 px-2 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+          >
+            Reset to default
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
 function StatusPill({ status }: { status: string }) {
   return (
@@ -199,6 +316,7 @@ export function KnowledgeBackendWorkspace() {
   const [showArchived, setShowArchived] = useState(false);
   const [tagFilter, setTagFilter] = useState<string | "">("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const {
     items: recent,
@@ -523,46 +641,50 @@ export function KnowledgeBackendWorkspace() {
     <div className="space-y-4">
 
       {/* Layout */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-4",
+          sidebarOpen
+            ? "lg:grid-cols-[180px_minmax(0,1fr)] xl:grid-cols-[200px_minmax(0,1fr)]"
+            : "lg:grid-cols-1",
+        )}
+      >
         {/* ───────── Sidebar ───────── */}
-        <aside className="lg:sticky lg:top-4 lg:h-[calc(100vh-9rem)]">
-          <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-card/70 to-card/30 shadow-lg shadow-black/10 backdrop-blur-xl">
-            {/* Header */}
-            <div className="relative border-b border-border/50 px-4 pb-3 pt-4">
-              <div
-                aria-hidden
-                className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
-              />
-              <div className="mb-3 flex items-center gap-2.5">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/40 via-primary/20 to-primary/5 ring-1 ring-inset ring-primary/30 shadow-inner shadow-primary/10">
-                  <Library className="h-4 w-4 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-semibold tracking-tight">
-                    Knowledge Library
+        {sidebarOpen ? (
+          <aside className="lg:sticky lg:top-4 lg:h-[calc(100vh-9rem)]">
+            <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-card/70 to-card/30 shadow-lg shadow-black/10 backdrop-blur-xl">
+              {/* Header */}
+              <div className="relative border-b border-border/50 px-3 pb-2.5 pt-3">
+                <div
+                  aria-hidden
+                  className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
+                />
+                <div className="mb-2.5 flex items-center gap-2">
+                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary/40 via-primary/20 to-primary/5 ring-1 ring-inset ring-primary/30">
+                    <Library className="h-3.5 w-3.5 text-primary" />
                   </div>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[12px] font-semibold tracking-tight">
+                      Library
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Book className="h-2.5 w-2.5" />
                       {data?.spaces.filter((s) => !s.is_archived).length ?? 0}
-                    </span>
-                    <span className="opacity-40">·</span>
-                    <span className="inline-flex items-center gap-1">
+                      <span className="opacity-40">·</span>
                       <FileText className="h-2.5 w-2.5" />
                       {data?.articles.filter((a) => a.status !== "archived").length ?? 0}
-                    </span>
-                    {data && data.tags.length > 0 && (
-                      <>
-                        <span className="opacity-40">·</span>
-                        <span className="inline-flex items-center gap-1">
-                          <TagIcon className="h-2.5 w-2.5" />
-                          {data.tags.length}
-                        </span>
-                      </>
-                    )}
+                    </div>
                   </div>
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground"
+                    title="Collapse sidebar"
+                    aria-label="Collapse sidebar"
+                  >
+                    <PanelLeftClose className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-              </div>
+
               <div className="group relative">
                 <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input
@@ -691,9 +813,20 @@ export function KnowledgeBackendWorkspace() {
             </nav>
           </div>
         </aside>
+        ) : null}
 
         {/* ───────── Main ───────── */}
         <section className="min-w-0">
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+              title="Open sidebar"
+            >
+              <PanelLeftOpen className="h-3.5 w-3.5" /> Library
+            </button>
+          )}
+
           {loading && !data ? (
             <ContentSkeleton />
           ) : error ? (
@@ -936,22 +1069,26 @@ function SpaceTreeNode({
   matched: Set<string> | null;
   filterActive: boolean;
 }) {
+  useBookCovers();
   const open = expanded.has(space.id) || filterActive;
   const isSel = selection.kind === "space" && selection.id === space.id;
   const visibleArticles = matched ? articles.filter((a) => matched.has(a.id)) : articles;
   const uncategorized = visibleArticles.filter((a) => !a.category_id);
   if (filterActive && visibleArticles.length === 0) return null;
+  const Icon = spaceIcon(space.id);
+  const accent = spaceAccent(space.id);
 
   return (
     <li className="mb-0.5">
       <div
         className={cn(
-          "group relative flex items-center gap-1 rounded-lg pr-1 transition-all",
+          "group relative flex items-center gap-0.5 rounded-lg pr-1 transition-all",
           isSel
             ? "bg-gradient-to-r from-primary/15 to-primary/5 ring-1 ring-inset ring-primary/20"
             : "hover:bg-white/[0.04]",
         )}
       >
+
         {isSel && (
           <span
             aria-hidden
@@ -960,28 +1097,29 @@ function SpaceTreeNode({
         )}
         <button
           onClick={() => toggle(space.id)}
-          className="grid h-7 w-6 place-items-center text-muted-foreground/70 transition-colors hover:text-foreground"
+          className="grid h-7 w-4 place-items-center text-muted-foreground/70 transition-colors hover:text-foreground"
           aria-label={open ? "Collapse" : "Expand"}
         >
           {open ? (
-            <ChevronDown className="h-3.5 w-3.5" />
+            <ChevronDown className="h-3 w-3" />
           ) : (
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-3 w-3" />
           )}
         </button>
         <button
           onClick={() => onSelect({ kind: "space", id: space.id })}
-          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left text-[13px]"
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 text-left text-[12.5px]"
           title={space.name}
         >
           <span
             className={cn(
-              "grid h-5 w-5 shrink-0 place-items-center rounded-md bg-gradient-to-br ring-1 ring-inset ring-white/10",
-              spaceAccent(space.id),
+              "grid h-5 w-5 shrink-0 place-items-center rounded-md bg-gradient-to-br shadow-sm ring-1 ring-inset ring-white/15",
+              accent,
             )}
           >
-            <Book className="h-3 w-3 text-white/90" />
+            <Icon className="h-3 w-3 text-white/95" />
           </span>
+
           <span
             className={cn(
               "truncate font-semibold tracking-tight",
@@ -1502,6 +1640,7 @@ function HomePane({
           <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
             {visibleSpaces.map((s) => {
               const accent = spaceAccent(s.id);
+              const BookIcon = spaceIcon(s.id);
               const chapters = data.categories.filter(
                 (c) => c.space_id === s.id && !c.is_archived,
               ).length;
@@ -1509,10 +1648,15 @@ function HomePane({
                 (a) => a.space_id === s.id && a.status !== "archived",
               ).length;
               return (
-                <button
+                <div
                   key={s.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onOpenSpace(s.id)}
-                  className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") onOpenSpace(s.id);
+                  }}
+                  className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
                 >
                   <div
                     className={cn(
@@ -1527,12 +1671,27 @@ function HomePane({
                         accent,
                       )}
                     >
-                      <BookOpen className="h-5 w-5" />
+                      <BookIcon className="h-5 w-5" />
                     </div>
-                    <span className="rounded-full border border-border/50 bg-background/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      {pages} pages
-                    </span>
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <span className="rounded-full border border-border/50 bg-background/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        {pages} pages
+                      </span>
+                      <BookCoverPicker
+                        spaceId={s.id}
+                        trigger={
+                          <button
+                            type="button"
+                            className="grid h-7 w-7 place-items-center rounded-md border border-border/40 bg-background/40 text-muted-foreground opacity-0 transition-all hover:border-primary/40 hover:text-foreground group-hover:opacity-100"
+                            aria-label="Change cover"
+                          >
+                            <Palette className="h-3.5 w-3.5" />
+                          </button>
+                        }
+                      />
+                    </div>
                   </div>
+
                   <div className="mt-4 line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight group-hover:text-primary">
                     {s.name}
                   </div>
@@ -1549,7 +1708,8 @@ function HomePane({
                       <BookMarked className="h-3 w-3" /> {chapters}
                     </span>
                   </div>
-                </button>
+                </div>
+
               );
             })}
           </div>
