@@ -1640,6 +1640,7 @@ function HomePane({
           <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
             {visibleSpaces.map((s) => {
               const accent = spaceAccent(s.id);
+              const BookIcon = spaceIcon(s.id);
               const chapters = data.categories.filter(
                 (c) => c.space_id === s.id && !c.is_archived,
               ).length;
@@ -1647,10 +1648,15 @@ function HomePane({
                 (a) => a.space_id === s.id && a.status !== "archived",
               ).length;
               return (
-                <button
+                <div
                   key={s.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onOpenSpace(s.id)}
-                  className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") onOpenSpace(s.id);
+                  }}
+                  className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
                 >
                   <div
                     className={cn(
@@ -1665,12 +1671,27 @@ function HomePane({
                         accent,
                       )}
                     >
-                      <BookOpen className="h-5 w-5" />
+                      <BookIcon className="h-5 w-5" />
                     </div>
-                    <span className="rounded-full border border-border/50 bg-background/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      {pages} pages
-                    </span>
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <span className="rounded-full border border-border/50 bg-background/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        {pages} pages
+                      </span>
+                      <BookCoverPicker
+                        spaceId={s.id}
+                        trigger={
+                          <button
+                            type="button"
+                            className="grid h-7 w-7 place-items-center rounded-md border border-border/40 bg-background/40 text-muted-foreground opacity-0 transition-all hover:border-primary/40 hover:text-foreground group-hover:opacity-100"
+                            aria-label="Change cover"
+                          >
+                            <Palette className="h-3.5 w-3.5" />
+                          </button>
+                        }
+                      />
+                    </div>
                   </div>
+
                   <div className="mt-4 line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight group-hover:text-primary">
                     {s.name}
                   </div>
