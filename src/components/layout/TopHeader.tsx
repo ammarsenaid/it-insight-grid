@@ -102,21 +102,24 @@ export function TopHeader() {
           {/* Quick Create hidden until Phase 2 backend permission checks. */}
 
 
-          {/* Notification bell — opens drawer */}
-          <Button
-            size="icon"
-            variant="ghost"
-            className="relative"
-            onClick={() => setNotifOpen(true)}
-            aria-label="Notifications"
-          >
-            <Bell className="h-4 w-4" />
-            {unread > 0 && (
-              <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--destructive)] px-1 text-[9px] font-bold text-destructive-foreground">
-                {unread}
-              </span>
-            )}
-          </Button>
+          {/* Notification bell — opens compact popover */}
+          <NotificationPopover
+            trigger={
+              <Button
+                size="icon"
+                variant="ghost"
+                className="relative"
+                aria-label="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+                {unread > 0 && (
+                  <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--destructive)] px-1 text-[9px] font-bold text-destructive-foreground">
+                    {unread}
+                  </span>
+                )}
+              </Button>
+            }
+          />
 
           {/* Profile menu */}
           <DropdownMenu>
