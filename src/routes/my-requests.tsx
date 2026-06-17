@@ -82,7 +82,7 @@ const SUGGESTED_CATEGORIES = REQUEST_CATEGORIES.map((c) => c.value);
 
 function MyRequests() {
   const { session, loading: authLoading } = useAuth();
-  
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const userId = session?.user?.id ?? "";
 
