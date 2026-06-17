@@ -164,6 +164,42 @@ function BookCover({
   );
 }
 
+// ---- Polished accents (mirrors the preview workspace look) ----
+const ACCENT_GRADIENTS = [
+  "from-rose-500/80 to-orange-500/70",
+  "from-emerald-500/80 to-teal-500/70",
+  "from-indigo-500/80 to-violet-500/70",
+  "from-sky-500/80 to-cyan-500/70",
+  "from-amber-500/80 to-pink-500/70",
+  "from-fuchsia-500/80 to-purple-500/70",
+];
+function spaceAccent(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return ACCENT_GRADIENTS[Math.abs(h) % ACCENT_GRADIENTS.length];
+}
+
+const STATUS_PILL: Record<string, string> = {
+  draft: "border-slate-500/30 bg-slate-500/10 text-slate-200",
+  in_review: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+  approved: "border-sky-500/30 bg-sky-500/10 text-sky-200",
+  published: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+  archived: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300",
+};
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium",
+        STATUS_PILL[status] ?? "border-border/40 bg-white/[0.04] text-muted-foreground",
+      )}
+    >
+      {STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
+
+
 export function KnowledgeBackendWorkspace() {
   const { teams, contextLoading, contextError, refresh, loading: authLoading } = useAuth();
 
@@ -1520,86 +1556,129 @@ function SelectionView(p: SelectionViewProps) {
         </div>
       );
     }
-    // BookStack-style "Shelf" overview — colored book covers for every space in the team.
+    // Polished "Library" overview — gradient hero + book cards.
     const visibleSpaces = data.spaces.filter((s) => !s.is_archived);
+    const publishedCount = data.articles.filter((a) => a.status === "published").length;
+    const totalPages = data.articles.filter((a) => a.status !== "archived").length;
     return (
       <div className="h-full overflow-y-auto">
-        <div className="mx-auto max-w-5xl space-y-6 p-1 pb-6">
-          <div className="flex items-end justify-between gap-3 border-b border-border/30 pb-3">
-            <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <Library className="h-3 w-3" /> Shelf
+        <div className="mx-auto max-w-5xl space-y-8 p-1 pb-8">
+          {/* Hero */}
+          <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/15 via-card/60 to-card/40 p-7 md:p-8">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
+            <div className="relative flex flex-col gap-4">
+              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                <Library className="h-3 w-3" /> Knowledge library
               </div>
-              <h2 className="mt-1 font-serif text-2xl font-bold text-foreground">All books</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {visibleSpaces.length} {visibleSpaces.length === 1 ? "book" : "books"} · pick one to
-                read its chapters and pages.
+              <h2 className="max-w-2xl text-2xl font-semibold tracking-tight md:text-3xl">
+                Your team's living source of truth.
+              </h2>
+              <p className="max-w-xl text-sm text-muted-foreground">
+                Browse books, chapters and pages — organised the way your team actually works.
               </p>
-            </div>
-            <div className="hidden text-[10px] text-muted-foreground/70 sm:block">
-              Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to
-              search
+              <div className="mt-1 grid grid-cols-3 gap-3 text-sm md:max-w-md">
+                <div className="rounded-xl border border-border/60 bg-card/40 px-3 py-2">
+                  <div className="text-xl font-semibold tracking-tight">{visibleSpaces.length}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Books</div>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-card/40 px-3 py-2">
+                  <div className="text-xl font-semibold tracking-tight">{publishedCount}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Published</div>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-card/40 px-3 py-2">
+                  <div className="text-xl font-semibold tracking-tight">{totalPages}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total pages</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {visibleSpaces.map((s) => {
-              const chapterCount = data.categories.filter(
-                (c) => c.space_id === s.id && !c.is_archived,
-              ).length;
-              const pageCount = data.articles.filter(
-                (a) => a.space_id === s.id && a.status !== "archived",
-              ).length;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => p.onSelectSpace(s.id)}
-                  className="group flex flex-col items-start gap-3 rounded-xl border border-border/40 bg-white/[0.02] p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-white/[0.04]"
-                >
-                  <div className="flex w-full items-start gap-3">
-                    <BookCover title={s.name} size="md" />
-                    <div className="min-w-0 flex-1">
-                      <div className="line-clamp-2 font-serif text-sm font-semibold leading-tight text-foreground group-hover:text-primary">
-                        {s.name}
+          {/* Books grid */}
+          <div>
+            <div className="mb-4 flex items-end justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="grid h-7 w-7 place-items-center rounded-md bg-white/[0.05] text-primary">
+                  <Book className="h-4 w-4" />
+                </span>
+                <h3 className="text-lg font-semibold tracking-tight">Books</h3>
+              </div>
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {visibleSpaces.map((s) => {
+                const accent = spaceAccent(s.id);
+                const chapterCount = data.categories.filter(
+                  (c) => c.space_id === s.id && !c.is_archived,
+                ).length;
+                const pageCount = data.articles.filter(
+                  (a) => a.space_id === s.id && a.status !== "archived",
+                ).length;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => p.onSelectSpace(s.id)}
+                    className="group relative overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70"
+                  >
+                    <div className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", accent)} />
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={cn(
+                          "grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white shadow-md",
+                          accent,
+                        )}
+                      >
+                        <BookOpen className="h-5 w-5" />
                       </div>
-                      {s.description && (
-                        <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
-                          {s.description}
-                        </p>
-                      )}
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold tracking-tight group-hover:text-primary">
+                          {s.name}
+                        </div>
+                        {s.description && (
+                          <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                            {s.description}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex w-full items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground/80">
-                    <span>
-                      {chapterCount} ch · {pageCount} pg
-                    </span>
-                    <span>Updated {formatDate(s.updated_at)}</span>
-                  </div>
-                </button>
-              );
-            })}
+                    <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>{chapterCount} ch · {pageCount} pg</span>
+                      <span>Updated {formatDate(s.updated_at)}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {p.recent.length > 0 && (
-            <div className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
-              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                <Clock className="h-3 w-3" /> Recently read
+            <div>
+              <div className="mb-4 flex items-end justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-7 w-7 place-items-center rounded-md bg-white/[0.05] text-primary">
+                    <Clock className="h-4 w-4" />
+                  </span>
+                  <h3 className="text-lg font-semibold tracking-tight">Recently read</h3>
+                </div>
               </div>
-              <ul className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
+              <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/60 bg-card/40">
                 {p.recent.map((r) => {
                   const exists = data.articles.some((a) => a.id === r.id);
                   return (
-                    <li key={r.id} className="group flex items-center gap-1">
+                    <div key={r.id} className="group flex items-center gap-3 px-4 py-3">
                       <button
                         type="button"
                         disabled={!exists}
                         onClick={() => exists && onOpenArticle(r.id)}
-                        className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-foreground/80 hover:bg-white/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-not-allowed disabled:opacity-50"
                         title={exists ? r.title : "No longer accessible"}
                       >
-                        <FileText className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{r.title}</span>
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/[0.05] text-muted-foreground">
+                          <FileText className="h-4 w-4" />
+                        </div>
+                        <span className="truncate text-sm font-medium hover:text-primary">{r.title}</span>
                       </button>
                       <button
                         type="button"
@@ -1607,12 +1686,12 @@ function SelectionView(p: SelectionViewProps) {
                         onClick={() => p.onForgetRecent(r.id)}
                         aria-label="Remove"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-3.5 w-3.5" />
                       </button>
-                    </li>
+                    </div>
                   );
                 })}
-              </ul>
+              </div>
             </div>
           )}
         </div>
@@ -1627,42 +1706,54 @@ function SelectionView(p: SelectionViewProps) {
     const arts = data.articles.filter((a) => a.space_id === space.id);
     const chapterCount = cats.filter((c) => !c.is_archived).length;
     const pageCount = arts.filter((a) => a.status !== "archived").length;
+    const accent = spaceAccent(space.id);
     return (
       <div className="h-full overflow-y-auto">
         <div className="mx-auto max-w-4xl space-y-6 pb-6">
           {/* Book hero */}
-          <div className="flex flex-wrap items-end gap-5 border-b border-border/30 pb-5">
-            <BookCover title={space.name} size="lg" />
-            <div className="min-w-0 flex-1">
-              <button
-                type="button"
-                onClick={() => p.onSelectSpace("")}
-                className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
-              >
-                <Library className="h-3 w-3" /> Shelf
-                <ChevronRight className="h-3 w-3 opacity-60" />
-                <span className="text-foreground/80">Book</span>
-              </button>
-              <h2 className="font-serif text-3xl font-bold tracking-tight">{space.name}</h2>
-              {space.description && (
-                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{space.description}</p>
-              )}
-              <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <BookMarked className="h-3 w-3" /> {chapterCount} chapter
-                  {chapterCount === 1 ? "" : "s"}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <FileText className="h-3 w-3" /> {pageCount} page{pageCount === 1 ? "" : "s"}
-                </span>
-                <span>Updated {formatDate(space.updated_at)}</span>
-                {space.is_archived && (
-                  <Badge variant="outline" className="h-4 text-[10px]">
-                    Archived
-                  </Badge>
+          <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-6 md:p-7">
+            <div className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", accent)} />
+            <button
+              type="button"
+              onClick={() => p.onSelectSpace("")}
+              className="mb-2 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+            >
+              <Library className="h-3 w-3" /> Library
+              <ChevronRight className="h-3 w-3 opacity-60" />
+              <span className="text-primary">Book</span>
+            </button>
+            <div className="flex flex-wrap items-start gap-4">
+              <div
+                className={cn(
+                  "grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-md",
+                  accent,
                 )}
+              >
+                <BookOpen className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{space.name}</h2>
+                {space.description && (
+                  <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{space.description}</p>
+                )}
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <BookMarked className="h-3 w-3" /> {chapterCount} chapter
+                    {chapterCount === 1 ? "" : "s"}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <FileText className="h-3 w-3" /> {pageCount} page{pageCount === 1 ? "" : "s"}
+                  </span>
+                  <span>Updated {formatDate(space.updated_at)}</span>
+                  {space.is_archived && (
+                    <Badge variant="outline" className="h-4 text-[10px]">
+                      Archived
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
+
             <div className="ml-auto flex flex-wrap items-center gap-1">
               {perms.create && !space.is_archived && (
                 <Button
@@ -2223,7 +2314,7 @@ function ArticleView({
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-          <Badge variant="outline">{STATUS_LABEL[article.status] ?? article.status}</Badge>
+          <StatusPill status={article.status} />
           <Badge variant="outline">{article.visibility}</Badge>
           <Badge variant="outline">rev {article.revision_number}</Badge>
           {article.published_at && (
