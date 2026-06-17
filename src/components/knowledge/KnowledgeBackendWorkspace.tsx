@@ -652,167 +652,166 @@ export function KnowledgeBackendWorkspace() {
         {/* ───────── Sidebar ───────── */}
         {sidebarOpen ? (
           <aside className="lg:sticky lg:top-4 lg:h-[calc(100vh-9rem)]">
-            <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-card/70 to-card/30 shadow-lg shadow-black/10 backdrop-blur-xl">
+            <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-xl border border-border/50 bg-card/40">
               {/* Header */}
-              <div className="relative border-b border-border/50 px-3 pb-2.5 pt-3">
-                <div
-                  aria-hidden
-                  className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
-                />
-                <div className="mb-2.5 flex items-center gap-2">
-                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary/40 via-primary/20 to-primary/5 ring-1 ring-inset ring-primary/30">
-                    <Library className="h-3.5 w-3.5 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[12px] font-semibold tracking-tight">
-                      Library
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <Book className="h-2.5 w-2.5" />
-                      {data?.spaces.filter((s) => !s.is_archived).length ?? 0}
-                      <span className="opacity-40">·</span>
-                      <FileText className="h-2.5 w-2.5" />
-                      {data?.articles.filter((a) => a.status !== "archived").length ?? 0}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSidebarOpen(false)}
-                    className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground"
-                    title="Collapse sidebar"
-                    aria-label="Collapse sidebar"
-                  >
-                    <PanelLeftClose className="h-3.5 w-3.5" />
-                  </button>
+              <div className="flex items-center justify-between border-b border-border/40 px-3 py-2.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Library className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Library
+                  </span>
+                  <span className="text-[10.5px] tabular-nums text-muted-foreground/60">
+                    {data?.spaces.filter((s) => !s.is_archived).length ?? 0}·
+                    {data?.articles.filter((a) => a.status !== "archived").length ?? 0}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="grid h-6 w-6 place-items-center rounded-md text-muted-foreground/70 transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                  title="Collapse sidebar"
+                  aria-label="Collapse sidebar"
+                >
+                  <PanelLeftClose className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="border-b border-border/40 px-3 py-2">
+                <div className="group relative">
+                  <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+                  <Input
+                    ref={searchInputRef}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search…"
+                    className="h-8 border-border/40 bg-background/30 pl-8 pr-7 text-[12px] focus-visible:bg-background/60"
+                  />
+                  <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground/50">
+                    /
+                  </kbd>
                 </div>
 
-              <div className="group relative">
-                <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                <Input
-                  ref={searchInputRef}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search pages, tags…"
-                  className="h-9 border-border/50 bg-background/40 pl-8 pr-10 text-[13px] transition-colors focus-visible:bg-background/70"
-                />
-                <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border/60 bg-background/60 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-                  /
-                </kbd>
-              </div>
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-                <Filter className="h-3 w-3 text-muted-foreground/70" />
-                <Select
-                  value={statusFilter}
-                  onValueChange={(v) => setStatusFilter(v as StatusFilter)}
-                >
-                  <SelectTrigger className="h-6 w-[108px] border-border/40 bg-background/30 px-2 text-[10.5px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="in_review">In review</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                    <SelectItem value="archived">Archived</SelectItem>
-                  </SelectContent>
-                </Select>
-                {data && data.tags.length > 0 && (
+                {/* Filters */}
+                <div className="mt-2 flex items-center gap-1.5 text-[10.5px]">
                   <Select
-                    value={tagFilter || "__all__"}
-                    onValueChange={(v) => setTagFilter(v === "__all__" ? "" : v)}
+                    value={statusFilter}
+                    onValueChange={(v) => setStatusFilter(v as StatusFilter)}
                   >
-                    <SelectTrigger className="h-6 w-[92px] border-border/40 bg-background/30 px-2 text-[10.5px]">
-                      <SelectValue placeholder="Tag" />
+                    <SelectTrigger className="h-6 flex-1 border-border/30 bg-transparent px-1.5 text-[10.5px] text-muted-foreground hover:text-foreground">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all__">All tags</SelectItem>
-                      {data.tags.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          #{t.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="in_review">In review</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
                     </SelectContent>
                   </Select>
-                )}
-                <label className="ml-auto flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={showArchived}
-                    onChange={(e) => setShowArchived(e.target.checked)}
-                    className="h-3 w-3 accent-primary"
-                  />
-                  Archived
-                </label>
-              </div>
-            </div>
-
-            <nav className="min-h-0 flex-1 overflow-auto px-2 py-2">
-              <button
-                onClick={() => setSelection({ kind: "home" })}
-                className={cn(
-                  "mb-2 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-all",
-                  selection.kind === "home"
-                    ? "bg-gradient-to-r from-primary/20 to-primary/5 text-primary shadow-sm shadow-primary/10 ring-1 ring-inset ring-primary/20"
-                    : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
-                )}
-              >
-                <Compass className={cn("h-4 w-4", selection.kind === "home" && "text-primary")} />
-                <span>Overview</span>
-                {selection.kind === "home" && (
-                  <Sparkles className="ml-auto h-3 w-3 text-primary/70" />
-                )}
-              </button>
-
-              <div className="mb-1.5 mt-3 flex items-center justify-between px-2">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
-                  Books
+                  {data && data.tags.length > 0 && (
+                    <Select
+                      value={tagFilter || "__all__"}
+                      onValueChange={(v) => setTagFilter(v === "__all__" ? "" : v)}
+                    >
+                      <SelectTrigger className="h-6 flex-1 border-border/30 bg-transparent px-1.5 text-[10.5px] text-muted-foreground hover:text-foreground">
+                        <SelectValue placeholder="Tag" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All tags</SelectItem>
+                        {data.tags.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            #{t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <label
+                    className={cn(
+                      "flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 transition-colors",
+                      showArchived
+                        ? "text-foreground"
+                        : "text-muted-foreground/70 hover:text-foreground",
+                    )}
+                    title="Show archived"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={showArchived}
+                      onChange={(e) => setShowArchived(e.target.checked)}
+                      className="hidden"
+                    />
+                    <Archive className="h-3 w-3" />
+                  </label>
                 </div>
-                {data && data.spaces.length > 0 && (
-                  <span className="rounded-full bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground/80">
-                    {data.spaces.filter((s) => showArchived || !s.is_archived).length}
-                  </span>
-                )}
               </div>
 
-              {loading && !data ? (
-                <TreeSkeleton />
-              ) : error ? (
-                <InlineError message={error} onRetry={() => void reload()} />
-              ) : !data || data.spaces.length === 0 ? (
-                <div className="mx-1 rounded-xl border border-dashed border-border/40 bg-background/20 p-5 text-center">
-                  <Book className="mx-auto mb-2 h-5 w-5 text-muted-foreground/60" />
-                  <div className="text-xs text-muted-foreground">
-                    {perms.manageTeam
-                      ? "No books yet — create the first one."
-                      : "No books in this team yet."}
+              {/* Nav */}
+              <nav className="min-h-0 flex-1 overflow-auto px-2 py-2">
+                <button
+                  onClick={() => setSelection({ kind: "home" })}
+                  className={cn(
+                    "mb-2 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] transition-colors",
+                    selection.kind === "home"
+                      ? "bg-white/[0.06] font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-white/[0.03] hover:text-foreground",
+                  )}
+                >
+                  <Compass className="h-3.5 w-3.5" />
+                  <span>Overview</span>
+                </button>
+
+                <div className="mb-1 mt-3 flex items-center justify-between px-2">
+                  <div className="text-[9.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
+                    Books
                   </div>
+                  {data && data.spaces.length > 0 && (
+                    <span className="text-[9.5px] tabular-nums text-muted-foreground/50">
+                      {data.spaces.filter((s) => showArchived || !s.is_archived).length}
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <ul className="space-y-px">
-                  {data.spaces
-                    .filter((s) => showArchived || !s.is_archived)
-                    .map((space) => (
-                      <SpaceTreeNode
-                        key={space.id}
-                        space={space}
-                        categories={data.categories.filter(
-                          (c) =>
-                            c.space_id === space.id && (showArchived || !c.is_archived),
-                        )}
-                        articles={data.articles.filter((a) => a.space_id === space.id)}
-                        expanded={expanded}
-                        toggle={toggle}
-                        selection={selection}
-                        onSelect={setSelection}
-                        matched={filteredArticleIds}
-                        filterActive={!!ql || statusFilter !== "all" || !!tagFilter}
-                      />
-                    ))}
-                </ul>
-              )}
-            </nav>
-          </div>
-        </aside>
+
+                {loading && !data ? (
+                  <TreeSkeleton />
+                ) : error ? (
+                  <InlineError message={error} onRetry={() => void reload()} />
+                ) : !data || data.spaces.length === 0 ? (
+                  <div className="mx-1 rounded-lg border border-dashed border-border/30 p-4 text-center">
+                    <Book className="mx-auto mb-1.5 h-4 w-4 text-muted-foreground/50" />
+                    <div className="text-[11px] text-muted-foreground/70">
+                      {perms.manageTeam
+                        ? "No books yet."
+                        : "No books in this team."}
+                    </div>
+                  </div>
+                ) : (
+                  <ul className="space-y-px">
+                    {data.spaces
+                      .filter((s) => showArchived || !s.is_archived)
+                      .map((space) => (
+                        <SpaceTreeNode
+                          key={space.id}
+                          space={space}
+                          categories={data.categories.filter(
+                            (c) =>
+                              c.space_id === space.id && (showArchived || !c.is_archived),
+                          )}
+                          articles={data.articles.filter((a) => a.space_id === space.id)}
+                          expanded={expanded}
+                          toggle={toggle}
+                          selection={selection}
+                          onSelect={setSelection}
+                          matched={filteredArticleIds}
+                          filterActive={!!ql || statusFilter !== "all" || !!tagFilter}
+                        />
+                      ))}
+                  </ul>
+                )}
+              </nav>
+            </div>
+          </aside>
         ) : null}
 
         {/* ───────── Main ───────── */}
