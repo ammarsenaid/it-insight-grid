@@ -316,6 +316,7 @@ export function KnowledgeBackendWorkspace() {
   const [showArchived, setShowArchived] = useState(false);
   const [tagFilter, setTagFilter] = useState<string | "">("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const {
     items: recent,
