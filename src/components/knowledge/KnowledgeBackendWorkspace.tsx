@@ -813,9 +813,20 @@ export function KnowledgeBackendWorkspace() {
             </nav>
           </div>
         </aside>
+        ) : null}
 
         {/* ───────── Main ───────── */}
         <section className="min-w-0">
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+              title="Open sidebar"
+            >
+              <PanelLeftOpen className="h-3.5 w-3.5" /> Library
+            </button>
+          )}
+
           {loading && !data ? (
             <ContentSkeleton />
           ) : error ? (
