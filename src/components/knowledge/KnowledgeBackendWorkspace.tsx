@@ -899,7 +899,8 @@ export function KnowledgeBackendWorkspace() {
           )}
         </section>
 
-        <aside className="kb-docs-context glass-card hidden h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col overflow-hidden rounded-2xl p-5 xl:flex">
+        {selection?.kind === "article" && (
+          <aside className="kb-docs-context glass-card hidden h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col overflow-hidden rounded-2xl p-5 xl:flex">
           {data && (
             <KnowledgeContextPanel
               data={data}
