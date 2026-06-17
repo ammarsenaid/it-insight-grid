@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { KnowledgeBackendWorkspace } from "@/components/knowledge/KnowledgeBackendWorkspace";
 
 export const Route = createFileRoute("/documents")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -6,16 +7,32 @@ export const Route = createFileRoute("/documents")({
   }),
   head: () => ({
     meta: [
-      { title: "Knowledge Base · IT Knowledge Center" },
+      { title: "Documents · IT Knowledge Center" },
       {
         name: "description",
-        content: "Knowledge base.",
+        content:
+          "Shelves, books, chapters and pages — a BookStack-style knowledge base for your team.",
       },
     ],
   }),
-  component: KnowledgeBasePage,
+  errorComponent: ({ error, reset }) => (
+    <div className="p-8 text-sm text-destructive">
+      Could not load Documents: {error.message}{" "}
+      <button className="underline" onClick={() => reset()}>
+        Retry
+      </button>
+    </div>
+  ),
+  notFoundComponent: () => (
+    <div className="p-8 text-sm text-muted-foreground">Page not found.</div>
+  ),
+  component: DocumentsPage,
 });
 
-function KnowledgeBasePage() {
-  return <div />;
+function DocumentsPage() {
+  return (
+    <div className="-mt-2">
+      <KnowledgeBackendWorkspace />
+    </div>
+  );
 }
