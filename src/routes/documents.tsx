@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BookStackUI } from "@/components/knowledge/BookStackUI";
+import { KnowledgeBackendWorkspace } from "@/components/knowledge/KnowledgeBackendWorkspace";
 
 export const Route = createFileRoute("/documents")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -11,7 +11,7 @@ export const Route = createFileRoute("/documents")({
       {
         name: "description",
         content:
-          "Shelves, books, chapters and pages — a BookStack-style knowledge base for your team.",
+          "Books, chapters and pages — a backend-powered knowledge base for your team.",
       },
     ],
   }),
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/documents")({
 function DocumentsPage() {
   return (
     <div className="-mt-2">
-      <BookStackUI />
+      <KnowledgeBackendWorkspace />
     </div>
   );
 }
