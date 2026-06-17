@@ -21,7 +21,16 @@ import {
   X,
   AlertCircle,
   Lock,
+  Monitor as MonitorIcon,
+  AppWindow,
+  KeyRound as KeyRoundIcon,
+  Wifi,
+  Printer,
+  Mail,
+  ShieldCheck as ShieldCheckIcon,
+  HelpCircle,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import {
   Tooltip,
@@ -111,7 +120,27 @@ const TICKET_PRIORITIES: TicketPriority[] = ["low", "normal", "high", "critical"
 const TICKET_TYPES: TicketType[] = ["request", "incident", "problem", "change"];
 const TICKET_SOURCES = ["portal", "service_catalog", "email", "api"] as const;
 // Free-form on the server; we present a curated list for filtering / creation.
-const SUGGESTED_CATEGORIES = ["Hardware", "Software", "Account & Access", "Networking", "Email", "Other"];
+const SUGGESTED_CATEGORIES = [
+  "Hardware",
+  "Software",
+  "Account & Access",
+  "Network",
+  "Printer",
+  "Email",
+  "Security",
+  "Other",
+];
+const CATEGORY_META: Record<string, { description: string; icon: React.ComponentType<{ className?: string }> }> = {
+  Hardware: { description: "Laptop, monitor, peripherals", icon: MonitorIcon },
+  Software: { description: "Install or fix an app", icon: AppWindow },
+  "Account & Access": { description: "Login, password, permissions", icon: KeyRoundIcon },
+  Network: { description: "Wi-Fi, VPN, connectivity", icon: Wifi },
+  Printer: { description: "Printing or scanning", icon: Printer },
+  Email: { description: "Mailbox, calendar, delivery", icon: Mail },
+  Security: { description: "Suspicious activity, phishing", icon: ShieldCheckIcon },
+  Other: { description: "Something else", icon: HelpCircle },
+};
+
 const SUGGESTED_TEAMS = ["Service Desk", "Field Ops", "Network", "Infrastructure"];
 
 type SortKey = "ticketNumber" | "subject" | "priority" | "status" | "createdAt" | "updatedAt";
@@ -811,6 +840,31 @@ function CreateTicketDrawer({
       submitLabel={mutation.isPending ? "Creating…" : "Create ticket"}
       onSubmit={handleSubmit}
     >
+      <Row label="Category *">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {SUGGESTED_CATEGORIES.map((c) => {
+            const meta = CATEGORY_META[c];
+            const Icon = meta?.icon ?? HelpCircle;
+            const active = category === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategory(c)}
+                className={`flex flex-col items-start gap-1.5 rounded-xl border p-2.5 text-left transition-all ${
+                  active
+                    ? "border-primary/60 bg-primary/10 ring-1 ring-primary/40"
+                    : "border-border/60 bg-background/40 hover:border-border hover:bg-white/[0.03]"
+                }`}
+              >
+                <Icon className={`h-4 w-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                <div className="text-xs font-medium leading-tight">{c}</div>
+                {meta && <div className="text-[10px] leading-tight text-muted-foreground">{meta.description}</div>}
+              </button>
+            );
+          })}
+        </div>
+      </Row>
       <Row label="Subject *">
         <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Short summary of the issue or request" />
       </Row>
@@ -830,12 +884,6 @@ function CreateTicketDrawer({
             <SelectContent>{TICKET_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{cap(p)}</SelectItem>)}</SelectContent>
           </Select>
         </Row>
-        <Row label="Category">
-          <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{SUGGESTED_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-          </Select>
-        </Row>
         <Row label="Subcategory">
           <Input value={subcategory} onChange={(e) => setSubcategory(e.target.value)} placeholder="Optional" />
         </Row>
@@ -843,6 +891,7 @@ function CreateTicketDrawer({
           <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="comma, separated" />
         </Row>
       </div>
+
     </FormDrawer>
   );
 }

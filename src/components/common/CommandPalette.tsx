@@ -21,7 +21,7 @@ import {
   Settings as SettingsIcon,
   Ticket,
   Inbox,
-  ShoppingBag,
+  
   ShieldCheck,
   BarChart3,
   Users,
@@ -42,7 +42,7 @@ const NAV = [
   { label: "Global Search", to: "/search", icon: Search, group: "Knowledge" },
   { label: "Tickets", to: "/tickets", icon: Ticket, group: "Service Desk" },
   { label: "My Requests", to: "/my-requests", icon: Inbox, group: "Service Desk" },
-  { label: "Service Catalog", to: "/service-catalog", icon: ShoppingBag, group: "Service Desk" },
+  
   { label: "CMDB", to: "/cmdb", icon: Server, group: "Operations" },
   { label: "IPAM", to: "/ipam", icon: Network, group: "Operations" },
   { label: "Tasks", to: "/tasks", icon: CheckSquare, group: "Operations" },
