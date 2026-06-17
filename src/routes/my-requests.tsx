@@ -7,12 +7,20 @@ import {
   CheckCircle2,
   Clock,
   PlayCircle,
-  ShoppingBag,
   RefreshCw,
   X,
   ChevronRight,
   AlertCircle,
+  Monitor,
+  AppWindow,
+  KeyRound,
+  Wifi,
+  Printer,
+  Mail,
+  ShieldCheck,
+  HelpCircle,
 } from "lucide-react";
+
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/common/PageHeader";
@@ -56,15 +64,20 @@ type DateFilter = "any" | "24h" | "7d" | "30d";
 const DAY = 24 * 60 * 60 * 1000;
 
 const PRIORITIES: TicketPriority[] = ["low", "normal", "high", "critical"];
-// Suggested categories — actual values are free-form and validated on the server.
-const SUGGESTED_CATEGORIES = [
-  "Hardware",
-  "Software",
-  "Account & Access",
-  "Networking",
-  "Email",
-  "Other",
+
+// Categorized request types — values are persisted as ticket.category.
+const REQUEST_CATEGORIES: { value: string; label: string; description: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: "Hardware", label: "Hardware", description: "Laptop, monitor, peripherals", icon: Monitor },
+  { value: "Software", label: "Software", description: "Install or fix an app", icon: AppWindow },
+  { value: "Account & Access", label: "Account / Access", description: "Login, password, permissions", icon: KeyRound },
+  { value: "Network", label: "Network / Internet", description: "Wi-Fi, VPN, connectivity", icon: Wifi },
+  { value: "Printer", label: "Printer", description: "Printing or scanning issues", icon: Printer },
+  { value: "Email", label: "Email", description: "Mailbox, calendar, delivery", icon: Mail },
+  { value: "Security", label: "Security", description: "Suspicious activity, phishing", icon: ShieldCheck },
+  { value: "Other", label: "Other", description: "Something else", icon: HelpCircle },
 ];
+const SUGGESTED_CATEGORIES = REQUEST_CATEGORIES.map((c) => c.value);
+
 
 function MyRequests() {
   const { session, loading: authLoading } = useAuth();
@@ -159,14 +172,10 @@ function MyRequests() {
         description="Track your submitted requests and respond when needed."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Link to="/service-catalog">
-              <Button variant="secondary" size="sm">
-                <ShoppingBag className="mr-1.5 h-4 w-4" /> Browse catalog
-              </Button>
-            </Link>
             <Button onClick={() => setCreateOpen(true)} size="sm">
               <Plus className="mr-1.5 h-4 w-4" /> New request
             </Button>
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -319,10 +328,11 @@ function MyRequests() {
                 <EmptyState
                   icon={Inbox}
                   title="No requests yet"
-                  description="Submit a request or browse the service catalog to get help from IT."
-                  actionLabel="Browse catalog"
-                  onAction={() => navigate({ to: "/service-catalog" })}
+                  description="Submit a request and the IT team will get back to you."
+                  actionLabel="New request"
+                  onAction={() => setCreateOpen(true)}
                 />
+
               ) : (
                 <EmptyState
                   icon={Inbox}
