@@ -846,7 +846,14 @@ export function KnowledgeBackendWorkspace() {
         </aside>
 
         {/* Main */}
-        <section className="kb-pro-main kb-docs-reader glass-card flex h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col overflow-hidden rounded-2xl p-6">
+        <section
+          className={cn(
+            "kb-pro-main kb-docs-reader glass-card flex min-w-0 flex-col rounded-2xl p-6",
+            selection?.kind === "article"
+              ? "h-[calc(100vh-280px)] min-h-[520px] overflow-hidden"
+              : "min-h-[520px]",
+          )}
+        >
           {loading && !data ? (
             <ContentSkeleton />
           ) : error ? (
