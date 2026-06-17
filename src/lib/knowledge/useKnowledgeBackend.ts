@@ -56,53 +56,37 @@ export function useKnowledgeBackend(teamId: string | null) {
 
     try {
       const sb = getSupabase();
-      const [spacesRes, catsRes, artRes, tagsRes, atRes, shelvesRes, shelfBooksRes] =
-        await Promise.all([
-          sb
-            .from("knowledge_spaces")
-            .select("id, team_id, name, slug, description, is_archived, created_by, created_at, updated_at")
-            .eq("team_id", requestedTeamId)
-            .order("name", { ascending: true }),
-          sb
-            .from("knowledge_categories")
-            .select(
-              "id, team_id, space_id, name, slug, description, sort_order, is_archived, created_by, created_at, updated_at",
-            )
-            .eq("team_id", requestedTeamId)
-            .order("sort_order", { ascending: true })
-            .order("name", { ascending: true }),
-          sb
-            .from("knowledge_articles")
-            .select(
-              "id, team_id, space_id, category_id, title, slug, excerpt, content_markdown, status, visibility, revision_number, created_by, updated_by, published_at, created_at, updated_at",
-            )
-            .eq("team_id", requestedTeamId)
-            .order("updated_at", { ascending: false }),
-          sb
-            .from("knowledge_tags")
-            .select("id, team_id, name, slug, created_at, updated_at")
-            .eq("team_id", requestedTeamId)
-            .order("name", { ascending: true }),
-          sb
-            .from("knowledge_article_tags")
-            .select("article_id, tag_id, team_id")
-            .eq("team_id", requestedTeamId),
-          // Shelves + junction. These tables only exist after the
-          // 20260618000000_knowledge_shelves migration is applied; before
-          // that, the request fails (404/42P01) and we fall back to [].
-          sb
-            .from("knowledge_shelves")
-            .select(
-              "id, team_id, name, slug, description, cover_color, sort_order, is_archived, created_by, created_at, updated_at",
-            )
-            .eq("team_id", requestedTeamId)
-            .order("sort_order", { ascending: true })
-            .order("name", { ascending: true }),
-          sb
-            .from("knowledge_shelf_books")
-            .select("shelf_id, space_id, team_id, sort_order, added_at")
-            .eq("team_id", requestedTeamId),
-        ]);
+      const [spacesRes, catsRes, artRes, tagsRes, atRes] = await Promise.all([
+        sb
+          .from("knowledge_spaces")
+          .select("id, team_id, name, slug, description, is_archived, created_by, created_at, updated_at")
+          .eq("team_id", requestedTeamId)
+          .order("name", { ascending: true }),
+        sb
+          .from("knowledge_categories")
+          .select(
+            "id, team_id, space_id, name, slug, description, sort_order, is_archived, created_by, created_at, updated_at",
+          )
+          .eq("team_id", requestedTeamId)
+          .order("sort_order", { ascending: true })
+          .order("name", { ascending: true }),
+        sb
+          .from("knowledge_articles")
+          .select(
+            "id, team_id, space_id, category_id, title, slug, excerpt, content_markdown, status, visibility, revision_number, created_by, updated_by, published_at, created_at, updated_at",
+          )
+          .eq("team_id", requestedTeamId)
+          .order("updated_at", { ascending: false }),
+        sb
+          .from("knowledge_tags")
+          .select("id, team_id, name, slug, created_at, updated_at")
+          .eq("team_id", requestedTeamId)
+          .order("name", { ascending: true }),
+        sb
+          .from("knowledge_article_tags")
+          .select("article_id, tag_id, team_id")
+          .eq("team_id", requestedTeamId),
+      ]);
 
       // Discard late responses: a newer request has superseded this one,
       // or the consumer has since changed the requested team id.
@@ -112,10 +96,6 @@ export function useKnowledgeBackend(teamId: string | null) {
       ) {
         return;
       }
-
-      // Shelves are optional pre-migration — never fail the whole load on them.
-      const shelvesData = shelvesRes.error ? [] : (shelvesRes.data ?? []);
-      const shelfBooksData = shelfBooksRes.error ? [] : (shelfBooksRes.data ?? []);
 
       const firstErr =
         spacesRes.error || catsRes.error || artRes.error || tagsRes.error || atRes.error;
@@ -137,8 +117,6 @@ export function useKnowledgeBackend(teamId: string | null) {
           articles: (artRes.data ?? []) as KbArticle[],
           tags: (tagsRes.data ?? []) as KbTag[],
           articleTags: (atRes.data ?? []) as KbArticleTag[],
-          shelves: shelvesData as KnowledgeBackendData["shelves"],
-          shelfBooks: shelfBooksData as KnowledgeBackendData["shelfBooks"],
         },
         loading: false,
         error: null,
