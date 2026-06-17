@@ -641,46 +641,50 @@ export function KnowledgeBackendWorkspace() {
     <div className="space-y-4">
 
       {/* Layout */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-4",
+          sidebarOpen
+            ? "lg:grid-cols-[180px_minmax(0,1fr)] xl:grid-cols-[200px_minmax(0,1fr)]"
+            : "lg:grid-cols-1",
+        )}
+      >
         {/* ───────── Sidebar ───────── */}
-        <aside className="lg:sticky lg:top-4 lg:h-[calc(100vh-9rem)]">
-          <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-card/70 to-card/30 shadow-lg shadow-black/10 backdrop-blur-xl">
-            {/* Header */}
-            <div className="relative border-b border-border/50 px-4 pb-3 pt-4">
-              <div
-                aria-hidden
-                className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
-              />
-              <div className="mb-3 flex items-center gap-2.5">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/40 via-primary/20 to-primary/5 ring-1 ring-inset ring-primary/30 shadow-inner shadow-primary/10">
-                  <Library className="h-4 w-4 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-semibold tracking-tight">
-                    Knowledge Library
+        {sidebarOpen ? (
+          <aside className="lg:sticky lg:top-4 lg:h-[calc(100vh-9rem)]">
+            <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-card/70 to-card/30 shadow-lg shadow-black/10 backdrop-blur-xl">
+              {/* Header */}
+              <div className="relative border-b border-border/50 px-3 pb-2.5 pt-3">
+                <div
+                  aria-hidden
+                  className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
+                />
+                <div className="mb-2.5 flex items-center gap-2">
+                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary/40 via-primary/20 to-primary/5 ring-1 ring-inset ring-primary/30">
+                    <Library className="h-3.5 w-3.5 text-primary" />
                   </div>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[12px] font-semibold tracking-tight">
+                      Library
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Book className="h-2.5 w-2.5" />
                       {data?.spaces.filter((s) => !s.is_archived).length ?? 0}
-                    </span>
-                    <span className="opacity-40">·</span>
-                    <span className="inline-flex items-center gap-1">
+                      <span className="opacity-40">·</span>
                       <FileText className="h-2.5 w-2.5" />
                       {data?.articles.filter((a) => a.status !== "archived").length ?? 0}
-                    </span>
-                    {data && data.tags.length > 0 && (
-                      <>
-                        <span className="opacity-40">·</span>
-                        <span className="inline-flex items-center gap-1">
-                          <TagIcon className="h-2.5 w-2.5" />
-                          {data.tags.length}
-                        </span>
-                      </>
-                    )}
+                    </div>
                   </div>
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground"
+                    title="Collapse sidebar"
+                    aria-label="Collapse sidebar"
+                  >
+                    <PanelLeftClose className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-              </div>
+
               <div className="group relative">
                 <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input
