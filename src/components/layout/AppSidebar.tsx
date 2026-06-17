@@ -12,7 +12,7 @@ import {
   Brain,
   Ticket,
   Inbox,
-  ShoppingBag,
+  
   ShieldCheck,
   BarChart3,
   Users,

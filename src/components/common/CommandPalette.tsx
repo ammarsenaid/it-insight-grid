@@ -21,7 +21,7 @@ import {
   Settings as SettingsIcon,
   Ticket,
   Inbox,
-  ShoppingBag,
+  
   ShieldCheck,
   BarChart3,
   Users,
