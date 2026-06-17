@@ -75,7 +75,7 @@ export function TopHeader() {
         <SidebarTrigger className="h-9 w-9" />
 
         <form
-          className="relative ml-2 hidden flex-1 max-w-xl md:block"
+          className="relative ml-2 hidden w-full max-w-sm md:block"
           onSubmit={(e) => {
             e.preventDefault();
             navigate({ to: "/search", search: { q } as never });
