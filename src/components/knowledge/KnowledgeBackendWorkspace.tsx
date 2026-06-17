@@ -920,6 +920,7 @@ export function KnowledgeBackendWorkspace() {
             />
           )}
         </aside>
+        )}
       </div>
 
       {/* Dialogs */}
