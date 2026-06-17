@@ -1399,220 +1399,443 @@ function HomePane({
     );
   }
 
+  const { profile } = useAuth();
+  const greetingName =
+    (profile?.display_name ?? "").split(" ")[0] ||
+    (profile?.email ?? "").split("@")[0] ||
+    "there";
+
   return (
-    <div className="space-y-8">
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/15 via-card/60 to-card/40 p-6 md:p-8">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
-        <div className="relative flex flex-col gap-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+      {/* ───────── Main column ───────── */}
+      <div className="min-w-0 space-y-8">
+        {/* Hero */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/20 via-card/70 to-card/40 p-6 md:p-8">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary/25 blur-3xl" />
+          <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-indigo-500/15 blur-3xl" />
+          <div className="relative grid gap-6 md:grid-cols-[minmax(0,1fr)_180px] md:items-center">
             <div className="min-w-0">
-              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
-                <Sparkles className="h-3 w-3" /> Knowledge Center
+              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+                <Sparkles className="h-3 w-3" />
+                Welcome back, {greetingName} 👋
               </div>
-              <h1 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight md:text-4xl">
+              <h1 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight md:text-[34px] md:leading-[1.15]">
                 Your team's living source of truth.
               </h1>
               <p className="mt-2 max-w-xl text-sm text-muted-foreground md:text-[15px]">
-                Browse runbooks, onboarding guides and architectural decisions —
-                organised the way your team actually works.
+                Runbooks, onboarding guides, architectural decisions and IT
+                documentation — organised the way your team actually works.
               </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {perms.manageTeam && (
-                <Button size="sm" className="h-8 text-xs" onClick={onNewSpace}>
-                  <Plus className="mr-1 h-3 w-3" /> New book
-                </Button>
-              )}
-              {perms.create && firstSpaceId && (
+              <div className="mt-5 flex flex-wrap items-center gap-1.5">
+                {perms.manageTeam && (
+                  <Button size="sm" className="h-9 text-xs" onClick={onNewSpace}>
+                    <Plus className="mr-1 h-3.5 w-3.5" /> New book
+                  </Button>
+                )}
+                {perms.create && firstSpaceId && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-9 text-xs"
+                    onClick={() => onNewArticle(firstSpaceId)}
+                  >
+                    <FileText className="mr-1 h-3.5 w-3.5" /> New page
+                  </Button>
+                )}
                 <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-8 text-xs"
-                  onClick={() => onNewArticle(firstSpaceId)}
+                  size="icon"
+                  variant="ghost"
+                  className="h-9 w-9"
+                  onClick={onReload}
+                  title="Refresh"
+                  aria-label="Refresh"
                 >
-                  <FileText className="mr-1 h-3 w-3" /> New page
+                  <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
-              )}
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                onClick={onReload}
-                title="Refresh"
-                aria-label="Refresh"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
+              </div>
             </div>
+            <HeroIllustration />
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            <Stat label="Books" value={visibleSpaces.length} />
-            <Stat label="Chapters" value={visibleCategories} />
-            <Stat label="Pages" value={totalPages} />
-            <Stat label="Published" value={publishedCount} />
-            <Stat label="In progress" value={draftCount} />
-            <Stat label="Archived" value={archivedSpaces + archivedPages} />
+
+          <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <Stat
+              icon={<BookOpen className="h-3.5 w-3.5" />}
+              label="Books"
+              value={visibleSpaces.length}
+            />
+            <Stat
+              icon={<BookMarked className="h-3.5 w-3.5" />}
+              label="Chapters"
+              value={visibleCategories}
+            />
+            <Stat
+              icon={<FileText className="h-3.5 w-3.5" />}
+              label="Pages"
+              value={totalPages}
+            />
+            <Stat
+              icon={<CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
+              label="Published"
+              value={publishedCount}
+            />
+            <Stat
+              icon={<Loader2 className="h-3.5 w-3.5 text-amber-400" />}
+              label="In progress"
+              value={draftCount}
+            />
+            <Stat
+              icon={<PencilLine className="h-3.5 w-3.5 text-sky-400" />}
+              label="Drafts"
+              value={archivedPages + archivedSpaces}
+            />
           </div>
         </div>
-      </div>
 
-
-      {/* Books grid */}
-      <div>
-        <SectionHeading
-          icon={<Book className="h-4 w-4" />}
-          title="Books"
-          hint="Top-level collections."
-        />
-        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-          {visibleSpaces.map((s) => {
-            const accent = spaceAccent(s.id);
-            const chapters = data.categories.filter(
-              (c) => c.space_id === s.id && !c.is_archived,
-            ).length;
-            const pages = data.articles.filter(
-              (a) => a.space_id === s.id && a.status !== "archived",
-            ).length;
-            return (
-              <button
-                key={s.id}
-                onClick={() => onOpenSpace(s.id)}
-                className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
-              >
-                <div
-                  className={cn(
-                    "absolute inset-x-0 top-0 h-1 bg-gradient-to-r",
-                    accent,
-                  )}
-                />
-                <div className="flex items-start gap-3">
+        {/* Books grid */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <SectionHeading
+              icon={<Book className="h-4 w-4" />}
+              title="Books"
+              hint="Top-level collections."
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+            {visibleSpaces.map((s) => {
+              const accent = spaceAccent(s.id);
+              const chapters = data.categories.filter(
+                (c) => c.space_id === s.id && !c.is_archived,
+              ).length;
+              const pages = data.articles.filter(
+                (a) => a.space_id === s.id && a.status !== "archived",
+              ).length;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => onOpenSpace(s.id)}
+                  className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
+                >
                   <div
                     className={cn(
-                      "grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white shadow-md",
+                      "absolute inset-x-0 top-0 h-1 bg-gradient-to-r",
                       accent,
                     )}
-                  >
-                    <BookOpen className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight group-hover:text-primary">
-                      {s.name}
+                  />
+                  <div className="flex items-start justify-between gap-3">
+                    <div
+                      className={cn(
+                        "grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white shadow-md",
+                        accent,
+                      )}
+                    >
+                      <BookOpen className="h-5 w-5" />
                     </div>
-                    {s.description && (
-                      <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {s.description}
-                      </div>
-                    )}
+                    <span className="rounded-full border border-border/50 bg-background/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {pages} pages
+                    </span>
                   </div>
-                </div>
-                <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-[11px] text-muted-foreground">
-                  <span className="inline-flex items-center gap-2">
+                  <div className="mt-4 line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight group-hover:text-primary">
+                    {s.name}
+                  </div>
+                  {s.description && (
+                    <div className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+                      {s.description}
+                    </div>
+                  )}
+                  <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-[11px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> Updated {formatDate(s.updated_at)}
+                    </span>
                     <span className="inline-flex items-center gap-1">
                       <BookMarked className="h-3 w-3" /> {chapters}
                     </span>
-                    <span className="inline-flex items-center gap-1">
-                      <FileText className="h-3 w-3" /> {pages}
-                    </span>
-                  </span>
-                  <span>Updated {formatDate(s.updated_at)}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Recently updated (from backend) */}
-      {recentlyUpdated.length > 0 && (
-        <div>
-          <SectionHeading
-            icon={<Clock className="h-4 w-4" />}
-            title="Recently updated"
-            hint="Latest edits across all books."
-          />
-          <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/60 bg-card/40">
-            {recentlyUpdated.map((a) => (
-              <button
-                key={a.id}
-                onClick={() => onOpenArticle(a.id)}
-                className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03] sm:gap-4 sm:px-5"
-              >
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/[0.05] text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{a.title}</div>
-                  {a.excerpt && (
-                    <div className="truncate text-xs text-muted-foreground">
-                      {a.excerpt}
-                    </div>
-                  )}
-                </div>
-                <div className="hidden items-center gap-2 sm:flex">
-                  {(tagsByArticle.get(a.id) ?? []).slice(0, 2).map((t) => (
-                    <Badge
-                      key={t}
-                      variant="outline"
-                      className="border-border/40 text-[10px] font-normal"
-                    >
-                      <TagIcon className="mr-1 h-2.5 w-2.5" />
-                      {t}
-                    </Badge>
-                  ))}
-                </div>
-                <StatusPill status={a.status} />
-                <span className="hidden w-24 text-right text-[11px] text-muted-foreground md:inline">
-                  {formatDate(a.updated_at)}
-                </span>
-                <ChevronRight className="hidden h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Recently opened by me */}
-      {recent.length > 0 && (
-        <div>
-          <SectionHeading
-            icon={<History className="h-4 w-4" />}
-            title="Recently opened by you"
-          />
-          <div className="grid gap-2 sm:grid-cols-2">
-            {recent.slice(0, 6).map((r) => {
-              const exists = data.articles.some((a) => a.id === r.id);
-              return (
-                <div
-                  key={r.id}
-                  className="group flex items-center gap-2 rounded-xl border border-border/40 bg-card/30 px-3 py-2"
-                >
-                  <button
-                    type="button"
-                    disabled={!exists}
-                    onClick={() => exists && onOpenArticle(r.id)}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate text-sm">{r.title}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
-                    onClick={() => onForgetRecent(r.id)}
-                    aria-label="Forget"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
+                  </div>
+                </button>
               );
             })}
           </div>
         </div>
-      )}
+
+        {/* Recently updated (from backend) */}
+        {recentlyUpdated.length > 0 && (
+          <div>
+            <SectionHeading
+              icon={<Clock className="h-4 w-4" />}
+              title="Recently updated"
+              hint="Latest edits across all books."
+            />
+            <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/60 bg-card/40">
+              {recentlyUpdated.map((a) => {
+                const sp = data.spaces.find((x) => x.id === a.space_id);
+                const ch = a.category_id
+                  ? data.categories.find((c) => c.id === a.category_id)
+                  : null;
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => onOpenArticle(a.id)}
+                    className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03] sm:gap-4 sm:px-5"
+                  >
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/[0.05] text-muted-foreground">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{a.title}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {sp?.name ?? "—"}
+                        {ch ? ` · ${ch.name}` : ""}
+                      </div>
+                    </div>
+                    <StatusPill status={a.status} />
+                    <span className="hidden w-24 text-right text-[11px] text-muted-foreground md:inline">
+                      {formatDate(a.updated_at)}
+                    </span>
+                    <ChevronRight className="hidden h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ───────── Right rail ───────── */}
+      <aside className="space-y-4">
+        {/* Stay productive */}
+        <div className="rounded-xl border border-border/60 bg-card/40 p-4">
+          <div className="flex items-center gap-2">
+            <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-primary">
+              <Sparkles className="h-3.5 w-3.5" />
+            </div>
+            <div className="text-sm font-semibold">Stay productive</div>
+          </div>
+          <ul className="mt-3 space-y-3">
+            <TipItem
+              icon={<LayoutTemplate className="h-3.5 w-3.5" />}
+              title="Use templates"
+              body="Create consistent, high-quality content faster."
+            />
+            <TipItem
+              icon={<Link2 className="h-3.5 w-3.5" />}
+              title="Link your content"
+              body="Connect pages, assets and decisions for context."
+            />
+            <TipItem
+              icon={<RefreshCw className="h-3.5 w-3.5" />}
+              title="Keep it current"
+              body="Review and update content regularly."
+            />
+          </ul>
+        </div>
+
+        {/* Quick shortcuts */}
+        <div className="rounded-xl border border-border/60 bg-card/40 p-4">
+          <div className="mb-3 text-sm font-semibold">Quick shortcuts</div>
+          <div className="space-y-1">
+            {perms.manageTeam && (
+              <ShortcutItem
+                icon={<BookOpen className="h-3.5 w-3.5" />}
+                label="New book"
+                onClick={onNewSpace}
+                trailing={<Plus className="h-3.5 w-3.5" />}
+              />
+            )}
+            {perms.create && firstSpaceId && (
+              <ShortcutItem
+                icon={<FileText className="h-3.5 w-3.5" />}
+                label="New page"
+                onClick={() => onNewArticle(firstSpaceId)}
+                trailing={<Plus className="h-3.5 w-3.5" />}
+              />
+            )}
+            <ShortcutItem
+              icon={<Upload className="h-3.5 w-3.5" />}
+              label="Import content"
+              onClick={() => toast.info("Import is coming soon")}
+            />
+            <ShortcutItem
+              icon={<LayoutTemplate className="h-3.5 w-3.5" />}
+              label="Templates"
+              onClick={() => toast.info("Templates are coming soon")}
+            />
+            <ShortcutItem
+              icon={<Archive className="h-3.5 w-3.5" />}
+              label="Archive"
+              onClick={() => toast.info("Open the Archived filter to browse archived items")}
+            />
+          </div>
+        </div>
+
+        {/* Recent activity */}
+        {recentlyUpdated.length > 0 && (
+          <div className="rounded-xl border border-border/60 bg-card/40 p-4">
+            <div className="mb-3 text-sm font-semibold">Recent activity</div>
+            <ul className="space-y-3">
+              {recentlyUpdated.slice(0, 4).map((a) => (
+                <li key={a.id} className="flex items-start gap-2.5">
+                  <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-semibold uppercase text-primary">
+                    {(a.title || "?").slice(0, 1)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <button
+                      onClick={() => onOpenArticle(a.id)}
+                      className="block w-full truncate text-left text-[13px] font-medium hover:text-primary"
+                    >
+                      {a.title}
+                    </button>
+                    <div className="text-[11px] text-muted-foreground">
+                      {STATUS_LABEL[a.status] ?? a.status} ·{" "}
+                      {formatDate(a.updated_at)}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Recently opened by me */}
+        {recent.length > 0 && (
+          <div className="rounded-xl border border-border/60 bg-card/40 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <History className="h-3.5 w-3.5 text-muted-foreground" />
+              Opened by you
+            </div>
+            <ul className="space-y-1">
+              {recent.slice(0, 5).map((r) => {
+                const exists = data.articles.some((a) => a.id === r.id);
+                return (
+                  <li
+                    key={r.id}
+                    className="group flex items-center gap-1.5 rounded-lg px-1.5 py-1 hover:bg-white/[0.03]"
+                  >
+                    <button
+                      type="button"
+                      disabled={!exists}
+                      onClick={() => exists && onOpenArticle(r.id)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate text-[13px]">{r.title}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
+                      onClick={() => onForgetRecent(r.id)}
+                      aria-label="Forget"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </aside>
     </div>
   );
 }
+
+function HeroIllustration() {
+  return (
+    <div
+      aria-hidden
+      className="relative hidden h-40 w-full items-center justify-center md:flex"
+    >
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-transparent to-transparent blur-2xl" />
+      <svg
+        viewBox="0 0 200 160"
+        className="relative h-40 w-auto drop-shadow-[0_10px_30px_rgba(99,102,241,0.35)]"
+        fill="none"
+      >
+        <defs>
+          <linearGradient id="kb-book-a" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stopColor="hsl(var(--primary))" stopOpacity="0.95" />
+            <stop offset="1" stopColor="hsl(var(--primary))" stopOpacity="0.55" />
+          </linearGradient>
+          <linearGradient id="kb-book-b" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stopColor="#6366f1" stopOpacity="0.9" />
+            <stop offset="1" stopColor="#312e81" stopOpacity="0.7" />
+          </linearGradient>
+        </defs>
+        <rect x="40" y="60" width="120" height="70" rx="8" fill="url(#kb-book-b)" />
+        <rect x="55" y="40" width="90" height="80" rx="8" fill="url(#kb-book-a)" />
+        <rect x="70" y="55" width="60" height="6" rx="3" fill="white" fillOpacity="0.85" />
+        <rect x="70" y="68" width="40" height="4" rx="2" fill="white" fillOpacity="0.55" />
+        <rect x="70" y="78" width="50" height="4" rx="2" fill="white" fillOpacity="0.4" />
+        <circle cx="160" cy="40" r="14" fill="hsl(var(--primary))" fillOpacity="0.25" />
+        <circle cx="160" cy="40" r="7" fill="hsl(var(--primary))" />
+        <path
+          d="M155 40h10M160 35v10"
+          stroke="white"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <rect x="32" y="118" width="20" height="20" rx="4" fill="#22d3ee" fillOpacity="0.35" />
+        <path
+          d="M37 128h10M42 123v10"
+          stroke="white"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
+function TipItem({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <li className="flex items-start gap-2.5">
+      <div className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md bg-white/[0.04] text-muted-foreground">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-[13px] font-medium leading-tight">{title}</div>
+        <div className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground">
+          {body}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function ShortcutItem({
+  icon,
+  label,
+  onClick,
+  trailing,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+    >
+      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-white/[0.04] text-muted-foreground">
+        {icon}
+      </span>
+      <span className="flex-1 truncate">{label}</span>
+      {trailing && (
+        <span className="text-muted-foreground/60">{trailing}</span>
+      )}
+    </button>
+  );
+}
+
 
 // ============================================================
 // Space (Book) pane
