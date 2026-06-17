@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -81,7 +81,7 @@ const SUGGESTED_CATEGORIES = REQUEST_CATEGORIES.map((c) => c.value);
 
 function MyRequests() {
   const { session, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
+  
   const qc = useQueryClient();
   const userId = session?.user?.id ?? "";
 
