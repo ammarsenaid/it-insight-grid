@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/common/PageHeader";
 import { KnowledgeBackendWorkspace } from "@/components/knowledge/KnowledgeBackendWorkspace";
 import { KnowledgePreviewWorkspace } from "@/components/knowledge/KnowledgePreviewWorkspace";
 import { isLovablePreviewHost } from "@/preview/previewBypass";
@@ -27,12 +26,12 @@ function KnowledgeBasePage() {
   // NEVER enable this path in production.
   if (isLovablePreviewHost()) {
     return (
-      <div>
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-[12px] text-primary">
+      <div className="-mt-2">
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-[11px] text-primary">
           <span className="font-medium">
             Design preview · sample data only — backend not connected
           </span>
-          <span className="text-[11px] uppercase tracking-wider text-primary/80">
+          <span className="text-[10px] uppercase tracking-wider text-primary/80">
             Lovable Preview
           </span>
         </div>
@@ -42,11 +41,7 @@ function KnowledgeBasePage() {
   }
 
   return (
-    <div>
-      <PageHeader
-        title="Knowledge Base"
-        description="Books, chapters and pages for your IT documentation."
-      />
+    <div className="-mt-2">
       <KnowledgeBackendWorkspace />
     </div>
   );
