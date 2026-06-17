@@ -111,6 +111,16 @@ import { AttachmentsPanel } from "./AttachmentsPanel";
 import { AuditLogPanel } from "./AuditLogPanel";
 import { ArticleTOC } from "./ArticleTOC";
 import { useRecentlyViewed } from "@/lib/knowledge/recent";
+import {
+  COVER_ACCENTS,
+  COVER_ICONS,
+  getBookCover,
+  setBookCover,
+  clearBookCover,
+  useBookCovers,
+  type CoverIconKey,
+} from "@/lib/knowledge/bookCovers";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type {
   ArticleStatus,
   KbArticle,
