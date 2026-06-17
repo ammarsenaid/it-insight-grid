@@ -1628,92 +1628,96 @@ function HomePane({
         </div>
 
 
-        {/* Books grid */}
+        {/* Library — book shelf */}
         <div>
           <div className="mb-3 flex items-center justify-between">
             <SectionHeading
-              icon={<Book className="h-4 w-4" />}
-              title="Books"
-              hint="Top-level collections."
+              icon={<Library className="h-4 w-4" />}
+              title="Library"
+              hint="Your team's books."
             />
+            <span className="text-[11px] text-muted-foreground">
+              {visibleSpaces.length} {visibleSpaces.length === 1 ? "book" : "books"}
+            </span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-            {visibleSpaces.map((s) => {
-              const accent = spaceAccent(s.id);
-              const BookIcon = spaceIcon(s.id);
-              const chapters = data.categories.filter(
-                (c) => c.space_id === s.id && !c.is_archived,
-              ).length;
-              const pages = data.articles.filter(
-                (a) => a.space_id === s.id && a.status !== "archived",
-              ).length;
-              return (
-                <div
-                  key={s.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onOpenSpace(s.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") onOpenSpace(s.id);
-                  }}
-                  className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
-                >
+          <div className="rounded-2xl border border-border/60 bg-gradient-to-b from-card/40 to-card/20 p-4">
+            <div className="grid gap-2.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {visibleSpaces.map((s) => {
+                const accent = spaceAccent(s.id);
+                const BookIcon = spaceIcon(s.id);
+                const chapters = data.categories.filter(
+                  (c) => c.space_id === s.id && !c.is_archived,
+                ).length;
+                const pages = data.articles.filter(
+                  (a) => a.space_id === s.id && a.status !== "archived",
+                ).length;
+                return (
                   <div
-                    className={cn(
-                      "absolute inset-x-0 top-0 h-1 bg-gradient-to-r",
-                      accent,
-                    )}
-                  />
-                  <div className="flex items-start justify-between gap-3">
+                    key={s.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onOpenSpace(s.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") onOpenSpace(s.id);
+                    }}
+                    className="group relative flex cursor-pointer overflow-hidden rounded-md border border-border/50 bg-card/60 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/10"
+                  >
+                    {/* Book spine */}
                     <div
                       className={cn(
-                        "grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white shadow-md",
+                        "flex w-10 shrink-0 flex-col items-center justify-between bg-gradient-to-b py-2.5 text-white",
                         accent,
                       )}
                     >
-                      <BookIcon className="h-5 w-5" />
-                    </div>
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                      <span className="rounded-full border border-border/50 bg-background/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                        {pages} pages
+                      <BookIcon className="h-4 w-4 opacity-90" />
+                      <span className="text-[9px] font-semibold opacity-80">
+                        {pages}p
                       </span>
-                      <BookCoverPicker
-                        spaceId={s.id}
-                        trigger={
-                          <button
-                            type="button"
-                            className="grid h-7 w-7 place-items-center rounded-md border border-border/40 bg-background/40 text-muted-foreground opacity-0 transition-all hover:border-primary/40 hover:text-foreground group-hover:opacity-100"
-                            aria-label="Change cover"
-                          >
-                            <Palette className="h-3.5 w-3.5" />
-                          </button>
-                        }
-                      />
+                    </div>
+                    {/* Book body */}
+                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 px-2.5 py-2">
+                      <div className="line-clamp-2 text-[12.5px] font-semibold leading-tight group-hover:text-primary">
+                        {s.name}
+                      </div>
+                      <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-0.5">
+                          <BookMarked className="h-2.5 w-2.5" /> {chapters}
+                        </span>
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <BookCoverPicker
+                            spaceId={s.id}
+                            trigger={
+                              <button
+                                type="button"
+                                className="grid h-5 w-5 place-items-center rounded text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                                aria-label="Change cover"
+                              >
+                                <Palette className="h-3 w-3" />
+                              </button>
+                            }
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="mt-4 line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight group-hover:text-primary">
-                    {s.name}
-                  </div>
-                  {s.description && (
-                    <div className="mt-1 line-clamp-3 text-xs text-muted-foreground">
-                      {s.description}
-                    </div>
-                  )}
-                  <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-[11px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> Updated {formatDate(s.updated_at)}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <BookMarked className="h-3 w-3" /> {chapters}
-                    </span>
-                  </div>
-                </div>
-
-              );
-            })}
+                );
+              })}
+              {perms.manageTeam && (
+                <button
+                  type="button"
+                  onClick={onNewSpace}
+                  className="group flex min-h-[64px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-border/50 bg-transparent text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card/40 hover:text-primary"
+                >
+                  <Plus className="h-3.5 w-3.5" /> New book
+                </button>
+              )}
+            </div>
           </div>
         </div>
+
 
         {/* Recently updated (from backend) */}
         {recentlyUpdated.length > 0 && (
