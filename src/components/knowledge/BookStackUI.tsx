@@ -1278,7 +1278,7 @@ function PageView({
           <TabsContent value="content">
             <div className="rounded-xl border border-border/60 bg-card/30 p-6">
               <div className="prose prose-invert prose-sm max-w-none">
-                <Markdown content={page.content} />
+                <Markdown source={page.content} />
               </div>
             </div>
           </TabsContent>
