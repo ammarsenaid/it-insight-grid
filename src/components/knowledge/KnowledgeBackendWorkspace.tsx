@@ -1069,22 +1069,26 @@ function SpaceTreeNode({
   matched: Set<string> | null;
   filterActive: boolean;
 }) {
+  useBookCovers();
   const open = expanded.has(space.id) || filterActive;
   const isSel = selection.kind === "space" && selection.id === space.id;
   const visibleArticles = matched ? articles.filter((a) => matched.has(a.id)) : articles;
   const uncategorized = visibleArticles.filter((a) => !a.category_id);
   if (filterActive && visibleArticles.length === 0) return null;
+  const Icon = spaceIcon(space.id);
+  const accent = spaceAccent(space.id);
 
   return (
     <li className="mb-0.5">
       <div
         className={cn(
-          "group relative flex items-center gap-1 rounded-lg pr-1 transition-all",
+          "group relative flex items-center gap-0.5 rounded-lg pr-1 transition-all",
           isSel
             ? "bg-gradient-to-r from-primary/15 to-primary/5 ring-1 ring-inset ring-primary/20"
             : "hover:bg-white/[0.04]",
         )}
       >
+
         {isSel && (
           <span
             aria-hidden
