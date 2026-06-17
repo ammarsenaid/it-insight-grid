@@ -468,7 +468,7 @@ export function TicketsPage() {
                   title="No tickets yet"
                   description="Create the first request to start tracking service work."
                   actionLabel={canCreate ? "Create ticket" : undefined}
-                  onAction={canCreate ? () => setCreateOpen(true) : undefined}
+                  onAction={canCreate ? () => navigate({ to: "/tickets/new" }) : undefined}
                 />
               ) : (
                 <EmptyState
