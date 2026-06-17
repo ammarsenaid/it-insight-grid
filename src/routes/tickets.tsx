@@ -21,7 +21,16 @@ import {
   X,
   AlertCircle,
   Lock,
+  Monitor as MonitorIcon,
+  AppWindow,
+  KeyRound as KeyRoundIcon,
+  Wifi,
+  Printer,
+  Mail,
+  ShieldCheck as ShieldCheckIcon,
+  HelpCircle,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import {
   Tooltip,
@@ -111,7 +120,27 @@ const TICKET_PRIORITIES: TicketPriority[] = ["low", "normal", "high", "critical"
 const TICKET_TYPES: TicketType[] = ["request", "incident", "problem", "change"];
 const TICKET_SOURCES = ["portal", "service_catalog", "email", "api"] as const;
 // Free-form on the server; we present a curated list for filtering / creation.
-const SUGGESTED_CATEGORIES = ["Hardware", "Software", "Account & Access", "Networking", "Email", "Other"];
+const SUGGESTED_CATEGORIES = [
+  "Hardware",
+  "Software",
+  "Account & Access",
+  "Network",
+  "Printer",
+  "Email",
+  "Security",
+  "Other",
+];
+const CATEGORY_META: Record<string, { description: string; icon: React.ComponentType<{ className?: string }> }> = {
+  Hardware: { description: "Laptop, monitor, peripherals", icon: MonitorIcon },
+  Software: { description: "Install or fix an app", icon: AppWindow },
+  "Account & Access": { description: "Login, password, permissions", icon: KeyRoundIcon },
+  Network: { description: "Wi-Fi, VPN, connectivity", icon: Wifi },
+  Printer: { description: "Printing or scanning", icon: Printer },
+  Email: { description: "Mailbox, calendar, delivery", icon: Mail },
+  Security: { description: "Suspicious activity, phishing", icon: ShieldCheckIcon },
+  Other: { description: "Something else", icon: HelpCircle },
+};
+
 const SUGGESTED_TEAMS = ["Service Desk", "Field Ops", "Network", "Infrastructure"];
 
 type SortKey = "ticketNumber" | "subject" | "priority" | "status" | "createdAt" | "updatedAt";
