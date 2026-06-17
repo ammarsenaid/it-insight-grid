@@ -43,6 +43,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { MetricCard } from "@/components/common/MetricCard";
 import { FilterBar } from "@/components/common/FilterBar";
 import { FormDrawer } from "@/components/common/FormDrawer";
+import { TicketComposer, type TicketComposerValues } from "@/components/service-desk/TicketComposer";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { timeAgo } from "@/components/common/format";
