@@ -156,20 +156,122 @@ const STATUS_PILL: Record<string, string> = {
   archived: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300",
 };
 
-// Deterministic accent gradient per book.
-const ACCENT_GRADIENTS = [
-  "from-rose-500/80 to-orange-500/70",
-  "from-emerald-500/80 to-teal-500/70",
-  "from-indigo-500/80 to-violet-500/70",
-  "from-sky-500/80 to-cyan-500/70",
-  "from-amber-500/80 to-pink-500/70",
-  "from-fuchsia-500/80 to-purple-500/70",
-];
-function spaceAccent(seed: string): string {
+// Deterministic accent gradient per book (used as fallback when no override).
+const ACCENT_GRADIENTS = COVER_ACCENTS;
+function deterministicAccent(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
   return ACCENT_GRADIENTS[Math.abs(h) % ACCENT_GRADIENTS.length];
 }
+function spaceAccent(seed: string): string {
+  return getBookCover(seed)?.accent ?? deterministicAccent(seed);
+}
+
+const COVER_ICON_MAP: Record<CoverIconKey, typeof Book> = {
+  book: Book,
+  bookOpen: BookOpen,
+  bookMarked: BookMarked,
+  library: Library,
+  compass: Compass,
+  sparkles: Sparkles,
+  lightbulb: Lightbulb,
+  zap: Zap,
+  fileText: FileText,
+  star: Star,
+};
+
+function spaceIcon(seed: string): typeof Book {
+  const key = getBookCover(seed)?.icon as CoverIconKey | undefined;
+  return (key && COVER_ICON_MAP[key]) || Book;
+}
+
+function BookCoverPicker({
+  spaceId,
+  trigger,
+}: {
+  spaceId: string;
+  trigger: React.ReactNode;
+}) {
+  // Subscribe so the picker re-renders the current selection live.
+  useBookCovers();
+  const current = getBookCover(spaceId);
+  const accent = current?.accent ?? deterministicAccent(spaceId);
+  const iconKey: CoverIconKey = (current?.icon as CoverIconKey) ?? "book";
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-4">
+        <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Palette className="h-3.5 w-3.5" /> Book cover
+        </div>
+
+        <div className="mb-3">
+          <div className="mb-1.5 text-[10.5px] font-medium uppercase tracking-wide text-muted-foreground/70">
+            Color
+          </div>
+          <div className="grid grid-cols-5 gap-1.5">
+            {COVER_ACCENTS.map((a) => {
+              const selected = accent === a;
+              return (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => setBookCover(spaceId, { accent: a, icon: iconKey })}
+                  className={cn(
+                    "relative grid h-9 w-full place-items-center rounded-md bg-gradient-to-br ring-1 ring-inset ring-white/10 transition-transform hover:scale-105",
+                    a,
+                    selected && "ring-2 ring-primary",
+                  )}
+                  aria-label="Pick color"
+                >
+                  {selected && <Check className="h-3.5 w-3.5 text-white" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mb-3">
+          <div className="mb-1.5 text-[10.5px] font-medium uppercase tracking-wide text-muted-foreground/70">
+            Icon
+          </div>
+          <div className="grid grid-cols-5 gap-1.5">
+            {COVER_ICONS.map((key) => {
+              const Icon = COVER_ICON_MAP[key];
+              const selected = iconKey === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setBookCover(spaceId, { accent, icon: key })}
+                  className={cn(
+                    "grid h-9 w-full place-items-center rounded-md border border-border/40 bg-background/40 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground",
+                    selected && "border-primary text-primary",
+                  )}
+                  aria-label={`Pick ${key}`}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {current && (
+          <button
+            type="button"
+            onClick={() => clearBookCover(spaceId)}
+            className="w-full rounded-md border border-border/40 px-2 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+          >
+            Reset to default
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
 function StatusPill({ status }: { status: string }) {
   return (
