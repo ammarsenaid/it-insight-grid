@@ -47,6 +47,10 @@ import {
   CheckCircle2,
   Loader2,
   PencilLine,
+  Eye,
+  Share2,
+  Info,
+  User as UserIcon,
 } from "lucide-react";
 
 
