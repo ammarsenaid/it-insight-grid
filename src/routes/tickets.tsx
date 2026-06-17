@@ -366,9 +366,12 @@ export function TicketsPage() {
                 <TooltipContent>Reload tickets</TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <Button onClick={() => setCreateOpen(true)} disabled={!canCreate} title={canCreate ? undefined : "Your role cannot create tickets"}>
-              <Plus className="mr-1.5 h-4 w-4" /> New ticket
+            <Button asChild disabled={!canCreate} title={canCreate ? undefined : "Your role cannot create tickets"}>
+              <Link to="/tickets/new">
+                <Plus className="mr-1.5 h-4 w-4" /> New ticket
+              </Link>
             </Button>
+
           </div>
         }
       />
