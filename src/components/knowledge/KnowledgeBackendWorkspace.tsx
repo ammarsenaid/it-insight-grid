@@ -1041,13 +1041,21 @@ function SpaceTreeNode({
     <li className="mb-0.5">
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-lg pr-1 transition-colors",
-          isSel ? "bg-primary/10" : "hover:bg-white/[0.04]",
+          "group relative flex items-center gap-1 rounded-lg pr-1 transition-all",
+          isSel
+            ? "bg-gradient-to-r from-primary/15 to-primary/5 ring-1 ring-inset ring-primary/20"
+            : "hover:bg-white/[0.04]",
         )}
       >
+        {isSel && (
+          <span
+            aria-hidden
+            className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary"
+          />
+        )}
         <button
           onClick={() => toggle(space.id)}
-          className="grid h-7 w-6 place-items-center text-muted-foreground hover:text-foreground"
+          className="grid h-7 w-6 place-items-center text-muted-foreground/70 transition-colors hover:text-foreground"
           aria-label={open ? "Collapse" : "Expand"}
         >
           {open ? (
@@ -1058,28 +1066,37 @@ function SpaceTreeNode({
         </button>
         <button
           onClick={() => onSelect({ kind: "space", id: space.id })}
-          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left text-sm"
+          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left text-[13px]"
           title={space.name}
         >
           <span
             className={cn(
-              "h-2 w-2 shrink-0 rounded-full bg-gradient-to-br",
+              "grid h-5 w-5 shrink-0 place-items-center rounded-md bg-gradient-to-br ring-1 ring-inset ring-white/10",
               spaceAccent(space.id),
             )}
-          />
+          >
+            <Book className="h-3 w-3 text-white/90" />
+          </span>
           <span
             className={cn(
-              "truncate font-medium",
-              isSel ? "text-primary" : "text-foreground",
+              "truncate font-semibold tracking-tight",
+              isSel ? "text-primary" : "text-foreground/90",
               space.is_archived && "italic text-muted-foreground",
             )}
           >
             {space.name}
           </span>
+          <span className="ml-auto rounded-full bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground/80 opacity-0 transition-opacity group-hover:opacity-100">
+            {categories.length + visibleArticles.length}
+          </span>
         </button>
       </div>
       {open && (
-        <div className="ml-6 border-l border-border/40 pl-2">
+        <div className="relative ml-[14px] mt-0.5 pl-3">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-1 left-0 top-1 w-px bg-gradient-to-b from-border/60 via-border/40 to-transparent"
+          />
           {categories.map((c) => (
             <CategoryTreeNode
               key={c.id}
@@ -1101,7 +1118,7 @@ function SpaceTreeNode({
             />
           ))}
           {categories.length === 0 && uncategorized.length === 0 && (
-            <div className="px-2 py-1 text-[11px] text-muted-foreground/70">
+            <div className="px-2 py-1.5 text-[10.5px] italic text-muted-foreground/60">
               Empty book
             </div>
           )}
@@ -1132,16 +1149,18 @@ function CategoryTreeNode({
   const isSel = selection.kind === "category" && selection.id === category.id;
   if (filterActive && articles.length === 0) return null;
   return (
-    <div className="py-0.5">
+    <div className="py-px">
       <div
         className={cn(
-          "group flex items-center gap-1 rounded-md pr-1",
-          isSel ? "bg-primary/10" : "hover:bg-white/[0.04]",
+          "group flex items-center gap-1 rounded-md pr-1 transition-colors",
+          isSel
+            ? "bg-primary/10 ring-1 ring-inset ring-primary/15"
+            : "hover:bg-white/[0.035]",
         )}
       >
         <button
           onClick={() => toggle(category.id)}
-          className="grid h-6 w-5 place-items-center text-muted-foreground hover:text-foreground"
+          className="grid h-6 w-5 place-items-center text-muted-foreground/60 transition-colors hover:text-foreground"
           aria-label={open ? "Collapse" : "Expand"}
         >
           {open ? (
@@ -1153,27 +1172,36 @@ function CategoryTreeNode({
         <button
           onClick={() => onSelect({ kind: "category", id: category.id })}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-2 py-1 text-left text-[13px]",
-            isSel ? "text-primary" : "text-muted-foreground hover:text-foreground",
+            "flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left text-[12.5px]",
+            isSel ? "text-primary" : "text-foreground/75 hover:text-foreground",
           )}
           title={category.name}
         >
-          <BookMarked className="h-3.5 w-3.5 shrink-0 opacity-70" />
+          <BookMarked
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              isSel ? "text-primary/80" : "text-muted-foreground/70",
+            )}
+          />
           <span
             className={cn(
-              "truncate",
+              "truncate font-medium",
               category.is_archived && "italic text-muted-foreground",
             )}
           >
             {category.name}
           </span>
-          <span className="ml-auto text-[10px] text-muted-foreground/70">
+          <span className="ml-auto rounded-full bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground/70">
             {articles.length}
           </span>
         </button>
       </div>
       {open && (
-        <div className="ml-5 border-l border-border/30 pl-2">
+        <div className="relative ml-[10px] pl-3">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-1 left-0 top-1 w-px bg-border/30"
+          />
           {articles.map((a) => (
             <ArticleTreeRow
               key={a.id}
@@ -1183,7 +1211,7 @@ function CategoryTreeNode({
             />
           ))}
           {articles.length === 0 && (
-            <div className="px-2 py-1 text-[10px] text-muted-foreground/70">
+            <div className="px-2 py-1 text-[10px] italic text-muted-foreground/60">
               No pages
             </div>
           )}
@@ -1207,19 +1235,41 @@ function ArticleTreeRow({
     <button
       onClick={() => onSelect({ kind: "article", id: article.id })}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[12.5px] transition-colors",
+        "group relative flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[12.5px] transition-all",
         isSel
-          ? "bg-primary/15 text-primary"
+          ? "bg-primary/15 font-medium text-primary"
           : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
         article.status === "archived" && "opacity-60",
       )}
       title={article.title}
     >
-      <FileText className="h-3 w-3 shrink-0 opacity-60" />
+      {isSel && (
+        <span
+          aria-hidden
+          className="absolute left-0 top-1/2 h-3.5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary"
+        />
+      )}
+      <FileText
+        className={cn(
+          "h-3 w-3 shrink-0",
+          isSel ? "text-primary/80" : "text-muted-foreground/60 group-hover:text-foreground/70",
+        )}
+      />
       <span className="truncate">{article.title}</span>
       {article.status === "draft" && (
-        <Badge variant="outline" className="ml-auto h-4 shrink-0 text-[9px]">
+        <Badge
+          variant="outline"
+          className="ml-auto h-4 shrink-0 border-amber-500/30 bg-amber-500/10 px-1 text-[9px] text-amber-300/90"
+        >
           Draft
+        </Badge>
+      )}
+      {article.status === "in_review" && (
+        <Badge
+          variant="outline"
+          className="ml-auto h-4 shrink-0 border-blue-500/30 bg-blue-500/10 px-1 text-[9px] text-blue-300/90"
+        >
+          Review
         </Badge>
       )}
     </button>
