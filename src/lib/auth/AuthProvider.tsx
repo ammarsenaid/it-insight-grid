@@ -10,6 +10,10 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { getSupabase, isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
+import { isPreviewBypassActive } from "@/preview/previewBypass";
+import {
+  PREVIEW_AUTH_CONTEXT,
+} from "@/preview/previewIdentity";
 import {
   pickDisplayRole,
   rolesForRoleKeys,
@@ -383,23 +387,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadUserContext, session]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({
-      configured: isSupabaseConfigured,
-      loading,
-      session,
-      user: session?.user ?? null,
-      profile,
-      isPlatformAdmin,
-      roleKeys,
-      role,
-      teams,
-      teamsError,
-      contextLoading,
-      contextError,
-      signIn,
-      signOut,
-      refresh,
-    }),
+    () => {
+      // ────────────────────────────────────────────────────────────────
+      // LOVABLE PREVIEW ONLY — synthetic auth identity.
+      // Activates only on Lovable preview hostnames (see previewBypass.ts).
+      // Production VPS / custom domains will never satisfy this check.
+      // NEVER enable this code path in production.
+      // ────────────────────────────────────────────────────────────────
+      if (!session && isPreviewBypassActive()) {
+        return {
+          configured: true,
+          loading: false,
+          ...PREVIEW_AUTH_CONTEXT,
+          signIn,
+          signOut,
+          refresh,
+        };
+      }
+      return {
+        configured: isSupabaseConfigured,
+        loading,
+        session,
+        user: session?.user ?? null,
+        profile,
+        isPlatformAdmin,
+        roleKeys,
+        role,
+        teams,
+        teamsError,
+        contextLoading,
+        contextError,
+        signIn,
+        signOut,
+        refresh,
+      };
+    },
     [
       loading,
       session,
