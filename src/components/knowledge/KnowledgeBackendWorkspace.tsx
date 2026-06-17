@@ -1410,58 +1410,52 @@ function HomePane({
     "there";
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="space-y-8">
       {/* ───────── Main column ───────── */}
       <div className="min-w-0 space-y-8">
-        {/* Hero */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/20 via-card/70 to-card/40 p-6 md:p-8">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary/25 blur-3xl" />
-          <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-indigo-500/15 blur-3xl" />
-          <div className="relative grid gap-6 md:grid-cols-[minmax(0,1fr)_180px] md:items-center">
+        {/* Hero — compact */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/20 via-card/70 to-card/40 px-5 py-4">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-primary/25 blur-3xl" />
+          <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0">
-              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
                 <Sparkles className="h-3 w-3" />
                 Welcome back, {greetingName} 👋
               </div>
-              <h1 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight md:text-[34px] md:leading-[1.15]">
+              <h1 className="mt-1.5 text-lg font-semibold tracking-tight md:text-xl">
                 Your team's living source of truth.
               </h1>
-              <p className="mt-2 max-w-xl text-sm text-muted-foreground md:text-[15px]">
-                Runbooks, onboarding guides, architectural decisions and IT
-                documentation — organised the way your team actually works.
-              </p>
-              <div className="mt-5 flex flex-wrap items-center gap-1.5">
-                {perms.manageTeam && (
-                  <Button size="sm" className="h-9 text-xs" onClick={onNewSpace}>
-                    <Plus className="mr-1 h-3.5 w-3.5" /> New book
-                  </Button>
-                )}
-                {perms.create && firstSpaceId && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="h-9 text-xs"
-                    onClick={() => onNewArticle(firstSpaceId)}
-                  >
-                    <FileText className="mr-1 h-3.5 w-3.5" /> New page
-                  </Button>
-                )}
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-9 w-9"
-                  onClick={onReload}
-                  title="Refresh"
-                  aria-label="Refresh"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
-              </div>
             </div>
-            <HeroIllustration />
+            <div className="flex flex-wrap items-center gap-1.5">
+              {perms.manageTeam && (
+                <Button size="sm" className="h-8 text-xs" onClick={onNewSpace}>
+                  <Plus className="mr-1 h-3.5 w-3.5" /> New book
+                </Button>
+              )}
+              {perms.create && firstSpaceId && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 text-xs"
+                  onClick={() => onNewArticle(firstSpaceId)}
+                >
+                  <FileText className="mr-1 h-3.5 w-3.5" /> New page
+                </Button>
+              )}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={onReload}
+                title="Refresh"
+                aria-label="Refresh"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
 
-          <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="relative mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
             <Stat
               icon={<BookOpen className="h-3.5 w-3.5" />}
               label="Books"
@@ -1494,6 +1488,7 @@ function HomePane({
             />
           </div>
         </div>
+
 
         {/* Books grid */}
         <div>
@@ -1602,144 +1597,10 @@ function HomePane({
           </div>
         )}
       </div>
-
-      {/* ───────── Right rail ───────── */}
-      <aside className="space-y-4">
-        {/* Stay productive */}
-        <div className="rounded-xl border border-border/60 bg-card/40 p-4">
-          <div className="flex items-center gap-2">
-            <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-            </div>
-            <div className="text-sm font-semibold">Stay productive</div>
-          </div>
-          <ul className="mt-3 space-y-3">
-            <TipItem
-              icon={<LayoutTemplate className="h-3.5 w-3.5" />}
-              title="Use templates"
-              body="Create consistent, high-quality content faster."
-            />
-            <TipItem
-              icon={<Link2 className="h-3.5 w-3.5" />}
-              title="Link your content"
-              body="Connect pages, assets and decisions for context."
-            />
-            <TipItem
-              icon={<RefreshCw className="h-3.5 w-3.5" />}
-              title="Keep it current"
-              body="Review and update content regularly."
-            />
-          </ul>
-        </div>
-
-        {/* Quick shortcuts */}
-        <div className="rounded-xl border border-border/60 bg-card/40 p-4">
-          <div className="mb-3 text-sm font-semibold">Quick shortcuts</div>
-          <div className="space-y-1">
-            {perms.manageTeam && (
-              <ShortcutItem
-                icon={<BookOpen className="h-3.5 w-3.5" />}
-                label="New book"
-                onClick={onNewSpace}
-                trailing={<Plus className="h-3.5 w-3.5" />}
-              />
-            )}
-            {perms.create && firstSpaceId && (
-              <ShortcutItem
-                icon={<FileText className="h-3.5 w-3.5" />}
-                label="New page"
-                onClick={() => onNewArticle(firstSpaceId)}
-                trailing={<Plus className="h-3.5 w-3.5" />}
-              />
-            )}
-            <ShortcutItem
-              icon={<Upload className="h-3.5 w-3.5" />}
-              label="Import content"
-              onClick={() => toast.info("Import is coming soon")}
-            />
-            <ShortcutItem
-              icon={<LayoutTemplate className="h-3.5 w-3.5" />}
-              label="Templates"
-              onClick={() => toast.info("Templates are coming soon")}
-            />
-            <ShortcutItem
-              icon={<Archive className="h-3.5 w-3.5" />}
-              label="Archive"
-              onClick={() => toast.info("Open the Archived filter to browse archived items")}
-            />
-          </div>
-        </div>
-
-        {/* Recent activity */}
-        {recentlyUpdated.length > 0 && (
-          <div className="rounded-xl border border-border/60 bg-card/40 p-4">
-            <div className="mb-3 text-sm font-semibold">Recent activity</div>
-            <ul className="space-y-3">
-              {recentlyUpdated.slice(0, 4).map((a) => (
-                <li key={a.id} className="flex items-start gap-2.5">
-                  <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-semibold uppercase text-primary">
-                    {(a.title || "?").slice(0, 1)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <button
-                      onClick={() => onOpenArticle(a.id)}
-                      className="block w-full truncate text-left text-[13px] font-medium hover:text-primary"
-                    >
-                      {a.title}
-                    </button>
-                    <div className="text-[11px] text-muted-foreground">
-                      {STATUS_LABEL[a.status] ?? a.status} ·{" "}
-                      {formatDate(a.updated_at)}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Recently opened by me */}
-        {recent.length > 0 && (
-          <div className="rounded-xl border border-border/60 bg-card/40 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <History className="h-3.5 w-3.5 text-muted-foreground" />
-              Opened by you
-            </div>
-            <ul className="space-y-1">
-              {recent.slice(0, 5).map((r) => {
-                const exists = data.articles.some((a) => a.id === r.id);
-                return (
-                  <li
-                    key={r.id}
-                    className="group flex items-center gap-1.5 rounded-lg px-1.5 py-1 hover:bg-white/[0.03]"
-                  >
-                    <button
-                      type="button"
-                      disabled={!exists}
-                      onClick={() => exists && onOpenArticle(r.id)}
-                      className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate text-[13px]">{r.title}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
-                      onClick={() => onForgetRecent(r.id)}
-                      aria-label="Forget"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-      </aside>
     </div>
   );
 }
+
 
 function HeroIllustration() {
   return (
