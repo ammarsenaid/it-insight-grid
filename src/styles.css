@@ -156,6 +156,27 @@
   font-size: 0.95rem;
   line-height: 1.7;
   color: oklch(0.92 0.02 240);
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+.kb-manuscript img,
+.kb-manuscript video,
+.kb-manuscript iframe,
+.kb-manuscript table {
+  max-width: 100%;
+  height: auto;
+}
+.kb-manuscript pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.kb-manuscript table {
+  display: block;
+  overflow-x: auto;
 }
 .kb-manuscript h1 {
   display: none;
