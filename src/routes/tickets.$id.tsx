@@ -309,233 +309,359 @@ function TicketDetail() {
   // Build the assignee dropdown from known profiles. RLS scopes the list.
   const assignableUsers = profiles;
 
+  const CategoryIcon = pickCategoryIcon(ticket.category);
+  const initials = (name: string) =>
+    name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
+
+  const publicReplies = comments.filter((c) => !c.internal);
+  const internalNotes = comments.filter((c) => c.internal);
+
+  // Recent activity (real events only). No mock data.
+  const recentActivity = [
+    ...statusEvents.map((e) => ({
+      key: `s-${e.id}`,
+      icon: PlayCircle,
+      tone: e.toStatus === "resolved" ? "success" : e.toStatus === "reopened" ? "danger" : "info",
+      title: <>Status changed to <span className="font-medium text-foreground">{labelStatus(e.toStatus)}</span></>,
+      by: e.changedBy ? nameOf(e.changedBy, pmap) : "System",
+      at: e.changedAt,
+    })),
+    ...assignEvents.map((e) => ({
+      key: `a-${e.id}`,
+      icon: UserCheck,
+      tone: "info" as const,
+      title: <>Assignment updated</>,
+      by: e.changedBy ? nameOf(e.changedBy, pmap) : "System",
+      at: e.changedAt,
+    })),
+    ...visibleComments.slice(-2).map((c) => ({
+      key: `c-${c.id}`,
+      icon: MessageSquare,
+      tone: "muted" as const,
+      title: <>Comment added</>,
+      by: nameOf(c.authorId, pmap),
+      at: c.createdAt,
+    })),
+  ]
+    .sort((a, b) => +new Date(b.at) - +new Date(a.at))
+    .slice(0, 4);
+
   return (
-    <div>
-      <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-        <Link to={isRequesterView ? "/my-requests" : "/tickets"} className="inline-flex items-center gap-1 hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" /> {isRequesterView ? "My requests" : "Ticket queue"}
+    <div className="space-y-5">
+      <div>
+        <Link
+          to={isRequesterView ? "/my-requests" : "/tickets"}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {isRequesterView ? "Back to my requests" : "Back to tickets"}
         </Link>
-        <span>/</span>
-        <span className="font-mono text-foreground">{ticket.ticketNumber}</span>
       </div>
 
-      <PageHeader
-        title={ticket.subject}
-        description={`${cap(ticket.type)} · ${ticket.category ?? "Uncategorized"}${ticket.subcategory ? " / " + ticket.subcategory : ""} · Requested by ${requesterName}`}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            {!isRequesterView && canResolve && (
-              <>
-                {isClosedLike ? (
-                  <Button variant="secondary" onClick={() => setReopenOpen(true)}>
-                    <RotateCcw className="mr-1.5 h-4 w-4" /> Reopen
-                  </Button>
-                ) : (
-                  <Button onClick={() => setResolveOpen(true)}>
-                    <CheckCircle2 className="mr-1.5 h-4 w-4" /> Resolve
-                  </Button>
-                )}
-              </>
-            )}
-            {isRequesterView && isClosedLike && (
-              <Button variant="secondary" onClick={() => setReopenOpen(true)}>
-                <RotateCcw className="mr-1.5 h-4 w-4" /> Reopen request
-              </Button>
-            )}
-          </div>
-        }
-      />
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        {/* MAIN COLUMN */}
+        <div className="space-y-5">
+          {/* Hero card */}
+          <div className="glass-card relative overflow-hidden rounded-2xl border border-border/50 p-5">
+            <div className="flex items-start gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/30">
+                <CategoryIcon className="h-7 w-7 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <h1 className="truncate text-2xl font-semibold tracking-tight">{ticket.subject}</h1>
+                  <span className="font-mono text-sm text-muted-foreground">#{ticket.ticketNumber}</span>
+                  <StatusBadge label={labelStatus(ticket.status)} tone={STATUS_TONE[ticket.status]} />
+                </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          {/* Status strip */}
-          <div className="glass-card grid grid-cols-2 gap-3 rounded-2xl p-4 sm:grid-cols-4">
-            <Stat label="Status"><StatusBadge label={labelStatus(ticket.status)} tone={STATUS_TONE[ticket.status]} /></Stat>
-            <Stat label="Priority"><StatusBadge label={cap(ticket.priority)} tone={PRIORITY_TONE[ticket.priority]} /></Stat>
-            <Stat label="Source"><span>{cap(ticket.source)}</span></Stat>
-            <Stat label="Updated"><span suppressHydrationWarning>{timeAgo(ticket.updatedAt)}</span></Stat>
-          </div>
-
-          <SectionCard title="Description">
-            <p className="whitespace-pre-line text-sm text-muted-foreground">{ticket.description || "No description provided."}</p>
-          </SectionCard>
-
-          <SectionCard title="Conversation">
-            <Tabs defaultValue="all">
-              <TabsList>
-                <TabsTrigger value="all">All ({visibleComments.length})</TabsTrigger>
-                {internalAllowed && (
-                  <TabsTrigger value="internal">
-                    <Lock className="mr-1 h-3 w-3" /> Internal ({comments.filter((c) => c.internal).length})
-                  </TabsTrigger>
-                )}
-                <TabsTrigger value="public">Replies ({comments.filter((c) => !c.internal).length})</TabsTrigger>
-              </TabsList>
-              <TabsContent value="all" className="mt-3 space-y-2">
-                {visibleComments.map((c) => (
-                  <CommentBubble key={c.id} author={nameOf(c.authorId, pmap)} body={c.body} internal={c.internal} createdAt={c.createdAt} />
-                ))}
-                {visibleComments.length === 0 && <p className="text-xs text-muted-foreground">No messages yet.</p>}
-              </TabsContent>
-              {internalAllowed && (
-                <TabsContent value="internal" className="mt-3 space-y-2">
-                  {comments.filter((c) => c.internal).map((c) => (
-                    <CommentBubble key={c.id} author={nameOf(c.authorId, pmap)} body={c.body} internal createdAt={c.createdAt} />
-                  ))}
-                  {comments.filter((c) => c.internal).length === 0 && <p className="text-xs text-muted-foreground">No internal notes.</p>}
-                </TabsContent>
-              )}
-              <TabsContent value="public" className="mt-3 space-y-2">
-                {comments.filter((c) => !c.internal).map((c) => (
-                  <CommentBubble key={c.id} author={nameOf(c.authorId, pmap)} body={c.body} internal={false} createdAt={c.createdAt} />
-                ))}
-              </TabsContent>
-            </Tabs>
-
-            {canCommentPublic ? (
-              <div className="mt-4 rounded-xl border border-border/60 bg-background/30 p-3">
-                <Textarea
-                  value={reply}
-                  onChange={(e) => setReply(e.target.value)}
-                  placeholder={internal ? "Add an internal note (visible only to IT)…" : "Reply to requester…"}
-                  rows={3}
-                  disabled={commentMut.isPending}
-                />
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    {internalAllowed && canCommentInternal && (
-                      <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} className="accent-primary" />
-                        <Lock className="h-3 w-3" /> Internal note
-                      </label>
+                <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
+                  <HeroFact label="Priority">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Flag className={`h-3.5 w-3.5 ${priorityIconColor(ticket.priority)}`} />
+                      <span className="text-sm">{cap(ticket.priority)}</span>
+                    </span>
+                  </HeroFact>
+                  <HeroFact label="Category">
+                    <span className="inline-flex items-center gap-1.5">
+                      <CategoryIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-sm">{ticket.category ?? "Uncategorized"}</span>
+                    </span>
+                  </HeroFact>
+                  <HeroFact label="Assignee">
+                    {assigneeName ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Avatar text={initials(assigneeName)} tone="emerald" />
+                        <span className="truncate text-sm">{assigneeName}</span>
+                      </span>
+                    ) : (
+                      <span className="text-sm text-[#FFC86B]">Unassigned</span>
                     )}
-                  </div>
-                  <Button size="sm" onClick={handleReply} disabled={commentMut.isPending}>
-                    <Send className="mr-1 h-3.5 w-3.5" /> {commentMut.isPending ? "Sending…" : "Send"}
-                  </Button>
+                  </HeroFact>
+                  <HeroFact label="Requester">
+                    <span className="inline-flex items-center gap-2">
+                      <Avatar text={initials(requesterName)} tone="violet" />
+                      <span className="truncate text-sm">{requesterName}</span>
+                    </span>
+                  </HeroFact>
+                  <HeroFact label="Created">
+                    <span className="inline-flex items-center gap-1.5 text-sm" suppressHydrationWarning>
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      {formatDateTime(ticket.createdAt)}
+                    </span>
+                  </HeroFact>
                 </div>
               </div>
-            ) : (
-              <p className="mt-4 rounded-xl border border-border/60 bg-background/20 p-3 text-xs text-muted-foreground">
-                Read-only access — you cannot post replies or notes on this ticket.
-              </p>
-            )}
-          </SectionCard>
 
-          <SectionCard title={`Attachments (${attachments.length})`}>
-            {!canViewAttachments ? (
-              <p className="text-xs text-muted-foreground">You do not have permission to view attachments.</p>
-            ) : attLoading ? (
-              <p className="text-xs text-muted-foreground">Loading attachments…</p>
-            ) : attError ? (
-              <p className="text-xs text-[#FF7C91]">{attErrorObj instanceof Error ? attErrorObj.message : "Failed to load attachments"}</p>
-            ) : attachments.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No attachments.</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {attachments.map((a) => (
-                  <li key={a.id} className="flex items-center gap-2 rounded-lg border border-border/40 bg-background/30 p-2 text-xs">
-                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{a.fileName}</div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {(a.sizeBytes / 1024).toFixed(1)} KB · {a.visibility === "internal" ? "Internal" : "Public"} · {nameOf(a.uploadedBy, pmap)}
-                      </div>
-                    </div>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDownload(a)} title="Download">
-                      <Download className="h-3.5 w-3.5" />
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                {!isRequesterView && canResolve && (
+                  isClosedLike ? (
+                    <Button variant="secondary" size="sm" onClick={() => setReopenOpen(true)}>
+                      <RotateCcw className="mr-1.5 h-4 w-4" /> Reopen
                     </Button>
-                    {(a.uploadedBy === userId || canManageAttachments) && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-[#FF7C91]"
-                        onClick={() => deleteAttMut.mutate(a)}
-                        disabled={deleteAttMut.isPending}
-                        title="Delete"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {canUploadAttachments && (
-              <div className="mt-3">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleFilePick}
-                />
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadMut.isPending}
-                >
-                  <Upload className="mr-1.5 h-3.5 w-3.5" />
-                  {uploadMut.isPending ? "Uploading…" : "Upload file"}
-                </Button>
-                <span className="ml-2 text-[10px] text-muted-foreground">Max 50 MB</span>
+                  ) : (
+                    <Button size="sm" onClick={() => setResolveOpen(true)}>
+                      <CheckCircle2 className="mr-1.5 h-4 w-4" /> Resolve
+                    </Button>
+                  )
+                )}
+                {isRequesterView && isClosedLike && (
+                  <Button variant="secondary" size="sm" onClick={() => setReopenOpen(true)}>
+                    <RotateCcw className="mr-1.5 h-4 w-4" /> Reopen request
+                  </Button>
+                )}
               </div>
-            )}
-          </SectionCard>
+            </div>
+          </div>
 
+          {/* Tabbed content */}
+          <div className="glass-card rounded-2xl border border-border/50 p-5">
+            <Tabs defaultValue="overview">
+              <TabsList className="mb-4 h-auto gap-1 bg-transparent p-0">
+                <TabPill value="overview" icon={MessageSquare} label="Overview" />
+                <TabPill value="comments" icon={MessageSquare} label="Comments" count={publicReplies.length} />
+                <TabPill value="attachments" icon={Paperclip} label="Attachments" count={attachments.length} />
+                {internalAllowed && <TabPill value="activity" icon={ActivityIcon} label="Activity" />}
+                <TabPill value="related" icon={Link2} label="Related" />
+              </TabsList>
 
-          {internalAllowed && (
-            <SectionCard title="Activity timeline">
-              <ol className="relative space-y-3 border-l border-border/40 pl-4">
-                <TimelineItem label={`Ticket created by ${requesterName}`} at={ticket.createdAt} />
-                {statusEvents.map((e) => (
-                  <TimelineItem
-                    key={e.id}
-                    label={`Status changed${e.fromStatus ? ` from ${labelStatus(e.fromStatus)}` : ""} to ${labelStatus(e.toStatus)}${e.changedBy ? ` by ${nameOf(e.changedBy, pmap)}` : ""}${e.reason ? ` — ${e.reason}` : ""}`}
-                    at={e.changedAt}
-                    tone={e.toStatus === "resolved" ? "success" : e.toStatus === "reopened" ? "danger" : e.toStatus === "in_progress" ? "warning" : "info"}
+              <TabsContent value="overview" className="space-y-6">
+                <section>
+                  <h3 className="mb-2 text-sm font-semibold">Description</h3>
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                    {ticket.description || "No description provided."}
+                  </p>
+                </section>
+                <section>
+                  <h3 className="mb-3 text-sm font-semibold">Conversation</h3>
+                  <ConversationList comments={visibleComments} pmap={pmap} userId={userId} />
+                </section>
+                {canCommentPublic && (
+                  <ReplyComposer
+                    value={reply}
+                    onChange={setReply}
+                    onSend={handleReply}
+                    pending={commentMut.isPending}
+                    internal={internal}
+                    setInternal={setInternal}
+                    internalAllowed={internalAllowed && canCommentInternal}
+                    me={initials(requesterName)}
                   />
-                ))}
-                {assignEvents.map((e) => {
-                  const toAssignee = e.toAssigneeId ? nameOf(e.toAssigneeId, pmap) : null;
-                  const fromAssignee = e.fromAssigneeId ? nameOf(e.fromAssigneeId, pmap) : null;
-                  const parts: string[] = [];
-                  if (toAssignee || fromAssignee) {
-                    parts.push(`Assignee: ${fromAssignee ?? "—"} → ${toAssignee ?? "—"}`);
-                  }
-                  if (e.toTeam || e.fromTeam) {
-                    parts.push(`Team: ${e.fromTeam ?? "—"} → ${e.toTeam ?? "—"}`);
-                  }
-                  return (
-                    <TimelineItem
-                      key={e.id}
-                      label={`${parts.join(" · ") || "Assignment updated"}${e.changedBy ? ` by ${nameOf(e.changedBy, pmap)}` : ""}`}
-                      at={e.changedAt}
-                      tone="info"
-                    />
-                  );
-                })}
-                {ticket.resolvedAt && <TimelineItem label="Ticket resolved" at={ticket.resolvedAt} tone="success" />}
-                {ticket.closedAt && <TimelineItem label="Ticket closed" at={ticket.closedAt} tone="muted" />}
-              </ol>
-            </SectionCard>
-          )}
+                )}
+              </TabsContent>
+
+              <TabsContent value="comments" className="space-y-4">
+                <ConversationList comments={visibleComments} pmap={pmap} userId={userId} />
+                {canCommentPublic && (
+                  <ReplyComposer
+                    value={reply}
+                    onChange={setReply}
+                    onSend={handleReply}
+                    pending={commentMut.isPending}
+                    internal={internal}
+                    setInternal={setInternal}
+                    internalAllowed={internalAllowed && canCommentInternal}
+                    me={initials(requesterName)}
+                  />
+                )}
+                {internalAllowed && internalNotes.length > 0 && (
+                  <section>
+                    <h4 className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#FFC86B]">
+                      <Lock className="h-3 w-3" /> Internal notes
+                    </h4>
+                    <div className="space-y-2">
+                      {internalNotes.map((c) => (
+                        <CommentBubble key={c.id} author={nameOf(c.authorId, pmap)} body={c.body} internal createdAt={c.createdAt} />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </TabsContent>
+
+              <TabsContent value="attachments" className="space-y-3">
+                {!canViewAttachments ? (
+                  <p className="text-xs text-muted-foreground">You do not have permission to view attachments.</p>
+                ) : attLoading ? (
+                  <p className="text-xs text-muted-foreground">Loading attachments…</p>
+                ) : attError ? (
+                  <p className="text-xs text-[#FF7C91]">{attErrorObj instanceof Error ? attErrorObj.message : "Failed to load attachments"}</p>
+                ) : attachments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No attachments yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {attachments.map((a) => (
+                      <li key={a.id} className="flex items-center gap-3 rounded-xl border border-border/40 bg-background/30 p-3 text-sm">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Paperclip className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-medium">{a.fileName}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {(a.sizeBytes / 1024).toFixed(1)} KB · {a.visibility === "internal" ? "Internal" : "Public"} · {nameOf(a.uploadedBy, pmap)}
+                          </div>
+                        </div>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleDownload(a)} title="Download">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        {(a.uploadedBy === userId || canManageAttachments) && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-[#FF7C91]"
+                            onClick={() => deleteAttMut.mutate(a)}
+                            disabled={deleteAttMut.isPending}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {canUploadAttachments && (
+                  <div className="pt-1">
+                    <input ref={fileInputRef} type="file" className="hidden" onChange={handleFilePick} />
+                    <Button size="sm" variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={uploadMut.isPending}>
+                      <Upload className="mr-1.5 h-3.5 w-3.5" />
+                      {uploadMut.isPending ? "Uploading…" : "Upload file"}
+                    </Button>
+                    <span className="ml-2 text-[10px] text-muted-foreground">Max 50 MB</span>
+                  </div>
+                )}
+              </TabsContent>
+
+              {internalAllowed && (
+                <TabsContent value="activity">
+                  <ol className="relative space-y-3 border-l border-border/40 pl-4">
+                    <TimelineItem label={`Ticket created by ${requesterName}`} at={ticket.createdAt} />
+                    {statusEvents.map((e) => (
+                      <TimelineItem
+                        key={e.id}
+                        label={`Status changed${e.fromStatus ? ` from ${labelStatus(e.fromStatus)}` : ""} to ${labelStatus(e.toStatus)}${e.changedBy ? ` by ${nameOf(e.changedBy, pmap)}` : ""}${e.reason ? ` — ${e.reason}` : ""}`}
+                        at={e.changedAt}
+                        tone={e.toStatus === "resolved" ? "success" : e.toStatus === "reopened" ? "danger" : e.toStatus === "in_progress" ? "warning" : "info"}
+                      />
+                    ))}
+                    {assignEvents.map((e) => {
+                      const toAssignee = e.toAssigneeId ? nameOf(e.toAssigneeId, pmap) : null;
+                      const fromAssignee = e.fromAssigneeId ? nameOf(e.fromAssigneeId, pmap) : null;
+                      const parts: string[] = [];
+                      if (toAssignee || fromAssignee) parts.push(`Assignee: ${fromAssignee ?? "—"} → ${toAssignee ?? "—"}`);
+                      if (e.toTeam || e.fromTeam) parts.push(`Team: ${e.fromTeam ?? "—"} → ${e.toTeam ?? "—"}`);
+                      return (
+                        <TimelineItem
+                          key={e.id}
+                          label={`${parts.join(" · ") || "Assignment updated"}${e.changedBy ? ` by ${nameOf(e.changedBy, pmap)}` : ""}`}
+                          at={e.changedAt}
+                          tone="info"
+                        />
+                      );
+                    })}
+                    {ticket.resolvedAt && <TimelineItem label="Ticket resolved" at={ticket.resolvedAt} tone="success" />}
+                    {ticket.closedAt && <TimelineItem label="Ticket closed" at={ticket.closedAt} tone="muted" />}
+                  </ol>
+                </TabsContent>
+              )}
+
+              <TabsContent value="related">
+                {ticket.affectedService ? (
+                  <div className="rounded-xl border border-border/40 bg-background/30 p-3 text-sm">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Affected service</div>
+                    <div className="mt-0.5">{ticket.affectedService}</div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No related items yet.</p>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          <SectionCard title="People">
-            <KV k="Requester" v={requesterName} icon={UserIcon} />
-            <KV k="Assignee" v={assigneeName ?? <em className="text-[#FFC86B] not-italic">Unassigned</em>} icon={UserCheck} />
-            <KV k="Team" v={ticket.assignedTeam ?? "—"} icon={UsersIcon} />
+        {/* RIGHT RAIL */}
+        <div className="space-y-5">
+          <div className="glass-card rounded-2xl border border-border/50 p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Ticket details</h3>
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-2.5 text-sm">
+              <DetailRow k="Status" v={<StatusBadge label={labelStatus(ticket.status)} tone={STATUS_TONE[ticket.status]} />} />
+              <DetailRow k="Priority" v={
+                <span className="inline-flex items-center gap-1.5">
+                  <Flag className={`h-3.5 w-3.5 ${priorityIconColor(ticket.priority)}`} />
+                  {cap(ticket.priority)}
+                </span>
+              } />
+              <DetailRow k="Category" v={
+                <span className="inline-flex items-center gap-1.5">
+                  <CategoryIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  {ticket.category ?? "—"}
+                </span>
+              } />
+              {ticket.subcategory && <DetailRow k="Subcategory" v={ticket.subcategory} />}
+              <DetailRow k="Type" v={cap(ticket.type)} />
+              <DetailRow k="Source" v={cap(ticket.source)} />
+              <DetailRow k="Opened" v={<span suppressHydrationWarning>{formatDateTime(ticket.openedAt)}</span>} />
+              <DetailRow k="Updated" v={<span suppressHydrationWarning>{timeAgo(ticket.updatedAt)}</span>} />
+              {ticket.resolvedAt && <DetailRow k="Resolved" v={<span suppressHydrationWarning>{formatDateTime(ticket.resolvedAt)}</span>} />}
+            </div>
+
+            {!isRequesterView && canResolve && (
+              <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border/40 pt-4">
+                <Select
+                  value={ticket.status}
+                  onValueChange={(v) => updateMut.mutate({ status: v as TicketStatus }, { onSuccess: () => toast.success(`Status: ${labelStatus(v as TicketStatus)}`) })}
+                >
+                  <SelectTrigger className="h-8 text-xs"><PlayCircle className="mr-1 h-3 w-3" /><SelectValue /></SelectTrigger>
+                  <SelectContent>{TICKET_STATUSES.map((s) => <SelectItem key={s} value={s}>{labelStatus(s)}</SelectItem>)}</SelectContent>
+                </Select>
+                <Select
+                  value={ticket.priority}
+                  onValueChange={(v) => updateMut.mutate({ priority: v as TicketPriority }, { onSuccess: () => toast.success(`Priority: ${cap(v)}`) })}
+                >
+                  <SelectTrigger className="h-8 text-xs"><AlertTriangle className="mr-1 h-3 w-3" /><SelectValue /></SelectTrigger>
+                  <SelectContent>{TICKET_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{cap(p)}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <div className="glass-card rounded-2xl border border-border/50 p-5">
+            <h3 className="mb-3 text-sm font-semibold">People</h3>
+            <div className="space-y-3 text-sm">
+              <PersonRow label="Requester" name={requesterName} tone="violet" />
+              <PersonRow label="Assignee" name={assigneeName} tone="emerald" />
+              <DetailRow k={<span className="inline-flex items-center gap-1.5"><UsersIcon className="h-3.5 w-3.5" /> Team</span>} v={ticket.assignedTeam ?? "—"} />
+            </div>
             {!isRequesterView && canAssign && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
+              <div className="mt-3 space-y-2 border-t border-border/40 pt-3">
                 <Select
                   value={ticket.assigneeId ?? "none"}
                   onValueChange={(v) => {
                     const next = v === "none" ? null : v;
-                    updateMut.mutate({ assigneeId: next }, {
-                      onSuccess: () => toast.success(next ? `Assigned to ${nameOf(next, pmap)}` : "Unassigned"),
-                    });
+                    updateMut.mutate({ assigneeId: next }, { onSuccess: () => toast.success(next ? `Assigned to ${nameOf(next, pmap)}` : "Unassigned") });
                   }}
                 >
                   <SelectTrigger className="h-8 w-full text-xs"><SelectValue placeholder="Reassign" /></SelectTrigger>
@@ -548,9 +674,7 @@ function TicketDetail() {
                   value={ticket.assignedTeam ?? "none"}
                   onValueChange={(v) => {
                     const next = v === "none" ? null : v;
-                    updateMut.mutate({ assignedTeam: next }, {
-                      onSuccess: () => toast.success(next ? `Team: ${next}` : "Team cleared"),
-                    });
+                    updateMut.mutate({ assignedTeam: next }, { onSuccess: () => toast.success(next ? `Team: ${next}` : "Team cleared") });
                   }}
                 >
                   <SelectTrigger className="h-8 w-full text-xs"><SelectValue placeholder="Team" /></SelectTrigger>
@@ -564,52 +688,43 @@ function TicketDetail() {
                 </Select>
               </div>
             )}
-          </SectionCard>
+          </div>
 
-          <SectionCard title="Lifecycle">
-            <KV k="Status" v={<StatusBadge label={labelStatus(ticket.status)} tone={STATUS_TONE[ticket.status]} />} />
-            <KV k="Priority" v={<StatusBadge label={cap(ticket.priority)} tone={PRIORITY_TONE[ticket.priority]} />} />
-            <KV k="Opened" v={<span suppressHydrationWarning>{formatDateTime(ticket.openedAt)}</span>} icon={Clock} />
-            <KV k="Created" v={<span suppressHydrationWarning>{formatDateTime(ticket.createdAt)}</span>} />
-            <KV k="Updated" v={<span suppressHydrationWarning>{formatDateTime(ticket.updatedAt)}</span>} />
-            {ticket.resolvedAt && <KV k="Resolved" v={<span suppressHydrationWarning>{formatDateTime(ticket.resolvedAt)}</span>} />}
-            {ticket.closedAt && <KV k="Closed" v={<span suppressHydrationWarning>{formatDateTime(ticket.closedAt)}</span>} />}
-            {!isRequesterView && canResolve && (
-              <div className="mt-3 grid grid-cols-2 gap-1.5">
-                <Select
-                  value={ticket.status}
-                  onValueChange={(v) => updateMut.mutate({ status: v as TicketStatus }, {
-                    onSuccess: () => toast.success(`Status: ${labelStatus(v as TicketStatus)}`),
-                  })}
-                >
-                  <SelectTrigger className="h-8 text-xs"><PlayCircle className="mr-1 h-3 w-3" /><SelectValue /></SelectTrigger>
-                  <SelectContent>{TICKET_STATUSES.map((s) => <SelectItem key={s} value={s}>{labelStatus(s)}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select
-                  value={ticket.priority}
-                  onValueChange={(v) => updateMut.mutate({ priority: v as TicketPriority }, {
-                    onSuccess: () => toast.success(`Priority: ${cap(v)}`),
-                  })}
-                >
-                  <SelectTrigger className="h-8 text-xs"><AlertTriangle className="mr-1 h-3 w-3" /><SelectValue /></SelectTrigger>
-                  <SelectContent>{TICKET_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{cap(p)}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
+          <div className="glass-card rounded-2xl border border-border/50 p-5">
+            <h3 className="mb-3 text-sm font-semibold">Recent activity</h3>
+            {recentActivity.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No activity yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {recentActivity.map((a) => {
+                  const Icon = a.icon;
+                  return (
+                    <li key={a.key} className="flex items-start gap-3">
+                      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${activityToneBg(a.tone)}`}>
+                        <Icon className={`h-3.5 w-3.5 ${activityToneFg(a.tone)}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs leading-snug">{a.title}</p>
+                        <p className="text-[11px] text-muted-foreground" suppressHydrationWarning>
+                          by {a.by} · {timeAgo(a.at)}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
-          </SectionCard>
+          </div>
 
           {ticket.tags.length > 0 && (
-            <SectionCard title="Tags">
+            <div className="glass-card rounded-2xl border border-border/50 p-5">
+              <h3 className="mb-3 text-sm font-semibold">Tags</h3>
               <div className="flex flex-wrap gap-1.5">
-                {ticket.tags.map((t) => <Badge key={t} variant="outline" className="text-[10px]"><Tag className="mr-1 h-3 w-3" />{t}</Badge>)}
+                {ticket.tags.map((t) => (
+                  <Badge key={t} variant="outline" className="text-[10px]"><Tag className="mr-1 h-3 w-3" />{t}</Badge>
+                ))}
               </div>
-            </SectionCard>
-          )}
-
-          {ticket.affectedService && (
-            <SectionCard title="Affected service">
-              <p className="text-xs text-muted-foreground">{ticket.affectedService}</p>
-            </SectionCard>
+            </div>
           )}
         </div>
       </div>
