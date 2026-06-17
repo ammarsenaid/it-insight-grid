@@ -728,9 +728,23 @@ export function KnowledgeBackendWorkspace() {
         </div>
       </div>
 
-      <div className="kb-docs-layout kb-pro-grid grid gap-4 xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)_minmax(260px,320px)]">
+      <div
+        className={cn(
+          "kb-docs-layout kb-pro-grid grid gap-4",
+          selection?.kind === "article"
+            ? "xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_minmax(260px,320px)]"
+            : "xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)]",
+        )}
+      >
         {/* Tree */}
-        <aside className="kb-pro-tree glass-card flex h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col rounded-2xl p-4">
+        <aside
+          className={cn(
+            "kb-pro-tree glass-card flex min-w-0 flex-col rounded-2xl p-4",
+            selection?.kind === "article"
+              ? "h-[calc(100vh-280px)] min-h-[520px]"
+              : "xl:sticky xl:top-4 xl:h-[calc(100vh-180px)] xl:min-h-[520px]",
+          )}
+        >
           <div className="relative mb-2">
             <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
