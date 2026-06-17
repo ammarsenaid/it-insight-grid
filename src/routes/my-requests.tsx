@@ -486,6 +486,33 @@ function RequesterCreateDrawer({
     >
       <div className="space-y-2">
         <Label className="text-xs">
+          What do you need help with? <span className="text-destructive">*</span>
+        </Label>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {REQUEST_CATEGORIES.map((c) => {
+            const Icon = c.icon;
+            const active = category === c.value;
+            return (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setCategory(c.value)}
+                className={`group flex flex-col items-start gap-1.5 rounded-xl border p-2.5 text-left transition-all ${
+                  active
+                    ? "border-primary/60 bg-primary/10 ring-1 ring-primary/40"
+                    : "border-border/60 bg-background/40 hover:border-border hover:bg-white/[0.03]"
+                }`}
+              >
+                <Icon className={`h-4 w-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                <div className="text-xs font-medium leading-tight">{c.label}</div>
+                <div className="text-[10px] leading-tight text-muted-foreground">{c.description}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs">
           Subject <span className="text-destructive">*</span>
         </Label>
         <Input
@@ -505,38 +532,22 @@ function RequesterCreateDrawer({
           placeholder="Please describe the issue or request"
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label className="text-xs">Priority</Label>
-          <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PRIORITIES.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {cap(p)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label className="text-xs">Category</Label>
-          <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SUGGESTED_CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="space-y-2">
+        <Label className="text-xs">Priority</Label>
+        <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PRIORITIES.map((p) => (
+              <SelectItem key={p} value={p}>
+                {cap(p)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
     </FormDrawer>
   );
 }
