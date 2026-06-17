@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { KnowledgeBackendWorkspace } from "@/components/knowledge/KnowledgeBackendWorkspace";
+import { BookStackUI } from "@/components/knowledge/BookStackUI";
 
 export const Route = createFileRoute("/documents")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/documents")({
 function DocumentsPage() {
   return (
     <div className="-mt-2">
-      <KnowledgeBackendWorkspace />
+      <BookStackUI />
     </div>
   );
 }
