@@ -30,6 +30,7 @@ import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TicketsIndexRouteImport } from './routes/tickets.index'
 import { Route as ProtocolsIndexRouteImport } from './routes/protocols.index'
+import { Route as TicketsNewRouteImport } from './routes/tickets.new'
 import { Route as TicketsIdRouteImport } from './routes/tickets.$id'
 import { Route as ServiceCatalogIdRouteImport } from './routes/service-catalog.$id'
 import { Route as ProtocolsIdRouteImport } from './routes/protocols.$id'
@@ -148,6 +149,11 @@ const ProtocolsIndexRoute = ProtocolsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProtocolsRoute,
 } as any)
+const TicketsNewRoute = TicketsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => TicketsRoute,
+} as any)
 const TicketsIdRoute = TicketsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -241,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/protocols/$id': typeof ProtocolsIdRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/tickets/new': typeof TicketsNewRoute
   '/protocols/': typeof ProtocolsIndexRoute
   '/tickets/': typeof TicketsIndexRoute
 }
@@ -274,6 +281,7 @@ export interface FileRoutesByTo {
   '/protocols/$id': typeof ProtocolsIdRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/tickets/new': typeof TicketsNewRoute
   '/protocols': typeof ProtocolsIndexRoute
   '/tickets': typeof TicketsIndexRoute
 }
@@ -310,6 +318,7 @@ export interface FileRoutesById {
   '/protocols/$id': typeof ProtocolsIdRoute
   '/service-catalog/$id': typeof ServiceCatalogIdRoute
   '/tickets/$id': typeof TicketsIdRoute
+  '/tickets/new': typeof TicketsNewRoute
   '/protocols/': typeof ProtocolsIndexRoute
   '/tickets/': typeof TicketsIndexRoute
 }
@@ -347,6 +356,7 @@ export interface FileRouteTypes {
     | '/protocols/$id'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/tickets/new'
     | '/protocols/'
     | '/tickets/'
   fileRoutesByTo: FileRoutesByTo
@@ -380,6 +390,7 @@ export interface FileRouteTypes {
     | '/protocols/$id'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/tickets/new'
     | '/protocols'
     | '/tickets'
   id:
@@ -415,6 +426,7 @@ export interface FileRouteTypes {
     | '/protocols/$id'
     | '/service-catalog/$id'
     | '/tickets/$id'
+    | '/tickets/new'
     | '/protocols/'
     | '/tickets/'
   fileRoutesById: FileRoutesById
@@ -599,6 +611,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtocolsIndexRouteImport
       parentRoute: typeof ProtocolsRoute
     }
+    '/tickets/new': {
+      id: '/tickets/new'
+      path: '/new'
+      fullPath: '/tickets/new'
+      preLoaderRoute: typeof TicketsNewRouteImport
+      parentRoute: typeof TicketsRoute
+    }
     '/tickets/$id': {
       id: '/tickets/$id'
       path: '/$id'
@@ -714,11 +733,13 @@ const ServiceCatalogRouteWithChildren = ServiceCatalogRoute._addFileChildren(
 
 interface TicketsRouteChildren {
   TicketsIdRoute: typeof TicketsIdRoute
+  TicketsNewRoute: typeof TicketsNewRoute
   TicketsIndexRoute: typeof TicketsIndexRoute
 }
 
 const TicketsRouteChildren: TicketsRouteChildren = {
   TicketsIdRoute: TicketsIdRoute,
+  TicketsNewRoute: TicketsNewRoute,
   TicketsIndexRoute: TicketsIndexRoute,
 }
 
