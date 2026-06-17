@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { TicketWizard } from "@/components/service-desk/TicketWizard";
 
-export const Route = createFileRoute("/my-requests/new")({
+export const Route = createFileRoute("/requests/new")({
   head: () => ({ meta: [{ title: "New Request · IT Knowledge Center" }] }),
   component: NewRequestPage,
 });
