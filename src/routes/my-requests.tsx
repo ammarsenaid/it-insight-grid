@@ -334,7 +334,7 @@ function MyRequests() {
                   title="No requests yet"
                   description="Submit a request and the IT team will get back to you."
                   actionLabel="New request"
-                  onAction={() => setCreateOpen(true)}
+                  onAction={() => navigate({ to: "/requests/new" })}
                 />
 
               ) : (
