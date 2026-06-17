@@ -1773,8 +1773,30 @@ function SpacePane({
 
       {/* Chapters */}
       {visibleCats.length === 0 && loosePages.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/40 p-8 text-center text-xs text-muted-foreground">
-          This book is empty. Add a chapter or a page to get started.
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/50 bg-card/30 p-10 text-center">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+            <BookMarked className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-sm font-medium">This book is empty</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Add a chapter to organise pages, or drop in a loose page.
+            </p>
+          </div>
+          {(perms.update || perms.create) && !space.is_archived && (
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+              {perms.update && (
+                <Button size="sm" variant="secondary" className="h-8 text-xs" onClick={onNewCategory}>
+                  <Plus className="mr-1 h-3 w-3" /> New chapter
+                </Button>
+              )}
+              {perms.create && (
+                <Button size="sm" className="h-8 text-xs" onClick={onNewArticle}>
+                  <Plus className="mr-1 h-3 w-3" /> New page
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-8">
@@ -1784,8 +1806,9 @@ function SpacePane({
             );
             return (
               <div key={c.id}>
-                <div className="mb-3 flex items-end justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="mb-3 flex items-end justify-between gap-3 border-b border-border/40 pb-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <BookMarked className="h-4 w-4 shrink-0 text-primary/70" />
                     <button
                       onClick={() => onOpenCategory(c.id)}
                       className="truncate text-lg font-semibold tracking-tight hover:text-primary"
@@ -1793,12 +1816,12 @@ function SpacePane({
                       {c.name}
                     </button>
                     {c.description && (
-                      <p className="line-clamp-1 text-sm text-muted-foreground">
-                        {c.description}
-                      </p>
+                      <span className="hidden truncate text-xs text-muted-foreground md:inline">
+                        — {c.description}
+                      </span>
                     )}
                   </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                     {pages.length} page{pages.length === 1 ? "" : "s"}
                   </span>
                 </div>
@@ -1974,8 +1997,21 @@ function CategoryPane({
       </div>
 
       {visible.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/40 p-8 text-center text-xs text-muted-foreground">
-          No pages here yet.
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/50 bg-card/30 p-10 text-center">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-sm font-medium">No pages in this chapter</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Create the first page to start documenting this topic.
+            </p>
+          </div>
+          {perms.create && !category.is_archived && (
+            <Button size="sm" className="mt-1 h-8 text-xs" onClick={onNewArticle}>
+              <Plus className="mr-1 h-3 w-3" /> New page
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -2426,11 +2462,14 @@ function PageCard({
   return (
     <button
       onClick={onOpen}
-      className="group flex flex-col gap-3 rounded-xl border border-border/60 bg-card/40 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70"
+      className="group relative flex h-full flex-col gap-3 rounded-xl border border-border/60 bg-card/40 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold tracking-tight group-hover:text-primary">
+      <div className="flex items-start gap-3">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04] text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+          <FileText className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="line-clamp-2 text-sm font-semibold leading-snug tracking-tight group-hover:text-primary">
             {article.title}
           </div>
           {article.excerpt && (
@@ -2439,10 +2478,10 @@ function PageCard({
             </div>
           )}
         </div>
-        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/30 transition-all group-hover:translate-x-0.5 group-hover:text-foreground" />
       </div>
-      <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-        <div className="flex flex-wrap gap-1.5">
+      <div className="mt-auto flex items-center justify-between gap-2 pt-1 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-1.5">
           <StatusPill status={article.status} />
           {tags.slice(0, 2).map((t) => (
             <Badge
@@ -2450,11 +2489,12 @@ function PageCard({
               variant="outline"
               className="border-border/40 text-[10px] font-normal"
             >
+              <TagIcon className="mr-1 h-2.5 w-2.5" />
               {t}
             </Badge>
           ))}
         </div>
-        <span>{formatDate(article.updated_at)}</span>
+        <span className="shrink-0">{formatDate(article.updated_at)}</span>
       </div>
     </button>
   );
@@ -2500,9 +2540,19 @@ function Stat({ label, value }: { label: string; value: number | string }) {
 // ============================================================
 function WorkspaceSkeleton() {
   return (
-    <div className="grid gap-3 lg:grid-cols-[280px_minmax(0,1fr)]">
-      <Skeleton className="h-[480px] rounded-2xl" />
-      <Skeleton className="h-[480px] rounded-2xl" />
+    <div className="space-y-4">
+      <Skeleton className="h-14 rounded-2xl" />
+      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+        <Skeleton className="hidden h-[480px] rounded-2xl lg:block" />
+        <div className="space-y-4">
+          <Skeleton className="h-44 rounded-2xl" />
+          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="hidden h-32 rounded-xl 2xl:block" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2511,7 +2561,11 @@ function TreeSkeleton() {
   return (
     <div className="space-y-2 p-2">
       {Array.from({ length: 6 }).map((_, i) => (
-        <Skeleton key={i} className="h-6 w-full" />
+        <Skeleton
+          key={i}
+          className="h-6"
+          style={{ width: `${60 + ((i * 13) % 35)}%` }}
+        />
       ))}
     </div>
   );
@@ -2519,10 +2573,15 @@ function TreeSkeleton() {
 
 function ContentSkeleton() {
   return (
-    <div className="space-y-3">
-      <Skeleton className="h-40 w-full rounded-2xl" />
-      <Skeleton className="h-6 w-1/3" />
-      <Skeleton className="h-32 w-full rounded-xl" />
+    <div className="space-y-4">
+      <Skeleton className="h-44 w-full rounded-2xl" />
+      <Skeleton className="h-7 w-1/3" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+      </div>
     </div>
   );
 }
