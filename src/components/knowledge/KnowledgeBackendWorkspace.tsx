@@ -2521,8 +2521,8 @@ function ArticlePane({
 
         {tab === "content" && (
           <div className="space-y-6">
-            <div className="rounded-2xl border border-border/60 bg-card/30 px-5 py-8 md:px-10 md:py-10">
-              <div className="kb-manuscript prose-knowledge max-w-none">
+            <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/30 px-4 py-6 md:px-8 md:py-8">
+              <div className="kb-manuscript prose-knowledge min-w-0 max-w-none break-words">
                 {article.content_markdown ? (
                   <Markdown source={article.content_markdown} />
                 ) : (
