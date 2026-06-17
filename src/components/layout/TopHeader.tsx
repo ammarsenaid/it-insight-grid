@@ -24,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useData, updateSettings } from "@/lib/data/store";
 import { CommandPalette } from "@/components/common/CommandPalette";
-import { NotificationDrawer } from "@/components/common/NotificationDrawer";
+import { NotificationPopover } from "@/components/common/NotificationPopover";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
