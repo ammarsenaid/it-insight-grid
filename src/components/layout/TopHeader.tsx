@@ -183,7 +183,6 @@ export function TopHeader() {
       </header>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
-      <NotificationDrawer open={notifOpen} onOpenChange={setNotifOpen} />
     </>
   );
 }
