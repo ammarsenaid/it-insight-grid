@@ -40,7 +40,15 @@ import {
   Tag as TagIcon,
   ArrowLeft,
   MoreHorizontal,
+  Lightbulb,
+  Zap,
+  LayoutTemplate,
+  Upload,
+  CheckCircle2,
+  Loader2,
+  PencilLine,
 } from "lucide-react";
+
 
 import {
   DropdownMenu,
