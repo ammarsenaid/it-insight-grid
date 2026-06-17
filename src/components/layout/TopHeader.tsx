@@ -34,7 +34,7 @@ import { unreadNotificationsQuery } from "@/lib/service-desk/queries";
 export function TopHeader() {
   const [q, setQ] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
+  
   const navigate = useNavigate();
   const data = useData();
   const { profile, user, session, signOut, isPlatformAdmin } = useAuth();
