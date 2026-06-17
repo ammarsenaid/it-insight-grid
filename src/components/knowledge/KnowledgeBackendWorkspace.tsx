@@ -2735,9 +2735,22 @@ function SectionHeading({
   );
 }
 
-function Stat({ label, value }: { label: string; value: number | string }) {
+function Stat({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: number | string;
+  icon?: React.ReactNode;
+}) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card/50 px-3 py-2 backdrop-blur">
+    <div className="rounded-lg border border-border/60 bg-card/50 px-3 py-2.5 backdrop-blur">
+      {icon && (
+        <div className="mb-1 flex h-5 w-5 items-center justify-center text-muted-foreground">
+          {icon}
+        </div>
+      )}
       <div className="text-lg font-semibold tracking-tight tabular-nums">{value}</div>
       <div className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
         {label}
@@ -2745,6 +2758,7 @@ function Stat({ label, value }: { label: string; value: number | string }) {
     </div>
   );
 }
+
 
 // ============================================================
 // States
