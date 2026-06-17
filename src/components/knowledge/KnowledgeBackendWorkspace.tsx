@@ -1,3 +1,16 @@
+/**
+ * Real backend-powered Knowledge Center workspace.
+ *
+ * Rebuilt from scratch in the polished editorial style used by the Lovable
+ * design preview, but wired end-to-end to Supabase via existing hooks and
+ * mutations. NO sample data — all content comes from `useKnowledgeBackend`.
+ *
+ * Layout:
+ *   - Default view: Overview/Home (hero + book grid + recently updated)
+ *   - Left sidebar: Overview entry + Books/Chapters/Pages tree + search
+ *   - Detail panes: Book → Chapter → Page, with breadcrumb back navigation
+ *   - All existing CRUD flows preserved (dialogs, permissions, recents)
+ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import {
@@ -22,7 +35,10 @@ import {
   List as ListIcon,
   Link2,
   Clock,
-  X,
+  Compass,
+  Sparkles,
+  Tag as TagIcon,
+  ArrowLeft,
   MoreHorizontal,
 } from "lucide-react";
 
@@ -34,9 +50,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const documentsRouteApi = getRouteApi("/documents");
-
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +67,10 @@ import { formatDate } from "@/components/common/format";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { fetchArticleRevisions, useKnowledgeBackend } from "@/lib/knowledge/useKnowledgeBackend";
+import {
+  fetchArticleRevisions,
+  useKnowledgeBackend,
+} from "@/lib/knowledge/useKnowledgeBackend";
 import { useKnowledgePermissions } from "@/lib/knowledge/permissions";
 import {
   deleteArticle,
@@ -86,85 +102,34 @@ import type {
   KbSpace,
 } from "@/lib/knowledge/backend-types";
 
+const documentsRouteApi = getRouteApi("/documents");
+
+// ───────── Types ─────────
 type Selection =
+  | { kind: "home" }
   | { kind: "space"; id: string }
   | { kind: "category"; id: string }
-  | { kind: "article"; id: string }
-  | null;
+  | { kind: "article"; id: string };
 
 type StatusFilter = "all" | ArticleStatus;
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
-  in_review: "In Review",
+  in_review: "In review",
   approved: "Approved",
   published: "Published",
   archived: "Archived",
 };
 
-// ---- BookStack-style book cover ----
-const BOOK_COVER_GRADIENTS = [
-  "from-rose-500 to-rose-700",
-  "from-amber-500 to-amber-700",
-  "from-emerald-500 to-emerald-700",
-  "from-sky-500 to-sky-700",
-  "from-violet-500 to-violet-700",
-  "from-fuchsia-500 to-fuchsia-700",
-  "from-teal-500 to-teal-700",
-  "from-orange-500 to-orange-700",
-  "from-indigo-500 to-indigo-700",
-  "from-cyan-500 to-cyan-700",
-  "from-lime-500 to-lime-700",
-  "from-pink-500 to-pink-700",
-];
-function bookCoverClass(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  return BOOK_COVER_GRADIENTS[Math.abs(h) % BOOK_COVER_GRADIENTS.length];
-}
+const STATUS_PILL: Record<string, string> = {
+  draft: "border-slate-500/30 bg-slate-500/10 text-slate-200",
+  in_review: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+  approved: "border-sky-500/30 bg-sky-500/10 text-sky-200",
+  published: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+  archived: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300",
+};
 
-function BookCover({
-  title,
-  size = "md",
-  className,
-}: {
-  title: string;
-  size?: "sm" | "md" | "lg";
-  className?: string;
-}) {
-  const dims =
-    size === "sm"
-      ? "h-16 w-12 text-[10px]"
-      : size === "lg"
-        ? "h-40 w-28 text-base"
-        : "h-28 w-20 text-xs";
-  const initial = (title.trim()[0] ?? "?").toUpperCase();
-  return (
-    <div
-      className={cn(
-        "relative shrink-0 overflow-hidden rounded-r-md rounded-l-sm bg-gradient-to-br shadow-lg ring-1 ring-black/30",
-        bookCoverClass(title),
-        dims,
-        className,
-      )}
-      aria-hidden
-    >
-      {/* spine */}
-      <div className="absolute inset-y-0 left-0 w-[6px] bg-black/25" />
-      <div className="absolute inset-y-0 left-[6px] w-px bg-white/20" />
-      {/* initial */}
-      <div className="absolute inset-0 flex items-center justify-center pl-1">
-        <span className="font-serif font-bold uppercase text-white/95 drop-shadow-sm">
-          {initial}
-        </span>
-      </div>
-      {/* sheen */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/0 via-white/0 to-white/15" />
-    </div>
-  );
-}
-
-// ---- Polished accents (mirrors the preview workspace look) ----
+// Deterministic accent gradient per book.
 const ACCENT_GRADIENTS = [
   "from-rose-500/80 to-orange-500/70",
   "from-emerald-500/80 to-teal-500/70",
@@ -179,19 +144,13 @@ function spaceAccent(seed: string): string {
   return ACCENT_GRADIENTS[Math.abs(h) % ACCENT_GRADIENTS.length];
 }
 
-const STATUS_PILL: Record<string, string> = {
-  draft: "border-slate-500/30 bg-slate-500/10 text-slate-200",
-  in_review: "border-amber-500/30 bg-amber-500/10 text-amber-200",
-  approved: "border-sky-500/30 bg-sky-500/10 text-sky-200",
-  published: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-  archived: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300",
-};
 function StatusPill({ status }: { status: string }) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium",
-        STATUS_PILL[status] ?? "border-border/40 bg-white/[0.04] text-muted-foreground",
+        STATUS_PILL[status] ??
+          "border-border/40 bg-white/[0.04] text-muted-foreground",
       )}
     >
       {STATUS_LABEL[status] ?? status}
@@ -199,24 +158,29 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-
+// ============================================================
+// Top-level workspace
+// ============================================================
 export function KnowledgeBackendWorkspace() {
-  const { teams, contextLoading, contextError, refresh, loading: authLoading } = useAuth();
+  const {
+    teams,
+    contextLoading,
+    contextError,
+    refresh,
+    loading: authLoading,
+  } = useAuth();
 
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
-
   useEffect(() => {
-    if (teams.length === 0) {
-      setActiveTeamId(null);
-    } else if (!activeTeamId || !teams.find((t) => t.id === activeTeamId)) {
+    if (teams.length === 0) setActiveTeamId(null);
+    else if (!activeTeamId || !teams.find((t) => t.id === activeTeamId))
       setActiveTeamId(teams[0].id);
-    }
   }, [teams, activeTeamId]);
 
   const { data, loading, error, reload } = useKnowledgeBackend(activeTeamId);
   const { perms } = useKnowledgePermissions(activeTeamId);
 
-  const [selection, setSelection] = useState<Selection>(null);
+  const [selection, setSelection] = useState<Selection>({ kind: "home" });
   const [editingArticle, setEditingArticle] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -231,10 +195,10 @@ export function KnowledgeBackendWorkspace() {
   } = useRecentlyViewed(activeTeamId);
 
   // Dialogs
-  const [spaceDialog, setSpaceDialog] = useState<{ open: boolean; initial: KbSpace | null }>({
-    open: false,
-    initial: null,
-  });
+  const [spaceDialog, setSpaceDialog] = useState<{
+    open: boolean;
+    initial: KbSpace | null;
+  }>({ open: false, initial: null });
   const [categoryDialog, setCategoryDialog] = useState<{
     open: boolean;
     initial: KbCategory | null;
@@ -258,8 +222,9 @@ export function KnowledgeBackendWorkspace() {
     onConfirm: () => void;
   } | null>(null);
 
+  // Reset on team switch.
   useEffect(() => {
-    setSelection(null);
+    setSelection({ kind: "home" });
     setEditingArticle(false);
     setExpanded(new Set());
     setStatusFilter("all");
@@ -267,13 +232,16 @@ export function KnowledgeBackendWorkspace() {
     setTagFilter("");
   }, [activeTeamId]);
 
+  // Auto-expand visible books once data loads.
   useEffect(() => {
     if (data && expanded.size === 0 && data.spaces.length > 0) {
-      setExpanded(new Set(data.spaces.filter((s) => !s.is_archived).map((s) => s.id)));
+      setExpanded(
+        new Set(data.spaces.filter((s) => !s.is_archived).map((s) => s.id)),
+      );
     }
   }, [data, expanded.size]);
 
-  // Deep link: /documents?article=<id> selects that article when data loads.
+  // Deep link: /documents?article=<id>
   const search = documentsRouteApi.useSearch();
   const navigate = useNavigate();
   const deepLinkAppliedRef = useRef<string | null>(null);
@@ -285,34 +253,34 @@ export function KnowledgeBackendWorkspace() {
     if (!article) return;
     if (activeTeamId && article.team_id !== activeTeamId) {
       setActiveTeamId(article.team_id);
-      return; // wait for next data load under the correct team
+      return;
     }
     deepLinkAppliedRef.current = id;
     setSelection({ kind: "article", id });
     setEditingArticle(false);
-    // clear the search param so subsequent state changes don't re-trigger
     navigate({ to: "/documents", search: { article: undefined }, replace: true });
   }, [search.article, data, activeTeamId, navigate]);
 
-  // Leave edit mode when switching to a non-article selection
+  // Leave edit when switching off an article.
   useEffect(() => {
-    if (!selection || selection.kind !== "article") setEditingArticle(false);
+    if (selection.kind !== "article") setEditingArticle(false);
   }, [selection]);
 
-  // Track recently viewed articles
+  // Track recently viewed.
   useEffect(() => {
     if (!data || !activeTeamId) return;
-    if (selection?.kind !== "article") return;
+    if (selection.kind !== "article") return;
     const a = data.articles.find((x) => x.id === selection.id);
     if (a) trackRecent({ id: a.id, title: a.title, teamId: activeTeamId });
   }, [selection, data, activeTeamId, trackRecent]);
 
-  // Global keyboard shortcut: "/" focuses search
+  // "/" focuses search.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
       const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))
+        return;
       e.preventDefault();
       searchInputRef.current?.focus();
       searchInputRef.current?.select();
@@ -329,7 +297,7 @@ export function KnowledgeBackendWorkspace() {
       return next;
     });
 
-  // ---- Derived ----
+  // ───────── Derived ─────────
   const tagsByArticle = useMemo(() => {
     const map = new Map<string, string[]>();
     if (!data) return map;
@@ -358,8 +326,9 @@ export function KnowledgeBackendWorkspace() {
 
   const filteredArticleIds = useMemo(() => {
     if (!data) return null;
-    const filter = ql || statusFilter !== "all" || tagFilter || !showArchived;
-    if (!filter) return null;
+    const filterActive =
+      !!ql || statusFilter !== "all" || !!tagFilter || !showArchived;
+    if (!filterActive) return null;
     const m = new Set<string>();
     for (const a of data.articles) {
       if (!showArchived && a.status === "archived") continue;
@@ -375,7 +344,7 @@ export function KnowledgeBackendWorkspace() {
     return m;
   }, [data, ql, statusFilter, tagFilter, showArchived, tagIdsByArticle, tagsByArticle]);
 
-  // ---- Auth/team gating ----
+  // ───────── Auth/team gating ─────────
   if (authLoading || contextLoading) return <WorkspaceSkeleton />;
   if (contextError) {
     return (
@@ -388,29 +357,32 @@ export function KnowledgeBackendWorkspace() {
   }
   if (teams.length === 0) {
     return (
-      <div className="glass-card rounded-2xl p-10 text-center text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-border/60 bg-card/40 p-10 text-center text-sm text-muted-foreground">
         <Library className="mx-auto mb-3 h-8 w-8 opacity-60" />
-        <div className="text-base font-medium text-foreground">No accessible team found</div>
+        <div className="text-base font-medium text-foreground">
+          No accessible team found
+        </div>
         <p className="mx-auto mt-2 max-w-md">
-          Ask an administrator to grant access to a team before browsing the knowledge base.
+          Ask an administrator to grant access to a team before browsing the
+          knowledge base.
         </p>
       </div>
     );
   }
 
-  // Mutation handlers shared by tree + selection panel
+  // ───────── Mutation handlers ─────────
   const handleArchiveSpace = (s: KbSpace) =>
     setConfirm({
       open: true,
-      title: s.is_archived ? "Restore space" : "Archive space",
+      title: s.is_archived ? "Restore book" : "Archive book",
       description: s.is_archived
         ? `"${s.name}" will become visible again.`
-        : `"${s.name}" will be hidden from the default view. Categories and articles inside it remain in the database.`,
+        : `"${s.name}" will be hidden from the default view.`,
       onConfirm: async () => {
         const r = await updateSpace({ id: s.id, is_archived: !s.is_archived });
         if (r.error) toast.error(r.error);
         else {
-          toast.success(s.is_archived ? "Space restored." : "Space archived.");
+          toast.success(s.is_archived ? "Book restored." : "Book archived.");
           reload();
         }
       },
@@ -420,14 +392,15 @@ export function KnowledgeBackendWorkspace() {
     setConfirm({
       open: true,
       destructive: true,
-      title: "Delete space",
-      description: `Permanently delete "${s.name}" and ALL categories and articles inside it. This cannot be undone.`,
+      title: "Delete book",
+      description: `Permanently delete "${s.name}" and ALL chapters and pages inside it. This cannot be undone.`,
       onConfirm: async () => {
         const r = await deleteSpace(s.id);
         if (r.error) toast.error(r.error);
         else {
-          toast.success("Space deleted.");
-          if (selection?.kind === "space" && selection.id === s.id) setSelection(null);
+          toast.success("Book deleted.");
+          if (selection.kind === "space" && selection.id === s.id)
+            setSelection({ kind: "home" });
           reload();
         }
       },
@@ -436,7 +409,7 @@ export function KnowledgeBackendWorkspace() {
   const handleArchiveCategory = (c: KbCategory) =>
     setConfirm({
       open: true,
-      title: c.is_archived ? "Restore category" : "Archive category",
+      title: c.is_archived ? "Restore chapter" : "Archive chapter",
       description: c.is_archived
         ? `"${c.name}" will be visible again.`
         : `"${c.name}" will be hidden from the default view.`,
@@ -444,7 +417,7 @@ export function KnowledgeBackendWorkspace() {
         const r = await updateCategory({ id: c.id, is_archived: !c.is_archived });
         if (r.error) toast.error(r.error);
         else {
-          toast.success(c.is_archived ? "Category restored." : "Category archived.");
+          toast.success(c.is_archived ? "Chapter restored." : "Chapter archived.");
           reload();
         }
       },
@@ -454,14 +427,15 @@ export function KnowledgeBackendWorkspace() {
     setConfirm({
       open: true,
       destructive: true,
-      title: "Delete category",
-      description: `Permanently delete "${c.name}". Articles in it must first be moved or deleted (DB will block otherwise).`,
+      title: "Delete chapter",
+      description: `Permanently delete "${c.name}". Pages in it must first be moved or deleted.`,
       onConfirm: async () => {
         const r = await deleteCategory(c.id);
         if (r.error) toast.error(r.error);
         else {
-          toast.success("Category deleted.");
-          if (selection?.kind === "category" && selection.id === c.id) setSelection(null);
+          toast.success("Chapter deleted.");
+          if (selection.kind === "category" && selection.id === c.id)
+            setSelection({ kind: "space", id: c.space_id });
           reload();
         }
       },
@@ -471,14 +445,18 @@ export function KnowledgeBackendWorkspace() {
     setConfirm({
       open: true,
       destructive: true,
-      title: "Delete article",
+      title: "Delete page",
       description: `Permanently delete "${a.title}" and its revision history. This cannot be undone.`,
       onConfirm: async () => {
         const r = await deleteArticle(a.id);
         if (r.error) toast.error(r.error);
         else {
-          toast.success("Article deleted.");
-          if (selection?.kind === "article" && selection.id === a.id) setSelection(null);
+          toast.success("Page deleted.");
+          if (selection.kind === "article" && selection.id === a.id) {
+            if (a.category_id)
+              setSelection({ kind: "category", id: a.category_id });
+            else setSelection({ kind: "space", id: a.space_id });
+          }
           reload();
         }
       },
@@ -487,136 +465,52 @@ export function KnowledgeBackendWorkspace() {
   const handleArchiveArticle = (a: KbArticle) =>
     setConfirm({
       open: true,
-      title: a.status === "archived" ? "Restore article" : "Archive article",
+      title: a.status === "archived" ? "Restore page" : "Archive page",
       description:
         a.status === "archived"
           ? `Restore "${a.title}" to draft so it can be edited again.`
           : `Archive "${a.title}". It will be hidden from the default view; content and history are preserved.`,
       onConfirm: async () => {
         const r =
-          a.status === "archived" ? await restoreArticleToDraft(a) : await reviewArchiveArticle(a);
+          a.status === "archived"
+            ? await restoreArticleToDraft(a)
+            : await reviewArchiveArticle(a);
         if (r.error) toast.error(r.error);
         else {
-          toast.success(a.status === "archived" ? "Article restored." : "Article archived.");
+          toast.success(a.status === "archived" ? "Page restored." : "Page archived.");
           reload();
         }
       },
     });
 
-  // ----- Row context menu factories -----
-  const renderSpaceMenu = (s: KbSpace) => {
-    const items: React.ReactNode[] = [];
-    if (perms.update && !s.is_archived) {
-      items.push(
-        <DropdownMenuItem
-          key="newcat"
-          onClick={() => setCategoryDialog({ open: true, initial: null, spaceId: s.id })}
-        >
-          <BookMarked className="mr-2 h-3.5 w-3.5" /> New chapter
-        </DropdownMenuItem>,
-      );
-    }
-    if (perms.manageTeam) {
-      items.push(
-        <DropdownMenuItem key="rename" onClick={() => setSpaceDialog({ open: true, initial: s })}>
-          <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
-        </DropdownMenuItem>,
-      );
-      items.push(
-        <DropdownMenuItem key="arch" onClick={() => handleArchiveSpace(s)}>
-          {s.is_archived ? (
-            <>
-              <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
-            </>
-          ) : (
-            <>
-              <Archive className="mr-2 h-3.5 w-3.5" /> Archive
-            </>
-          )}
-        </DropdownMenuItem>,
-      );
-    }
-    return items.length ? <>{items}</> : null;
+  // ───────── Helpers for navigation context ─────────
+  const findSelectedSpaceId = (): string | null => {
+    if (!data) return null;
+    if (selection.kind === "space") return selection.id;
+    if (selection.kind === "category")
+      return data.categories.find((c) => c.id === selection.id)?.space_id ?? null;
+    if (selection.kind === "article")
+      return data.articles.find((a) => a.id === selection.id)?.space_id ?? null;
+    return null;
   };
-  const renderCategoryMenu = (c: KbCategory) => {
-    const items: React.ReactNode[] = [];
-    if (perms.create && !c.is_archived) {
-      items.push(
-        <DropdownMenuItem
-          key="newart"
-          onClick={() =>
-            setArticleDialog({ open: true, initial: null, spaceId: c.space_id, categoryId: c.id })
-          }
-        >
-          <FileText className="mr-2 h-3.5 w-3.5" /> New page
-        </DropdownMenuItem>,
-      );
-    }
-    if (perms.update) {
-      items.push(
-        <DropdownMenuItem
-          key="rename"
-          onClick={() => setCategoryDialog({ open: true, initial: c, spaceId: c.space_id })}
-        >
-          <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
-        </DropdownMenuItem>,
-      );
-      items.push(
-        <DropdownMenuItem key="arch" onClick={() => handleArchiveCategory(c)}>
-          {c.is_archived ? (
-            <>
-              <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
-            </>
-          ) : (
-            <>
-              <Archive className="mr-2 h-3.5 w-3.5" /> Archive
-            </>
-          )}
-        </DropdownMenuItem>,
-      );
-    }
-    return items.length ? <>{items}</> : null;
-  };
-  const renderArticleMenu = (a: KbArticle) => {
-    const items: React.ReactNode[] = [];
-    items.push(
-      <DropdownMenuItem
-        key="open"
-        onClick={() => {
-          setSelection({ kind: "article", id: a.id });
-          setEditingArticle(false);
-        }}
-      >
-        <FileText className="mr-2 h-3.5 w-3.5" /> Open
-      </DropdownMenuItem>,
-    );
-    if (perms.update) {
-      items.push(
-        <DropdownMenuItem key="rename" onClick={() => setArticleDialog({ open: true, initial: a })}>
-          <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
-        </DropdownMenuItem>,
-      );
-      items.push(
-        <DropdownMenuItem key="arch" onClick={() => handleArchiveArticle(a)}>
-          {a.status === "archived" ? (
-            <>
-              <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
-            </>
-          ) : (
-            <>
-              <Archive className="mr-2 h-3.5 w-3.5" /> Archive
-            </>
-          )}
-        </DropdownMenuItem>,
-      );
-    }
-    return <>{items}</>;
+  const findSelectedCategoryId = (): string | null => {
+    if (!data) return null;
+    if (selection.kind === "category") return selection.id;
+    if (selection.kind === "article")
+      return data.articles.find((a) => a.id === selection.id)?.category_id ?? null;
+    return null;
   };
 
+  const selectedSpaceId = findSelectedSpaceId();
+  const selectedCategoryId = findSelectedCategoryId();
+  const canNewSpace = perms.manageTeam;
+  const canNewCategory = perms.update && !!selectedSpaceId;
+  const canNewArticle = perms.create && !!selectedSpaceId;
+
   return (
-    <div className="kb-pro-shell space-y-4">
-      {/* Header / status bar */}
-      <div className="kb-pro-toolbar glass-card flex flex-wrap items-center gap-2 rounded-2xl p-3">
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card/40 p-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">Team</span>
           {teams.length === 1 ? (
@@ -624,7 +518,7 @@ export function KnowledgeBackendWorkspace() {
               {teams[0].name}
             </Badge>
           ) : (
-            <Select value={activeTeamId ?? undefined} onValueChange={(v) => setActiveTeamId(v)}>
+            <Select value={activeTeamId ?? undefined} onValueChange={setActiveTeamId}>
               <SelectTrigger className="h-8 w-56 text-xs">
                 <SelectValue placeholder="Select a team" />
               </SelectTrigger>
@@ -638,77 +532,72 @@ export function KnowledgeBackendWorkspace() {
             </Select>
           )}
         </div>
+
+        {/* Breadcrumb back */}
+        {selection.kind !== "home" && (
+          <Breadcrumb
+            data={data}
+            selection={selection}
+            onSelect={setSelection}
+          />
+        )}
+
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {(() => {
-            const selectedSpaceId =
-              selection?.kind === "space"
-                ? selection.id
-                : selection?.kind === "category"
-                  ? (data?.categories.find((c) => c.id === selection.id)?.space_id ?? null)
-                  : selection?.kind === "article"
-                    ? (data?.articles.find((a) => a.id === selection.id)?.space_id ?? null)
-                    : null;
-            const selectedCategoryId =
-              selection?.kind === "category"
-                ? selection.id
-                : selection?.kind === "article"
-                  ? (data?.articles.find((a) => a.id === selection.id)?.category_id ?? null)
-                  : null;
-            const canNewSpace = perms.manageTeam;
-            const canNewCategory = perms.update && !!selectedSpaceId;
-            const canNewArticle = perms.create && !!selectedSpaceId;
-            const anyAllowed = canNewSpace || canNewCategory || canNewArticle;
-            if (!anyAllowed) return null;
-            return (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" className="h-7 text-xs">
-                    <Plus className="mr-1 h-3 w-3" /> New
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    Create
-                  </DropdownMenuLabel>
-                  {canNewSpace && (
-                    <DropdownMenuItem onClick={() => setSpaceDialog({ open: true, initial: null })}>
-                      <Library className="mr-2 h-3.5 w-3.5" /> New book
-                    </DropdownMenuItem>
-                  )}
+          {(canNewSpace || canNewCategory || canNewArticle) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="h-8 text-xs">
+                  <Plus className="mr-1 h-3 w-3" /> New
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Create
+                </DropdownMenuLabel>
+                {canNewSpace && (
                   <DropdownMenuItem
-                    disabled={!canNewCategory}
-                    title={!selectedSpaceId ? "Select a space first" : undefined}
-                    onClick={() =>
-                      selectedSpaceId &&
-                      setCategoryDialog({ open: true, initial: null, spaceId: selectedSpaceId })
-                    }
+                    onClick={() => setSpaceDialog({ open: true, initial: null })}
                   >
-                    <BookMarked className="mr-2 h-3.5 w-3.5" /> New chapter
+                    <Library className="mr-2 h-3.5 w-3.5" /> New book
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!canNewArticle}
-                    title={!selectedSpaceId ? "Select a space or category first" : undefined}
-                    onClick={() =>
-                      selectedSpaceId &&
-                      setArticleDialog({
-                        open: true,
-                        initial: null,
-                        spaceId: selectedSpaceId,
-                        categoryId: selectedCategoryId,
-                      })
-                    }
-                  >
-                    <FileText className="mr-2 h-3.5 w-3.5" /> New page
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            );
-          })()}
+                )}
+                <DropdownMenuItem
+                  disabled={!canNewCategory}
+                  title={!selectedSpaceId ? "Open a book first" : undefined}
+                  onClick={() =>
+                    selectedSpaceId &&
+                    setCategoryDialog({
+                      open: true,
+                      initial: null,
+                      spaceId: selectedSpaceId,
+                    })
+                  }
+                >
+                  <BookMarked className="mr-2 h-3.5 w-3.5" /> New chapter
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!canNewArticle}
+                  title={!selectedSpaceId ? "Open a book first" : undefined}
+                  onClick={() =>
+                    selectedSpaceId &&
+                    setArticleDialog({
+                      open: true,
+                      initial: null,
+                      spaceId: selectedSpaceId,
+                      categoryId: selectedCategoryId,
+                    })
+                  }
+                >
+                  <FileText className="mr-2 h-3.5 w-3.5" /> New page
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           {perms.update && (
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 text-xs"
+              className="h-8 text-xs"
               onClick={() => setTagsDialog({ open: true })}
             >
               <TagsIcon className="mr-1 h-3 w-3" /> Tags
@@ -717,167 +606,173 @@ export function KnowledgeBackendWorkspace() {
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7"
+            className="h-8 w-8"
             onClick={() => void reload()}
             disabled={loading}
-            title="Reload knowledge base"
-            aria-label="Reload knowledge base"
+            title="Reload"
+            aria-label="Reload"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
           </Button>
         </div>
       </div>
 
-      <div
-        className={cn(
-          "kb-docs-layout kb-pro-grid grid gap-4",
-          selection?.kind === "article"
-            ? "xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_minmax(260px,320px)]"
-            : "xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)]",
-        )}
-      >
-        {/* Tree */}
-        <aside
-          className={cn(
-            "kb-pro-tree glass-card flex min-w-0 flex-col rounded-2xl p-4",
-            selection?.kind === "article"
-              ? "h-[calc(100vh-280px)] min-h-[520px]"
-              : "xl:sticky xl:top-4 xl:h-[calc(100vh-180px)] xl:min-h-[520px]",
-          )}
-        >
-          <div className="relative mb-2">
-            <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              placeholder="Search…  (press /)"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-8 pl-8 text-xs"
-            />
-          </div>
+      {/* Layout */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+        {/* ───────── Sidebar ───────── */}
+        <aside className="lg:sticky lg:top-4 lg:h-[calc(100vh-9rem)]">
+          <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/40 backdrop-blur">
+            <div className="border-b border-border/50 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 ring-1 ring-primary/30">
+                  <Library className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold tracking-tight">
+                    Knowledge Library
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {data?.spaces.filter((s) => !s.is_archived).length ?? 0} books ·{" "}
+                    {data?.articles.filter((a) => a.status !== "archived").length ?? 0}{" "}
+                    pages
+                  </div>
+                </div>
+              </div>
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={searchInputRef}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search pages, tags…  (/)"
+                  className="h-9 pl-8 text-sm"
+                />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <Filter className="h-3 w-3 text-muted-foreground" />
+                <Select
+                  value={statusFilter}
+                  onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+                >
+                  <SelectTrigger className="h-7 w-[112px] text-[11px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="in_review">In review</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+                {data && data.tags.length > 0 && (
+                  <Select
+                    value={tagFilter || "__all__"}
+                    onValueChange={(v) => setTagFilter(v === "__all__" ? "" : v)}
+                  >
+                    <SelectTrigger className="h-7 w-[100px] text-[11px]">
+                      <SelectValue placeholder="Tag" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All tags</SelectItem>
+                      {data.tags.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          #{t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <label className="ml-auto flex items-center gap-1 text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={showArchived}
+                    onChange={(e) => setShowArchived(e.target.checked)}
+                    className="h-3 w-3 accent-primary"
+                  />
+                  Archived
+                </label>
+              </div>
+            </div>
 
-          <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-            <Filter className="h-3 w-3 text-muted-foreground" />
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-              <SelectTrigger className="h-7 w-[120px] text-[11px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="in_review">In Review</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-            {data && data.tags.length > 0 && (
-              <Select
-                value={tagFilter || "__all__"}
-                onValueChange={(v) => setTagFilter(v === "__all__" ? "" : v)}
+            <nav className="min-h-0 flex-1 overflow-auto p-2">
+              <button
+                onClick={() => setSelection({ kind: "home" })}
+                className={cn(
+                  "mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors",
+                  selection.kind === "home"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
+                )}
               >
-                <SelectTrigger className="h-7 w-[120px] text-[11px]">
-                  <SelectValue placeholder="Tag" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All tags</SelectItem>
-                  {data.tags.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      #{t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <label className="ml-auto flex items-center gap-1 text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
-                className="h-3 w-3 accent-primary"
-              />
-              Archived
-            </label>
-          </div>
+                <Compass className="h-4 w-4" /> Overview
+              </button>
 
-          <div className="kb-scroll min-h-0 flex-1 overflow-y-auto pr-1 text-sm">
-            {loading && !data ? (
-              <TreeSkeleton />
-            ) : error ? (
-              <InlineError message={error} onRetry={() => void reload()} />
-            ) : !data || data.spaces.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
-                {perms.manageTeam
-                  ? "No spaces yet — create the first one to begin."
-                  : "No spaces in this team yet."}
+              <div className="mb-1 mt-3 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                Books
               </div>
-            ) : filteredArticleIds &&
-              filteredArticleIds.size === 0 &&
-              (!!ql || statusFilter !== "all" || !!tagFilter) ? (
-              <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
-                No matching articles
-              </div>
-            ) : (
-              <ul className="space-y-0.5">
-                {data.spaces
-                  .filter((s) => showArchived || !s.is_archived)
-                  .map((space) => (
-                    <SpaceRow
-                      key={space.id}
-                      space={space}
-                      categories={data.categories.filter(
-                        (c) => c.space_id === space.id && (showArchived || !c.is_archived),
-                      )}
-                      articles={data.articles.filter((a) => a.space_id === space.id)}
-                      expanded={expanded}
-                      toggle={toggle}
-                      selection={selection}
-                      onSelect={setSelection}
-                      matched={filteredArticleIds}
-                      filterActive={!!ql || statusFilter !== "all" || !!tagFilter}
-                      renderSpaceMenu={renderSpaceMenu}
-                      renderCategoryMenu={renderCategoryMenu}
-                      renderArticleMenu={renderArticleMenu}
-                    />
-                  ))}
-              </ul>
-            )}
+
+              {loading && !data ? (
+                <TreeSkeleton />
+              ) : error ? (
+                <InlineError message={error} onRetry={() => void reload()} />
+              ) : !data || data.spaces.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
+                  {perms.manageTeam
+                    ? "No books yet — create the first one."
+                    : "No books in this team yet."}
+                </div>
+              ) : (
+                <ul className="space-y-0.5">
+                  {data.spaces
+                    .filter((s) => showArchived || !s.is_archived)
+                    .map((space) => (
+                      <SpaceTreeNode
+                        key={space.id}
+                        space={space}
+                        categories={data.categories.filter(
+                          (c) =>
+                            c.space_id === space.id && (showArchived || !c.is_archived),
+                        )}
+                        articles={data.articles.filter((a) => a.space_id === space.id)}
+                        expanded={expanded}
+                        toggle={toggle}
+                        selection={selection}
+                        onSelect={setSelection}
+                        matched={filteredArticleIds}
+                        filterActive={!!ql || statusFilter !== "all" || !!tagFilter}
+                      />
+                    ))}
+                </ul>
+              )}
+            </nav>
           </div>
         </aside>
 
-        {/* Main */}
-        <section
-          className={cn(
-            "kb-pro-main kb-docs-reader glass-card flex min-w-0 flex-col rounded-2xl p-6",
-            selection?.kind === "article"
-              ? "h-[calc(100vh-280px)] min-h-[520px] overflow-hidden"
-              : "min-h-[520px]",
-          )}
-        >
+        {/* ───────── Main ───────── */}
+        <section className="min-w-0">
           {loading && !data ? (
             <ContentSkeleton />
           ) : error ? (
             <InlineError message={error} onRetry={() => void reload()} />
           ) : !data ? null : (
-            <SelectionView
+            <MainPane
               data={data}
               selection={selection}
-              tagsByArticle={tagsByArticle}
-              tagIdsByArticle={tagIdsByArticle}
-              teamId={activeTeamId!}
-              perms={perms}
+              setSelection={setSelection}
               editingArticle={editingArticle}
               setEditingArticle={setEditingArticle}
-              onOpenArticle={(id) => {
-                setSelection({ kind: "article", id });
-                setEditingArticle(false);
-              }}
-              onSelectSpace={(id) => setSelection(id ? { kind: "space", id } : null)}
+              tagsByArticle={tagsByArticle}
+              perms={perms}
+              recent={recent}
+              onForgetRecent={forgetRecent}
+              teamId={activeTeamId!}
               onNewSpace={() => setSpaceDialog({ open: true, initial: null })}
               onEditSpace={(s) => setSpaceDialog({ open: true, initial: s })}
               onArchiveSpace={handleArchiveSpace}
               onDeleteSpace={handleDeleteSpace}
-              onNewCategory={(spaceId, sortOrder) =>
+              onNewCategory={(spaceId) =>
                 setCategoryDialog({ open: true, initial: null, spaceId })
               }
               onEditCategory={(c) =>
@@ -888,39 +783,18 @@ export function KnowledgeBackendWorkspace() {
               onNewArticle={(spaceId, categoryId) =>
                 setArticleDialog({ open: true, initial: null, spaceId, categoryId })
               }
-              onEditArticleMeta={(a) => setArticleDialog({ open: true, initial: a })}
-              onDeleteArticle={handleDeleteArticle}
+              onEditArticleMeta={(a) =>
+                setArticleDialog({ open: true, initial: a })
+              }
               onArchiveArticle={handleArchiveArticle}
-              onEditArticleTags={(a) => setTagsDialog({ open: true, articleId: a.id })}
+              onDeleteArticle={handleDeleteArticle}
+              onEditArticleTags={(a) =>
+                setTagsDialog({ open: true, articleId: a.id })
+              }
               onReload={reload}
-              recent={recent}
-              onForgetRecent={forgetRecent}
             />
           )}
         </section>
-
-        {selection?.kind === "article" && (
-          <aside className="kb-docs-context glass-card hidden h-[calc(100vh-280px)] min-h-[520px] min-w-0 flex-col overflow-hidden rounded-2xl p-5 xl:flex">
-          {data && (
-            <KnowledgeContextPanel
-              data={data}
-              selection={selection}
-              teamId={activeTeamId}
-              recent={recent}
-              onSelect={setSelection}
-              onOpenArticle={(id) => {
-                setSelection({ kind: "article", id });
-                setEditingArticle(false);
-              }}
-              onNewCategory={(spaceId) => setCategoryDialog({ open: true, initial: null, spaceId })}
-              onNewArticle={(spaceId, categoryId) =>
-                setArticleDialog({ open: true, initial: null, spaceId, categoryId })
-              }
-              perms={perms}
-            />
-          )}
-        </aside>
-        )}
       </div>
 
       {/* Dialogs */}
@@ -945,7 +819,9 @@ export function KnowledgeBackendWorkspace() {
               initial={categoryDialog.initial}
               defaultSortOrder={
                 data
-                  ? data.categories.filter((c) => c.space_id === categoryDialog.spaceId).length * 10
+                  ? data.categories.filter(
+                      (c) => c.space_id === categoryDialog.spaceId,
+                    ).length * 10
                   : 0
               }
               onSaved={(id) => {
@@ -975,7 +851,9 @@ export function KnowledgeBackendWorkspace() {
             articleId={tagsDialog.articleId}
             allTags={data?.tags ?? []}
             assignedTagIds={
-              tagsDialog.articleId ? tagIdsByArticle.get(tagsDialog.articleId) : undefined
+              tagsDialog.articleId
+                ? tagIdsByArticle.get(tagsDialog.articleId)
+                : undefined
             }
             canUpdate={perms.update}
             canDelete={perms.delete}
@@ -983,6 +861,7 @@ export function KnowledgeBackendWorkspace() {
           />
         </>
       )}
+
       {confirm && (
         <ConfirmDialog
           open={confirm.open}
@@ -1001,29 +880,100 @@ export function KnowledgeBackendWorkspace() {
   );
 }
 
-// ----------------- Tree rows -----------------
+// ============================================================
+// Breadcrumb
+// ============================================================
+function Breadcrumb({
+  data,
+  selection,
+  onSelect,
+}: {
+  data: ReturnType<typeof useKnowledgeBackend>["data"];
+  selection: Selection;
+  onSelect: (s: Selection) => void;
+}) {
+  if (!data || selection.kind === "home") return null;
 
-function RowMenu({ children }: { children: React.ReactNode }) {
+  const space =
+    selection.kind === "space"
+      ? data.spaces.find((s) => s.id === selection.id)
+      : selection.kind === "category"
+        ? data.spaces.find(
+            (s) =>
+              s.id === data.categories.find((c) => c.id === selection.id)?.space_id,
+          )
+        : selection.kind === "article"
+          ? data.spaces.find(
+              (s) =>
+                s.id === data.articles.find((a) => a.id === selection.id)?.space_id,
+            )
+          : null;
+
+  const category =
+    selection.kind === "category"
+      ? data.categories.find((c) => c.id === selection.id)
+      : selection.kind === "article"
+        ? data.categories.find(
+            (c) =>
+              c.id === data.articles.find((a) => a.id === selection.id)?.category_id,
+          )
+        : null;
+
+  const article =
+    selection.kind === "article"
+      ? data.articles.find((a) => a.id === selection.id)
+      : null;
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="More actions"
-          onClick={(e) => e.stopPropagation()}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/70 opacity-0 hover:bg-white/[0.06] hover:text-foreground focus:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
-        >
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
-        {children}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <nav
+      aria-label="Breadcrumb"
+      className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-[11px] text-muted-foreground"
+    >
+      <button
+        type="button"
+        onClick={() => onSelect({ kind: "home" })}
+        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-white/[0.04] hover:text-foreground"
+      >
+        <ArrowLeft className="h-3 w-3" /> Overview
+      </button>
+      {space && (
+        <>
+          <ChevronRight className="h-3 w-3 opacity-60" />
+          <button
+            type="button"
+            onClick={() => onSelect({ kind: "space", id: space.id })}
+            className="truncate rounded px-1.5 py-0.5 hover:bg-white/[0.04] hover:text-foreground"
+          >
+            {space.name}
+          </button>
+        </>
+      )}
+      {category && (
+        <>
+          <ChevronRight className="h-3 w-3 opacity-60" />
+          <button
+            type="button"
+            onClick={() => onSelect({ kind: "category", id: category.id })}
+            className="truncate rounded px-1.5 py-0.5 hover:bg-white/[0.04] hover:text-foreground"
+          >
+            {category.name}
+          </button>
+        </>
+      )}
+      {article && (
+        <>
+          <ChevronRight className="h-3 w-3 opacity-60" />
+          <span className="truncate px-1.5 py-0.5 text-foreground">{article.title}</span>
+        </>
+      )}
+    </nav>
   );
 }
 
-function SpaceRow({
+// ============================================================
+// Sidebar tree
+// ============================================================
+function SpaceTreeNode({
   space,
   categories,
   articles,
@@ -1033,9 +983,6 @@ function SpaceRow({
   onSelect,
   matched,
   filterActive,
-  renderSpaceMenu,
-  renderCategoryMenu,
-  renderArticleMenu,
 }: {
   space: KbSpace;
   categories: KbCategory[];
@@ -1046,68 +993,58 @@ function SpaceRow({
   onSelect: (s: Selection) => void;
   matched: Set<string> | null;
   filterActive: boolean;
-  renderSpaceMenu?: (s: KbSpace) => React.ReactNode;
-  renderCategoryMenu?: (c: KbCategory) => React.ReactNode;
-  renderArticleMenu?: (a: KbArticle) => React.ReactNode;
 }) {
-  const isOpen = expanded.has(space.id) || filterActive;
-  const isSelected = selection?.kind === "space" && selection.id === space.id;
+  const open = expanded.has(space.id) || filterActive;
+  const isSel = selection.kind === "space" && selection.id === space.id;
   const visibleArticles = matched ? articles.filter((a) => matched.has(a.id)) : articles;
   const uncategorized = visibleArticles.filter((a) => !a.category_id);
-
-  if (filterActive && visibleArticles.length === 0 && !space.name.toLowerCase().includes("")) {
-    return null;
-  }
-
-  const menu = renderSpaceMenu?.(space);
+  if (filterActive && visibleArticles.length === 0) return null;
 
   return (
-    <li>
+    <li className="mb-0.5">
       <div
         className={cn(
-          "kb-tree-row kb-tree-space group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]",
-          isSelected && "bg-primary/15 text-primary",
+          "group flex items-center gap-1 rounded-lg pr-1 transition-colors",
+          isSel ? "bg-primary/10" : "hover:bg-white/[0.04]",
         )}
       >
         <button
-          type="button"
           onClick={() => toggle(space.id)}
-          className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground"
+          className="grid h-7 w-6 place-items-center text-muted-foreground hover:text-foreground"
+          aria-label={open ? "Collapse" : "Expand"}
         >
-          {isOpen ? (
+          {open ? (
             <ChevronDown className="h-3.5 w-3.5" />
           ) : (
             <ChevronRight className="h-3.5 w-3.5" />
           )}
         </button>
         <button
-          type="button"
           onClick={() => onSelect({ kind: "space", id: space.id })}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left text-sm"
           title={space.name}
         >
-          <Book
+          <span
             className={cn(
-              "h-3.5 w-3.5 shrink-0",
-              space.is_archived ? "text-muted-foreground" : "text-primary",
+              "h-2 w-2 shrink-0 rounded-full bg-gradient-to-br",
+              spaceAccent(space.id),
             )}
           />
           <span
             className={cn(
-              "truncate font-semibold",
+              "truncate font-medium",
+              isSel ? "text-primary" : "text-foreground",
               space.is_archived && "italic text-muted-foreground",
             )}
           >
             {space.name}
           </span>
         </button>
-        {menu && <RowMenu>{menu}</RowMenu>}
       </div>
-
-      {isOpen && (
-        <ul className="ml-3 space-y-0.5 border-l border-border/30 pl-2">
+      {open && (
+        <div className="ml-6 border-l border-border/40 pl-2">
           {categories.map((c) => (
-            <CategoryRow
+            <CategoryTreeNode
               key={c.id}
               category={c}
               articles={visibleArticles.filter((a) => a.category_id === c.id)}
@@ -1116,31 +1053,28 @@ function SpaceRow({
               selection={selection}
               onSelect={onSelect}
               filterActive={filterActive}
-              renderCategoryMenu={renderCategoryMenu}
-              renderArticleMenu={renderArticleMenu}
             />
           ))}
           {uncategorized.map((a) => (
-            <ArticleRow
+            <ArticleTreeRow
               key={a.id}
               article={a}
               selection={selection}
               onSelect={onSelect}
-              renderArticleMenu={renderArticleMenu}
             />
           ))}
           {categories.length === 0 && uncategorized.length === 0 && (
-            <li className="kb-tree-empty px-2 py-1 text-[11px] text-muted-foreground/70">
+            <div className="px-2 py-1 text-[11px] text-muted-foreground/70">
               Empty book
-            </li>
+            </div>
           )}
-        </ul>
+        </div>
       )}
     </li>
   );
 }
 
-function CategoryRow({
+function CategoryTreeNode({
   category,
   articles,
   expanded,
@@ -1148,8 +1082,6 @@ function CategoryRow({
   selection,
   onSelect,
   filterActive,
-  renderCategoryMenu,
-  renderArticleMenu,
 }: {
   category: KbCategory;
   articles: KbArticle[];
@@ -1158,886 +1090,220 @@ function CategoryRow({
   selection: Selection;
   onSelect: (s: Selection) => void;
   filterActive: boolean;
-  renderCategoryMenu?: (c: KbCategory) => React.ReactNode;
-  renderArticleMenu?: (a: KbArticle) => React.ReactNode;
 }) {
-  const isOpen = expanded.has(category.id) || filterActive;
-  const isSelected = selection?.kind === "category" && selection.id === category.id;
+  const open = expanded.has(category.id) || filterActive;
+  const isSel = selection.kind === "category" && selection.id === category.id;
   if (filterActive && articles.length === 0) return null;
-
-  const menu = renderCategoryMenu?.(category);
-
   return (
-    <li>
+    <div className="py-0.5">
       <div
         className={cn(
-          "kb-tree-row kb-tree-space group flex items-center gap-1 rounded-md py-1 pr-1 text-sm hover:bg-white/[0.03]",
-          isSelected && "bg-primary/15 text-primary",
+          "group flex items-center gap-1 rounded-md pr-1",
+          isSel ? "bg-primary/10" : "hover:bg-white/[0.04]",
         )}
       >
         <button
-          type="button"
           onClick={() => toggle(category.id)}
-          className="flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground"
+          className="grid h-6 w-5 place-items-center text-muted-foreground hover:text-foreground"
+          aria-label={open ? "Collapse" : "Expand"}
         >
-          {isOpen ? (
-            <ChevronDown className="h-3.5 w-3.5" />
+          {open ? (
+            <ChevronDown className="h-3 w-3" />
           ) : (
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-3 w-3" />
           )}
         </button>
         <button
-          type="button"
           onClick={() => onSelect({ kind: "category", id: category.id })}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-2 py-1 text-left text-[13px]",
+            isSel ? "text-primary" : "text-muted-foreground hover:text-foreground",
+          )}
           title={category.name}
         >
-          <BookMarked
-            className={cn(
-              "h-3.5 w-3.5 shrink-0",
-              category.is_archived ? "text-muted-foreground" : "text-primary/70",
-            )}
-          />
+          <BookMarked className="h-3.5 w-3.5 shrink-0 opacity-70" />
           <span
             className={cn(
-              "truncate font-medium",
+              "truncate",
               category.is_archived && "italic text-muted-foreground",
             )}
           >
             {category.name}
           </span>
-          <span className="ml-1 text-[10px] text-muted-foreground/70">{articles.length}</span>
+          <span className="ml-auto text-[10px] text-muted-foreground/70">
+            {articles.length}
+          </span>
         </button>
-        {menu && <RowMenu>{menu}</RowMenu>}
       </div>
-      {isOpen && (
-        <ul className="ml-3 space-y-0.5 border-l border-border/30 pl-2">
+      {open && (
+        <div className="ml-5 border-l border-border/30 pl-2">
           {articles.map((a) => (
-            <ArticleRow
+            <ArticleTreeRow
               key={a.id}
               article={a}
               selection={selection}
               onSelect={onSelect}
-              renderArticleMenu={renderArticleMenu}
             />
           ))}
           {articles.length === 0 && (
-            <li className="kb-tree-empty px-2 py-1 text-[11px] text-muted-foreground/70">
+            <div className="px-2 py-1 text-[10px] text-muted-foreground/70">
               No pages
-            </li>
+            </div>
           )}
-        </ul>
+        </div>
       )}
-    </li>
+    </div>
   );
 }
 
-function ArticleRow({
+function ArticleTreeRow({
   article,
   selection,
   onSelect,
-  renderArticleMenu,
 }: {
   article: KbArticle;
   selection: Selection;
   onSelect: (s: Selection) => void;
-  renderArticleMenu?: (a: KbArticle) => React.ReactNode;
 }) {
-  const isSelected = selection?.kind === "article" && selection.id === article.id;
-  const dim = article.status === "archived";
-  const menu = renderArticleMenu?.(article);
+  const isSel = selection.kind === "article" && selection.id === article.id;
   return (
-    <li>
-      <div
-        className={cn(
-          "kb-tree-row kb-tree-article group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-white/[0.04]",
-          isSelected && "bg-primary/15 text-primary",
-          dim && "opacity-60",
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => onSelect({ kind: "article", id: article.id })}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-          title={article.title}
-        >
-          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <span className="truncate">{article.title}</span>
-        </button>
-        {article.status === "draft" && (
-          <Badge variant="outline" className="h-4 text-[9px]">
-            Draft
-          </Badge>
-        )}
-        {article.status === "archived" && (
-          <Badge variant="outline" className="h-4 text-[9px]">
-            Arch
-          </Badge>
-        )}
-        {menu && <RowMenu>{menu}</RowMenu>}
-      </div>
-    </li>
+    <button
+      onClick={() => onSelect({ kind: "article", id: article.id })}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[12.5px] transition-colors",
+        isSel
+          ? "bg-primary/15 text-primary"
+          : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
+        article.status === "archived" && "opacity-60",
+      )}
+      title={article.title}
+    >
+      <FileText className="h-3 w-3 shrink-0 opacity-60" />
+      <span className="truncate">{article.title}</span>
+      {article.status === "draft" && (
+        <Badge variant="outline" className="ml-auto h-4 shrink-0 text-[9px]">
+          Draft
+        </Badge>
+      )}
+    </button>
   );
 }
 
-// ----------------- Main content -----------------
-
-interface SelectionViewProps {
+// ============================================================
+// Main pane router
+// ============================================================
+interface MainPaneProps {
   data: NonNullable<ReturnType<typeof useKnowledgeBackend>["data"]>;
   selection: Selection;
-  tagsByArticle: Map<string, string[]>;
-  tagIdsByArticle: Map<string, Set<string>>;
-  teamId: string;
-  perms: { read: boolean; create: boolean; update: boolean; delete: boolean; manageTeam: boolean };
+  setSelection: (s: Selection) => void;
   editingArticle: boolean;
   setEditingArticle: (v: boolean) => void;
-  onOpenArticle: (id: string) => void;
-  onSelectSpace: (id: string) => void;
+  tagsByArticle: Map<string, string[]>;
+  perms: {
+    read: boolean;
+    create: boolean;
+    update: boolean;
+    delete: boolean;
+    manageTeam: boolean;
+  };
+  recent: Array<{ id: string; title: string; teamId: string; at: number }>;
+  onForgetRecent: (id: string) => void;
+  teamId: string;
   onNewSpace: () => void;
   onEditSpace: (s: KbSpace) => void;
   onArchiveSpace: (s: KbSpace) => void;
   onDeleteSpace: (s: KbSpace) => void;
-  onNewCategory: (spaceId: string, sortOrder: number) => void;
+  onNewCategory: (spaceId: string) => void;
   onEditCategory: (c: KbCategory) => void;
   onArchiveCategory: (c: KbCategory) => void;
   onDeleteCategory: (c: KbCategory) => void;
   onNewArticle: (spaceId: string, categoryId: string | null) => void;
   onEditArticleMeta: (a: KbArticle) => void;
-  onDeleteArticle: (a: KbArticle) => void;
   onArchiveArticle: (a: KbArticle) => void;
+  onDeleteArticle: (a: KbArticle) => void;
   onEditArticleTags: (a: KbArticle) => void;
   onReload: () => void;
-  recent: Array<{ id: string; title: string; teamId: string; at: number }>;
-  onForgetRecent: (id: string) => void;
 }
 
-function KnowledgeContextPanel({
-  data,
-  selection,
-  teamId,
-  recent,
-  onSelect,
-  onOpenArticle,
-  onNewCategory,
-  onNewArticle,
-  perms,
-}: {
-  data: SelectionViewProps["data"];
-  selection: Selection;
-  teamId: string | null;
-  recent: SelectionViewProps["recent"];
-  onSelect: (selection: Selection) => void;
-  onOpenArticle: (id: string) => void;
-  onNewCategory: (spaceId: string) => void;
-  onNewArticle: (spaceId: string, categoryId: string | null) => void;
-  perms: SelectionViewProps["perms"];
-}) {
-  const selectedArticle =
-    selection?.kind === "article"
-      ? (data.articles.find((article) => article.id === selection.id) ?? null)
-      : null;
+function MainPane(p: MainPaneProps) {
+  const { data, selection, setSelection, tagsByArticle, perms } = p;
+  const openArticle = (id: string) => {
+    setSelection({ kind: "article", id });
+    p.setEditingArticle(false);
+  };
 
-  const selectedCategory =
-    selection?.kind === "category"
-      ? (data.categories.find((category) => category.id === selection.id) ?? null)
-      : selectedArticle?.category_id
-        ? (data.categories.find((category) => category.id === selectedArticle.category_id) ?? null)
-        : null;
-
-  const selectedSpace =
-    selection?.kind === "space"
-      ? (data.spaces.find((space) => space.id === selection.id) ?? null)
-      : selectedCategory
-        ? (data.spaces.find((space) => space.id === selectedCategory.space_id) ?? null)
-        : selectedArticle
-          ? (data.spaces.find((space) => space.id === selectedArticle.space_id) ?? null)
-          : null;
-
-  const visibleSpaces = data.spaces.filter((space) => !space.is_archived);
-  const chaptersInBook = selectedSpace
-    ? data.categories.filter(
-        (category) => category.space_id === selectedSpace.id && !category.is_archived,
-      )
-    : [];
-  const pagesInChapter = selectedCategory
-    ? data.articles.filter(
-        (article) => article.category_id === selectedCategory.id && article.status !== "archived",
-      )
-    : [];
-  const pagesInBook = selectedSpace
-    ? data.articles.filter(
-        (article) => article.space_id === selectedSpace.id && article.status !== "archived",
-      )
-    : [];
-
-  const contextItems: Array<KbCategory | KbArticle> = selectedCategory
-    ? pagesInChapter
-    : chaptersInBook;
-
-  const title = selectedArticle
-    ? "Page details"
-    : selectedCategory
-      ? "In this chapter"
-      : selectedSpace
-        ? "In this book"
-        : "Library overview";
-
-  const recentForTeam = recent.filter((item) => !teamId || item.teamId === teamId);
-
-  return (
-    <div className="kb-context-inner flex h-full min-h-0 flex-col gap-4">
-      <div>
-        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-          {title}
-        </div>
-
-        <div className="mt-3 rounded-2xl border border-border/40 bg-white/[0.025] p-4">
-          {selectedArticle ? (
-            <>
-              <div className="flex items-start gap-3">
-                <FileText className="mt-0.5 h-5 w-5 text-primary" />
-                <div className="min-w-0">
-                  <div className="line-clamp-2 text-sm font-semibold">{selectedArticle.title}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {selectedCategory?.name ?? "Loose page"}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-2 text-xs">
-                <ContextMeta
-                  label="Status"
-                  value={STATUS_LABEL[selectedArticle.status] ?? selectedArticle.status}
-                />
-                <ContextMeta label="Revision" value={`rev ${selectedArticle.revision_number}`} />
-                <ContextMeta label="Updated" value={formatDate(selectedArticle.updated_at)} />
-                <ContextMeta label="Visibility" value={selectedArticle.visibility} />
-              </div>
-            </>
-          ) : selectedCategory ? (
-            <>
-              <div className="flex items-start gap-3">
-                <BookMarked className="mt-0.5 h-5 w-5 text-primary" />
-                <div className="min-w-0">
-                  <div className="line-clamp-2 text-sm font-semibold">{selectedCategory.name}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {pagesInChapter.length} page{pagesInChapter.length === 1 ? "" : "s"}
-                  </div>
-                </div>
-              </div>
-              {perms.create && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="mt-4 h-8 w-full text-xs"
-                  onClick={() => onNewArticle(selectedCategory.space_id, selectedCategory.id)}
-                >
-                  <Plus className="mr-1 h-3 w-3" /> Add page
-                </Button>
-              )}
-            </>
-          ) : selectedSpace ? (
-            <>
-              <div className="flex items-start gap-3">
-                <Book className="mt-0.5 h-5 w-5 text-primary" />
-                <div className="min-w-0">
-                  <div className="line-clamp-2 text-sm font-semibold">{selectedSpace.name}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {chaptersInBook.length} chapter{chaptersInBook.length === 1 ? "" : "s"} ·{" "}
-                    {pagesInBook.length} page{pagesInBook.length === 1 ? "" : "s"}
-                  </div>
-                </div>
-              </div>
-              {perms.update && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="mt-4 h-8 w-full text-xs"
-                  onClick={() => onNewCategory(selectedSpace.id)}
-                >
-                  <Plus className="mr-1 h-3 w-3" /> Add chapter
-                </Button>
-              )}
-            </>
-          ) : (
-            <div className="flex items-start gap-3">
-              <Library className="mt-0.5 h-5 w-5 text-primary" />
-              <div className="min-w-0">
-                <div className="text-sm font-semibold">All shelves</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {visibleSpaces.length} book{visibleSpaces.length === 1 ? "" : "s"} available
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {(selectedSpace || selectedCategory) && (
-        <div className="min-h-0">
-          <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            {selectedCategory ? "Pages" : "Chapters"}
-          </div>
-          <div className="kb-context-list max-h-[260px] space-y-1 overflow-y-auto pr-1">
-            {contextItems.slice(0, 8).map((item) => {
-              const isArticle = "revision_number" in item;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="group flex w-full items-center gap-2 rounded-xl border border-transparent px-3 py-2 text-left text-xs hover:border-primary/25 hover:bg-primary/10"
-                  onClick={() =>
-                    isArticle ? onOpenArticle(item.id) : onSelect({ kind: "category", id: item.id })
-                  }
-                >
-                  {isArticle ? (
-                    <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
-                  ) : (
-                    <BookMarked className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
-                  )}
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {"title" in item ? item.title : item.name}
-                  </span>
-                </button>
-              );
-            })}
-
-            {contextItems.length === 0 && (
-              <div className="rounded-xl border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
-                Nothing here yet.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-auto">
-        <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-          Recently opened
-        </div>
-        <div className="space-y-1">
-          {recentForTeam.slice(0, 4).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
-              onClick={() => onOpenArticle(item.id)}
-            >
-              <FileText className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{item.title}</span>
-            </button>
-          ))}
-
-          {recentForTeam.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border/30 p-3 text-center text-xs text-muted-foreground">
-              No recent pages.
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ContextMeta({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.035] px-3 py-2">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="max-w-[9rem] truncate font-medium text-foreground/85">{value}</span>
-    </div>
-  );
-}
-
-function SelectionView(p: SelectionViewProps) {
-  const { data, selection, tagsByArticle, teamId, perms, onOpenArticle } = p;
-
-  if (!selection) {
-    const noSpaces = data.spaces.length === 0;
-    if (noSpaces) {
-      return (
-        <div className="flex h-full items-center justify-center p-6">
-          <div className="w-full max-w-md rounded-2xl border border-border/40 bg-white/[0.02] p-8 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Library className="h-6 w-6" />
-            </div>
-            <h3 className="text-base font-semibold text-foreground">Create your first book</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Organise your documentation into books, chapters and pages.
-            </p>
-            {perms.manageTeam ? (
-              <Button size="sm" className="mt-5" onClick={p.onNewSpace}>
-                <Plus className="mr-1 h-3 w-3" /> Create book
-              </Button>
-            ) : (
-              <p className="mt-5 text-xs text-muted-foreground/80">
-                Ask a team manager to create the first book.
-              </p>
-            )}
-            <p className="mt-4 text-[11px] text-muted-foreground/70">
-              For example: Infrastructure, Applications, Security or Service Desk.
-            </p>
-          </div>
-        </div>
-      );
-    }
-    // Polished "Library" overview — gradient hero + book cards.
-    const visibleSpaces = data.spaces.filter((s) => !s.is_archived);
-    const publishedCount = data.articles.filter((a) => a.status === "published").length;
-    const totalPages = data.articles.filter((a) => a.status !== "archived").length;
+  if (selection.kind === "home") {
     return (
-      <div className="h-full overflow-y-auto">
-        <div className="mx-auto max-w-5xl space-y-8 p-1 pb-8">
-          {/* Hero */}
-          <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/15 via-card/60 to-card/40 p-7 md:p-8">
-            <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
-            <div className="relative flex flex-col gap-4">
-              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
-                <Library className="h-3 w-3" /> Knowledge library
-              </div>
-              <h2 className="max-w-2xl text-2xl font-semibold tracking-tight md:text-3xl">
-                Your team's living source of truth.
-              </h2>
-              <p className="max-w-xl text-sm text-muted-foreground">
-                Browse books, chapters and pages — organised the way your team actually works.
-              </p>
-              <div className="mt-1 grid grid-cols-3 gap-3 text-sm md:max-w-md">
-                <div className="rounded-xl border border-border/60 bg-card/40 px-3 py-2">
-                  <div className="text-xl font-semibold tracking-tight">{visibleSpaces.length}</div>
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Books</div>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-card/40 px-3 py-2">
-                  <div className="text-xl font-semibold tracking-tight">{publishedCount}</div>
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Published</div>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-card/40 px-3 py-2">
-                  <div className="text-xl font-semibold tracking-tight">{totalPages}</div>
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total pages</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Books grid */}
-          <div>
-            <div className="mb-4 flex items-end justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="grid h-7 w-7 place-items-center rounded-md bg-white/[0.05] text-primary">
-                  <Book className="h-4 w-4" />
-                </span>
-                <h3 className="text-lg font-semibold tracking-tight">Books</h3>
-              </div>
-              <span className="hidden text-xs text-muted-foreground sm:inline">
-                Press <kbd className="rounded border border-border/40 bg-white/[0.04] px-1">/</kbd> to search
-              </span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {visibleSpaces.map((s) => {
-                const accent = spaceAccent(s.id);
-                const chapterCount = data.categories.filter(
-                  (c) => c.space_id === s.id && !c.is_archived,
-                ).length;
-                const pageCount = data.articles.filter(
-                  (a) => a.space_id === s.id && a.status !== "archived",
-                ).length;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => p.onSelectSpace(s.id)}
-                    className="group relative overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70"
-                  >
-                    <div className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", accent)} />
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={cn(
-                          "grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white shadow-md",
-                          accent,
-                        )}
-                      >
-                        <BookOpen className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate font-semibold tracking-tight group-hover:text-primary">
-                          {s.name}
-                        </div>
-                        {s.description && (
-                          <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                            {s.description}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>{chapterCount} ch · {pageCount} pg</span>
-                      <span>Updated {formatDate(s.updated_at)}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {p.recent.length > 0 && (
-            <div>
-              <div className="mb-4 flex items-end justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="grid h-7 w-7 place-items-center rounded-md bg-white/[0.05] text-primary">
-                    <Clock className="h-4 w-4" />
-                  </span>
-                  <h3 className="text-lg font-semibold tracking-tight">Recently read</h3>
-                </div>
-              </div>
-              <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/60 bg-card/40">
-                {p.recent.map((r) => {
-                  const exists = data.articles.some((a) => a.id === r.id);
-                  return (
-                    <div key={r.id} className="group flex items-center gap-3 px-4 py-3">
-                      <button
-                        type="button"
-                        disabled={!exists}
-                        onClick={() => exists && onOpenArticle(r.id)}
-                        className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-not-allowed disabled:opacity-50"
-                        title={exists ? r.title : "No longer accessible"}
-                      >
-                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/[0.05] text-muted-foreground">
-                          <FileText className="h-4 w-4" />
-                        </div>
-                        <span className="truncate text-sm font-medium hover:text-primary">{r.title}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
-                        onClick={() => p.onForgetRecent(r.id)}
-                        aria-label="Remove"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <HomePane
+        data={data}
+        recent={p.recent}
+        onForgetRecent={p.onForgetRecent}
+        tagsByArticle={tagsByArticle}
+        perms={perms}
+        onOpenSpace={(id) => setSelection({ kind: "space", id })}
+        onOpenArticle={openArticle}
+        onNewSpace={p.onNewSpace}
+      />
     );
   }
 
   if (selection.kind === "space") {
     const space = data.spaces.find((s) => s.id === selection.id);
     if (!space) return <NotFound />;
-    const cats = data.categories.filter((c) => c.space_id === space.id);
-    const arts = data.articles.filter((a) => a.space_id === space.id);
-    const chapterCount = cats.filter((c) => !c.is_archived).length;
-    const pageCount = arts.filter((a) => a.status !== "archived").length;
-    const accent = spaceAccent(space.id);
     return (
-      <div className="h-full overflow-y-auto">
-        <div className="mx-auto max-w-4xl space-y-6 pb-6">
-          {/* Book hero */}
-          <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-6 md:p-7">
-            <div className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", accent)} />
-            <button
-              type="button"
-              onClick={() => p.onSelectSpace("")}
-              className="mb-2 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
-            >
-              <Library className="h-3 w-3" /> Library
-              <ChevronRight className="h-3 w-3 opacity-60" />
-              <span className="text-primary">Book</span>
-            </button>
-            <div className="flex flex-wrap items-start gap-4">
-              <div
-                className={cn(
-                  "grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-md",
-                  accent,
-                )}
-              >
-                <BookOpen className="h-6 w-6" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{space.name}</h2>
-                {space.description && (
-                  <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{space.description}</p>
-                )}
-                <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <BookMarked className="h-3 w-3" /> {chapterCount} chapter
-                    {chapterCount === 1 ? "" : "s"}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <FileText className="h-3 w-3" /> {pageCount} page{pageCount === 1 ? "" : "s"}
-                  </span>
-                  <span>Updated {formatDate(space.updated_at)}</span>
-                  {space.is_archived && (
-                    <Badge variant="outline" className="h-4 text-[10px]">
-                      Archived
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="ml-auto flex flex-wrap items-center gap-1">
-              {perms.create && !space.is_archived && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-7 text-xs"
-                  onClick={() => p.onNewArticle(space.id, null)}
-                >
-                  <Plus className="mr-1 h-3 w-3" /> Page
-                </Button>
-              )}
-              {perms.update && !space.is_archived && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-7 text-xs"
-                  onClick={() => p.onNewCategory(space.id, cats.length * 10)}
-                >
-                  <Plus className="mr-1 h-3 w-3" /> Chapter
-                </Button>
-              )}
-              {perms.manageTeam && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-xs"
-                    onClick={() => p.onEditSpace(space)}
-                  >
-                    <Pencil className="mr-1 h-3 w-3" /> Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-xs"
-                    onClick={() => p.onArchiveSpace(space)}
-                  >
-                    {space.is_archived ? (
-                      <>
-                        <RotateCcw className="mr-1 h-3 w-3" /> Restore
-                      </>
-                    ) : (
-                      <>
-                        <Archive className="mr-1 h-3 w-3" /> Archive
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-xs text-destructive"
-                    onClick={() => p.onDeleteSpace(space)}
-                  >
-                    <Trash2 className="mr-1 h-3 w-3" />
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Chapters */}
-          {cats.filter((c) => !c.is_archived).length === 0 &&
-          arts.filter((a) => !a.category_id).length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/40 p-8 text-center text-xs text-muted-foreground">
-              This book is empty. Add a chapter or a page to get started.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {cats
-                .filter((c) => !c.is_archived)
-                .map((c) => {
-                  const chArts = arts.filter(
-                    (a) => a.category_id === c.id && a.status !== "archived",
-                  );
-                  return (
-                    <section
-                      key={c.id}
-                      className="rounded-xl border border-border/40 bg-white/[0.02] p-4"
-                    >
-                      <div className="mb-3 flex items-start gap-2">
-                        <BookMarked className="mt-0.5 h-4 w-4 shrink-0 text-primary/80" />
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-serif text-base font-semibold leading-tight">
-                            {c.name}
-                          </h3>
-                          {c.description && (
-                            <p className="mt-0.5 text-xs text-muted-foreground">{c.description}</p>
-                          )}
-                        </div>
-                        <Badge variant="outline" className="h-5 shrink-0 text-[10px]">
-                          {chArts.length} page{chArts.length === 1 ? "" : "s"}
-                        </Badge>
-                      </div>
-                      {chArts.length === 0 ? (
-                        <p className="px-1 text-[11px] text-muted-foreground/70">
-                          No pages in this chapter yet.
-                        </p>
-                      ) : (
-                        <ul className="divide-y divide-border/20">
-                          {chArts.map((a) => (
-                            <li key={a.id}>
-                              <button
-                                type="button"
-                                onClick={() => onOpenArticle(a.id)}
-                                className="kb-page-row group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
-                              >
-                                <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
-                                <span className="truncate text-sm font-medium group-hover:text-primary">
-                                  {a.title}
-                                </span>
-                                {a.status !== "published" && (
-                                  <Badge variant="outline" className="h-4 text-[9px]">
-                                    {STATUS_LABEL[a.status]}
-                                  </Badge>
-                                )}
-                                <span className="ml-auto text-[10px] text-muted-foreground/70">
-                                  {formatDate(a.updated_at)}
-                                </span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </section>
-                  );
-                })}
-
-              {/* Loose pages directly under the book */}
-              {(() => {
-                const loose = arts.filter((a) => !a.category_id && a.status !== "archived");
-                if (loose.length === 0) return null;
-                return (
-                  <section className="rounded-xl border border-border/40 bg-white/[0.02] p-4">
-                    <div className="mb-3 flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <h3 className="font-serif text-base font-semibold leading-tight">
-                        Loose pages
-                      </h3>
-                      <Badge variant="outline" className="ml-auto h-5 text-[10px]">
-                        {loose.length}
-                      </Badge>
-                    </div>
-                    <ul className="divide-y divide-border/20">
-                      {loose.map((a) => (
-                        <li key={a.id}>
-                          <button
-                            type="button"
-                            onClick={() => onOpenArticle(a.id)}
-                            className="kb-page-row group flex w-full items-center gap-2 rounded-md px-1.5 py-2 text-left hover:bg-white/[0.04]"
-                          >
-                            <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
-                            <span className="truncate text-sm font-medium group-hover:text-primary">
-                              {a.title}
-                            </span>
-                            {a.status !== "published" && (
-                              <Badge variant="outline" className="h-4 text-[9px]">
-                                {STATUS_LABEL[a.status]}
-                              </Badge>
-                            )}
-                            <span className="ml-auto text-[10px] text-muted-foreground/70">
-                              {formatDate(a.updated_at)}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-      </div>
+      <SpacePane
+        space={space}
+        categories={data.categories.filter((c) => c.space_id === space.id)}
+        articles={data.articles.filter((a) => a.space_id === space.id)}
+        tagsByArticle={tagsByArticle}
+        perms={perms}
+        onOpenCategory={(id) => setSelection({ kind: "category", id })}
+        onOpenArticle={openArticle}
+        onNewCategory={() => p.onNewCategory(space.id)}
+        onNewArticle={() => p.onNewArticle(space.id, null)}
+        onEditSpace={() => p.onEditSpace(space)}
+        onArchiveSpace={() => p.onArchiveSpace(space)}
+        onDeleteSpace={() => p.onDeleteSpace(space)}
+      />
     );
   }
 
   if (selection.kind === "category") {
     const cat = data.categories.find((c) => c.id === selection.id);
     if (!cat) return <NotFound />;
-    const space = data.spaces.find((s) => s.id === cat.space_id);
-    const arts = data.articles.filter((a) => a.category_id === cat.id);
+    const space = data.spaces.find((s) => s.id === cat.space_id) ?? null;
     return (
-      <div className="kb-view-panel space-y-3 overflow-y-auto">
-        <div className="flex items-start gap-2">
-          <Header
-            icon={<BookMarked className="h-4 w-4 text-primary/80" />}
-            label="Chapter"
-            title={cat.name}
-            subtitle={cat.description ?? undefined}
-            breadcrumb={space?.name}
-          />
-          <div className="ml-auto flex flex-wrap items-center gap-1">
-            {perms.create && !cat.is_archived && (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-7 text-xs"
-                onClick={() => p.onNewArticle(cat.space_id, cat.id)}
-              >
-                <Plus className="mr-1 h-3 w-3" /> Article
-              </Button>
-            )}
-            {perms.update && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs"
-                onClick={() => p.onEditCategory(cat)}
-              >
-                <Pencil className="mr-1 h-3 w-3" /> Edit
-              </Button>
-            )}
-            {perms.update && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs"
-                onClick={() => p.onArchiveCategory(cat)}
-              >
-                {cat.is_archived ? (
-                  <>
-                    <RotateCcw className="mr-1 h-3 w-3" /> Restore
-                  </>
-                ) : (
-                  <>
-                    <Archive className="mr-1 h-3 w-3" /> Archive
-                  </>
-                )}
-              </Button>
-            )}
-            {perms.delete && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs text-destructive"
-                onClick={() => p.onDeleteCategory(cat)}
-              >
-                <Trash2 className="mr-1 h-3 w-3" />
-              </Button>
-            )}
-          </div>
-        </div>
-        <Meta
-          items={[
-            ["Slug", cat.slug],
-            ["Sort order", String(cat.sort_order)],
-            ["Updated", formatDate(cat.updated_at)],
-            ["Archived", cat.is_archived ? "Yes" : "No"],
-          ]}
-        />
-        <ArticleTable articles={arts} categories={[cat]} onOpen={onOpenArticle} />
-      </div>
+      <CategoryPane
+        category={cat}
+        space={space}
+        articles={data.articles.filter((a) => a.category_id === cat.id)}
+        tagsByArticle={tagsByArticle}
+        perms={perms}
+        onOpenArticle={openArticle}
+        onBackToSpace={() =>
+          space && setSelection({ kind: "space", id: space.id })
+        }
+        onNewArticle={() => p.onNewArticle(cat.space_id, cat.id)}
+        onEditCategory={() => p.onEditCategory(cat)}
+        onArchiveCategory={() => p.onArchiveCategory(cat)}
+        onDeleteCategory={() => p.onDeleteCategory(cat)}
+      />
     );
   }
 
   // article
   const art = data.articles.find((a) => a.id === selection.id);
   if (!art) return <NotFound />;
-  const space = data.spaces.find((s) => s.id === art.space_id);
-  const cat = art.category_id ? data.categories.find((c) => c.id === art.category_id) : null;
-  const tags = tagsByArticle.get(art.id) ?? [];
+  const space = data.spaces.find((s) => s.id === art.space_id) ?? null;
+  const cat = art.category_id
+    ? data.categories.find((c) => c.id === art.category_id) ?? null
+    : null;
+  const articlesInCategory = cat
+    ? data.articles.filter(
+        (a) => a.category_id === cat.id && a.status !== "archived",
+      )
+    : [];
+  const tagList = tagsByArticle.get(art.id) ?? [];
 
   if (p.editingArticle) {
     return (
@@ -2046,169 +1312,681 @@ function SelectionView(p: SelectionViewProps) {
         canUpdate={perms.update}
         canDelete={perms.delete}
         canApprove={perms.manageTeam}
-        onSaved={() => {
-          p.onReload();
-        }}
+        onSaved={() => p.onReload()}
         onClose={() => p.setEditingArticle(false)}
       />
     );
   }
 
   return (
-    <ArticleView
+    <ArticlePane
       article={art}
-      tags={tags}
-      breadcrumb={[space?.name, cat?.name].filter(Boolean).join(" / ")}
-      teamId={teamId}
+      space={space}
+      category={cat}
+      articlesInCategory={articlesInCategory}
+      articleTags={tagList}
+      teamId={p.teamId}
       canUpdate={perms.update}
       canDelete={perms.delete}
+      onOpenArticle={openArticle}
+      onOpenSpace={(id) => setSelection({ kind: "space", id })}
+      onOpenCategory={(id) => setSelection({ kind: "category", id })}
       onEditContent={() => p.setEditingArticle(true)}
       onEditMeta={() => p.onEditArticleMeta(art)}
       onEditTags={() => p.onEditArticleTags(art)}
-      onDelete={() => p.onDeleteArticle(art)}
       onArchive={() => p.onArchiveArticle(art)}
+      onDelete={() => p.onDeleteArticle(art)}
       onReload={p.onReload}
     />
   );
 }
 
-function Header({
-  icon,
-  label,
-  title,
-  subtitle,
-  breadcrumb,
+// ============================================================
+// Home pane
+// ============================================================
+function HomePane({
+  data,
+  recent,
+  onForgetRecent,
+  tagsByArticle,
+  perms,
+  onOpenSpace,
+  onOpenArticle,
+  onNewSpace,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  title: string;
-  subtitle?: string;
-  breadcrumb?: string;
+  data: MainPaneProps["data"];
+  recent: MainPaneProps["recent"];
+  onForgetRecent: (id: string) => void;
+  tagsByArticle: Map<string, string[]>;
+  perms: MainPaneProps["perms"];
+  onOpenSpace: (id: string) => void;
+  onOpenArticle: (id: string) => void;
+  onNewSpace: () => void;
 }) {
-  return (
-    <div>
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-        {icon}
-        <span>{label}</span>
-        {breadcrumb && (
-          <>
-            <ChevronRight className="h-3 w-3" />
-            <span className="normal-case tracking-normal">{breadcrumb}</span>
-          </>
-        )}
-      </div>
-      <h2 className="mt-1 text-xl font-semibold">{title}</h2>
-      {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
-    </div>
+  const visibleSpaces = data.spaces.filter((s) => !s.is_archived);
+  const publishedCount = data.articles.filter((a) => a.status === "published").length;
+  const totalPages = data.articles.filter((a) => a.status !== "archived").length;
+  const recentlyUpdated = useMemo(
+    () =>
+      [...data.articles]
+        .filter((a) => a.status !== "archived")
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .slice(0, 6),
+    [data.articles],
   );
-}
 
-function Meta({ items }: { items: Array<[string, string]> }) {
-  return (
-    <div className="kb-meta-bar flex flex-wrap gap-3 rounded-lg border border-border/40 bg-white/[0.02] p-2 text-xs text-muted-foreground">
-      {items.map(([k, v]) => (
-        <div key={k}>
-          <span className="text-muted-foreground/70">{k}: </span>
-          <span className="text-foreground/80">{v}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ArticleTable({
-  articles,
-  categories,
-  onOpen,
-}: {
-  articles: KbArticle[];
-  categories: KbCategory[];
-  onOpen: (id: string) => void;
-}) {
-  if (articles.length === 0) {
+  if (visibleSpaces.length === 0) {
     return (
-      <div className="kb-empty-state rounded-xl border border-dashed border-border/40 p-6 text-center text-xs text-muted-foreground">
-        No pages here.
+      <div className="rounded-2xl border border-border/60 bg-card/40 p-10 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Library className="h-6 w-6" />
+        </div>
+        <h3 className="text-base font-semibold">Create your first book</h3>
+        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+          Organise your documentation into books, chapters and pages.
+        </p>
+        {perms.manageTeam ? (
+          <Button size="sm" className="mt-5" onClick={onNewSpace}>
+            <Plus className="mr-1 h-3 w-3" /> Create book
+          </Button>
+        ) : (
+          <p className="mt-5 text-xs text-muted-foreground/80">
+            Ask a team manager to create the first book.
+          </p>
+        )}
       </div>
     );
   }
-  const catName = new Map(categories.map((c) => [c.id, c.name]));
+
   return (
-    <div className="kb-table-card overflow-hidden rounded-xl border border-border/40">
-      <table className="min-w-full text-sm">
-        <thead className="bg-white/[0.03] text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2 font-medium">Title</th>
-            <th className="px-3 py-2 font-medium">Chapter</th>
-            <th className="px-3 py-2 font-medium">Status</th>
-            <th className="px-3 py-2 font-medium">Rev</th>
-            <th className="px-3 py-2 font-medium">Updated</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/30">
-          {articles.map((a) => (
-            <tr
-              key={a.id}
-              className="cursor-pointer hover:bg-white/[0.03]"
-              onClick={() => onOpen(a.id)}
-            >
-              <td className="px-3 py-2">
-                <div className="font-medium">{a.title}</div>
-                {a.excerpt && (
-                  <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                    {a.excerpt}
+    <div className="space-y-8">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/15 via-card/60 to-card/40 p-6 md:p-8">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
+        <div className="relative flex flex-col gap-4">
+          <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+            <Sparkles className="h-3 w-3" /> Knowledge Center
+          </div>
+          <h1 className="max-w-2xl text-2xl font-semibold tracking-tight md:text-4xl">
+            Your team's living source of truth.
+          </h1>
+          <p className="max-w-xl text-sm text-muted-foreground md:text-base">
+            Browse runbooks, onboarding guides and architectural decisions —
+            organised the way your team actually works.
+          </p>
+          <div className="mt-2 grid grid-cols-3 gap-3 text-sm md:max-w-md">
+            <Stat label="Books" value={visibleSpaces.length} />
+            <Stat label="Published" value={publishedCount} />
+            <Stat label="Total pages" value={totalPages} />
+          </div>
+        </div>
+      </div>
+
+      {/* Books grid */}
+      <div>
+        <SectionHeading
+          icon={<Book className="h-4 w-4" />}
+          title="Books"
+          hint="Top-level collections."
+        />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {visibleSpaces.map((s) => {
+            const accent = spaceAccent(s.id);
+            const chapters = data.categories.filter(
+              (c) => c.space_id === s.id && !c.is_archived,
+            ).length;
+            const pages = data.articles.filter(
+              (a) => a.space_id === s.id && a.status !== "archived",
+            ).length;
+            return (
+              <button
+                key={s.id}
+                onClick={() => onOpenSpace(s.id)}
+                className="group relative overflow-hidden rounded-xl border border-border/60 bg-card/40 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70"
+              >
+                <div
+                  className={cn(
+                    "absolute inset-x-0 top-0 h-1 bg-gradient-to-r",
+                    accent,
+                  )}
+                />
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      "grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white shadow-md",
+                      accent,
+                    )}
+                  >
+                    <BookOpen className="h-5 w-5" />
                   </div>
-                )}
-              </td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">
-                {a.category_id ? (catName.get(a.category_id) ?? "—") : "—"}
-              </td>
-              <td className="px-3 py-2 text-xs">
-                <Badge variant="outline" className="h-5">
-                  {STATUS_LABEL[a.status] ?? a.status}
-                </Badge>
-              </td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">{a.revision_number}</td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">
-                {formatDate(a.updated_at)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold tracking-tight group-hover:text-primary">
+                      {s.name}
+                    </div>
+                    {s.description && (
+                      <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                        {s.description}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>
+                    {chapters} ch · {pages} pg
+                  </span>
+                  <span>Updated {formatDate(s.updated_at)}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Recently updated (from backend) */}
+      {recentlyUpdated.length > 0 && (
+        <div>
+          <SectionHeading
+            icon={<Clock className="h-4 w-4" />}
+            title="Recently updated"
+            hint="Latest edits across all books."
+          />
+          <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/60 bg-card/40">
+            {recentlyUpdated.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => onOpenArticle(a.id)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03] sm:gap-4 sm:px-5"
+              >
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/[0.05] text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{a.title}</div>
+                  {a.excerpt && (
+                    <div className="truncate text-xs text-muted-foreground">
+                      {a.excerpt}
+                    </div>
+                  )}
+                </div>
+                <div className="hidden items-center gap-2 sm:flex">
+                  {(tagsByArticle.get(a.id) ?? []).slice(0, 2).map((t) => (
+                    <Badge
+                      key={t}
+                      variant="outline"
+                      className="border-border/40 text-[10px] font-normal"
+                    >
+                      <TagIcon className="mr-1 h-2.5 w-2.5" />
+                      {t}
+                    </Badge>
+                  ))}
+                </div>
+                <StatusPill status={a.status} />
+                <span className="hidden w-24 text-right text-[11px] text-muted-foreground md:inline">
+                  {formatDate(a.updated_at)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recently opened by me */}
+      {recent.length > 0 && (
+        <div>
+          <SectionHeading
+            icon={<History className="h-4 w-4" />}
+            title="Recently opened by you"
+          />
+          <div className="grid gap-2 sm:grid-cols-2">
+            {recent.slice(0, 6).map((r) => {
+              const exists = data.articles.some((a) => a.id === r.id);
+              return (
+                <div
+                  key={r.id}
+                  className="group flex items-center gap-2 rounded-xl border border-border/40 bg-card/30 px-3 py-2"
+                >
+                  <button
+                    type="button"
+                    disabled={!exists}
+                    onClick={() => exists && onOpenArticle(r.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-sm">{r.title}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded p-1 text-muted-foreground/60 opacity-0 hover:text-foreground group-hover:opacity-100"
+                    onClick={() => onForgetRecent(r.id)}
+                    aria-label="Forget"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ArticleView({
+// ============================================================
+// Space (Book) pane
+// ============================================================
+function SpacePane({
+  space,
+  categories,
+  articles,
+  tagsByArticle,
+  perms,
+  onOpenCategory,
+  onOpenArticle,
+  onNewCategory,
+  onNewArticle,
+  onEditSpace,
+  onArchiveSpace,
+  onDeleteSpace,
+}: {
+  space: KbSpace;
+  categories: KbCategory[];
+  articles: KbArticle[];
+  tagsByArticle: Map<string, string[]>;
+  perms: MainPaneProps["perms"];
+  onOpenCategory: (id: string) => void;
+  onOpenArticle: (id: string) => void;
+  onNewCategory: () => void;
+  onNewArticle: () => void;
+  onEditSpace: () => void;
+  onArchiveSpace: () => void;
+  onDeleteSpace: () => void;
+}) {
+  const accent = spaceAccent(space.id);
+  const visibleCats = categories.filter((c) => !c.is_archived);
+  const loosePages = articles.filter(
+    (a) => !a.category_id && a.status !== "archived",
+  );
+  const chapterCount = visibleCats.length;
+  const pageCount = articles.filter((a) => a.status !== "archived").length;
+
+  return (
+    <div className="space-y-8">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-6 md:p-7">
+        <div className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", accent)} />
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 sm:flex sm:flex-wrap">
+          <div className="flex min-w-0 items-start gap-3">
+            <div
+              className={cn(
+                "grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-md",
+                accent,
+              )}
+            >
+              <BookOpen className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                Book
+              </div>
+              <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight md:text-3xl">
+                {space.name}
+              </h1>
+              {space.description && (
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                  {space.description}
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <BookMarked className="h-3 w-3" /> {chapterCount} chapter
+                  {chapterCount === 1 ? "" : "s"}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <FileText className="h-3 w-3" /> {pageCount} page
+                  {pageCount === 1 ? "" : "s"}
+                </span>
+                <span>Updated {formatDate(space.updated_at)}</span>
+                {space.is_archived && (
+                  <Badge variant="outline" className="h-4 text-[10px]">
+                    Archived
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-1">
+            {perms.create && !space.is_archived && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 text-xs"
+                onClick={onNewArticle}
+              >
+                <Plus className="mr-1 h-3 w-3" /> Page
+              </Button>
+            )}
+            {perms.update && !space.is_archived && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 text-xs"
+                onClick={onNewCategory}
+              >
+                <Plus className="mr-1 h-3 w-3" /> Chapter
+              </Button>
+            )}
+            {perms.manageTeam && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    aria-label="More"
+                  >
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onEditSpace}>
+                    <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onArchiveSpace}>
+                    {space.is_archived ? (
+                      <>
+                        <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
+                      </>
+                    ) : (
+                      <>
+                        <Archive className="mr-2 h-3.5 w-3.5" /> Archive
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={onDeleteSpace}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete…
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Chapters */}
+      {visibleCats.length === 0 && loosePages.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/40 p-8 text-center text-xs text-muted-foreground">
+          This book is empty. Add a chapter or a page to get started.
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {visibleCats.map((c) => {
+            const pages = articles.filter(
+              (a) => a.category_id === c.id && a.status !== "archived",
+            );
+            return (
+              <div key={c.id}>
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div className="min-w-0">
+                    <button
+                      onClick={() => onOpenCategory(c.id)}
+                      className="truncate text-lg font-semibold tracking-tight hover:text-primary"
+                    >
+                      {c.name}
+                    </button>
+                    {c.description && (
+                      <p className="line-clamp-1 text-sm text-muted-foreground">
+                        {c.description}
+                      </p>
+                    )}
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {pages.length} page{pages.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                {pages.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border/40 p-4 text-center text-xs text-muted-foreground">
+                    No pages in this chapter yet.
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {pages.map((a) => (
+                      <PageCard
+                        key={a.id}
+                        article={a}
+                        tags={tagsByArticle.get(a.id) ?? []}
+                        onOpen={() => onOpenArticle(a.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {loosePages.length > 0 && (
+            <div>
+              <div className="mb-3 flex items-end justify-between gap-3">
+                <h3 className="text-lg font-semibold tracking-tight">Loose pages</h3>
+                <span className="text-xs text-muted-foreground">
+                  {loosePages.length}
+                </span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {loosePages.map((a) => (
+                  <PageCard
+                    key={a.id}
+                    article={a}
+                    tags={tagsByArticle.get(a.id) ?? []}
+                    onOpen={() => onOpenArticle(a.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Category (Chapter) pane
+// ============================================================
+function CategoryPane({
+  category,
+  space,
+  articles,
+  tagsByArticle,
+  perms,
+  onOpenArticle,
+  onBackToSpace,
+  onNewArticle,
+  onEditCategory,
+  onArchiveCategory,
+  onDeleteCategory,
+}: {
+  category: KbCategory;
+  space: KbSpace | null;
+  articles: KbArticle[];
+  tagsByArticle: Map<string, string[]>;
+  perms: MainPaneProps["perms"];
+  onOpenArticle: (id: string) => void;
+  onBackToSpace: () => void;
+  onNewArticle: () => void;
+  onEditCategory: () => void;
+  onArchiveCategory: () => void;
+  onDeleteCategory: () => void;
+}) {
+  const accent = space ? spaceAccent(space.id) : "from-primary to-primary/60";
+  const visible = articles.filter((a) => a.status !== "archived");
+  return (
+    <div className="space-y-6">
+      {space && (
+        <button
+          type="button"
+          onClick={onBackToSpace}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-3 w-3" /> Back to {space.name}
+        </button>
+      )}
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-6 md:p-7">
+        <div className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", accent)} />
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 sm:flex sm:flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+              Chapter
+            </div>
+            <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight md:text-3xl">
+              {category.name}
+            </h1>
+            {category.description && (
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                {category.description}
+              </p>
+            )}
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <FileText className="h-3 w-3" /> {visible.length} page
+                {visible.length === 1 ? "" : "s"}
+              </span>
+              <span>Updated {formatDate(category.updated_at)}</span>
+              {category.is_archived && (
+                <Badge variant="outline" className="h-4 text-[10px]">
+                  Archived
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-1">
+            {perms.create && !category.is_archived && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 text-xs"
+                onClick={onNewArticle}
+              >
+                <Plus className="mr-1 h-3 w-3" /> Page
+              </Button>
+            )}
+            {perms.update && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    aria-label="More"
+                  >
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onEditCategory}>
+                    <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onArchiveCategory}>
+                    {category.is_archived ? (
+                      <>
+                        <RotateCcw className="mr-2 h-3.5 w-3.5" /> Restore
+                      </>
+                    ) : (
+                      <>
+                        <Archive className="mr-2 h-3.5 w-3.5" /> Archive
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  {perms.delete && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={onDeleteCategory}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete…
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/40 p-8 text-center text-xs text-muted-foreground">
+          No pages here yet.
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {visible.map((a) => (
+            <PageCard
+              key={a.id}
+              article={a}
+              tags={tagsByArticle.get(a.id) ?? []}
+              onOpen={() => onOpenArticle(a.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Article pane (read view with tabs)
+// ============================================================
+type Tab = "content" | "outline" | "review" | "revisions" | "audit";
+
+function ArticlePane({
   article,
-  tags,
-  breadcrumb,
+  space,
+  category,
+  articlesInCategory,
+  articleTags,
   teamId,
   canUpdate,
   canDelete,
+  onOpenArticle,
+  onOpenSpace,
+  onOpenCategory,
   onEditContent,
   onEditMeta,
   onEditTags,
-  onDelete,
   onArchive,
+  onDelete,
   onReload,
 }: {
   article: KbArticle;
-  tags: string[];
-  breadcrumb: string;
+  space: KbSpace | null;
+  category: KbCategory | null;
+  articlesInCategory: KbArticle[];
+  articleTags: string[];
   teamId: string;
   canUpdate: boolean;
   canDelete: boolean;
+  onOpenArticle: (id: string) => void;
+  onOpenSpace: (id: string) => void;
+  onOpenCategory: (id: string) => void;
   onEditContent: () => void;
   onEditMeta: () => void;
   onEditTags: () => void;
-  onDelete: () => void;
   onArchive: () => void;
+  onDelete: () => void;
   onReload: () => void;
 }) {
-  type Tab = "content" | "outline" | "review" | "revisions" | "audit";
   const [tab, setTab] = useState<Tab>("content");
+  const idx = articlesInCategory.findIndex((a) => a.id === article.id);
+  const prev = idx > 0 ? articlesInCategory[idx - 1] : null;
+  const next =
+    idx >= 0 && idx < articlesInCategory.length - 1 ? articlesInCategory[idx + 1] : null;
+
   const handleCopyLink = async () => {
     try {
       const base = typeof window !== "undefined" ? window.location.origin : "";
@@ -2220,10 +1998,6 @@ function ArticleView({
     }
   };
 
-  const breadcrumbParts = breadcrumb
-    ? [...breadcrumb.split(" / "), article.title]
-    : [article.title];
-
   const TABS: Array<{ id: Tab; label: string; icon: typeof ListIcon }> = [
     { id: "content", label: "Content", icon: FileText },
     { id: "outline", label: "Outline", icon: ListIcon },
@@ -2233,60 +2007,58 @@ function ArticleView({
   ];
 
   return (
-    <div className="kb-article-view grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
-      {/* Header */}
-      <div>
-        <nav
-          className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground"
-          aria-label="Breadcrumb"
-        >
-          {breadcrumbParts.map((p, i) => (
-            <span key={`${p}-${i}`} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="h-3 w-3 opacity-60" />}
-              <span
-                className={cn("truncate", i === breadcrumbParts.length - 1 && "text-foreground/80")}
-              >
-                {p}
-              </span>
-            </span>
-          ))}
-        </nav>
-        <div className="mt-1 flex items-start gap-2">
-          <div className="min-w-0">
-            <h2 className="truncate text-xl font-semibold">{article.title}</h2>
+    <article className="space-y-6">
+      <nav className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {space && (
+          <button onClick={() => onOpenSpace(space.id)} className="hover:text-foreground">
+            {space.name}
+          </button>
+        )}
+        {category && (
+          <>
+            <ChevronRight className="h-3 w-3 opacity-60" />
+            <button
+              onClick={() => onOpenCategory(category.id)}
+              className="hover:text-foreground"
+            >
+              {category.name}
+            </button>
+          </>
+        )}
+        <ChevronRight className="h-3 w-3 opacity-60" />
+        <span className="text-primary">{article.title}</span>
+      </nav>
+
+      <header className="space-y-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:flex-wrap sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-3">
+            <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">
+              {article.title}
+            </h1>
             {article.excerpt && (
-              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{article.excerpt}</p>
+              <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
+                {article.excerpt}
+              </p>
             )}
           </div>
-          <div className="ml-auto flex flex-wrap items-center gap-1">
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             {canUpdate && (
               <Button
-                size="sm"
                 variant="secondary"
-                className="h-7 text-xs"
+                size="sm"
+                className="h-8"
                 onClick={onEditContent}
-                title="Open the editor"
               >
-                <Pencil className="mr-1 h-3 w-3" /> Write
+                <Pencil className="mr-1.5 h-3.5 w-3.5" /> Write
               </Button>
             )}
-            <Button
-              size="sm"
-              variant={tab === "content" ? "secondary" : "ghost"}
-              className="h-7 text-xs"
-              onClick={() => setTab("content")}
-              title="Read the published content"
-            >
-              <FileText className="mr-1 h-3 w-3" /> Preview
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-7 w-7"
-                  aria-label="More actions"
-                  title="More actions"
+                  className="h-8 w-8"
+                  aria-label="More"
                 >
                   <MoreHorizontal className="h-3.5 w-3.5" />
                 </Button>
@@ -2336,29 +2108,36 @@ function ArticleView({
             </DropdownMenu>
           </div>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <StatusPill status={article.status} />
-          <Badge variant="outline">{article.visibility}</Badge>
-          <Badge variant="outline">rev {article.revision_number}</Badge>
+          <Badge variant="outline" className="h-5">
+            {article.visibility}
+          </Badge>
+          <Badge variant="outline" className="h-5">
+            rev {article.revision_number}
+          </Badge>
+          {articleTags.map((t) => (
+            <Badge
+              key={t}
+              variant="outline"
+              className="border-border/40 text-[10px] font-normal"
+            >
+              <TagIcon className="mr-1 h-2.5 w-2.5" />
+              {t}
+            </Badge>
+          ))}
+          <span className="opacity-60">·</span>
+          <span>Updated {formatDate(article.updated_at)}</span>
           {article.published_at && (
-            <span className="text-muted-foreground">
-              Published {formatDate(article.published_at)}
-            </span>
-          )}
-          <span className="text-muted-foreground">Updated {formatDate(article.updated_at)}</span>
-          {tags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1">
-              {tags.map((t) => (
-                <Badge key={t} variant="secondary" className="h-5 text-[10px]">
-                  #{t}
-                </Badge>
-              ))}
-            </div>
+            <>
+              <span className="opacity-60">·</span>
+              <span>Published {formatDate(article.published_at)}</span>
+            </>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* Tab bar */}
+      {/* Tabs */}
       <div className="-mb-px flex flex-wrap items-center gap-1 overflow-x-auto border-b border-border/40">
         {TABS.map((t) => {
           const active = tab === t.id;
@@ -2380,63 +2159,105 @@ function ArticleView({
         })}
       </div>
 
-      {/* Body */}
-      <div className="min-h-0 overflow-y-auto">
-        {tab === "content" && (
-          <div className="space-y-3">
-            <article className="prose-knowledge mx-auto max-w-3xl rounded-xl border border-border/40 bg-white/[0.02] p-6">
+      {tab === "content" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border/60 bg-card/30 px-5 py-8 md:px-8 md:py-10">
+            <div className="kb-manuscript prose-knowledge mx-auto max-w-3xl">
               {article.content_markdown ? (
                 <Markdown source={article.content_markdown} />
               ) : (
-                <p className="text-sm text-muted-foreground">This article has no content yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  This page has no content yet.
+                </p>
               )}
-            </article>
-            <div className="mx-auto max-w-3xl">
-              <AttachmentsPanel articleId={article.id} teamId={teamId} canUpdate={canUpdate} />
             </div>
           </div>
-        )}
-        {tab === "outline" && (
           <div className="mx-auto max-w-3xl">
-            <ArticleTOC markdown={article.content_markdown ?? ""} />
-          </div>
-        )}
-        {tab === "review" && (
-          <div className="mx-auto max-w-3xl">
-            <ReviewTimelinePanel
+            <AttachmentsPanel
               articleId={article.id}
               teamId={teamId}
-              refreshKey={`${article.revision_number}:${article.status}`}
+              canUpdate={canUpdate}
             />
           </div>
-        )}
-        {tab === "revisions" && (
-          <div className="mx-auto max-w-3xl">
-            <RevisionsPanel
-              articleId={article.id}
-              teamId={teamId}
-              canRestore={canUpdate}
-              currentRev={article.revision_number}
-              onRestored={onReload}
-            />
-          </div>
-        )}
-        {tab === "audit" && (
-          <div className="mx-auto max-w-3xl">
-            <AuditLogPanel
-              teamId={teamId}
-              entityType="article"
-              entityId={article.id}
-              title="Article audit"
-              limit={50}
-            />
-          </div>
-        )}
-      </div>
-    </div>
+          {(prev || next) && (
+            <div className="mx-auto grid max-w-3xl grid-cols-2 gap-3">
+              {prev ? (
+                <button
+                  onClick={() => onOpenArticle(prev.id)}
+                  className="rounded-xl border border-border/60 bg-card/30 p-4 text-left transition-colors hover:border-primary/40 hover:bg-card/60"
+                >
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    ← Previous
+                  </div>
+                  <div className="mt-1 truncate text-sm font-medium">
+                    {prev.title}
+                  </div>
+                </button>
+              ) : (
+                <span />
+              )}
+              {next ? (
+                <button
+                  onClick={() => onOpenArticle(next.id)}
+                  className="rounded-xl border border-border/60 bg-card/30 p-4 text-right transition-colors hover:border-primary/40 hover:bg-card/60"
+                >
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Next →
+                  </div>
+                  <div className="mt-1 truncate text-sm font-medium">
+                    {next.title}
+                  </div>
+                </button>
+              ) : (
+                <span />
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {tab === "outline" && (
+        <div className="mx-auto max-w-3xl">
+          <ArticleTOC markdown={article.content_markdown ?? ""} />
+        </div>
+      )}
+      {tab === "review" && (
+        <div className="mx-auto max-w-3xl">
+          <ReviewTimelinePanel
+            articleId={article.id}
+            teamId={teamId}
+            refreshKey={`${article.revision_number}:${article.status}`}
+          />
+        </div>
+      )}
+      {tab === "revisions" && (
+        <div className="mx-auto max-w-3xl">
+          <RevisionsPanel
+            articleId={article.id}
+            teamId={teamId}
+            canRestore={canUpdate}
+            currentRev={article.revision_number}
+            onRestored={onReload}
+          />
+        </div>
+      )}
+      {tab === "audit" && (
+        <div className="mx-auto max-w-3xl">
+          <AuditLogPanel
+            teamId={teamId}
+            entityType="article"
+            entityId={article.id}
+            title="Page audit"
+            limit={50}
+          />
+        </div>
+      )}
+    </article>
   );
 }
 
+// ============================================================
+// Revisions panel (kept inline — used by article tabs)
+// ============================================================
 function RevisionsPanel({
   articleId,
   teamId,
@@ -2473,7 +2294,7 @@ function RevisionsPanel({
   async function handleRestore(r: KbRevision) {
     if (!canRestore) return;
     if (
-      !confirm(`Restore article to revision v${r.version_number}? A new revision will be created.`)
+      !confirm(`Restore page to revision v${r.version_number}? A new revision will be created.`)
     )
       return;
     setBusyId(r.id);
@@ -2488,7 +2309,7 @@ function RevisionsPanel({
   }
 
   return (
-    <aside className="min-h-0 overflow-y-auto rounded-xl border border-border/40 bg-white/[0.02] p-3">
+    <aside className="rounded-xl border border-border/40 bg-card/30 p-3">
       <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         Revision history
       </div>
@@ -2536,11 +2357,96 @@ function RevisionsPanel({
   );
 }
 
-// ----------------- States -----------------
+// ============================================================
+// Small bits
+// ============================================================
+function PageCard({
+  article,
+  tags,
+  onOpen,
+}: {
+  article: KbArticle;
+  tags: string[];
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      onClick={onOpen}
+      className="group flex flex-col gap-3 rounded-xl border border-border/60 bg-card/40 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold tracking-tight group-hover:text-primary">
+            {article.title}
+          </div>
+          {article.excerpt && (
+            <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+              {article.excerpt}
+            </div>
+          )}
+        </div>
+        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </div>
+      <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap gap-1.5">
+          <StatusPill status={article.status} />
+          {tags.slice(0, 2).map((t) => (
+            <Badge
+              key={t}
+              variant="outline"
+              className="border-border/40 text-[10px] font-normal"
+            >
+              {t}
+            </Badge>
+          ))}
+        </div>
+        <span>{formatDate(article.updated_at)}</span>
+      </div>
+    </button>
+  );
+}
 
+function SectionHeading({
+  icon,
+  title,
+  hint,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <div className="mb-4 flex items-end justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <span className="grid h-7 w-7 place-items-center rounded-md bg-white/[0.05] text-primary">
+          {icon}
+        </span>
+        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+      </div>
+      {hint && (
+        <span className="hidden text-xs text-muted-foreground sm:inline">{hint}</span>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-card/40 px-3 py-2">
+      <div className="text-xl font-semibold tracking-tight">{value}</div>
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// States
+// ============================================================
 function WorkspaceSkeleton() {
   return (
-    <div className="grid gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
+    <div className="grid gap-3 lg:grid-cols-[280px_minmax(0,1fr)]">
       <Skeleton className="h-[480px] rounded-2xl" />
       <Skeleton className="h-[480px] rounded-2xl" />
     </div>
@@ -2549,7 +2455,7 @@ function WorkspaceSkeleton() {
 
 function TreeSkeleton() {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 p-2">
       {Array.from({ length: 6 }).map((_, i) => (
         <Skeleton key={i} className="h-6 w-full" />
       ))}
@@ -2560,9 +2466,9 @@ function TreeSkeleton() {
 function ContentSkeleton() {
   return (
     <div className="space-y-3">
+      <Skeleton className="h-40 w-full rounded-2xl" />
       <Skeleton className="h-6 w-1/3" />
-      <Skeleton className="h-4 w-2/3" />
-      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-32 w-full rounded-xl" />
     </div>
   );
 }
@@ -2577,7 +2483,7 @@ function ErrorState({
   onRetry: () => void;
 }) {
   return (
-    <div className="glass-card flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/60 bg-card/40 p-10 text-center">
       <AlertCircle className="h-6 w-6 text-destructive" />
       <div>
         <div className="text-base font-medium">{title}</div>
@@ -2592,7 +2498,7 @@ function ErrorState({
 
 function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="grid h-full place-items-center p-6 text-center">
+    <div className="grid place-items-center p-6 text-center">
       <div>
         <AlertCircle className="mx-auto mb-2 h-5 w-5 text-destructive" />
         <p className="text-sm text-muted-foreground">{message}</p>
@@ -2606,7 +2512,7 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
 
 function NotFound() {
   return (
-    <div className="grid h-full place-items-center text-sm text-muted-foreground">
+    <div className="grid place-items-center rounded-2xl border border-border/60 bg-card/40 p-10 text-sm text-muted-foreground">
       Item not found.
     </div>
   );
