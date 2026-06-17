@@ -18,6 +18,22 @@ import {
   Trash2,
   Download,
   Upload,
+  MessageSquare,
+  Activity as ActivityIcon,
+  Link2,
+  Flag,
+  Laptop,
+  AppWindow,
+  UserCircle2,
+  Wifi,
+  Printer,
+  Mail,
+  ShieldAlert,
+  HelpCircle,
+  MoreHorizontal,
+  AtSign,
+  Smile,
+  Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
