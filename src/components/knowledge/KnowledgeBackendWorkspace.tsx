@@ -2426,11 +2426,14 @@ function PageCard({
   return (
     <button
       onClick={onOpen}
-      className="group flex flex-col gap-3 rounded-xl border border-border/60 bg-card/40 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70"
+      className="group relative flex h-full flex-col gap-3 rounded-xl border border-border/60 bg-card/40 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/70 hover:shadow-lg hover:shadow-primary/5"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold tracking-tight group-hover:text-primary">
+      <div className="flex items-start gap-3">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04] text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+          <FileText className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="line-clamp-2 text-sm font-semibold leading-snug tracking-tight group-hover:text-primary">
             {article.title}
           </div>
           {article.excerpt && (
@@ -2439,10 +2442,10 @@ function PageCard({
             </div>
           )}
         </div>
-        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/30 transition-all group-hover:translate-x-0.5 group-hover:text-foreground" />
       </div>
-      <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-        <div className="flex flex-wrap gap-1.5">
+      <div className="mt-auto flex items-center justify-between gap-2 pt-1 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-1.5">
           <StatusPill status={article.status} />
           {tags.slice(0, 2).map((t) => (
             <Badge
@@ -2450,11 +2453,12 @@ function PageCard({
               variant="outline"
               className="border-border/40 text-[10px] font-normal"
             >
+              <TagIcon className="mr-1 h-2.5 w-2.5" />
               {t}
             </Badge>
           ))}
         </div>
-        <span>{formatDate(article.updated_at)}</span>
+        <span className="shrink-0">{formatDate(article.updated_at)}</span>
       </div>
     </button>
   );
