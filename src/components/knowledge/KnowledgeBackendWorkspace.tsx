@@ -1410,58 +1410,52 @@ function HomePane({
     "there";
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="space-y-8">
       {/* ───────── Main column ───────── */}
       <div className="min-w-0 space-y-8">
-        {/* Hero */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/20 via-card/70 to-card/40 p-6 md:p-8">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary/25 blur-3xl" />
-          <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-indigo-500/15 blur-3xl" />
-          <div className="relative grid gap-6 md:grid-cols-[minmax(0,1fr)_180px] md:items-center">
+        {/* Hero — compact */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/20 via-card/70 to-card/40 px-5 py-4">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-primary/25 blur-3xl" />
+          <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0">
-              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+              <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
                 <Sparkles className="h-3 w-3" />
                 Welcome back, {greetingName} 👋
               </div>
-              <h1 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight md:text-[34px] md:leading-[1.15]">
+              <h1 className="mt-1.5 text-lg font-semibold tracking-tight md:text-xl">
                 Your team's living source of truth.
               </h1>
-              <p className="mt-2 max-w-xl text-sm text-muted-foreground md:text-[15px]">
-                Runbooks, onboarding guides, architectural decisions and IT
-                documentation — organised the way your team actually works.
-              </p>
-              <div className="mt-5 flex flex-wrap items-center gap-1.5">
-                {perms.manageTeam && (
-                  <Button size="sm" className="h-9 text-xs" onClick={onNewSpace}>
-                    <Plus className="mr-1 h-3.5 w-3.5" /> New book
-                  </Button>
-                )}
-                {perms.create && firstSpaceId && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="h-9 text-xs"
-                    onClick={() => onNewArticle(firstSpaceId)}
-                  >
-                    <FileText className="mr-1 h-3.5 w-3.5" /> New page
-                  </Button>
-                )}
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-9 w-9"
-                  onClick={onReload}
-                  title="Refresh"
-                  aria-label="Refresh"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
-              </div>
             </div>
-            <HeroIllustration />
+            <div className="flex flex-wrap items-center gap-1.5">
+              {perms.manageTeam && (
+                <Button size="sm" className="h-8 text-xs" onClick={onNewSpace}>
+                  <Plus className="mr-1 h-3.5 w-3.5" /> New book
+                </Button>
+              )}
+              {perms.create && firstSpaceId && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 text-xs"
+                  onClick={() => onNewArticle(firstSpaceId)}
+                >
+                  <FileText className="mr-1 h-3.5 w-3.5" /> New page
+                </Button>
+              )}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={onReload}
+                title="Refresh"
+                aria-label="Refresh"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
 
-          <div className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="relative mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
             <Stat
               icon={<BookOpen className="h-3.5 w-3.5" />}
               label="Books"
@@ -1494,6 +1488,7 @@ function HomePane({
             />
           </div>
         </div>
+
 
         {/* Books grid */}
         <div>
