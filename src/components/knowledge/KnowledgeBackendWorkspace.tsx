@@ -1548,7 +1548,7 @@ function HomePane({
               <button
                 key={a.id}
                 onClick={() => onOpenArticle(a.id)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03] sm:gap-4 sm:px-5"
+                className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03] sm:gap-4 sm:px-5"
               >
                 <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/[0.05] text-muted-foreground">
                   <FileText className="h-4 w-4" />
