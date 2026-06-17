@@ -2504,9 +2504,19 @@ function Stat({ label, value }: { label: string; value: number | string }) {
 // ============================================================
 function WorkspaceSkeleton() {
   return (
-    <div className="grid gap-3 lg:grid-cols-[280px_minmax(0,1fr)]">
-      <Skeleton className="h-[480px] rounded-2xl" />
-      <Skeleton className="h-[480px] rounded-2xl" />
+    <div className="space-y-4">
+      <Skeleton className="h-14 rounded-2xl" />
+      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+        <Skeleton className="hidden h-[480px] rounded-2xl lg:block" />
+        <div className="space-y-4">
+          <Skeleton className="h-44 rounded-2xl" />
+          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="hidden h-32 rounded-xl 2xl:block" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2515,7 +2525,11 @@ function TreeSkeleton() {
   return (
     <div className="space-y-2 p-2">
       {Array.from({ length: 6 }).map((_, i) => (
-        <Skeleton key={i} className="h-6 w-full" />
+        <Skeleton
+          key={i}
+          className="h-6"
+          style={{ width: `${60 + ((i * 13) % 35)}%` }}
+        />
       ))}
     </div>
   );
@@ -2523,10 +2537,15 @@ function TreeSkeleton() {
 
 function ContentSkeleton() {
   return (
-    <div className="space-y-3">
-      <Skeleton className="h-40 w-full rounded-2xl" />
-      <Skeleton className="h-6 w-1/3" />
-      <Skeleton className="h-32 w-full rounded-xl" />
+    <div className="space-y-4">
+      <Skeleton className="h-44 w-full rounded-2xl" />
+      <Skeleton className="h-7 w-1/3" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+      </div>
     </div>
   );
 }
