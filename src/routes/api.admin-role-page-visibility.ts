@@ -7,6 +7,17 @@ import type { UpdateRolePageVisibilityResult } from "@/lib/admin-roles/types";
 const routePathPattern =
   /^\/(?:[a-z0-9-]+|:[a-z][a-z0-9_]*)(?:\/(?:[a-z0-9-]+|:[a-z][a-z0-9_]*))*\/?$/;
 
+const nonEmployeeRecoveryRoleKeys = new Set([
+  "platform_admin",
+  "it_admin",
+  "sd_lead",
+  "helpdesk",
+  "technician",
+  "network_admin",
+  "doc_editor",
+  "platform_auditor",
+]);
+
 const updateRolePageVisibilityInput = z.object({
   roleId: z.string().uuid(),
   routePath: z
@@ -103,6 +114,13 @@ export const Route = createFileRoute("/api/admin-role-page-visibility")({
           parsed.canView === true
         ) {
           return failure("Employee access to administration pages is protected.");
+        }
+        if (
+          parsed.canView === false &&
+          ((targetRow.route_path === "/" && nonEmployeeRecoveryRoleKeys.has(joinedRole.role_key)) ||
+            (targetRow.route_path === "/my-requests" && joinedRole.role_key === "employee"))
+        ) {
+          return failure("This recovery destination cannot be disabled.");
         }
 
         const { data: updatedRow, error: updateError } = await admin

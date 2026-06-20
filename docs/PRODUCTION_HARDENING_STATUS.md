@@ -1838,3 +1838,38 @@ Next gate:
 Operational notes:
 - No schema change or migration is part of this milestone.
 - No service restart, commit, or push was performed.
+
+## Milestone 84 - Page Visibility Recovery-route Guardrails
+
+Date: 2026-06-20
+
+Status: IMPLEMENTED - LOCAL BUILD AND STATIC VALIDATION PASSED.
+
+Implementation:
+- Added server-side protection preventing `/` from being disabled for every
+  managed non-employee platform role.
+- Added server-side protection preventing `/my-requests` from being disabled
+  for Employee.
+- Mirrored these recovery-route protections as disabled cells in the live page
+  visibility matrix with an explicit recovery-destination tooltip.
+- Retained the existing Platform Administrator `/admin/roles` lockout guard
+  and Employee `/admin/*` grant prohibition.
+- These rules preserve the static redirect destinations needed before any
+  future DB-backed route enforcement can be reconsidered.
+- DB-backed AuthGate and AppSidebar enforcement was not re-enabled. Static
+  `PAGE_VISIBILITY` remains the active route and navigation authority.
+
+Validation:
+- `scripts/qa/production_hardening_admin_roles.sh` passed.
+- `git diff --check` passed.
+- `bunx tsc --noEmit` passed.
+- Focused ESLint for changed TypeScript/TSX files passed.
+- `bun run build` passed for client and SSR output.
+
+Next gate:
+- Perform authenticated browser validation of safe page-visibility edits and
+  every protected recovery cell before planning any enforcement work.
+
+Operational notes:
+- No database schema or migration change is part of this milestone.
+- No live database write, service restart, commit, or push was performed.

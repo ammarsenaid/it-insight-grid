@@ -108,6 +108,17 @@ const GROUP_ORDER = [
   "other",
 ];
 
+const NON_EMPLOYEE_RECOVERY_ROLE_KEYS = new Set([
+  "platform_admin",
+  "it_admin",
+  "sd_lead",
+  "helpdesk",
+  "technician",
+  "network_admin",
+  "doc_editor",
+  "platform_auditor",
+]);
+
 type PageVisibilityChange = Omit<UpdateRolePageVisibilityInput, "accessToken">;
 
 function permissionGroup(permissionKey: string): string {
@@ -920,10 +931,14 @@ function LivePageVisibility({
                   </td>
                   {platformRoles.map((dbRole) => {
                     const cell = visibilityByCell.get(`${routePath}:${dbRole.id}`);
+                    const recoveryRouteCell =
+                      (routePath === "/" && NON_EMPLOYEE_RECOVERY_ROLE_KEYS.has(dbRole.roleKey)) ||
+                      (routePath === "/my-requests" && dbRole.roleKey === "employee");
                     const protectedCell =
                       (dbRole.roleKey === "platform_admin" && routePath === "/admin/roles") ||
                       (dbRole.roleKey === "employee" &&
-                        (routePath === "/admin" || routePath.startsWith("/admin/")));
+                        (routePath === "/admin" || routePath.startsWith("/admin/"))) ||
+                      (recoveryRouteCell && cell === true);
                     const savingCell =
                       isSaving &&
                       savingChange?.roleId === dbRole.id &&
@@ -931,7 +946,10 @@ function LivePageVisibility({
                     const protectionReason =
                       dbRole.roleKey === "platform_admin" && routePath === "/admin/roles"
                         ? "Platform Administrator access to role management is protected."
-                        : "Employee access to administration pages is protected.";
+                        : dbRole.roleKey === "employee" &&
+                            (routePath === "/admin" || routePath.startsWith("/admin/"))
+                          ? "Employee access to administration pages is protected."
+                          : "This route is required as a recovery destination and cannot be disabled.";
                     return (
                       <td key={dbRole.id} className="px-2 py-2 text-center">
                         {savingCell ? (
