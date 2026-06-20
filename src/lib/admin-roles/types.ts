@@ -43,3 +43,12 @@ export interface UpdateRoleMetadataInput {
 }
 
 export type UpdateRoleMetadataResult = { ok: true } | { ok: false; error: string };
+
+export interface UpdateRolePageVisibilityInput {
+  accessToken: string;
+  roleId: string;
+  routePath: string;
+  canView: boolean;
+}
+
+export type UpdateRolePageVisibilityResult = { ok: true } | { ok: false; error: string };

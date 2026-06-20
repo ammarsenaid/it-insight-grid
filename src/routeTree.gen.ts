@@ -37,6 +37,7 @@ import { Route as RequestsNewRouteImport } from './routes/requests.new'
 import { Route as ProtocolsIdRouteImport } from './routes/protocols.$id'
 import { Route as ApiAdminUsersRouteImport } from './routes/api.admin-users'
 import { Route as ApiAdminRolesRouteImport } from './routes/api.admin-roles'
+import { Route as ApiAdminRolePageVisibilityRouteImport } from './routes/api.admin-role-page-visibility'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTicketSettingsRouteImport } from './routes/admin.ticket-settings'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
@@ -186,6 +187,12 @@ const ApiAdminRolesRoute = ApiAdminRolesRouteImport.update({
   path: '/api/admin-roles',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminRolePageVisibilityRoute =
+  ApiAdminRolePageVisibilityRouteImport.update({
+    id: '/api/admin-role-page-visibility',
+    path: '/api/admin-role-page-visibility',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -255,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/api/admin-role-page-visibility': typeof ApiAdminRolePageVisibilityRoute
   '/api/admin-roles': typeof ApiAdminRolesRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
@@ -291,6 +299,7 @@ export interface FileRoutesByTo {
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/api/admin-role-page-visibility': typeof ApiAdminRolePageVisibilityRoute
   '/api/admin-roles': typeof ApiAdminRolesRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
@@ -330,6 +339,7 @@ export interface FileRoutesById {
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/api/admin-role-page-visibility': typeof ApiAdminRolePageVisibilityRoute
   '/api/admin-roles': typeof ApiAdminRolesRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
@@ -370,6 +380,7 @@ export interface FileRouteTypes {
     | '/admin/templates'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/api/admin-role-page-visibility'
     | '/api/admin-roles'
     | '/api/admin-users'
     | '/protocols/$id'
@@ -406,6 +417,7 @@ export interface FileRouteTypes {
     | '/admin/templates'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/api/admin-role-page-visibility'
     | '/api/admin-roles'
     | '/api/admin-users'
     | '/protocols/$id'
@@ -444,6 +456,7 @@ export interface FileRouteTypes {
     | '/admin/templates'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/api/admin-role-page-visibility'
     | '/api/admin-roles'
     | '/api/admin-users'
     | '/protocols/$id'
@@ -483,6 +496,7 @@ export interface RootRouteChildren {
   AdminTemplatesRoute: typeof AdminTemplatesRoute
   AdminTicketSettingsRoute: typeof AdminTicketSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  ApiAdminRolePageVisibilityRoute: typeof ApiAdminRolePageVisibilityRoute
   ApiAdminRolesRoute: typeof ApiAdminRolesRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRoute
   RequestsNewRoute: typeof RequestsNewRoute
@@ -686,6 +700,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminRolesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin-role-page-visibility': {
+      id: '/api/admin-role-page-visibility'
+      path: '/api/admin-role-page-visibility'
+      fullPath: '/api/admin-role-page-visibility'
+      preLoaderRoute: typeof ApiAdminRolePageVisibilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/admin/users'
@@ -814,6 +835,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminTemplatesRoute: AdminTemplatesRoute,
   AdminTicketSettingsRoute: AdminTicketSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  ApiAdminRolePageVisibilityRoute: ApiAdminRolePageVisibilityRoute,
   ApiAdminRolesRoute: ApiAdminRolesRoute,
   ApiAdminUsersRoute: ApiAdminUsersRoute,
   RequestsNewRoute: RequestsNewRoute,

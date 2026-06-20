@@ -45,8 +45,10 @@ import type {
   AdminRole,
   AdminRolePageVisibility,
   AdminRolesData,
+  UpdateRolePageVisibilityInput,
 } from "@/lib/admin-roles/types";
 import { updateRoleMetadata } from "@/lib/admin-roles/update-role-metadata";
+import { updateRolePageVisibility } from "@/lib/admin-roles/update-role-page-visibility";
 import { updateRolePermission } from "@/lib/admin-roles/update-role-permission";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { roleLabel } from "@/lib/data/users";
@@ -106,6 +108,8 @@ const GROUP_ORDER = [
   "other",
 ];
 
+type PageVisibilityChange = Omit<UpdateRolePageVisibilityInput, "accessToken">;
+
 function permissionGroup(permissionKey: string): string {
   const prefix = permissionKey.split(".", 1)[0]?.toLowerCase();
   return GROUP_ORDER.includes(prefix) ? prefix : "other";
@@ -140,6 +144,7 @@ function AdminRolesPage() {
   const [metadataDescription, setMetadataDescription] = useState("");
   const [metadataError, setMetadataError] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [pageVisibilityError, setPageVisibilityError] = useState<string | null>(null);
   const rolesQuery = useQuery({ ...adminRolesQuery(), enabled });
   const pageVisibilityQuery = useQuery({ ...adminRolePageVisibilityQuery(), enabled });
 
@@ -186,6 +191,22 @@ function AdminRolesPage() {
     onError: () => setMetadataError("The role metadata could not be updated."),
   });
 
+  const pageVisibilityMutation = useMutation({
+    mutationFn: async (input: PageVisibilityChange) => {
+      if (!session?.access_token) throw new Error("Your session is no longer available.");
+      return updateRolePageVisibility({ ...input, accessToken: session.access_token });
+    },
+    onMutate: () => setPageVisibilityError(null),
+    onSuccess: async (result) => {
+      if (!result.ok) {
+        setPageVisibilityError(result.error);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: adminRolesKeys.pageVisibility() });
+    },
+    onError: () => setPageVisibilityError("The page visibility row could not be updated."),
+  });
+
   function openMetadataEditor(dbRole: AdminRole) {
     setEditingRole(dbRole);
     setMetadataName(dbRole.name);
@@ -227,8 +248,8 @@ function AdminRolesPage() {
         <div>
           <p className="font-medium text-foreground">Database permission management</p>
           <p className="mt-0.5">
-            Roles, permissions, and the read-only page matrix are loaded from the database. Route
-            enforcement and role preview remain on the current static safety rules.
+            Roles, permissions, and page visibility are loaded from the database. Route enforcement
+            and role preview remain on the current static safety rules.
           </p>
         </div>
       </div>
@@ -276,7 +297,15 @@ function AdminRolesPage() {
         </TabsContent>
 
         <TabsContent value="pages">
-          <PageVisibilityTab rolesQuery={rolesQuery} visibilityQuery={pageVisibilityQuery} />
+          <PageVisibilityTab
+            rolesQuery={rolesQuery}
+            visibilityQuery={pageVisibilityQuery}
+            isPlatformAdmin={isPlatformAdmin}
+            mutationError={pageVisibilityError}
+            isSaving={pageVisibilityMutation.isPending}
+            savingChange={pageVisibilityMutation.variables}
+            onToggle={(change) => pageVisibilityMutation.mutate(change)}
+          />
         </TabsContent>
 
         <TabsContent value="preview">
@@ -723,9 +752,19 @@ function PermissionGroupRows({
 function PageVisibilityTab({
   rolesQuery,
   visibilityQuery,
+  isPlatformAdmin,
+  mutationError,
+  isSaving,
+  savingChange,
+  onToggle,
 }: {
   rolesQuery: ReturnType<typeof useQuery<AdminRolesData>>;
   visibilityQuery: ReturnType<typeof useQuery<AdminRolePageVisibility[]>>;
+  isPlatformAdmin: boolean;
+  mutationError: string | null;
+  isSaving: boolean;
+  savingChange: PageVisibilityChange | undefined;
+  onToggle: (change: PageVisibilityChange) => void;
 }) {
   const roleData = rolesQuery.data;
   const visibilityData = visibilityQuery.data;
@@ -737,7 +776,17 @@ function PageVisibilityTab({
   );
 
   if (liveDataAvailable && roleData && visibilityData) {
-    return <LivePageVisibility roles={roleData.roles} visibility={visibilityData} />;
+    return (
+      <LivePageVisibility
+        roles={roleData.roles}
+        visibility={visibilityData}
+        isPlatformAdmin={isPlatformAdmin}
+        mutationError={mutationError}
+        isSaving={isSaving}
+        savingChange={savingChange}
+        onToggle={onToggle}
+      />
+    );
   }
 
   const emptyResult =
@@ -792,9 +841,19 @@ function PageVisibilityTab({
 function LivePageVisibility({
   roles,
   visibility,
+  isPlatformAdmin,
+  mutationError,
+  isSaving,
+  savingChange,
+  onToggle,
 }: {
   roles: AdminRole[];
   visibility: AdminRolePageVisibility[];
+  isPlatformAdmin: boolean;
+  mutationError: string | null;
+  isSaving: boolean;
+  savingChange: PageVisibilityChange | undefined;
+  onToggle: (change: PageVisibilityChange) => void;
 }) {
   const visibleRoleIds = new Set(visibility.map((row) => row.roleId));
   const platformRoles = roles.filter(
@@ -809,13 +868,31 @@ function LivePageVisibility({
 
   return (
     <SectionCard
-      title="Live DB page visibility - read only"
-      description="Current values from public.role_page_visibility. No edits are available in this milestone."
+      title="Live DB page visibility"
+      description="Current values from public.role_page_visibility. Changes are server-validated and refetched after saving."
     >
       <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        <span>Routing still uses static fallback until enforcement milestone.</span>
+        <span>
+          {
+            "This edits the live DB matrix only. Routing still uses static fallback until enforcement milestone."
+          }
+        </span>
       </div>
+      {mutationError && (
+        <div
+          className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive"
+          role="alert"
+        >
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {mutationError}
+        </div>
+      )}
+      {!isPlatformAdmin && (
+        <div className="mb-3 rounded-lg border border-border/40 bg-muted/20 p-3 text-xs text-muted-foreground">
+          Only an active platform administrator can edit page visibility. This matrix is read-only
+          for your account.
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-xs">
           <thead>
@@ -843,9 +920,49 @@ function LivePageVisibility({
                   </td>
                   {platformRoles.map((dbRole) => {
                     const cell = visibilityByCell.get(`${routePath}:${dbRole.id}`);
+                    const protectedCell =
+                      (dbRole.roleKey === "platform_admin" && routePath === "/admin/roles") ||
+                      (dbRole.roleKey === "employee" &&
+                        (routePath === "/admin" || routePath.startsWith("/admin/")));
+                    const savingCell =
+                      isSaving &&
+                      savingChange?.roleId === dbRole.id &&
+                      savingChange.routePath === routePath;
+                    const protectionReason =
+                      dbRole.roleKey === "platform_admin" && routePath === "/admin/roles"
+                        ? "Platform Administrator access to role management is protected."
+                        : "Employee access to administration pages is protected.";
                     return (
                       <td key={dbRole.id} className="px-2 py-2 text-center">
-                        {cell === true ? (
+                        {savingCell ? (
+                          <Loader2 className="mx-auto h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : isPlatformAdmin && cell !== undefined ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex h-7 w-7 items-center justify-center">
+                                <Checkbox
+                                  checked={cell}
+                                  disabled={isSaving || protectedCell}
+                                  aria-label={`${cell ? "Disable" : "Enable"} ${dbRole.name} visibility for ${routePath}`}
+                                  onCheckedChange={() =>
+                                    onToggle({
+                                      roleId: dbRole.id,
+                                      routePath,
+                                      canView: !cell,
+                                    })
+                                  }
+                                />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {protectedCell
+                                ? protectionReason
+                                : cell
+                                  ? "Disable live DB visibility"
+                                  : "Enable live DB visibility"}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : cell === true ? (
                           <Check
                             className="mx-auto h-3.5 w-3.5 text-[#52D6A4]"
                             aria-label={`${dbRole.name} can view ${routePath}`}

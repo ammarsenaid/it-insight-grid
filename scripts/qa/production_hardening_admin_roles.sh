@@ -8,11 +8,13 @@ service="$root/src/lib/admin-roles/admin-roles.ts"
 queries="$root/src/lib/admin-roles/queries.ts"
 client_mutation="$root/src/lib/admin-roles/update-role-permission.ts"
 metadata_mutation="$root/src/lib/admin-roles/update-role-metadata.ts"
+page_visibility_mutation="$root/src/lib/admin-roles/update-role-page-visibility.ts"
+page_visibility_api="$root/src/routes/api.admin-role-page-visibility.ts"
 types="$root/src/lib/admin-roles/types.ts"
 permissions="$root/src/lib/permissions.tsx"
 status="$root/docs/PRODUCTION_HARDENING_STATUS.md"
 
-for file in "$route" "$api_route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$types" "$permissions"; do
+for file in "$route" "$api_route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$page_visibility_mutation" "$page_visibility_api" "$types" "$permissions"; do
   test -f "$file"
 done
 
@@ -24,14 +26,38 @@ rg -Fq 'from("permissions")' "$service"
 rg -Fq 'from("role_permissions").select("role_id, permission_id")' "$service"
 rg -Fq '.order("permission_key", { ascending: true })' "$service"
 
-# Page visibility is display-only in Milestone 3E. It uses a separate
-# authenticated SELECT query so failure cannot break the role/permission tabs.
+# Page visibility reads use a separate authenticated SELECT query so failure
+# cannot break the role/permission tabs. Writes use only the protected API.
 rg -Fq 'export async function listAdminRolePageVisibility' "$service"
 rg -Fq '.from("role_page_visibility")' "$service"
 rg -Fq '.select("role_id, route_path, can_view, roles!inner(role_key)")' "$service"
 rg -Fq 'adminRolePageVisibilityQuery' "$queries"
-rg -Fq 'Live DB page visibility - read only' "$route"
-rg -Fq 'Routing still uses static fallback until enforcement milestone.' "$route"
+rg -Fq 'export async function updateRolePageVisibility' "$page_visibility_mutation"
+rg -Fq 'fetch("/api/admin-role-page-visibility"' "$page_visibility_mutation"
+rg -Fq 'method: "PATCH"' "$page_visibility_mutation"
+rg -Fq 'Authorization: `Bearer ${accessToken}`' "$page_visibility_mutation"
+rg -Fq 'createFileRoute("/api/admin-role-page-visibility")' "$page_visibility_api"
+rg -Fq 'roleId: z.string().uuid()' "$page_visibility_api"
+rg -Fq 'canView: z.boolean()' "$page_visibility_api"
+rg -Fq 'admin.auth.getUser(accessToken)' "$page_visibility_api"
+rg -Fq 'callerProfileResult.data?.is_active !== true' "$page_visibility_api"
+rg -Fq '.eq("roles.role_key", "platform_admin")' "$page_visibility_api"
+rg -Fq '.select("id, role_id, route_path, roles!inner(role_key, role_scope)")' "$page_visibility_api"
+rg -Fq 'if (!targetRow) return failure("The selected visibility row does not exist.", 404);' "$page_visibility_api"
+rg -Fq 'joinedRole.role_scope !== "platform"' "$page_visibility_api"
+rg -Fq 'joinedRole.role_key === "platform_admin"' "$page_visibility_api"
+rg -Fq 'targetRow.route_path === "/admin/roles"' "$page_visibility_api"
+rg -Fq 'joinedRole.role_key === "employee"' "$page_visibility_api"
+rg -Fq 'targetRow.route_path.startsWith("/admin/")' "$page_visibility_api"
+rg -Fq '.update({ can_view: parsed.canView, updated_by: callerId })' "$page_visibility_api"
+! rg -q '\.(insert|delete|upsert)\(' "$page_visibility_api"
+! rg -q 'role_id: parsed|route_path: parsed' "$page_visibility_api"
+! rg -U -q 'from\("role_page_visibility"\)[\s\S]{0,240}\.(insert|update|delete|upsert)\(' \
+  "$route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$page_visibility_mutation"
+! rg -q 'SUPABASE_SERVICE_ROLE_KEY|serviceRoleKey' "$page_visibility_mutation"
+rg -Fq 'This edits the live DB matrix only. Routing still uses static fallback until enforcement milestone.' "$route"
+rg -Fq 'Platform Administrator access to role management is protected.' "$route"
+rg -Fq 'Employee access to administration pages is protected.' "$route"
 ! rg -U -q 'from\("role_page_visibility"\)[\s\S]{0,240}\.(insert|update|delete|upsert)\(' \
   "$route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$api_route"
 ! rg -q 'role_page_visibility' "$api_route"
@@ -74,5 +100,6 @@ rg -Fq 'export const PAGE_VISIBILITY' "$permissions"
 rg -Fq '## Milestone 78 - Live Database Role Permission Matrix' "$status"
 rg -Fq '## Milestone 79 - Live Role Display Metadata Editing' "$status"
 rg -Fq '## Milestone 81 - Live Page Visibility Read-only Display' "$status"
+rg -Fq '## Milestone 82 - Live Page Visibility Editing' "$status"
 
 echo "admin roles permission matrix assertions passed"

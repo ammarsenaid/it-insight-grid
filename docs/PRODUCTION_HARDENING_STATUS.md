@@ -1799,3 +1799,42 @@ Next gate:
 Operational notes:
 - The database was not modified in this milestone.
 - No migration, service restart, commit, or push was performed.
+
+## Milestone 82 - Live Page Visibility Editing
+
+Date: 2026-06-20
+
+Status: IMPLEMENTED - LOCAL BUILD AND STATIC VALIDATION PASSED.
+
+Implementation:
+- Added a dedicated same-origin PATCH endpoint for updates to existing
+  `role_page_visibility` rows.
+- The server validates the Bearer token, active caller profile, real global
+  `platform_admin` assignment, role UUID, route structure, boolean value,
+  existing target row, and platform role scope.
+- The only table update fields are `can_view` and `updated_by`. The endpoint
+  contains no insert, delete, upsert, role-ID update, or route-path update.
+- Repeated self-lockout protection server-side and in the UI: Platform
+  Administrator cannot lose `/admin/roles`, and Employee cannot gain any
+  `/admin/*` route.
+- Added pessimistic matrix checkboxes for active platform administrators with
+  saving, disabled, protected-cell, and sanitized error states. Other users
+  retain the read-only matrix.
+- Successful writes invalidate and refetch only the page-visibility query.
+- No route enforcement changed. `AuthGate`, `AppSidebar`, and static
+  `PAGE_VISIBILITY` continue controlling routing and sidebar visibility.
+
+Validation:
+- `scripts/qa/production_hardening_admin_roles.sh` passed.
+- `git diff --check` passed.
+- `bunx tsc --noEmit` passed.
+- Focused ESLint checks for the touched TypeScript/TSX files passed.
+- `bun run build` passed.
+
+Next gate:
+- Plan the live-enforcement read path and validation/fallback behavior as a
+  separate milestone. Do not combine enforcement with further editing work.
+
+Operational notes:
+- No schema change or migration is part of this milestone.
+- No service restart, commit, or push was performed.
