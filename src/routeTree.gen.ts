@@ -36,6 +36,7 @@ import { Route as ServiceCatalogIdRouteImport } from './routes/service-catalog.$
 import { Route as RequestsNewRouteImport } from './routes/requests.new'
 import { Route as ProtocolsIdRouteImport } from './routes/protocols.$id'
 import { Route as ApiAdminUsersRouteImport } from './routes/api.admin-users'
+import { Route as ApiAdminRolesRouteImport } from './routes/api.admin-roles'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTicketSettingsRouteImport } from './routes/admin.ticket-settings'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
@@ -180,6 +181,11 @@ const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
   path: '/api/admin-users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminRolesRoute = ApiAdminRolesRouteImport.update({
+  id: '/api/admin-roles',
+  path: '/api/admin-roles',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -249,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/api/admin-roles': typeof ApiAdminRolesRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
   '/requests/new': typeof RequestsNewRoute
@@ -284,6 +291,7 @@ export interface FileRoutesByTo {
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/api/admin-roles': typeof ApiAdminRolesRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
   '/requests/new': typeof RequestsNewRoute
@@ -322,6 +330,7 @@ export interface FileRoutesById {
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/ticket-settings': typeof AdminTicketSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/api/admin-roles': typeof ApiAdminRolesRoute
   '/api/admin-users': typeof ApiAdminUsersRoute
   '/protocols/$id': typeof ProtocolsIdRoute
   '/requests/new': typeof RequestsNewRoute
@@ -361,6 +370,7 @@ export interface FileRouteTypes {
     | '/admin/templates'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/api/admin-roles'
     | '/api/admin-users'
     | '/protocols/$id'
     | '/requests/new'
@@ -396,6 +406,7 @@ export interface FileRouteTypes {
     | '/admin/templates'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/api/admin-roles'
     | '/api/admin-users'
     | '/protocols/$id'
     | '/requests/new'
@@ -433,6 +444,7 @@ export interface FileRouteTypes {
     | '/admin/templates'
     | '/admin/ticket-settings'
     | '/admin/users'
+    | '/api/admin-roles'
     | '/api/admin-users'
     | '/protocols/$id'
     | '/requests/new'
@@ -471,6 +483,7 @@ export interface RootRouteChildren {
   AdminTemplatesRoute: typeof AdminTemplatesRoute
   AdminTicketSettingsRoute: typeof AdminTicketSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  ApiAdminRolesRoute: typeof ApiAdminRolesRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRoute
   RequestsNewRoute: typeof RequestsNewRoute
 }
@@ -666,6 +679,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin-roles': {
+      id: '/api/admin-roles'
+      path: '/api/admin-roles'
+      fullPath: '/api/admin-roles'
+      preLoaderRoute: typeof ApiAdminRolesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/admin/users'
@@ -794,9 +814,20 @@ const rootRouteChildren: RootRouteChildren = {
   AdminTemplatesRoute: AdminTemplatesRoute,
   AdminTicketSettingsRoute: AdminTicketSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  ApiAdminRolesRoute: ApiAdminRolesRoute,
   ApiAdminUsersRoute: ApiAdminUsersRoute,
   RequestsNewRoute: RequestsNewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

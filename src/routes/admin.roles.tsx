@@ -1,21 +1,42 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { KeyRound, ShieldCheck, Check, X, Info, Eye, Lock } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  AlertCircle,
+  Check,
+  Eye,
+  Info,
+  KeyRound,
+  Loader2,
+  Lock,
+  RefreshCw,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 
-import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
-
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-
-import { ROLES, CAPS, CAPABILITY_GROUPS, PAGE_VISIBILITY, can, useRole, setRole, type Role } from "@/lib/permissions";
-import { useData } from "@/lib/data/store";
-import { roleLabel } from "@/lib/data/users";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { adminRolesKeys, adminRolesQuery } from "@/lib/admin-roles/queries";
+import type { AdminPermission, AdminRole, AdminRolesData } from "@/lib/admin-roles/types";
+import { updateRolePermission } from "@/lib/admin-roles/update-role-permission";
 import { useAuth } from "@/lib/auth/AuthProvider";
-
+import { roleLabel } from "@/lib/data/users";
+import {
+  CAPABILITY_GROUPS,
+  PAGE_VISIBILITY,
+  ROLES,
+  can,
+  setRole,
+  useRole,
+  type Role,
+} from "@/lib/permissions";
 
 export const Route = createFileRoute("/admin/roles")({
   head: () => ({ meta: [{ title: "Roles and Permissions · IT Knowledge Center" }] }),
@@ -42,25 +63,94 @@ const PAGES: { path: string; label: string }[] = [
   { path: "/settings", label: "Settings" },
 ];
 
+const GROUP_ORDER = [
+  "documents",
+  "knowledge",
+  "tickets",
+  "catalog",
+  "cmdb",
+  "ipam",
+  "tasks",
+  "notes",
+  "protocols",
+  "admin",
+  "platform",
+  "team",
+  "audit",
+  "reports",
+  "recyclebin",
+  "system",
+  "notifications",
+  "other",
+];
+
+function permissionGroup(permissionKey: string): string {
+  const prefix = permissionKey.split(".", 1)[0]?.toLowerCase();
+  return GROUP_ORDER.includes(prefix) ? prefix : "other";
+}
+
+function staticRoleFor(roleKey: string): Role | null {
+  const mapped =
+    roleKey === "platform_admin"
+      ? "super_admin"
+      : roleKey === "platform_auditor"
+        ? "auditor"
+        : roleKey;
+  return ROLES.some((role) => role.id === mapped) ? (mapped as Role) : null;
+}
+
+function formatLoadError(error: unknown): string {
+  return error instanceof Error && error.message
+    ? "The database role matrix could not be loaded."
+    : "The database role matrix could not be loaded.";
+}
+
 function AdminRolesPage() {
   const role = useRole();
   const allowed = can("admin.roles", role);
-  const data = useData();
-  const { session } = useAuth();
+  const { session, isPlatformAdmin } = useAuth();
   const isSignedIn = Boolean(session);
+  const enabled = Boolean(session?.user) && allowed;
+  const queryClient = useQueryClient();
   const [preview, setPreview] = useState<Role>(role);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const rolesQuery = useQuery({ ...adminRolesQuery(), enabled });
 
+  const permissionMutation = useMutation({
+    mutationFn: async (input: {
+      roleId: string;
+      permissionId: string;
+      action: "grant" | "revoke";
+    }) => {
+      if (!session?.access_token) throw new Error("Your session is no longer available.");
+      return updateRolePermission({ ...input, accessToken: session.access_token });
+    },
+    onMutate: () => setMutationError(null),
+    onSuccess: async (result) => {
+      if (!result.ok) {
+        setMutationError(result.error);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: adminRolesKeys.all });
+    },
+    onError: () => setMutationError("The role permission could not be updated."),
+  });
 
   if (!allowed) {
     return (
       <div>
-        <PageHeader title="Roles and Permissions" description="Control workspace capabilities and access levels." />
-        <EmptyState icon={Lock} title="Admin access required" description="Switch to the IT Administrator role via the profile menu to view the permission matrix." />
+        <PageHeader
+          title="Roles and Permissions"
+          description="Control workspace capabilities and access levels."
+        />
+        <EmptyState
+          icon={Lock}
+          title="Admin access required"
+          description="A platform administrator role is required to view the permission matrix."
+        />
       </div>
     );
   }
-
-  const userCountByRole = (id: Role) => data.users.filter((u) => u.role === id && u.status === "active").length;
 
   return (
     <div>
@@ -70,162 +160,337 @@ function AdminRolesPage() {
       />
 
       <div className="mb-4 flex items-start gap-3 rounded-xl border border-border/40 bg-card/40 p-3 text-xs text-muted-foreground">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <div>
-          <p className="font-medium text-foreground">Read-only permission matrix</p>
-          <p className="mt-0.5">Switching role from the profile menu — or using the role preview tab — updates sidebar routes, action buttons and record scopes immediately. Permission changes are not available in this version.</p>
+          <p className="font-medium text-foreground">Database permission management</p>
+          <p className="mt-0.5">
+            Role and permission grants are loaded from the database. Page visibility and role
+            preview remain on the current static safety rules.
+          </p>
         </div>
       </div>
 
-
       <Tabs defaultValue="roles" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="roles"><KeyRound className="mr-1.5 h-3.5 w-3.5" /> Role list</TabsTrigger>
-          <TabsTrigger value="capabilities"><ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Capability matrix</TabsTrigger>
-          <TabsTrigger value="pages"><Eye className="mr-1.5 h-3.5 w-3.5" /> Page visibility</TabsTrigger>
-          <TabsTrigger value="preview"><Eye className="mr-1.5 h-3.5 w-3.5" /> Role preview</TabsTrigger>
+          <TabsTrigger value="roles">
+            <KeyRound className="mr-1.5 h-3.5 w-3.5" /> Role list
+          </TabsTrigger>
+          <TabsTrigger value="capabilities">
+            <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Capability matrix
+          </TabsTrigger>
+          <TabsTrigger value="pages">
+            <Eye className="mr-1.5 h-3.5 w-3.5" /> Page visibility
+          </TabsTrigger>
+          <TabsTrigger value="preview">
+            <Eye className="mr-1.5 h-3.5 w-3.5" /> Role preview
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="roles">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {ROLES.map((r) => {
-              const capCount = Object.values(CAPS).filter((list) => list.includes(r.id)).length;
-              const pageCount = Object.values(PAGE_VISIBILITY).filter((list) => list.includes(r.id)).length;
-              return (
-                <SectionCard key={r.id} title={r.label} description={r.description}
-                  actions={<StatusBadge label={r.group} tone="info" />}
-                >
-                  <dl className="grid grid-cols-3 gap-2 text-xs">
-                    <Cell label="Users" value={userCountByRole(r.id)} />
-                    <Cell label="Pages" value={pageCount} />
-                    <Cell label="Capabilities" value={capCount} />
-                  </dl>
-                  <Button size="sm" variant="secondary" className="mt-3 w-full" onClick={() => setPreview(r.id)}>
-                    Preview this role
-                  </Button>
-                </SectionCard>
-              );
-            })}
-          </div>
+          <DatabaseState query={rolesQuery}>
+            {(matrix) => <DatabaseRoleList matrix={matrix} setPreview={setPreview} />}
+          </DatabaseState>
         </TabsContent>
 
         <TabsContent value="capabilities">
-          <SectionCard title="Capability matrix" description="Action-level visibility by role.">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-xs">
-                <thead>
-                  <tr className="border-b border-border/40 text-left text-muted-foreground">
-                    <th className="px-2 py-2 font-medium">Capability</th>
-                    {ROLES.map((r) => <th key={r.id} className="px-2 py-2 text-center font-medium">{r.label.split(" ").map((w) => w[0]).join("")}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {CAPABILITY_GROUPS.map((group) => (
-                    <Cells key={group.label} group={group} />
-                  ))}
-                </tbody>
-              </table>
-              <p className="mt-2 text-[10px] text-muted-foreground">Header abbreviations: hover a column header in your imagination — full role labels appear in the Role list tab.</p>
-            </div>
-          </SectionCard>
+          <DatabaseState query={rolesQuery}>
+            {(matrix) => (
+              <PermissionMatrix
+                matrix={matrix}
+                isPlatformAdmin={isPlatformAdmin}
+                mutation={permissionMutation}
+                mutationError={mutationError}
+              />
+            )}
+          </DatabaseState>
         </TabsContent>
 
         <TabsContent value="pages">
-          <SectionCard title="Page visibility" description="Which sidebar pages each role can open.">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-xs">
-                <thead>
-                  <tr className="border-b border-border/40 text-left text-muted-foreground">
-                    <th className="px-2 py-2 font-medium">Page</th>
-                    {ROLES.map((r) => <th key={r.id} className="px-2 py-2 text-center font-medium">{r.label.split(" ").map((w) => w[0]).join("")}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {PAGES.map((p) => (
-                    <tr key={p.path} className="border-b border-border/20">
-                      <td className="px-2 py-2"><div className="font-medium">{p.label}</div><div className="font-mono text-[10px] text-muted-foreground">{p.path}</div></td>
-                      {ROLES.map((r) => {
-                        const ok = (PAGE_VISIBILITY[p.path] ?? []).includes(r.id);
-                        return <td key={r.id} className="px-2 py-2 text-center">{ok ? <Check className="mx-auto h-3.5 w-3.5 text-[#52D6A4]" /> : <X className="mx-auto h-3.5 w-3.5 text-muted-foreground/50" />}</td>;
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </SectionCard>
+          <StaticPageVisibility />
         </TabsContent>
 
         <TabsContent value="preview">
-          <SectionCard title="Role preview"
-            description={isSignedIn
-              ? "Inspect what each role can see and do. The active role comes from your account; the prototype switcher is disabled while signed in."
-              : "Inspect what a role can see and do, then optionally activate it."}
-            actions={
-              <div className="flex items-center gap-2">
-                <select
-                  className="rounded-lg border border-border/40 bg-background/40 px-2 py-1 text-xs"
-                  value={preview}
-                  onChange={(e) => setPreview(e.target.value as Role)}
-                >
-                  {ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-                </select>
-                {!isSignedIn && (
-                  <Button size="sm" onClick={() => setRole(preview)}>Activate role</Button>
-                )}
-              </div>
-            }
-          >
-
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Visible pages</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {PAGES.filter((p) => (PAGE_VISIBILITY[p.path] ?? []).includes(preview)).map((p) => <Badge key={p.path} variant="outline" className="text-[11px]">{p.label}</Badge>)}
-                </div>
-                <h3 className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hidden pages</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {PAGES.filter((p) => !(PAGE_VISIBILITY[p.path] ?? []).includes(preview)).map((p) => <Badge key={p.path} variant="outline" className="text-[11px] text-muted-foreground line-through">{p.label}</Badge>)}
-                  {PAGES.every((p) => (PAGE_VISIBILITY[p.path] ?? []).includes(preview)) && <span className="text-xs text-muted-foreground">None — full access.</span>}
-                </div>
-              </div>
-              <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Allowed actions</h3>
-                <div className="max-h-72 space-y-1.5 overflow-y-auto pr-2 text-xs">
-                  {CAPABILITY_GROUPS.flatMap((g) => g.caps).map((c) => {
-                    const ok = can(c.key, [preview]);
-                    return (
-                      <div key={c.key} className="flex items-center justify-between gap-2 rounded-lg border border-border/30 bg-background/40 px-2 py-1.5">
-                        <span>{c.label}</span>
-                        {ok ? <Check className="h-3.5 w-3.5 text-[#52D6A4]" /> : <X className="h-3.5 w-3.5 text-muted-foreground/50" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-            <p className="mt-3 text-[11px] text-muted-foreground">
-              Currently active role: <strong>{roleLabel(role)}</strong>. Activating a different role updates the sidebar, top header, and module pages immediately.
-            </p>
-          </SectionCard>
+          <StaticRolePreview
+            isSignedIn={isSignedIn}
+            preview={preview}
+            role={role}
+            setPreview={setPreview}
+          />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function Cells({ group }: { group: { label: string; caps: { key: string; label: string }[] } }) {
+function DatabaseState({
+  query,
+  children,
+}: {
+  query: ReturnType<typeof useQuery<AdminRolesData>>;
+  children: (matrix: AdminRolesData) => React.ReactNode;
+}) {
+  if (query.isLoading) {
+    return (
+      <SectionCard
+        title="Database roles"
+        description="Loading the current role catalog and grants."
+      >
+        <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground" role="status">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading roles and permissions…
+        </div>
+      </SectionCard>
+    );
+  }
+
+  if (query.isError || !query.data) {
+    return (
+      <SectionCard title="Database roles unavailable" description={formatLoadError(query.error)}>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => query.refetch()}
+          disabled={query.isFetching}
+        >
+          <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />{" "}
+          Retry
+        </Button>
+      </SectionCard>
+    );
+  }
+
+  return <>{children(query.data)}</>;
+}
+
+function DatabaseRoleList({
+  matrix,
+  setPreview,
+}: {
+  matrix: AdminRolesData;
+  setPreview: (role: Role) => void;
+}) {
+  const grantCounts = new Map<string, number>();
+  for (const grant of matrix.grants) {
+    grantCounts.set(grant.roleId, (grantCounts.get(grant.roleId) ?? 0) + 1);
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+      {matrix.roles.map((dbRole) => {
+        const previewRole = staticRoleFor(dbRole.roleKey);
+        const pageCount = previewRole
+          ? Object.values(PAGE_VISIBILITY).filter((roles) => roles.includes(previewRole)).length
+          : 0;
+        return (
+          <SectionCard
+            key={dbRole.id}
+            title={dbRole.name}
+            description={dbRole.description ?? "No description provided."}
+            actions={
+              <StatusBadge label={dbRole.scope === "platform" ? "Platform" : "Team"} tone="info" />
+            }
+          >
+            <div className="mb-3 font-mono text-[10px] text-muted-foreground">{dbRole.roleKey}</div>
+            <dl className="grid grid-cols-3 gap-2 text-xs">
+              <Cell label="Scope" value={dbRole.scope === "platform" ? "Global" : "Team"} />
+              <Cell label="Pages" value={pageCount} />
+              <Cell label="Permissions" value={grantCounts.get(dbRole.id) ?? 0} />
+            </dl>
+            {previewRole ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="mt-3 w-full"
+                onClick={() => setPreview(previewRole)}
+              >
+                Preview static role
+              </Button>
+            ) : (
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                No static page-visibility preview exists for this DB role.
+              </p>
+            )}
+          </SectionCard>
+        );
+      })}
+    </div>
+  );
+}
+
+function PermissionMatrix({
+  matrix,
+  isPlatformAdmin,
+  mutation,
+  mutationError,
+}: {
+  matrix: AdminRolesData;
+  isPlatformAdmin: boolean;
+  mutation: ReturnType<
+    typeof useMutation<
+      { ok: true } | { ok: false; error: string },
+      Error,
+      { roleId: string; permissionId: string; action: "grant" | "revoke" }
+    >
+  >;
+  mutationError: string | null;
+}) {
+  const grantKeys = useMemo(
+    () => new Set(matrix.grants.map((grant) => `${grant.roleId}:${grant.permissionId}`)),
+    [matrix.grants],
+  );
+  const grouped = useMemo(() => {
+    const groups = new Map<string, AdminPermission[]>();
+    for (const permission of matrix.permissions) {
+      const group = permissionGroup(permission.permissionKey);
+      groups.set(group, [...(groups.get(group) ?? []), permission]);
+    }
+    return GROUP_ORDER.filter((group) => groups.has(group)).map((group) => ({
+      label: group,
+      permissions: groups.get(group) ?? [],
+    }));
+  }, [matrix.permissions]);
+
+  return (
+    <SectionCard
+      title="Database permission matrix"
+      description="Changes take effect in database authorization checks after the server confirms the write."
+    >
+      {mutationError && (
+        <div
+          className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive"
+          role="alert"
+        >
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {mutationError}
+        </div>
+      )}
+      {!isPlatformAdmin && (
+        <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          Only an active platform administrator can change database permissions.
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1050px] text-xs">
+          <thead>
+            <tr className="border-b border-border/40 text-left text-muted-foreground">
+              <th className="sticky left-0 z-10 min-w-64 bg-card px-2 py-2 font-medium">
+                Permission
+              </th>
+              {matrix.roles.map((dbRole) => (
+                <th
+                  key={dbRole.id}
+                  className="min-w-24 px-2 py-2 text-center font-medium"
+                  title={dbRole.name}
+                >
+                  <div>{abbreviation(dbRole.name)}</div>
+                  <div className="mt-0.5 text-[9px] font-normal uppercase">{dbRole.scope}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {grouped.map((group) => (
+              <PermissionGroupRows
+                key={group.label}
+                group={group}
+                roles={matrix.roles}
+                grantKeys={grantKeys}
+                isPlatformAdmin={isPlatformAdmin}
+                mutation={mutation}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-[10px] text-muted-foreground">
+        Platform Administrator cells are read-only to prevent administrative lockout. Page
+        visibility is not controlled by this matrix yet.
+      </p>
+    </SectionCard>
+  );
+}
+
+function PermissionGroupRows({
+  group,
+  roles,
+  grantKeys,
+  isPlatformAdmin,
+  mutation,
+}: {
+  group: { label: string; permissions: AdminPermission[] };
+  roles: AdminRole[];
+  grantKeys: Set<string>;
+  isPlatformAdmin: boolean;
+  mutation: ReturnType<
+    typeof useMutation<
+      { ok: true } | { ok: false; error: string },
+      Error,
+      { roleId: string; permissionId: string; action: "grant" | "revoke" }
+    >
+  >;
+}) {
   return (
     <>
       <tr className="bg-muted/30">
-        <td colSpan={1 + ROLES.length} className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</td>
+        <td
+          colSpan={1 + roles.length}
+          className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+        >
+          {group.label}
+        </td>
       </tr>
-      {group.caps.map((c) => (
-        <tr key={c.key} className="border-b border-border/20">
-          <td className="px-2 py-2">{c.label}</td>
-          {ROLES.map((r) => {
-            const ok = (CAPS[c.key] ?? []).includes(r.id);
-            return <td key={r.id} className="px-2 py-2 text-center">{ok ? <Check className="mx-auto h-3.5 w-3.5 text-[#52D6A4]" /> : <X className="mx-auto h-3.5 w-3.5 text-muted-foreground/40" />}</td>;
+      {group.permissions.map((permission) => (
+        <tr key={permission.id} className="border-b border-border/20">
+          <td className="sticky left-0 z-10 bg-card px-2 py-2">
+            <div className="font-medium">{permission.name}</div>
+            <div className="font-mono text-[10px] text-muted-foreground">
+              {permission.permissionKey}
+            </div>
+          </td>
+          {roles.map((dbRole) => {
+            const key = `${dbRole.id}:${permission.id}`;
+            const checked = grantKeys.has(key);
+            const saving =
+              mutation.isPending &&
+              mutation.variables?.roleId === dbRole.id &&
+              mutation.variables.permissionId === permission.id;
+            const platformAdminProtected = dbRole.roleKey === "platform_admin";
+            const disabled = !isPlatformAdmin || platformAdminProtected || mutation.isPending;
+            const explanation = platformAdminProtected
+              ? "Platform Administrator permissions are read-only to prevent lockout."
+              : !isPlatformAdmin
+                ? "Only an active platform administrator can change this grant."
+                : saving
+                  ? "Saving permission change."
+                  : checked
+                    ? "Revoke permission"
+                    : "Grant permission";
+
+            return (
+              <td key={dbRole.id} className="px-2 py-2 text-center">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex h-7 w-7 items-center justify-center">
+                      {saving ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      ) : (
+                        <Checkbox
+                          checked={checked}
+                          disabled={disabled}
+                          aria-label={`${checked ? "Revoke" : "Grant"} ${permission.name} for ${dbRole.name}`}
+                          onCheckedChange={() =>
+                            mutation.mutate({
+                              roleId: dbRole.id,
+                              permissionId: permission.id,
+                              action: checked ? "revoke" : "grant",
+                            })
+                          }
+                        />
+                      )}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{explanation}</TooltipContent>
+                </Tooltip>
+              </td>
+            );
           })}
         </tr>
       ))}
@@ -233,7 +498,168 @@ function Cells({ group }: { group: { label: string; caps: { key: string; label: 
   );
 }
 
-function Cell({ label, value }: { label: string; value: number }) {
+function StaticPageVisibility() {
+  return (
+    <SectionCard
+      title="Page visibility"
+      description="Read-only static fallback. Live page visibility is deferred to a later milestone."
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-xs">
+          <thead>
+            <tr className="border-b border-border/40 text-left text-muted-foreground">
+              <th className="px-2 py-2 font-medium">Page</th>
+              {ROLES.map((role) => (
+                <th key={role.id} className="px-2 py-2 text-center font-medium">
+                  {abbreviation(role.label)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {PAGES.map((page) => (
+              <tr key={page.path} className="border-b border-border/20">
+                <td className="px-2 py-2">
+                  <div className="font-medium">{page.label}</div>
+                  <div className="font-mono text-[10px] text-muted-foreground">{page.path}</div>
+                </td>
+                {ROLES.map((staticRole) => {
+                  const visible = (PAGE_VISIBILITY[page.path] ?? []).includes(staticRole.id);
+                  return (
+                    <td key={staticRole.id} className="px-2 py-2 text-center">
+                      {visible ? (
+                        <Check className="mx-auto h-3.5 w-3.5 text-[#52D6A4]" />
+                      ) : (
+                        <X className="mx-auto h-3.5 w-3.5 text-muted-foreground/50" />
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionCard>
+  );
+}
+
+function StaticRolePreview({
+  isSignedIn,
+  preview,
+  role,
+  setPreview,
+}: {
+  isSignedIn: boolean;
+  preview: Role;
+  role: Role;
+  setPreview: (role: Role) => void;
+}) {
+  return (
+    <SectionCard
+      title="Role preview"
+      description={
+        isSignedIn
+          ? "Inspect the current static fallback. The active role comes from your account."
+          : "Inspect the current static fallback, then optionally activate it."
+      }
+      actions={
+        <div className="flex items-center gap-2">
+          <select
+            className="rounded-lg border border-border/40 bg-background/40 px-2 py-1 text-xs"
+            value={preview}
+            onChange={(event) => setPreview(event.target.value as Role)}
+          >
+            {ROLES.map((staticRole) => (
+              <option key={staticRole.id} value={staticRole.id}>
+                {staticRole.label}
+              </option>
+            ))}
+          </select>
+          {!isSignedIn && (
+            <Button size="sm" onClick={() => setRole(preview)}>
+              Activate role
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Visible pages
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {PAGES.filter((page) => (PAGE_VISIBILITY[page.path] ?? []).includes(preview)).map(
+              (page) => (
+                <Badge key={page.path} variant="outline" className="text-[11px]">
+                  {page.label}
+                </Badge>
+              ),
+            )}
+          </div>
+          <h3 className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Hidden pages
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {PAGES.filter((page) => !(PAGE_VISIBILITY[page.path] ?? []).includes(preview)).map(
+              (page) => (
+                <Badge
+                  key={page.path}
+                  variant="outline"
+                  className="text-[11px] text-muted-foreground line-through"
+                >
+                  {page.label}
+                </Badge>
+              ),
+            )}
+            {PAGES.every((page) => (PAGE_VISIBILITY[page.path] ?? []).includes(preview)) && (
+              <span className="text-xs text-muted-foreground">None — full access.</span>
+            )}
+          </div>
+        </div>
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Allowed actions
+          </h3>
+          <div className="max-h-72 space-y-1.5 overflow-y-auto pr-2 text-xs">
+            {CAPABILITY_GROUPS.flatMap((group) => group.caps).map((capability) => {
+              const permitted = can(capability.key, [preview]);
+              return (
+                <div
+                  key={capability.key}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-border/30 bg-background/40 px-2 py-1.5"
+                >
+                  <span>{capability.label}</span>
+                  {permitted ? (
+                    <Check className="h-3.5 w-3.5 text-[#52D6A4]" />
+                  ) : (
+                    <X className="h-3.5 w-3.5 text-muted-foreground/50" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-[11px] text-muted-foreground">
+        Currently active role: <strong>{roleLabel(role)}</strong>.
+      </p>
+    </SectionCard>
+  );
+}
+
+function abbreviation(label: string): string {
+  return label
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 4)
+    .toUpperCase();
+}
+
+function Cell({ label, value }: { label: string; value: string | number }) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>

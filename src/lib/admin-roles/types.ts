@@ -1,0 +1,30 @@
+export interface AdminRole {
+  id: string;
+  roleKey: string;
+  name: string;
+  description: string | null;
+  scope: "platform" | "team";
+  isSystem: boolean;
+}
+
+export interface AdminPermission {
+  id: string;
+  permissionKey: string;
+  name: string;
+  description: string | null;
+}
+
+export interface AdminRolesData {
+  roles: AdminRole[];
+  permissions: AdminPermission[];
+  grants: Array<{ roleId: string; permissionId: string }>;
+}
+
+export interface UpdateRolePermissionInput {
+  accessToken: string;
+  roleId: string;
+  permissionId: string;
+  action: "grant" | "revoke";
+}
+
+export type UpdateRolePermissionResult = { ok: true } | { ok: false; error: string };

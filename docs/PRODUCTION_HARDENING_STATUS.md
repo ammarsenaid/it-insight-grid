@@ -1654,3 +1654,41 @@ Operational notes:
 - UI for shelves (overview pane, shelf CRUD dialogs, book↔shelf assignment)
   is deferred to M2.5 so the workspace stays usable before the migration
   is applied.
+
+## Milestone 78 - Live Database Role Permission Matrix
+
+Date: 2026-06-20
+
+Status: IMPLEMENTED - LOCAL BUILD AND STATIC VALIDATION PASSED; RESTART BLOCKED.
+
+Implementation:
+- Replaced the static role-list and capability-matrix displays on
+  `/admin/roles` with authenticated reads from `roles`, `permissions`, and
+  `role_permissions`.
+- Added a same-origin server route that validates UUID inputs and the requested
+  grant/revoke action, verifies an active caller with a real global
+  `platform_admin` assignment, and performs the narrowly requested mapping
+  write with the server-only service-role client.
+- Made all Platform Administrator permission cells read-only in the UI and
+  rejected every `platform_admin` revoke on the server to prevent lockout.
+- Kept `PAGE_VISIBILITY`, `AppSidebar`, `AuthGate`, and the static role-preview
+  authorization fallback unchanged.
+- Added loading, retry, per-cell saving, disabled, and sanitized mutation-error
+  states without optimistic authorization changes.
+
+Validation:
+- `bunx tsc --noEmit`: passed.
+- Focused ESLint on the touched TypeScript files: passed.
+- `scripts/qa/production_hardening_admin_roles.sh`: passed.
+- `npm run build`: unavailable because this VPS has no `npm` executable.
+- Equivalent repository build `bun run build` (`vite build`): passed for client
+  and SSR output.
+- `sudo systemctl restart itkc-frontend`: not performed because sudo required
+  an interactive password.
+- Existing local service returned HTTP 200 for `/admin/roles` and
+  `/admin/users`; these responses do not prove the new build was restarted.
+- Public-IP `/admin/roles` returned HTTP 200 on a bounded no-proxy retry.
+
+Operational notes:
+- No migration or database schema change is part of this milestone.
+- Role metadata editing and live page visibility remain deferred.
