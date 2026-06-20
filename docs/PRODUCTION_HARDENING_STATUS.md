@@ -1730,3 +1730,39 @@ Validation:
 
 Operational notes:
 - Page-visibility database modeling and editing remain deferred.
+
+## Milestone 80 - Page Visibility Database Model Prepared
+
+Date: 2026-06-20
+
+Status: STAGED ONLY - NOT APPLIED TO LIVE DATABASE.
+
+Implementation:
+- Added a pending `role_page_visibility` migration with one explicit boolean
+  row for every current static route and managed platform role combination.
+- Mapped frontend `super_admin` to DB `platform_admin`, frontend `auditor` to
+  DB `platform_auditor`, and matching frontend/DB role keys directly.
+- Added structural route validation, platform-scope enforcement, employee
+  administration denial, and protected Platform Administrator access to
+  `/admin/roles` at the database trigger boundary.
+- Enabled RLS and restricted direct privileges: anon has no access,
+  authenticated receives SELECT only, and service_role receives only SELECT,
+  INSERT, and UPDATE. DELETE is not an operational mutation path.
+- Added a transaction-backed disposable-database QA script covering grants,
+  RLS, complete seed equivalence, constraints, protection triggers, and the
+  no-DELETE model.
+- Frontend code remains unchanged and continues using static
+  `PAGE_VISIBILITY` exclusively.
+
+Validation:
+- Static SQL and repository-scope checks completed locally.
+- Migration and QA were not executed because no disposable database run was
+  approved in this milestone.
+
+Next gate:
+- Apply the staged migration to a disposable database and run the QA file to
+  rollback completion before considering live migration approval.
+
+Operational notes:
+- The live database was not contacted or modified.
+- No frontend build or service restart was required or performed.
