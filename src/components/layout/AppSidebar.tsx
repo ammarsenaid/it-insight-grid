@@ -12,6 +12,7 @@ import {
   Brain,
   Ticket,
   Inbox,
+  
   ShieldCheck,
   BarChart3,
   Users,
@@ -37,7 +38,7 @@ import {
 } from "@/components/ui/sidebar";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { usePageVisibility } from "@/lib/page-visibility";
+import { canSeePage, hasPageVisibilityRule, useRole } from "@/lib/permissions";
 
 const groups = [
   {
@@ -53,6 +54,8 @@ const groups = [
     items: [
       { title: "Tickets", url: "/tickets", icon: Ticket },
       { title: "My Requests", url: "/my-requests", icon: Inbox },
+
+      
     ],
   },
   {
@@ -79,7 +82,7 @@ const groups = [
       { title: "Teams", url: "/admin/teams", icon: UsersRound },
       { title: "Roles", url: "/admin/roles", icon: KeyRound },
       { title: "Templates", url: "/admin/templates", icon: FileCode },
-
+      
       { title: "Ticket Configuration", url: "/admin/ticket-settings", icon: Sliders },
       { title: "Diagnostics", url: "/admin/diagnostics", icon: Wrench },
     ],
@@ -95,23 +98,23 @@ const groups = [
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  
+  const { isPlatformAdmin } = useAuth();
+  const role = useRole();
 
-  const { contextLoading, isPlatformAdmin, roleKeys, session } = useAuth();
-  const pageVisibility = usePageVisibility(roleKeys, Boolean(session) && !contextLoading);
-
-  // Every item is gated by the validated live matrix or static fallback.
+  // Every item is gated by canSeePage (role-based PAGE_VISIBILITY).
   // Admin items additionally require the real is_platform_admin() flag,
   // except for the prototype-only admin pages that allow non-admin roles
-  // listed in the active visibility matrix (e.g. /admin/catalog may allow sd_lead).
+  // listed in PAGE_VISIBILITY (e.g. /admin/catalog also allows sd_lead).
   const visibleGroups = groups
     .map((g) => ({
       ...g,
       items: g.items.filter((it) => {
         if (it.url.startsWith("/admin")) {
-          if (!pageVisibility.hasRule(it.url)) return isPlatformAdmin;
-          return pageVisibility.canSeePage(it.url);
+          if (!hasPageVisibilityRule(it.url)) return isPlatformAdmin;
+          return canSeePage(it.url, role);
         }
-        return pageVisibility.canSeePage(it.url);
+        return canSeePage(it.url, role);
       }),
     }))
     .filter((g) => g.items.length > 0);
@@ -125,9 +128,7 @@ export function AppSidebar() {
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <div className="truncate text-sm font-semibold tracking-tight">IT Knowledge Center</div>
-            <div className="truncate text-[11px] text-muted-foreground">
-              Operations & documentation
-            </div>
+            <div className="truncate text-[11px] text-muted-foreground">Operations & documentation</div>
           </div>
         </div>
       </SidebarHeader>
@@ -151,14 +152,9 @@ export function AppSidebar() {
                         tooltip={item.title}
                         className="h-9 rounded-lg px-2.5 text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground group-data-[collapsible=icon]:!h-8 group-data-[collapsible=icon]:!w-8 group-data-[collapsible=icon]:!px-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:mx-auto"
                       >
-                        <Link
-                          to={item.url}
-                          className="flex w-full items-center gap-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
-                        >
+                        <Link to={item.url} className="flex w-full items-center gap-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0">
                           <item.icon className="h-4 w-4 shrink-0 opacity-80" />
-                          <span className="flex-1 truncate group-data-[collapsible=icon]:hidden">
-                            {item.title}
-                          </span>
+                          <span className="flex-1 truncate group-data-[collapsible=icon]:hidden">{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -171,7 +167,9 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border px-4 py-3 group-data-[collapsible=icon]:hidden">
-        <p className="text-[10px] text-muted-foreground/60">IT Knowledge Center · v2.0</p>
+        <p className="text-[10px] text-muted-foreground/60">
+          IT Knowledge Center · v2.0
+        </p>
       </SidebarFooter>
     </Sidebar>
   );

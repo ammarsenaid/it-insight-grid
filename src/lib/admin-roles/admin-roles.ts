@@ -61,7 +61,7 @@ export async function listAdminRolePageVisibility(): Promise<AdminRolePageVisibi
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("role_page_visibility")
-    .select("role_id, route_path, can_view, roles!inner(role_key, role_scope)")
+    .select("role_id, route_path, can_view, roles!inner(role_key)")
     .order("route_path", { ascending: true });
 
   if (error) throw error;
@@ -71,23 +71,17 @@ export async function listAdminRolePageVisibility(): Promise<AdminRolePageVisibi
       const joinedRole = Array.isArray(row.roles)
         ? (row.roles[0] as SbRow | undefined)
         : (row.roles as SbRow | undefined);
-      const roleScope = joinedRole?.role_scope;
-      if (roleScope !== "platform" && roleScope !== "team") return null;
       return {
         roleId: text(row.role_id),
-        roleKey: text(joinedRole?.role_key),
-        roleScope,
         routePath: text(row.route_path),
         canView: row.can_view === true,
+        roleKey: text(joinedRole?.role_key),
       };
     })
-    .filter(
-      (visibility): visibility is AdminRolePageVisibility =>
-        visibility !== null &&
-        Boolean(visibility.roleId && visibility.routePath && visibility.roleKey),
-    )
+    .filter((visibility) => visibility.roleId && visibility.routePath && visibility.roleKey)
     .sort(
       (left, right) =>
         left.routePath.localeCompare(right.routePath) || left.roleKey.localeCompare(right.roleKey),
-    );
+    )
+    .map(({ roleKey: _roleKey, ...visibility }) => visibility);
 }

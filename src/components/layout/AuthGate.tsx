@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { usePageVisibility } from "@/lib/page-visibility";
 import { AppShell } from "./AppShell";
-import { useRole } from "@/lib/permissions";
+import { useRole, canSeePage, hasPageVisibilityRule } from "@/lib/permissions";
 
 const PUBLIC_PATHS = new Set<string>(["/auth"]);
 
@@ -15,25 +14,24 @@ const PUBLIC_PATHS = new Set<string>(["/auth"]);
  *  - unauthenticated user on a protected route → /auth
  *  - authenticated user on /auth → /
  *  - authenticated non-admin on /admin/* → role home
- *  - DB-backed visibility (or static safety fallback) violation → role home
+ *  - role-based PAGE_VISIBILITY violation → role home
  *      employee → /my-requests, other roles → /
  *
  * Dynamic sub-paths must match an explicit page-visibility pattern before
  * their page-level per-record authorization runs.
  */
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const { loading, contextLoading, session, isPlatformAdmin, roleKeys } = useAuth();
+  const { loading, contextLoading, session, isPlatformAdmin } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const role = useRole();
-  const pageVisibility = usePageVisibility(roleKeys, Boolean(session) && !contextLoading);
   const isPublic = PUBLIC_PATHS.has(pathname);
   const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
   const homeForRole = role === "employee" ? "/my-requests" : "/";
-  const isKnownPage = pageVisibility.hasRule(pathname);
+  const isKnownPage = hasPageVisibilityRule(pathname);
   // Unknown non-admin paths fail closed. Unknown admin paths retain the
   // platform-admin-only fallback below.
-  const roleForbidden = isKnownPage ? !pageVisibility.canSeePage(pathname) : !isAdminRoute;
+  const roleForbidden = isKnownPage ? !canSeePage(pathname, role) : !isAdminRoute;
   // Known admin pages use the explicit role matrix. Unknown admin paths,
   // including diagnostics, remain restricted to platform administrators.
   const platformAdminRequired = isAdminRoute && !isKnownPage;
@@ -58,18 +56,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     } else if (session && roleForbidden) {
       navigate({ to: homeForRole, replace: true });
     }
-  }, [
-    mounted,
-    loading,
-    session,
-    isPublic,
-    identityContextPending,
-    platformAdminRequired,
-    isPlatformAdmin,
-    roleForbidden,
-    homeForRole,
-    navigate,
-  ]);
+  }, [mounted, loading, session, isPublic, identityContextPending, platformAdminRequired, isPlatformAdmin, roleForbidden, homeForRole, navigate]);
 
   // /auth is always bare — same on SSR and client.
   if (isPublic) return <>{children}</>;
