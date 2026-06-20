@@ -248,8 +248,8 @@ function AdminRolesPage() {
         <div>
           <p className="font-medium text-foreground">Database permission management</p>
           <p className="mt-0.5">
-            Roles, permissions, and page visibility are loaded from the database. Route enforcement
-            and role preview remain on the current static safety rules.
+            Roles, permissions, and page visibility are loaded from the database. Routing uses the
+            live matrix only after validation, with the static safety rules as fallback.
           </p>
         </div>
       </div>
@@ -875,7 +875,7 @@ function LivePageVisibility({
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
           {
-            "This edits the live DB matrix only. Routing still uses static fallback until enforcement milestone."
+            "Routing uses the live DB matrix when available and falls back to static safety rules if the matrix cannot be loaded."
           }
         </span>
       </div>
@@ -994,7 +994,7 @@ function StaticPageVisibility() {
   return (
     <SectionCard
       title="Page visibility"
-      description="Read-only static fallback. Live page visibility is deferred to a later milestone."
+      description="Read-only static safety fallback used when the live matrix is unavailable or invalid."
     >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-xs">

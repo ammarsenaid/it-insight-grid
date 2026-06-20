@@ -16,6 +16,8 @@ export interface AdminPermission {
 
 export interface AdminRolePageVisibility {
   roleId: string;
+  roleKey: string;
+  roleScope: "platform" | "team";
   routePath: string;
   canView: boolean;
 }
