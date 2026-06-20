@@ -28,7 +28,7 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
       .order("created_at", { ascending: true }),
     sb
       .from("team_members")
-      .select("user_id, teams!inner(name)")
+      .select("user_id, teams!team_members_team_id_fkey!inner(name)")
       .order("joined_at", { ascending: true }),
   ]);
 
