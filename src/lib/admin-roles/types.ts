@@ -28,3 +28,12 @@ export interface UpdateRolePermissionInput {
 }
 
 export type UpdateRolePermissionResult = { ok: true } | { ok: false; error: string };
+
+export interface UpdateRoleMetadataInput {
+  accessToken: string;
+  roleId: string;
+  name: string;
+  description: string | null;
+}
+
+export type UpdateRoleMetadataResult = { ok: true } | { ok: false; error: string };

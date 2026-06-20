@@ -1692,3 +1692,41 @@ Validation:
 Operational notes:
 - No migration or database schema change is part of this milestone.
 - Role metadata editing and live page visibility remain deferred.
+
+## Milestone 79 - Live Role Display Metadata Editing
+
+Date: 2026-06-20
+
+Status: IMPLEMENTED - LOCAL BUILD AND STATIC VALIDATION PASSED; RESTART BLOCKED.
+
+Implementation:
+- Added a protected PATCH contract on `/api/admin-roles` for updating only a
+  role's display `name` and nullable `description`.
+- The server validates the access token, active profile, real global
+  `platform_admin` assignment, role UUID, trimmed non-empty name, and bounded
+  description before using the server-only service-role client.
+- Added a role-list edit dialog with save, cancel, saving, and sanitized error
+  states. Successful saves invalidate and refetch the admin roles query without
+  an optimistic metadata update.
+- Exposed role ID, role key, scope, and system-role status as read-only identity
+  metadata. No API or UI path edits role key, role scope, system status, or ID.
+- Added no role create/delete behavior and no migration.
+- Permission management remains unchanged from Milestone 78. Static page
+  visibility, `AppSidebar`, `AuthGate`, and role preview remain unchanged.
+
+Validation:
+- `scripts/qa/production_hardening_admin_roles.sh`: passed.
+- `git diff --check`: passed.
+- `bunx tsc --noEmit`: passed.
+- Focused ESLint on touched TypeScript files: passed.
+- `npm run build`: unavailable because this VPS has no `npm` executable.
+- Equivalent repository build `bun run build` (`vite build`): passed for client
+  and SSR output.
+- `sudo systemctl restart itkc-frontend`: not performed because sudo required
+  an interactive password.
+- Existing local service returned HTTP 200 for `/admin/roles` and
+  `/admin/users`; public nginx returned HTTP 200 for `/admin/roles`. These
+  responses confirm availability but do not prove the new build was restarted.
+
+Operational notes:
+- Page-visibility database modeling and editing remain deferred.
