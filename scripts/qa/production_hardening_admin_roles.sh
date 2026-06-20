@@ -62,16 +62,16 @@ rg -Fq 'const recoveryRouteCell =' "$route"
 rg -Fq 'NON_EMPLOYEE_RECOVERY_ROLE_KEYS.has(dbRole.roleKey)' "$route"
 rg -Fq 'routePath === "/my-requests" && dbRole.roleKey === "employee"' "$route"
 rg -Fq '(recoveryRouteCell && cell === true);' "$route"
-rg -Fq 'This route is required as a recovery destination and cannot be disabled.' "$route"
+rg -Fq 'Required recovery destination. This route cannot be disabled.' "$route"
 rg -Fq '.update({ can_view: parsed.canView, updated_by: callerId })' "$page_visibility_api"
 ! rg -q '\.(insert|delete|upsert)\(' "$page_visibility_api"
 ! rg -q 'role_id: parsed|route_path: parsed' "$page_visibility_api"
 ! rg -U -q 'from\("role_page_visibility"\)[\s\S]{0,240}\.(insert|update|delete|upsert)\(' \
   "$route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$page_visibility_mutation"
 ! rg -q 'SUPABASE_SERVICE_ROLE_KEY|serviceRoleKey' "$page_visibility_mutation"
-rg -Fq 'This edits the live DB matrix only. Routing still uses static fallback until enforcement milestone.' "$route"
-rg -Fq 'Platform Administrator access to role management is protected.' "$route"
-rg -Fq 'Employee access to administration pages is protected.' "$route"
+rg -Fq 'This edits the live DB matrix only. Routing still uses static safety rules. DB-backed enforcement is disabled.' "$route"
+rg -Fq 'Platform Admin must always keep access to role management.' "$route"
+rg -Fq 'Employee access to admin pages is intentionally blocked.' "$route"
 ! rg -U -q 'from\("role_page_visibility"\)[\s\S]{0,240}\.(insert|update|delete|upsert)\(' \
   "$route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$api_route"
 ! rg -q 'role_page_visibility' "$api_route"
@@ -113,10 +113,43 @@ rg -Fq 'export const PAGE_VISIBILITY' "$permissions"
 test ! -e "$root/src/lib/page-visibility.ts"
 ! git -C "$root" diff --name-only -- supabase | rg -q .
 
+# Milestone 85 changes only the page-visibility presentation. Role headers are
+# readable and unique, the matrix explains every state, and filtering is local.
+for role_label in \
+  'Doc Editor' \
+  'Employee' \
+  'Helpdesk' \
+  'IT Admin' \
+  'Network Admin' \
+  'Platform Admin' \
+  'Platform Auditor' \
+  'SD Lead' \
+  'Technician'; do
+  rg -Fq "$role_label" "$route"
+done
+! rg -q '[">]PA[<"]' "$route"
+rg -Fq 'PAGE_VISIBILITY_ROLE_LABELS[dbRole.roleKey] ?? dbRole.name' "$route"
+rg -Fq 'PAGE_VISIBILITY_ROLE_LABELS[role.id] ?? role.label' "$route"
+rg -Fq 'Checked = visible' "$route"
+rg -Fq 'Empty = hidden' "$route"
+rg -Fq 'Locked = protected safety route' "$route"
+rg -Fq 'Saving = update in progress' "$route"
+rg -Fq 'Filter routes' "$route"
+rg -Fq 'Search route label or path' "$route"
+rg -Fq 'routePath.toLowerCase().includes(normalizedFilter)' "$route"
+rg -Fq 'routeLabel.toLowerCase().includes(normalizedFilter)' "$route"
+! git -C "$root" diff --name-only -- \
+  src/components/layout/AuthGate.tsx \
+  src/components/layout/AppSidebar.tsx \
+  src/lib/permissions.tsx \
+  src/lib/page-visibility.ts \
+  supabase | rg -q .
+
 rg -Fq '## Milestone 78 - Live Database Role Permission Matrix' "$status"
 rg -Fq '## Milestone 79 - Live Role Display Metadata Editing' "$status"
 rg -Fq '## Milestone 81 - Live Page Visibility Read-only Display' "$status"
 rg -Fq '## Milestone 82 - Live Page Visibility Editing' "$status"
 rg -Fq '## Milestone 84 - Page Visibility Recovery-route Guardrails' "$status"
+rg -Fq '## Milestone 85 - Page Visibility Matrix UI Clarity' "$status"
 
 echo "admin roles permission matrix assertions passed"

@@ -119,6 +119,20 @@ const NON_EMPLOYEE_RECOVERY_ROLE_KEYS = new Set([
   "platform_auditor",
 ]);
 
+const PAGE_VISIBILITY_ROLE_LABELS: Record<string, string> = {
+  doc_editor: "Doc Editor",
+  employee: "Employee",
+  helpdesk: "Helpdesk",
+  it_admin: "IT Admin",
+  network_admin: "Network Admin",
+  platform_admin: "Platform Admin",
+  platform_auditor: "Platform Auditor",
+  sd_lead: "SD Lead",
+  technician: "Technician",
+  super_admin: "Platform Admin",
+  auditor: "Platform Auditor",
+};
+
 type PageVisibilityChange = Omit<UpdateRolePageVisibilityInput, "accessToken">;
 
 function permissionGroup(permissionKey: string): string {
@@ -866,6 +880,7 @@ function LivePageVisibility({
   savingChange: PageVisibilityChange | undefined;
   onToggle: (change: PageVisibilityChange) => void;
 }) {
+  const [routeFilter, setRouteFilter] = useState("");
   const visibleRoleIds = new Set(visibility.map((row) => row.roleId));
   const platformRoles = roles.filter(
     (dbRole) => dbRole.scope === "platform" && visibleRoleIds.has(dbRole.id),
@@ -873,6 +888,15 @@ function LivePageVisibility({
   const routePaths = Array.from(new Set(visibility.map((row) => row.routePath))).sort((a, b) =>
     a.localeCompare(b),
   );
+  const normalizedFilter = routeFilter.trim().toLowerCase();
+  const filteredRoutePaths = routePaths.filter((routePath) => {
+    const routeLabel = PAGES.find((page) => page.path === routePath)?.label ?? "";
+    return (
+      normalizedFilter.length === 0 ||
+      routePath.toLowerCase().includes(normalizedFilter) ||
+      routeLabel.toLowerCase().includes(normalizedFilter)
+    );
+  });
   const visibilityByCell = new Map(
     visibility.map((row) => [`${row.routePath}:${row.roleId}`, row.canView]),
   );
@@ -886,7 +910,7 @@ function LivePageVisibility({
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
           {
-            "This edits the live DB matrix only. Routing still uses static fallback until enforcement milestone."
+            "This edits the live DB matrix only. Routing still uses static safety rules. DB-backed enforcement is disabled."
           }
         </span>
       </div>
@@ -904,30 +928,50 @@ function LivePageVisibility({
           for your account.
         </div>
       )}
-      <div className="overflow-x-auto">
+      <PageVisibilityLegend />
+      <div className="mb-3 max-w-sm space-y-1.5">
+        <Label htmlFor="live-page-visibility-route-filter">Filter routes</Label>
+        <Input
+          id="live-page-visibility-route-filter"
+          type="search"
+          value={routeFilter}
+          placeholder="Search route label or path"
+          onChange={(event) => setRouteFilter(event.target.value)}
+        />
+      </div>
+      <div className="max-h-[65vh] overflow-auto rounded-lg border border-border/40">
         <table className="w-full min-w-[900px] text-xs">
-          <thead>
-            <tr className="border-b border-border/40 text-left text-muted-foreground">
-              <th className="sticky left-0 z-10 min-w-64 bg-card px-2 py-2 font-medium">Route</th>
+          <thead className="sticky top-0 z-20 bg-muted/95 shadow-sm backdrop-blur">
+            <tr className="border-b border-border/60 text-left text-foreground">
+              <th className="sticky left-0 z-30 min-w-64 bg-muted px-4 py-3 font-semibold">
+                Route
+              </th>
               {platformRoles.map((dbRole) => (
-                <th
-                  key={dbRole.id}
-                  className="min-w-24 px-2 py-2 text-center font-medium"
-                  title={`${dbRole.name} (${dbRole.roleKey})`}
-                >
-                  {abbreviation(dbRole.name)}
+                <th key={dbRole.id} className="min-w-28 px-3 py-3 text-center font-semibold">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-block cursor-help leading-tight">
+                        {PAGE_VISIBILITY_ROLE_LABELS[dbRole.roleKey] ?? dbRole.name}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{dbRole.name}</TooltipContent>
+                  </Tooltip>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {routePaths.map((routePath) => {
+            {filteredRoutePaths.map((routePath) => {
               const knownPage = PAGES.find((page) => page.path === routePath);
               return (
-                <tr key={routePath} className="border-b border-border/20">
-                  <td className="sticky left-0 z-10 bg-card px-2 py-2">
-                    {knownPage && <div className="font-medium">{knownPage.label}</div>}
-                    <div className="font-mono text-[10px] text-muted-foreground">{routePath}</div>
+                <tr key={routePath} className="border-b border-border/30 hover:bg-muted/20">
+                  <td className="sticky left-0 z-10 bg-card px-4 py-2.5 shadow-[1px_0_0_hsl(var(--border))]">
+                    <div className="font-semibold text-foreground">
+                      {knownPage?.label ?? "Unlisted route"}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+                      {routePath}
+                    </div>
                   </td>
                   {platformRoles.map((dbRole) => {
                     const cell = visibilityByCell.get(`${routePath}:${dbRole.id}`);
@@ -945,19 +989,19 @@ function LivePageVisibility({
                       savingChange.routePath === routePath;
                     const protectionReason =
                       dbRole.roleKey === "platform_admin" && routePath === "/admin/roles"
-                        ? "Platform Administrator access to role management is protected."
+                        ? "Platform Admin must always keep access to role management."
                         : dbRole.roleKey === "employee" &&
                             (routePath === "/admin" || routePath.startsWith("/admin/"))
-                          ? "Employee access to administration pages is protected."
-                          : "This route is required as a recovery destination and cannot be disabled.";
+                          ? "Employee access to admin pages is intentionally blocked."
+                          : "Required recovery destination. This route cannot be disabled.";
                     return (
-                      <td key={dbRole.id} className="px-2 py-2 text-center">
+                      <td key={dbRole.id} className="px-3 py-2.5 text-center align-middle">
                         {savingCell ? (
                           <Loader2 className="mx-auto h-4 w-4 animate-spin text-muted-foreground" />
                         ) : isPlatformAdmin && cell !== undefined ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="inline-flex h-7 w-7 items-center justify-center">
+                              <span className="relative inline-flex h-7 w-7 items-center justify-center">
                                 <Checkbox
                                   checked={cell}
                                   disabled={isSaving || protectedCell}
@@ -970,6 +1014,9 @@ function LivePageVisibility({
                                     })
                                   }
                                 />
+                                {protectedCell && (
+                                  <Lock className="pointer-events-none absolute ml-5 mt-5 h-2.5 w-2.5 text-amber-400" />
+                                )}
                               </span>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1001,6 +1048,16 @@ function LivePageVisibility({
                 </tr>
               );
             })}
+            {filteredRoutePaths.length === 0 && (
+              <tr>
+                <td
+                  colSpan={platformRoles.length + 1}
+                  className="px-4 py-8 text-center text-muted-foreground"
+                >
+                  No routes match “{routeFilter}”.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -1009,34 +1066,67 @@ function LivePageVisibility({
 }
 
 function StaticPageVisibility() {
+  const [routeFilter, setRouteFilter] = useState("");
+  const normalizedFilter = routeFilter.trim().toLowerCase();
+  const filteredPages = PAGES.filter(
+    (page) =>
+      normalizedFilter.length === 0 ||
+      page.label.toLowerCase().includes(normalizedFilter) ||
+      page.path.toLowerCase().includes(normalizedFilter),
+  );
+
   return (
     <SectionCard
       title="Page visibility"
       description="Read-only static fallback. Live page visibility is deferred to a later milestone."
     >
-      <div className="overflow-x-auto">
+      <PageVisibilityLegend />
+      <div className="mb-3 max-w-sm space-y-1.5">
+        <Label htmlFor="static-page-visibility-route-filter">Filter routes</Label>
+        <Input
+          id="static-page-visibility-route-filter"
+          type="search"
+          value={routeFilter}
+          placeholder="Search route label or path"
+          onChange={(event) => setRouteFilter(event.target.value)}
+        />
+      </div>
+      <div className="max-h-[65vh] overflow-auto rounded-lg border border-border/40">
         <table className="w-full min-w-[900px] text-xs">
-          <thead>
-            <tr className="border-b border-border/40 text-left text-muted-foreground">
-              <th className="px-2 py-2 font-medium">Page</th>
+          <thead className="sticky top-0 z-20 bg-muted/95 shadow-sm backdrop-blur">
+            <tr className="border-b border-border/60 text-left text-foreground">
+              <th className="sticky left-0 z-30 min-w-64 bg-muted px-4 py-3 font-semibold">
+                Route
+              </th>
               {ROLES.map((role) => (
-                <th key={role.id} className="px-2 py-2 text-center font-medium">
-                  {abbreviation(role.label)}
+                <th key={role.id} className="min-w-28 px-3 py-3 text-center font-semibold">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-block cursor-help leading-tight">
+                        {PAGE_VISIBILITY_ROLE_LABELS[role.id] ?? role.label}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {PAGE_VISIBILITY_ROLE_LABELS[role.id] ?? role.label}
+                    </TooltipContent>
+                  </Tooltip>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {PAGES.map((page) => (
-              <tr key={page.path} className="border-b border-border/20">
-                <td className="px-2 py-2">
-                  <div className="font-medium">{page.label}</div>
-                  <div className="font-mono text-[10px] text-muted-foreground">{page.path}</div>
+            {filteredPages.map((page) => (
+              <tr key={page.path} className="border-b border-border/30 hover:bg-muted/20">
+                <td className="sticky left-0 z-10 bg-card px-4 py-2.5 shadow-[1px_0_0_hsl(var(--border))]">
+                  <div className="font-semibold text-foreground">{page.label}</div>
+                  <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+                    {page.path}
+                  </div>
                 </td>
                 {ROLES.map((staticRole) => {
                   const visible = (PAGE_VISIBILITY[page.path] ?? []).includes(staticRole.id);
                   return (
-                    <td key={staticRole.id} className="px-2 py-2 text-center">
+                    <td key={staticRole.id} className="px-3 py-2.5 text-center align-middle">
                       {visible ? (
                         <Check className="mx-auto h-3.5 w-3.5 text-[#52D6A4]" />
                       ) : (
@@ -1047,10 +1137,42 @@ function StaticPageVisibility() {
                 })}
               </tr>
             ))}
+            {filteredPages.length === 0 && (
+              <tr>
+                <td
+                  colSpan={ROLES.length + 1}
+                  className="px-4 py-8 text-center text-muted-foreground"
+                >
+                  No routes match “{routeFilter}”.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
     </SectionCard>
+  );
+}
+
+function PageVisibilityLegend() {
+  return (
+    <div
+      className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground"
+      aria-label="Page visibility legend"
+    >
+      <span className="inline-flex items-center gap-1.5">
+        <Checkbox checked disabled aria-hidden="true" /> Checked = visible
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <Checkbox checked={false} disabled aria-hidden="true" /> Empty = hidden
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <Lock className="h-3.5 w-3.5 text-amber-400" /> Locked = protected safety route
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving = update in progress
+      </span>
+    </div>
   );
 }
 

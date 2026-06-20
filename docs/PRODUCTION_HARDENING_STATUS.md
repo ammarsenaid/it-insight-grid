@@ -1873,3 +1873,41 @@ Next gate:
 Operational notes:
 - No database schema or migration change is part of this milestone.
 - No live database write, service restart, commit, or push was performed.
+
+## Milestone 85 - Page Visibility Matrix UI Clarity
+
+Date: 2026-06-20
+
+Status: IMPLEMENTED - LOCAL BUILD AND STATIC VALIDATION PASSED.
+
+Implementation:
+- Improved only the `/admin/roles` page-visibility presentation with readable,
+  unique role labels and full role-name tooltips.
+- Added sticky route and header cells, clearer route labels and paths, stronger
+  spacing and contrast, aligned visibility controls, and bounded scrolling.
+- Added a client-side route label/path filter without changing the backend
+  query or mutation contracts.
+- Added a legend for visible, hidden, protected, and saving states and clarified
+  every protected-cell tooltip and the static-routing warning.
+- Editable and protected cell behavior, saving/error states, query invalidation,
+  and the static fallback remain unchanged.
+- This milestone is UI only. It enables no DB-backed route or sidebar
+  enforcement; static `PAGE_VISIBILITY` remains authoritative.
+
+Validation:
+- `scripts/qa/production_hardening_admin_roles.sh` passed.
+- `git diff --check` passed.
+- `bunx tsc --noEmit` passed.
+- Focused ESLint on the changed TSX file passed.
+- `bun run build` passed for client and SSR output during normal SSH validation.
+- Browser validation confirmed the site loads after frontend restart and hard refresh.
+
+Next gate:
+- Manually validate the improved matrix UI in an authenticated browser,
+  including horizontal/vertical scrolling, route filtering, protected-cell
+  tooltips, safe edits, saving feedback, errors, and static fallback display.
+
+Operational notes:
+- No database schema or migration change is part of this milestone.
+- The live database was not contacted or written.
+- No service restart, commit, or push was performed.
