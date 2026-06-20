@@ -24,6 +24,18 @@ rg -Fq 'from("permissions")' "$service"
 rg -Fq 'from("role_permissions").select("role_id, permission_id")' "$service"
 rg -Fq '.order("permission_key", { ascending: true })' "$service"
 
+# Page visibility is display-only in Milestone 3E. It uses a separate
+# authenticated SELECT query so failure cannot break the role/permission tabs.
+rg -Fq 'export async function listAdminRolePageVisibility' "$service"
+rg -Fq '.from("role_page_visibility")' "$service"
+rg -Fq '.select("role_id, route_path, can_view, roles!inner(role_key)")' "$service"
+rg -Fq 'adminRolePageVisibilityQuery' "$queries"
+rg -Fq 'Live DB page visibility - read only' "$route"
+rg -Fq 'Routing still uses static fallback until enforcement milestone.' "$route"
+! rg -U -q 'from\("role_page_visibility"\)[\s\S]{0,240}\.(insert|update|delete|upsert)\(' \
+  "$route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$api_route"
+! rg -q 'role_page_visibility' "$api_route"
+
 # Privileged credentials and writes stay in the server route. Browser modules
 # use the authenticated client for reads and the same-origin API for mutations.
 rg -Fq 'const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY' "$api_route"
@@ -61,5 +73,6 @@ rg -Fq 'export const PAGE_VISIBILITY' "$permissions"
 
 rg -Fq '## Milestone 78 - Live Database Role Permission Matrix' "$status"
 rg -Fq '## Milestone 79 - Live Role Display Metadata Editing' "$status"
+rg -Fq '## Milestone 81 - Live Page Visibility Read-only Display' "$status"
 
 echo "admin roles permission matrix assertions passed"

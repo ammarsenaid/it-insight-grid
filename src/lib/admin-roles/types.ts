@@ -14,6 +14,12 @@ export interface AdminPermission {
   description: string | null;
 }
 
+export interface AdminRolePageVisibility {
+  roleId: string;
+  routePath: string;
+  canView: boolean;
+}
+
 export interface AdminRolesData {
   roles: AdminRole[];
   permissions: AdminPermission[];

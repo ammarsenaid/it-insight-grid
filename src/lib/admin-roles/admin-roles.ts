@@ -1,6 +1,6 @@
 import { getSupabase } from "@/integrations/supabase/client";
 import { asRows, type SbRow } from "@/lib/service-desk/sb";
-import type { AdminPermission, AdminRole, AdminRolesData } from "./types";
+import type { AdminPermission, AdminRole, AdminRolePageVisibility, AdminRolesData } from "./types";
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -55,4 +55,33 @@ export async function listAdminRolesData(): Promise<AdminRolesData> {
     .filter((grant) => grant.roleId && grant.permissionId);
 
   return { roles, permissions, grants };
+}
+
+export async function listAdminRolePageVisibility(): Promise<AdminRolePageVisibility[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("role_page_visibility")
+    .select("role_id, route_path, can_view, roles!inner(role_key)")
+    .order("route_path", { ascending: true });
+
+  if (error) throw error;
+
+  return asRows<SbRow>(data)
+    .map((row) => {
+      const joinedRole = Array.isArray(row.roles)
+        ? (row.roles[0] as SbRow | undefined)
+        : (row.roles as SbRow | undefined);
+      return {
+        roleId: text(row.role_id),
+        routePath: text(row.route_path),
+        canView: row.can_view === true,
+        roleKey: text(joinedRole?.role_key),
+      };
+    })
+    .filter((visibility) => visibility.roleId && visibility.routePath && visibility.roleKey)
+    .sort(
+      (left, right) =>
+        left.routePath.localeCompare(right.routePath) || left.roleKey.localeCompare(right.roleKey),
+    )
+    .map(({ roleKey: _roleKey, ...visibility }) => visibility);
 }

@@ -1766,3 +1766,36 @@ Next gate:
 Operational notes:
 - The live database was not contacted or modified.
 - No frontend build or service restart was required or performed.
+
+## Milestone 81 - Live Page Visibility Read-only Display
+
+Date: 2026-06-20
+
+Status: IMPLEMENTED - LOCAL BUILD AND STATIC VALIDATION PASSED.
+
+Implementation:
+- Added a separate authenticated SELECT query for
+  `public.role_page_visibility`, including role ID, route path, visibility, and
+  joined role key for deterministic display ordering.
+- Updated only the `/admin/roles` Page visibility tab to display the live DB
+  matrix as check/X indicators with DB platform-role columns.
+- Added no page-visibility inputs, toggles, mutations, or API write contracts.
+- A query failure or empty result displays a safe error and keeps the static
+  page-visibility matrix visible as fallback.
+- `AuthGate`, `AppSidebar`, and static `PAGE_VISIBILITY` enforcement remain
+  unchanged. Live rows are display-only and do not influence routing.
+
+Validation:
+- `scripts/qa/production_hardening_admin_roles.sh`: passed.
+- `git diff --check`: passed.
+- `bunx tsc --noEmit`: passed.
+- Focused ESLint on touched TypeScript files: passed.
+- `bun run build`: passed for client and SSR output.
+
+Next gate:
+- Plan either editable page-visibility UI or live enforcement as one isolated
+  milestone. Do not combine both changes.
+
+Operational notes:
+- The database was not modified in this milestone.
+- No migration, service restart, commit, or push was performed.

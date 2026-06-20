@@ -35,8 +35,17 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { adminRolesKeys, adminRolesQuery } from "@/lib/admin-roles/queries";
-import type { AdminPermission, AdminRole, AdminRolesData } from "@/lib/admin-roles/types";
+import {
+  adminRolePageVisibilityQuery,
+  adminRolesKeys,
+  adminRolesQuery,
+} from "@/lib/admin-roles/queries";
+import type {
+  AdminPermission,
+  AdminRole,
+  AdminRolePageVisibility,
+  AdminRolesData,
+} from "@/lib/admin-roles/types";
 import { updateRoleMetadata } from "@/lib/admin-roles/update-role-metadata";
 import { updateRolePermission } from "@/lib/admin-roles/update-role-permission";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -132,6 +141,7 @@ function AdminRolesPage() {
   const [metadataError, setMetadataError] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const rolesQuery = useQuery({ ...adminRolesQuery(), enabled });
+  const pageVisibilityQuery = useQuery({ ...adminRolePageVisibilityQuery(), enabled });
 
   const permissionMutation = useMutation({
     mutationFn: async (input: {
@@ -217,8 +227,8 @@ function AdminRolesPage() {
         <div>
           <p className="font-medium text-foreground">Database permission management</p>
           <p className="mt-0.5">
-            Role and permission grants are loaded from the database. Page visibility and role
-            preview remain on the current static safety rules.
+            Roles, permissions, and the read-only page matrix are loaded from the database. Route
+            enforcement and role preview remain on the current static safety rules.
           </p>
         </div>
       </div>
@@ -266,7 +276,7 @@ function AdminRolesPage() {
         </TabsContent>
 
         <TabsContent value="pages">
-          <StaticPageVisibility />
+          <PageVisibilityTab rolesQuery={rolesQuery} visibilityQuery={pageVisibilityQuery} />
         </TabsContent>
 
         <TabsContent value="preview">
@@ -707,6 +717,159 @@ function PermissionGroupRows({
         </tr>
       ))}
     </>
+  );
+}
+
+function PageVisibilityTab({
+  rolesQuery,
+  visibilityQuery,
+}: {
+  rolesQuery: ReturnType<typeof useQuery<AdminRolesData>>;
+  visibilityQuery: ReturnType<typeof useQuery<AdminRolePageVisibility[]>>;
+}) {
+  const roleData = rolesQuery.data;
+  const visibilityData = visibilityQuery.data;
+  const liveDataAvailable = Boolean(
+    rolesQuery.isSuccess &&
+    visibilityQuery.isSuccess &&
+    roleData?.roles.length &&
+    visibilityData?.length,
+  );
+
+  if (liveDataAvailable && roleData && visibilityData) {
+    return <LivePageVisibility roles={roleData.roles} visibility={visibilityData} />;
+  }
+
+  const emptyResult =
+    (rolesQuery.isSuccess && roleData?.roles.length === 0) ||
+    (visibilityQuery.isSuccess && visibilityData?.length === 0);
+  const failed = rolesQuery.isError || visibilityQuery.isError || emptyResult;
+  return (
+    <div className="space-y-4">
+      <div
+        className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${
+          failed
+            ? "border-destructive/40 bg-destructive/10 text-destructive"
+            : "border-border/40 bg-card/40 text-muted-foreground"
+        }`}
+        role={failed ? "alert" : "status"}
+      >
+        {failed ? (
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        ) : (
+          <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" />
+        )}
+        <div>
+          <p className="font-medium">
+            {failed ? "Live DB page visibility unavailable" : "Loading live DB page visibility"}
+          </p>
+          <p className="mt-0.5">
+            {failed
+              ? "The database matrix could not be loaded. The static fallback remains visible below."
+              : "The static fallback remains visible until the read-only database matrix loads."}
+          </p>
+          {failed && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-2"
+              disabled={rolesQuery.isFetching || visibilityQuery.isFetching}
+              onClick={() => {
+                void rolesQuery.refetch();
+                void visibilityQuery.refetch();
+              }}
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Retry live matrix
+            </Button>
+          )}
+        </div>
+      </div>
+      <StaticPageVisibility />
+    </div>
+  );
+}
+
+function LivePageVisibility({
+  roles,
+  visibility,
+}: {
+  roles: AdminRole[];
+  visibility: AdminRolePageVisibility[];
+}) {
+  const visibleRoleIds = new Set(visibility.map((row) => row.roleId));
+  const platformRoles = roles.filter(
+    (dbRole) => dbRole.scope === "platform" && visibleRoleIds.has(dbRole.id),
+  );
+  const routePaths = Array.from(new Set(visibility.map((row) => row.routePath))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const visibilityByCell = new Map(
+    visibility.map((row) => [`${row.routePath}:${row.roleId}`, row.canView]),
+  );
+
+  return (
+    <SectionCard
+      title="Live DB page visibility - read only"
+      description="Current values from public.role_page_visibility. No edits are available in this milestone."
+    >
+      <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <span>Routing still uses static fallback until enforcement milestone.</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-xs">
+          <thead>
+            <tr className="border-b border-border/40 text-left text-muted-foreground">
+              <th className="sticky left-0 z-10 min-w-64 bg-card px-2 py-2 font-medium">Route</th>
+              {platformRoles.map((dbRole) => (
+                <th
+                  key={dbRole.id}
+                  className="min-w-24 px-2 py-2 text-center font-medium"
+                  title={`${dbRole.name} (${dbRole.roleKey})`}
+                >
+                  {abbreviation(dbRole.name)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {routePaths.map((routePath) => {
+              const knownPage = PAGES.find((page) => page.path === routePath);
+              return (
+                <tr key={routePath} className="border-b border-border/20">
+                  <td className="sticky left-0 z-10 bg-card px-2 py-2">
+                    {knownPage && <div className="font-medium">{knownPage.label}</div>}
+                    <div className="font-mono text-[10px] text-muted-foreground">{routePath}</div>
+                  </td>
+                  {platformRoles.map((dbRole) => {
+                    const cell = visibilityByCell.get(`${routePath}:${dbRole.id}`);
+                    return (
+                      <td key={dbRole.id} className="px-2 py-2 text-center">
+                        {cell === true ? (
+                          <Check
+                            className="mx-auto h-3.5 w-3.5 text-[#52D6A4]"
+                            aria-label={`${dbRole.name} can view ${routePath}`}
+                          />
+                        ) : cell === false ? (
+                          <X
+                            className="mx-auto h-3.5 w-3.5 text-muted-foreground/50"
+                            aria-label={`${dbRole.name} cannot view ${routePath}`}
+                          />
+                        ) : (
+                          <span className="text-muted-foreground" aria-label="No database row">
+                            —
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </SectionCard>
   );
 }
 
