@@ -389,10 +389,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => {
       // ────────────────────────────────────────────────────────────────
-      // LOVABLE PREVIEW ONLY — synthetic auth identity.
-      // Activates only on Lovable preview hostnames (see previewBypass.ts).
-      // Production VPS / custom domains will never satisfy this check.
-      // NEVER enable this code path in production.
+      // EXPLICIT PREVIEW ONLY — synthetic auth identity.
+      // This requires both the development-only preview flag and a known
+      // preview hostname (see previewBypass.ts). Hostname alone never grants
+      // synthetic Platform Admin access; normal deployments fail closed.
       // ────────────────────────────────────────────────────────────────
       if (!session && isPreviewBypassActive()) {
         return {

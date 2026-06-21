@@ -1,14 +1,12 @@
 /**
- * Lovable Preview-only auth bypass.
+ * Explicitly enabled Lovable Preview-only auth bypass.
  *
- * SAFETY: This module is gated strictly by hostname. It activates ONLY on
- * known Lovable preview hostnames (localhost during dev, and lovable-owned
- * preview/staging domains). A production VPS using its own IP or custom
- * domain will never satisfy `isLovablePreviewHost()` and therefore will
- * never bypass authentication.
+ * SAFETY: Hostname is only a secondary allow-list. Synthetic authentication
+ * is disabled by default and requires VITE_ENABLE_PREVIEW_AUTH_BYPASS=true at
+ * build/dev-server startup. This flag is intended only for deliberate local
+ * or hosted development previews; it must not be set in normal production.
  *
- * NEVER enable this in production. Do not change the allow-list to include
- * customer/production domains.
+ * Do not change the allow-list to include customer/production domains.
  */
 
 const PREVIEW_HOST_SUFFIXES = [
@@ -32,5 +30,9 @@ export function isLovablePreviewHost(): boolean {
   return PREVIEW_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix));
 }
 
-/** Alias kept for readability at call sites. */
-export const isPreviewBypassActive = isLovablePreviewHost;
+export function isPreviewBypassActive(): boolean {
+  // Exact opt-in prevents hostnames such as localhost from granting synthetic
+  // Platform Admin access when the flag is absent or accidentally set to a
+  // non-boolean value.
+  return import.meta.env.VITE_ENABLE_PREVIEW_AUTH_BYPASS === "true" && isLovablePreviewHost();
+}
