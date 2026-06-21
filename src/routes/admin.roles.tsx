@@ -289,6 +289,14 @@ function AdminRolesPage() {
         </Badge>
       </div>
 
+      <OverviewStats
+        rolesData={rolesQuery.data}
+        visibilityData={pageVisibilityQuery.data}
+        isLoading={rolesQuery.isLoading || pageVisibilityQuery.isLoading}
+      />
+
+
+
       <Tabs defaultValue="roles" className="space-y-5">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border border-border/50 bg-card/60 p-1.5 shadow-sm lg:grid-cols-4">
           <TabsTrigger
@@ -320,12 +328,16 @@ function AdminRolesPage() {
         <TabsContent value="roles">
           <DatabaseState query={rolesQuery}>
             {(matrix) => (
-              <DatabaseRoleList
-                matrix={matrix}
-                setPreview={setPreview}
-                isPlatformAdmin={isPlatformAdmin}
-                onEdit={openMetadataEditor}
-              />
+              <div className="space-y-4">
+                <SelectedRolePanel preview={preview} matrix={matrix} />
+                <DatabaseRoleList
+                  matrix={matrix}
+                  setPreview={setPreview}
+                  selectedPreview={preview}
+                  isPlatformAdmin={isPlatformAdmin}
+                  onEdit={openMetadataEditor}
+                />
+              </div>
             )}
           </DatabaseState>
         </TabsContent>
@@ -343,7 +355,27 @@ function AdminRolesPage() {
           </DatabaseState>
         </TabsContent>
 
-        <TabsContent value="pages">
+        <TabsContent value="pages" className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] p-3">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">
+                <Eye className="h-3.5 w-3.5" /> Live routes
+              </div>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Discovered from the current application routes and enforced from the database.
+                Toggles here change real authorization.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-500/20 bg-slate-500/[0.05] p-3">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-200">
+                <ShieldCheck className="h-3.5 w-3.5" /> Static routes
+              </div>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Configured fallback for known routes. Used for preview and as a safety net when
+                live data is unavailable.
+              </p>
+            </div>
+          </div>
           <PageVisibilityTab
             rolesQuery={rolesQuery}
             visibilityQuery={pageVisibilityQuery}
@@ -422,11 +454,13 @@ function DatabaseState({
 function DatabaseRoleList({
   matrix,
   setPreview,
+  selectedPreview,
   isPlatformAdmin,
   onEdit,
 }: {
   matrix: AdminRolesData;
   setPreview: (role: Role) => void;
+  selectedPreview: Role;
   isPlatformAdmin: boolean;
   onEdit: (role: AdminRole) => void;
 }) {
@@ -443,60 +477,126 @@ function DatabaseRoleList({
           ? Object.values(PAGE_VISIBILITY).filter((roles) => roles.includes(previewRole)).length
           : 0;
         const platformRole = dbRole.scope === "platform";
+        const permissionCount = grantCounts.get(dbRole.id) ?? 0;
+        const isSelected = previewRole !== null && previewRole === selectedPreview;
+        const accessLevel =
+          permissionCount >= 30
+            ? { label: "High access", className: "border-rose-500/30 bg-rose-500/10 text-rose-200" }
+            : permissionCount >= 10
+              ? {
+                  label: "Standard",
+                  className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+                }
+              : {
+                  label: "Limited",
+                  className: "border-slate-500/30 bg-slate-500/10 text-slate-200",
+                };
+        const accent = platformRole
+          ? {
+              border: "border-cyan-500/20 hover:border-cyan-500/40",
+              ring: "hover:ring-cyan-500/10",
+              bar: "bg-gradient-to-r from-cyan-500/80 via-cyan-500/40 to-transparent",
+              chip: "border-cyan-500/30 bg-cyan-500/10 text-cyan-200",
+              mono: "bg-cyan-500/10 text-cyan-200 ring-cyan-500/25",
+              stat: "text-cyan-200",
+              selectedRing: "ring-cyan-400/60",
+            }
+          : {
+              border: "border-violet-500/20 hover:border-violet-500/40",
+              ring: "hover:ring-violet-500/10",
+              bar: "bg-gradient-to-r from-violet-500/80 via-violet-500/40 to-transparent",
+              chip: "border-violet-500/30 bg-violet-500/10 text-violet-200",
+              mono: "bg-violet-500/10 text-violet-200 ring-violet-500/25",
+              stat: "text-violet-200",
+              selectedRing: "ring-violet-400/60",
+            };
         return (
           <article
             key={dbRole.id}
-            className={`group relative flex min-h-72 flex-col overflow-hidden rounded-xl border bg-card/70 shadow-sm transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md ${
-              platformRole ? "border-cyan-500/20" : "border-violet-500/20"
+            aria-current={isSelected ? "true" : undefined}
+            className={`group relative flex min-h-72 flex-col overflow-hidden rounded-xl border bg-card/70 shadow-sm ring-1 transition-all hover:bg-card hover:shadow-lg ${
+              isSelected
+                ? `ring-2 ${accent.selectedRing} shadow-md`
+                : `ring-transparent ${accent.border} ${accent.ring}`
             }`}
           >
-            <div
-              className={`h-1 w-full ${
-                platformRole
-                  ? "bg-gradient-to-r from-cyan-500/80 to-cyan-500/10"
-                  : "bg-gradient-to-r from-violet-500/80 to-violet-500/10"
-              }`}
-            />
+            {isSelected && (
+              <span className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-200">
+                <Check className="h-2.5 w-2.5" /> Selected
+              </span>
+            )}
+            <div className={`h-1 w-full ${accent.bar}`} />
+
             <div className="flex flex-1 flex-col p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+              <div className="flex items-start gap-3">
+                <div
+                  aria-hidden
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[11px] font-bold tracking-wider ring-1 ${accent.mono}`}
+                >
+                  {abbreviation(dbRole.name)}
+                </div>
+                <div className="min-w-0 flex-1">
                   <h2
-                    className="truncate text-sm font-semibold text-foreground"
+                    className="truncate text-[15px] font-semibold leading-tight text-foreground"
                     title={dbRole.name}
                   >
                     {dbRole.name}
                   </h2>
-                  <code className="mt-1 block truncate text-[10px] text-muted-foreground">
-                    {dbRole.roleKey}
-                  </code>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <Badge
+                      variant="outline"
+                      className={`shrink-0 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider ${accent.chip}`}
+                    >
+                      {platformRole ? "Platform" : "Team"}
+                    </Badge>
+                    {dbRole.isSystem && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 gap-1 border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-amber-200"
+                          >
+                            <Lock className="h-2.5 w-2.5" /> System
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>System-managed role</TooltipContent>
+                      </Tooltip>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          variant="outline"
+                          className={`shrink-0 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider ${accessLevel.className}`}
+                        >
+                          {accessLevel.label}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Access tier derived from {permissionCount} granted permission
+                        {permissionCount === 1 ? "" : "s"}.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={`shrink-0 text-[9px] font-semibold uppercase tracking-wider ${
-                    platformRole
-                      ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
-                      : "border-violet-500/30 bg-violet-500/10 text-violet-200"
-                  }`}
-                >
-                  {platformRole ? "Platform" : "Team"}
-                </Badge>
               </div>
 
-              <p className="mt-3 min-h-10 text-xs leading-relaxed text-muted-foreground">
-                {dbRole.description ?? "No description provided."}
+              <code
+                className="mt-3 block w-fit max-w-full truncate rounded-md border border-border/40 bg-background/40 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
+                title={dbRole.roleKey}
+              >
+                {dbRole.roleKey}
+              </code>
+
+              <p className="mt-3 line-clamp-3 min-h-10 text-xs leading-relaxed text-muted-foreground">
+                {dbRole.description ?? (
+                  <span className="italic text-muted-foreground/70">No description provided.</span>
+                )}
               </p>
 
-              <dl className="mt-4 grid grid-cols-2 divide-x divide-border/40 rounded-lg border border-border/40 bg-background/35">
-                <Cell label="Visible pages" value={pageCount} />
-                <Cell label="Permissions" value={grantCounts.get(dbRole.id) ?? 0} />
+              <dl className="mt-4 grid grid-cols-2 divide-x divide-border/40 overflow-hidden rounded-lg border border-border/40 bg-background/35">
+                <Cell label="Visible pages" value={pageCount} accent={accent.stat} />
+                <Cell label="Permissions" value={permissionCount} accent={accent.stat} />
               </dl>
-
-              <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
-                <span>System managed</span>
-                <span className="font-medium text-foreground">
-                  {dbRole.isSystem ? "Yes" : "No"}
-                </span>
-              </div>
 
               <div className="mt-auto flex gap-2 pt-4">
                 <Button
@@ -513,7 +613,7 @@ function DatabaseRoleList({
                 >
                   <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
                 </Button>
-                {previewRole && (
+                {previewRole ? (
                   <Button
                     size="sm"
                     variant="secondary"
@@ -522,13 +622,26 @@ function DatabaseRoleList({
                   >
                     <Eye className="mr-1.5 h-3.5 w-3.5" /> Preview
                   </Button>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex flex-1">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="flex-1 font-medium"
+                          disabled
+                        >
+                          <Eye className="mr-1.5 h-3.5 w-3.5 opacity-60" /> Preview
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      No static page-visibility preview exists for this DB role.
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
-              {!previewRole && (
-                <p className="mt-3 rounded-md bg-muted/30 px-2.5 py-2 text-[10px] leading-relaxed text-muted-foreground">
-                  No static page-visibility preview exists for this DB role.
-                </p>
-              )}
             </div>
           </article>
         );
@@ -795,85 +908,104 @@ function PermissionGroupRows({
 }) {
   return (
     <>
-      <tr className="bg-muted/40">
+      <tr className="bg-gradient-to-r from-muted/60 via-muted/40 to-transparent">
         <td
           colSpan={1 + roles.length}
-          className="border-y border-border/40 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground"
+          className="sticky left-0 z-10 border-y border-border/40 bg-card/95 px-4 py-2 backdrop-blur"
         >
-          {group.label}
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-1 rounded-full bg-foreground/40" aria-hidden />
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-foreground">
+              {formatGroupLabel(group.label)}
+            </span>
+            <span className="text-[10px] font-medium text-muted-foreground">
+              · {group.permissions.length} permission
+              {group.permissions.length === 1 ? "" : "s"}
+            </span>
+          </div>
         </td>
       </tr>
-      {group.permissions.map((permission) => (
-        <tr key={permission.id} className="group/permission transition-colors hover:bg-muted/20">
-          <td className="sticky left-0 z-20 border-r border-b border-border/30 bg-card px-4 py-2.5 group-hover/permission:bg-muted">
-            <div className="font-medium text-foreground">{permission.name}</div>
-            <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">
-              {permission.permissionKey}
-            </div>
-          </td>
-          {roles.map((dbRole) => {
-            const key = `${dbRole.id}:${permission.id}`;
-            const checked = grantKeys.has(key);
-            const saving =
-              mutation.isPending &&
-              mutation.variables?.roleId === dbRole.id &&
-              mutation.variables.permissionId === permission.id;
-            const platformAdminProtected = dbRole.roleKey === "platform_admin";
-            const disabled = !isPlatformAdmin || platformAdminProtected || mutation.isPending;
-            const explanation = platformAdminProtected
-              ? "Platform Administrator permissions are read-only to prevent lockout."
-              : !isPlatformAdmin
-                ? "Only an active platform administrator can change this grant."
-                : saving
-                  ? "Saving permission change."
-                  : checked
-                    ? "Revoke permission"
-                    : "Grant permission";
+      {group.permissions.map((permission, index) => {
+        const zebra = index % 2 === 1;
+        const rowBg = zebra ? "bg-muted/[0.04]" : "";
+        const stickyBg = zebra ? "bg-[hsl(var(--card))]/95" : "bg-card";
+        return (
+          <tr
+            key={permission.id}
+            className={`group/permission transition-colors hover:bg-muted/25 ${rowBg}`}
+          >
+            <td
+              className={`sticky left-0 z-20 border-r border-b border-border/30 px-4 py-2.5 group-hover/permission:bg-muted ${stickyBg}`}
+            >
+              <div className="font-medium text-foreground">{permission.name}</div>
+              <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">
+                {permission.permissionKey}
+              </div>
+            </td>
+            {roles.map((dbRole) => {
+              const key = `${dbRole.id}:${permission.id}`;
+              const checked = grantKeys.has(key);
+              const saving =
+                mutation.isPending &&
+                mutation.variables?.roleId === dbRole.id &&
+                mutation.variables.permissionId === permission.id;
+              const platformAdminProtected = dbRole.roleKey === "platform_admin";
+              const disabled = !isPlatformAdmin || platformAdminProtected || mutation.isPending;
+              const explanation = platformAdminProtected
+                ? "Platform Administrator permissions are read-only to prevent lockout."
+                : !isPlatformAdmin
+                  ? "Only an active platform administrator can change this grant."
+                  : saving
+                    ? "Saving permission change."
+                    : checked
+                      ? "Revoke permission"
+                      : "Grant permission";
 
-            return (
-              <td
-                key={dbRole.id}
-                className={`border-l border-b border-border/20 px-2 py-2 text-center transition-colors ${
-                  checked ? "bg-emerald-500/[0.035]" : ""
-                }`}
-              >
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span
-                      className={`relative inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors ${
-                        checked
-                          ? "border-emerald-500/25 bg-emerald-500/10"
-                          : "border-transparent hover:border-border/60 hover:bg-muted/30"
-                      }`}
-                    >
-                      {saving ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      ) : (
-                        <Checkbox
-                          checked={checked}
-                          disabled={disabled}
-                          aria-label={`${checked ? "Revoke" : "Grant"} ${permission.name} for ${dbRole.name}`}
-                          onCheckedChange={() =>
-                            mutation.mutate({
-                              roleId: dbRole.id,
-                              permissionId: permission.id,
-                              action: checked ? "revoke" : "grant",
-                            })
-                          }
-                        />
-                      )}
-                      {platformAdminProtected && !saving && (
-                        <Lock className="pointer-events-none absolute -right-1 -bottom-1 h-2.5 w-2.5 text-amber-400" />
-                      )}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>{explanation}</TooltipContent>
-                </Tooltip>
-              </td>
-            );
-          })}
-        </tr>
-      ))}
+              return (
+                <td
+                  key={dbRole.id}
+                  className={`border-l border-b border-border/20 px-2 py-2 text-center transition-colors ${
+                    checked ? "bg-emerald-500/[0.05]" : ""
+                  }`}
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className={`relative inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors ${
+                          checked
+                            ? "border-emerald-500/30 bg-emerald-500/10"
+                            : "border-transparent hover:border-border/60 hover:bg-muted/30"
+                        } ${platformAdminProtected ? "opacity-90" : ""}`}
+                      >
+                        {saving ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Checkbox
+                            checked={checked}
+                            disabled={disabled}
+                            aria-label={`${checked ? "Revoke" : "Grant"} ${permission.name} for ${dbRole.name}`}
+                            onCheckedChange={() =>
+                              mutation.mutate({
+                                roleId: dbRole.id,
+                                permissionId: permission.id,
+                                action: checked ? "revoke" : "grant",
+                              })
+                            }
+                          />
+                        )}
+                        {platformAdminProtected && !saving && (
+                          <Lock className="pointer-events-none absolute -right-1 -bottom-1 h-2.5 w-2.5 text-amber-400" />
+                        )}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{explanation}</TooltipContent>
+                  </Tooltip>
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
     </>
   );
 }
@@ -1044,6 +1176,7 @@ function LivePageVisibility({
               className="pl-9"
               value={routeFilter}
               placeholder="Search route label or path"
+              aria-label="Filter live page visibility routes"
               onChange={(event) => setRouteFilter(event.target.value)}
             />
           </div>
@@ -1150,7 +1283,7 @@ function LivePageVisibility({
                                   }
                                 />
                                 {protectedCell && (
-                                  <Lock className="pointer-events-none absolute ml-5 mt-5 h-2.5 w-2.5 text-amber-400" />
+                                  <Lock className="pointer-events-none absolute -right-1 -bottom-1 h-2.5 w-2.5 text-amber-400" />
                                 )}
                               </span>
                             </TooltipTrigger>
@@ -1165,7 +1298,7 @@ function LivePageVisibility({
                         ) : cell === true ? (
                           <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/10">
                             <Check
-                              className="h-3.5 w-3.5 text-[#52D6A4]"
+                              className="h-3.5 w-3.5 text-emerald-300"
                               aria-label={`${dbRole.name} can view ${routePath}`}
                             />
                           </span>
@@ -1231,6 +1364,7 @@ function StaticPageVisibility() {
               className="pl-9"
               value={routeFilter}
               placeholder="Search route label or path"
+              aria-label="Filter static page visibility routes"
               onChange={(event) => setRouteFilter(event.target.value)}
             />
           </div>
@@ -1291,7 +1425,7 @@ function StaticPageVisibility() {
                     >
                       {visible ? (
                         <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/10">
-                          <Check className="h-3.5 w-3.5 text-[#52D6A4]" />
+                          <Check className="h-3.5 w-3.5 text-emerald-300" />
                         </span>
                       ) : (
                         <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-md border border-border/30 bg-background/20">
@@ -1531,7 +1665,7 @@ function StaticRolePreview({
                         }`}
                       >
                         {permitted ? (
-                          <Check className="h-3.5 w-3.5 text-[#52D6A4]" />
+                          <Check className="h-3.5 w-3.5 text-emerald-300" />
                         ) : (
                           <X className="h-3.5 w-3.5 text-muted-foreground/50" />
                         )}
@@ -1577,6 +1711,10 @@ function PreviewMetric({
   );
 }
 
+function formatGroupLabel(label: string): string {
+  return label.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function abbreviation(label: string): string {
   return label
     .split(/\s+/)
@@ -1587,11 +1725,234 @@ function abbreviation(label: string): string {
     .toUpperCase();
 }
 
-function Cell({ label, value }: { label: string; value: string | number }) {
+function Cell({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  accent?: string;
+}) {
   return (
     <div className="px-3 py-2.5 text-center">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-1 text-lg font-semibold leading-none text-foreground">{value}</div>
+      <div
+        className={`mt-1 text-lg font-semibold leading-none ${accent ?? "text-foreground"}`}
+      >
+        {value}
+      </div>
     </div>
+  );
+}
+
+function OverviewStats({
+  rolesData,
+  visibilityData,
+  isLoading,
+}: {
+  rolesData: AdminRolesData | undefined;
+  visibilityData: AdminRolePageVisibility[] | undefined;
+  isLoading: boolean;
+}) {
+  const totalRoles = rolesData?.roles.length ?? null;
+  const groupCount = rolesData
+    ? new Set(rolesData.permissions.map((p) => permissionGroup(p.permissionKey))).size
+    : null;
+  const visibilityRuleCount = visibilityData?.length ?? null;
+  const restrictedRouteCount = visibilityData
+    ? new Set(visibilityData.filter((row) => !row.canView).map((row) => row.routePath)).size
+    : null;
+
+  const fmt = (value: number | null) =>
+    isLoading && value === null ? "—" : value === null ? "—" : value.toLocaleString();
+
+  const items: {
+    label: string;
+    value: string;
+    icon: typeof KeyRound;
+    accent: string;
+    hint: string;
+  }[] = [
+    {
+      label: "Total roles",
+      value: fmt(totalRoles),
+      icon: KeyRound,
+      accent: "text-cyan-200 ring-cyan-500/25 bg-cyan-500/10",
+      hint: "Defined in database",
+    },
+    {
+      label: "Permission groups",
+      value: fmt(groupCount),
+      icon: ShieldCheck,
+      accent: "text-violet-200 ring-violet-500/25 bg-violet-500/10",
+      hint: "Capability categories",
+    },
+    {
+      label: "Page visibility rules",
+      value: fmt(visibilityRuleCount),
+      icon: Eye,
+      accent: "text-emerald-200 ring-emerald-500/25 bg-emerald-500/10",
+      hint: "Role × route rows",
+    },
+    {
+      label: "Restricted routes",
+      value: fmt(restrictedRouteCount),
+      icon: Lock,
+      accent: "text-amber-200 ring-amber-500/25 bg-amber-500/10",
+      hint: "At least one role denied",
+    },
+  ];
+
+  return (
+    <section
+      aria-label="Roles and permissions overview"
+      className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+    >
+      {items.map(({ label, value, icon: Icon, accent, hint }) => (
+        <div
+          key={label}
+          className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/60 p-3.5 shadow-sm transition-colors hover:border-border"
+        >
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden
+              className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ring-1 ${accent}`}
+            >
+              <Icon className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {label}
+              </div>
+              <div
+                className="mt-1 text-2xl font-semibold leading-none text-foreground tabular-nums"
+                aria-live="polite"
+              >
+                {value}
+              </div>
+              <div className="mt-1 truncate text-[10px] text-muted-foreground">{hint}</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function SelectedRolePanel({ preview, matrix }: { preview: Role; matrix: AdminRolesData }) {
+  const dbRole = matrix.roles.find((r) => r.roleKey === preview) ?? null;
+  const platformRole = dbRole?.scope === "platform";
+  const visiblePages = Object.entries(PAGE_VISIBILITY).filter(([, roles]) =>
+    roles.includes(preview),
+  ).length;
+  const totalPages = Object.keys(PAGE_VISIBILITY).length;
+  const allowedCaps = CAPABILITY_GROUPS.flatMap((group) =>
+    group.caps
+      .filter((cap) => can(cap.key, preview))
+      .map((cap) => ({ groupLabel: group.label, label: cap.label })),
+  );
+  const grantedGroups = Array.from(new Set(allowedCaps.map((c) => c.groupLabel)));
+
+  const accent = platformRole
+    ? "from-cyan-500/15 via-cyan-500/5 border-cyan-500/25"
+    : "from-violet-500/15 via-violet-500/5 border-violet-500/25";
+  const monoAccent = platformRole
+    ? "bg-cyan-500/10 text-cyan-200 ring-cyan-500/25"
+    : "bg-violet-500/10 text-violet-200 ring-violet-500/25";
+
+  return (
+    <section
+      aria-label="Selected role summary"
+      className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br to-transparent p-4 shadow-sm sm:p-5 ${accent}`}
+    >
+      <div className="flex flex-wrap items-start gap-4">
+        <div
+          aria-hidden
+          className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-[12px] font-bold tracking-wider ring-1 ${monoAccent}`}
+        >
+          {abbreviation(dbRole?.name ?? roleLabel(preview))}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Selected role
+            </span>
+            <Badge
+              variant="outline"
+              className={`px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider ${
+                platformRole
+                  ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
+                  : "border-violet-500/30 bg-violet-500/10 text-violet-200"
+              }`}
+            >
+              {platformRole ? "Platform" : dbRole?.scope === "team" ? "Team" : "Static"}
+            </Badge>
+            {dbRole?.isSystem && (
+              <Badge
+                variant="outline"
+                className="gap-1 border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-amber-200"
+              >
+                <Lock className="h-2.5 w-2.5" /> System
+              </Badge>
+            )}
+          </div>
+          <h3 className="mt-1 truncate text-lg font-semibold text-foreground">
+            {dbRole?.name ?? roleLabel(preview)}
+          </h3>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            {dbRole?.description ??
+              "Static safety-rule role used for route enforcement and preview only."}
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-4 text-right">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Capabilities
+            </div>
+            <div className="mt-0.5 text-xl font-semibold leading-none tabular-nums text-foreground">
+              {allowedCaps.length}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Visible pages
+            </div>
+            <div className="mt-0.5 text-xl font-semibold leading-none tabular-nums text-foreground">
+              {visiblePages}
+              <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+                / {totalPages}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {grantedGroups.length > 0 ? (
+        <div className="mt-4 border-t border-border/40 pt-3">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            What this role can do
+          </div>
+          <ul className="flex flex-wrap gap-1.5">
+            {grantedGroups.map((label) => {
+              const count = allowedCaps.filter((c) => c.groupLabel === label).length;
+              return (
+                <li key={label}>
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-background/40 px-2 py-1 text-[11px] text-foreground">
+                    <Check className="h-3 w-3 text-emerald-300" />
+                    {label}
+                    <span className="text-[10px] text-muted-foreground">({count})</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-md border border-border/40 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground">
+          This role has no granted capabilities in the static safety rules.
+        </div>
+      )}
+    </section>
   );
 }
