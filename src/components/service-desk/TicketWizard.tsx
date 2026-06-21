@@ -22,7 +22,6 @@ import {
   ShieldCheck,
   Lightbulb,
   ListChecks,
-  Save,
   Search,
   Sparkles,
   Tag,
@@ -331,16 +330,6 @@ export function TicketWizard({ mode, backTo, homeTo = "/" }: Props) {
 
           {/* Right cluster */}
           <div className="flex shrink-0 items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast.success("Draft saved locally")}
-              className="gap-1.5"
-            >
-              <Save className="h-4 w-4" />
-              <span className="hidden sm:inline">Save draft</span>
-              <span className="sm:hidden">Draft</span>
-            </Button>
             {step < 2 ? (
               <Button
                 size="sm"

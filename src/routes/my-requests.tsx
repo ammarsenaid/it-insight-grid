@@ -173,10 +173,8 @@ function MyRequests() {
         description="Track your submitted requests and respond when needed."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button asChild size="sm">
-              <Link to="/requests/new">
-                <Plus className="mr-1.5 h-4 w-4" /> New request
-              </Link>
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-1.5 h-4 w-4" /> New request
             </Button>
 
 
@@ -478,4 +476,3 @@ function RequesterCreateDrawer({
     />
   );
 }
-

@@ -340,5 +340,5 @@ function CMDBPage() {
 
 
 function FilterSelect({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: [string, string][] }) {
-  return <Select value={value} onValueChange={onChange}><SelectTrigger className="h-9 w-[160px] rounded-xl border-border/60 bg-card/60"><SelectValue /></SelectTrigger><SelectContent>{options.map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent></Select>;
+  return <Select value={value} onValueChange={onChange}><SelectTrigger className="h-9 w-full rounded-xl border-border/60 bg-card/60 sm:w-[160px]"><SelectValue /></SelectTrigger><SelectContent>{options.map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent></Select>;
 }

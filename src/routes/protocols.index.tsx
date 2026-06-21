@@ -213,7 +213,7 @@ function ProtocolsPage() {
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button size="sm" variant="ghost"><MoreHorizontal className="h-3.5 w-3.5" /></Button>
+            <Button size="sm" variant="ghost" aria-label={`Actions for ${t.title}`}><MoreHorizontal className="h-3.5 w-3.5" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setEditingTemplateId(t.id)}><Edit className="mr-2 h-3.5 w-3.5" />Edit</DropdownMenuItem>
@@ -509,9 +509,9 @@ function TemplateDrawer({
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-muted-foreground">{i + 1}.</span>
                       <Input className="h-7 flex-1" value={s.title} onChange={(e) => updateStep(s.id, { title: e.target.value })} />
-                      <Button size="sm" variant="ghost" disabled={i === 0 || stepsMutation.isPending} onClick={() => moveStep(s.id, -1)}>↑</Button>
-                      <Button size="sm" variant="ghost" disabled={i === template.steps.length - 1 || stepsMutation.isPending} onClick={() => moveStep(s.id, 1)}>↓</Button>
-                      <Button size="sm" variant="ghost" className="text-destructive" disabled={stepsMutation.isPending} onClick={() => deleteStep(s.id)}><Trash2 className="h-3 w-3" /></Button>
+                      <Button size="sm" variant="ghost" aria-label={`Move ${s.title} up`} disabled={i === 0 || stepsMutation.isPending} onClick={() => moveStep(s.id, -1)}>↑</Button>
+                      <Button size="sm" variant="ghost" aria-label={`Move ${s.title} down`} disabled={i === template.steps.length - 1 || stepsMutation.isPending} onClick={() => moveStep(s.id, 1)}>↓</Button>
+                      <Button size="sm" variant="ghost" aria-label={`Delete step ${s.title}`} className="text-destructive" disabled={stepsMutation.isPending} onClick={() => deleteStep(s.id)}><Trash2 className="h-3 w-3" /></Button>
                     </div>
                     <Textarea className="mt-2" rows={2} placeholder="Instructions" value={s.instructions} onChange={(e) => updateStep(s.id, { instructions: e.target.value })} />
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">

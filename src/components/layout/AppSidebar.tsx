@@ -23,6 +23,7 @@ import {
   FileCode,
   Wrench,
   Bell,
+  ShoppingBag,
 } from "lucide-react";
 import {
   Sidebar,
@@ -54,8 +55,8 @@ const groups = [
     items: [
       { title: "Tickets", url: "/tickets", icon: Ticket },
       { title: "My Requests", url: "/my-requests", icon: Inbox },
-
-      
+      { title: "Service Catalog", url: "/service-catalog", icon: ShoppingBag },
+      { title: "Notifications", url: "/notifications", icon: Bell },
     ],
   },
   {
@@ -83,7 +84,7 @@ const groups = [
       { title: "Roles", url: "/admin/roles", icon: KeyRound },
       { title: "Templates", url: "/admin/templates", icon: FileCode },
       
-      { title: "Ticket Configuration", url: "/admin/ticket-settings", icon: Sliders },
+      { title: "Ticket Configuration Overview", url: "/admin/ticket-settings", icon: Sliders },
       { title: "Diagnostics", url: "/admin/diagnostics", icon: Wrench },
     ],
   },
@@ -143,7 +144,7 @@ export function AppSidebar() {
               <SidebarMenu className="gap-0.5">
                 {g.items.map((item) => {
                   const active =
-                    item.url === "/" ? pathname === "/" : pathname.startsWith(item.url);
+                    item.url === "/" ? pathname === "/" || pathname === "/dashboard" : pathname.startsWith(item.url);
                   return (
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton

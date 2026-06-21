@@ -31,9 +31,6 @@ import {
   ShieldAlert,
   HelpCircle,
   MoreHorizontal,
-  AtSign,
-  Smile,
-  Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -939,14 +936,10 @@ function ReplyComposer({
           disabled={pending}
           className="resize-none border-0 bg-transparent px-3 py-2 text-sm shadow-none focus-visible:ring-0"
         />
-        <div className="flex items-center justify-between gap-2 border-t border-border/40 px-2 py-1.5">
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Button type="button" size="icon" variant="ghost" className="h-7 w-7"><Paperclip className="h-3.5 w-3.5" /></Button>
-            <Button type="button" size="icon" variant="ghost" className="h-7 w-7"><Smile className="h-3.5 w-3.5" /></Button>
-            <Button type="button" size="icon" variant="ghost" className="h-7 w-7"><AtSign className="h-3.5 w-3.5" /></Button>
-            <Button type="button" size="icon" variant="ghost" className="h-7 w-7"><ImageIcon className="h-3.5 w-3.5" /></Button>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 px-2 py-1.5">
+          <div className="flex items-center text-muted-foreground">
             {internalAllowed && (
-              <label className="ml-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <label className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} className="accent-primary" />
                 <Lock className="h-3 w-3" /> Internal
               </label>

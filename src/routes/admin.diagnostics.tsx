@@ -163,8 +163,8 @@ function DiagnosticsPage() {
   return (
     <div className="space-y-5 pb-8">
       <PageHeader
-        title="Diagnostics"
-        description="Inspect local workspace state and run restricted support operations."
+        title="Local QA & Support Tools"
+        description="Inspect browser-local workspace state. This page does not report production service health."
       />
 
       <div className="flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3 text-xs text-amber-100/80 shadow-sm">
@@ -234,9 +234,9 @@ function DiagnosticsPage() {
             </li>
             <li className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/40 px-3 py-2 text-muted-foreground">
               <Database className="h-4 w-4" />
-              <span className="flex-1">Knowledge backend</span>
-              <span className="text-[10px] uppercase tracking-wider text-emerald-400">
-                Connected
+              <span className="flex-1">Knowledge backend health</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Not checked here
               </span>
             </li>
           </ul>

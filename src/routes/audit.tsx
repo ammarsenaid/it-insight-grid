@@ -90,7 +90,7 @@ function AuditPage() {
     { key: "action", header: "Action", render: (a) => <span className="font-mono text-xs">{a.action}</span> },
     { key: "msg", header: "Details", render: (a) => <span className="text-xs">{describeTicketAuditEntry(a)}</span> },
     { key: "act", header: "", className: "w-12", render: (a) => (
-      <Button size="sm" variant="ghost" onClick={() => setSelected(a)}><Eye className="h-3.5 w-3.5" /></Button>
+      <Button size="sm" variant="ghost" aria-label={`View audit event ${a.action}`} onClick={() => setSelected(a)}><Eye className="h-3.5 w-3.5" /></Button>
     ) },
   ];
 

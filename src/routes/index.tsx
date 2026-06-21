@@ -115,11 +115,11 @@ function meForRole(role: Role) {
 
 function primaryCreateForRole(role: Role): { label: string; to: string; show: boolean } {
   if (isReadOnly(role)) return { label: "", to: "/", show: false };
-  if (isRequester(role)) return { label: "New Request", to: "/my-requests", show: true };
-  if (role === "doc_editor") return { label: "New Knowledge Page", to: "/documents", show: true };
+  if (isRequester(role)) return { label: "Open My Requests", to: "/my-requests", show: true };
+  if (role === "doc_editor") return { label: "Open Knowledge Base", to: "/documents", show: true };
   if (role === "helpdesk" || role === "technician" || role === "sd_lead" || role === "network_admin")
-    return { label: "New Ticket", to: "/tickets", show: true };
-  return { label: "Create", to: "/tickets", show: true };
+    return { label: "New Ticket", to: "/tickets/new", show: true };
+  return { label: "New Ticket", to: "/tickets/new", show: true };
 }
 
 // ---------- main ----------
@@ -148,6 +148,17 @@ function Dashboard() {
   const deletedAddressesQuery = useQuery({ ...recycleBinDeletedAddressesQuery(), enabled: recycleBinReadable });
   const deletedTasksQuery = useQuery({ ...recycleBinDeletedTasksQuery(), enabled: recycleBinReadable });
   const deletedNotesQuery = useQuery({ ...recycleBinDeletedNotesQuery(), enabled: recycleBinReadable });
+  const operationalDataUnavailable = [
+    cmdbQuery,
+    ipamQuery,
+    notesQueryResult,
+    protocolRunsQueryResult,
+    tasksQueryResult,
+    deletedAssetsQuery,
+    deletedAddressesQuery,
+    deletedTasksQuery,
+    deletedNotesQuery,
+  ].some((query) => query.isError);
   const assets = cmdbQuery.data ?? [];
   const ipamAddresses = ipamQuery.data ?? [];
   const notes = notesQueryResult.data ?? [];
@@ -258,24 +269,24 @@ function Dashboard() {
     id: "sla-breach", severity: "critical", module: "Ticket",
     title: `${slaBreach} ticket${slaBreach > 1 ? "s" : ""} breached SLA`,
     meta: "Immediate action required", cta: "Open Tickets",
-    onClick: () => goTickets({ sla: "breached" }),
+    onClick: () => navigate({ to: "/tickets" }),
   });
   overdueTasks.forEach((t) => alerts.push({
     id: `task-${t.id}`, severity: "high", module: "Task",
     title: `Task overdue: ${t.title}`,
     meta: `Due ${new Date(t.dueDate!).toLocaleDateString()}`,
-    cta: "Open Task", onClick: goTasks,
+    cta: "Open Tasks", onClick: goTasks,
   }));
   if (showCmdbIpam) {
     maintenanceAssets.slice(0, 3).forEach((a) => alerts.push({
       id: `asset-${a.id}`, severity: "medium", module: "CMDB",
       title: `${a.hostname} in maintenance`, meta: a.displayName,
-      cta: "View Asset", onClick: () => navigate({ to: "/cmdb" }),
+      cta: "Open CMDB", onClick: () => navigate({ to: "/cmdb" }),
     }));
     unlinkedIP.slice(0, 2).forEach((i) => alerts.push({
       id: `ip-${i.id}`, severity: "info", module: "CMDB",
       title: `Unlinked IP record: ${i.ipAddress}`, meta: i.subnet,
-      cta: "View IPAM", onClick: () => navigate({ to: "/ipam" }),
+      cta: "Open IPAM", onClick: () => navigate({ to: "/ipam" }),
     }));
   }
   reviewDocs.slice(0, 3).forEach((d) => alerts.push({
@@ -293,7 +304,7 @@ function Dashboard() {
     <div>
       <PageHeader
         title="Dashboard"
-        description="What needs attention, what is assigned to you, what is overdue."
+        description="Operational overview with live module data and clearly identified browser-local previews."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setCustomizeOpen(true)}>
@@ -308,20 +319,45 @@ function Dashboard() {
         }
       />
 
+      <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+        <div>
+          <p className="font-medium text-amber-100">Mixed data sources</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-amber-100/80">
+            Task, protocol, CMDB, IPAM, note, and recycle-bin data is loaded from shared services.
+            Ticket, recent-activity, and legacy knowledge widgets are browser-local previews and must
+            not be used for operational decisions.
+          </p>
+        </div>
+      </div>
+
+      {operationalDataUnavailable && (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm" role="alert">
+          <XOctagon className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+          <div>
+            <p className="font-medium text-destructive">Some operational data is unavailable</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              One or more dashboard sources failed to load. Unavailable metrics are shown as — and
+              an empty alert list must not be treated as an all-clear signal.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 1) Attention Required */}
       {prefs.attentionRequired && (
         <section>
           <SectionTitle title="Attention Required" caption="Items that may require immediate action." />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {showServiceDesk && (
-              <CompactMetric icon={XOctagon} label="SLA Breached" value={slaBreach} sub="Past due tickets" accent="danger" onClick={() => goTickets({ sla: "breached" })} />
+              <CompactMetric icon={XOctagon} label="SLA Breached" value={slaBreach} sub="Browser-local preview" accent="danger" onClick={() => navigate({ to: "/tickets" })} />
             )}
             {showServiceDesk && (
               <CompactMetric icon={AlertTriangle} label="Unassigned Tickets" value={unassigned} sub="Need an owner" accent="warning" onClick={() => goTickets({ scope: "unassigned" })} />
             )}
-            <CompactMetric icon={AlarmClock} label="Overdue Tasks" value={overdueTasks.length} sub="Past their due date" accent="danger" onClick={goTasks} />
-            <CompactMetric icon={XOctagon} label="Failed Protocol Runs" value={failedRuns} sub="Need investigation" accent="danger" onClick={goProtocols} />
-            <CompactMetric icon={ShieldCheck} label="Awaiting Approval" value={awaitingApproval} sub="Protocol runs pending" accent="warning" onClick={goProtocols} />
+            <CompactMetric icon={AlarmClock} label="Overdue Tasks" value={tasksQueryResult.isSuccess ? overdueTasks.length : "—"} sub={tasksQueryResult.isError ? "Task data unavailable" : "Past their due date"} accent="danger" onClick={goTasks} />
+            <CompactMetric icon={XOctagon} label="Failed Protocol Runs" value={protocolRunsQueryResult.isSuccess ? failedRuns : "—"} sub={protocolRunsQueryResult.isError ? "Protocol data unavailable" : "Need investigation"} accent="danger" onClick={goProtocols} />
+            <CompactMetric icon={ShieldCheck} label="Awaiting Approval" value={protocolRunsQueryResult.isSuccess ? awaitingApproval : "—"} sub={protocolRunsQueryResult.isError ? "Protocol data unavailable" : "Protocol runs pending"} accent="warning" onClick={goProtocols} />
           </div>
         </section>
       )}
@@ -369,13 +405,18 @@ function Dashboard() {
               {visibleAlerts.map((a) => (
                 <AlertRow key={a.id} {...a} />
               ))}
-              {visibleAlerts.length === 0 && (
+              {visibleAlerts.length === 0 && !operationalDataUnavailable && (
                 <p className="rounded-xl border border-border/40 bg-background/30 p-4 text-sm text-muted-foreground">
                   All clear — no operational alerts.
                 </p>
               )}
+              {visibleAlerts.length === 0 && operationalDataUnavailable && (
+                <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-muted-foreground">
+                  Alert status is unavailable until all operational sources load successfully.
+                </p>
+              )}
             </div>
-            {alerts.length > visibleAlerts.length && (
+            {alerts.length > visibleAlerts.length && showAuditLink && (
               <div className="mt-3 border-t border-border/40 pt-3">
                 <button
                   type="button"
@@ -393,7 +434,7 @@ function Dashboard() {
           <div className="glass-card flex flex-col rounded-2xl p-5 lg:col-span-3">
             <div className="mb-3 flex items-center gap-1.5">
               <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-              <h2 className="text-sm font-semibold tracking-tight">Recent Activity</h2>
+              <h2 className="text-sm font-semibold tracking-tight">Browser-local Recent Activity</h2>
             </div>
             <ol className="flex-1 divide-y divide-border/40">
               {localActivity.slice(0, 7).map((a) => (
@@ -427,8 +468,8 @@ function Dashboard() {
             {showServiceDesk && (
               <CompactMetric icon={Inbox} label="Open Tickets" value={openTickets.length} sub="In the queue" accent="primary" onClick={() => goTickets({ status: "open" })} variant="muted" />
             )}
-            <CompactMetric icon={CheckSquare} label="Active Tasks" value={openTasks.length} sub="Not yet done" accent="primary" onClick={goTasks} variant="muted" />
-            <CompactMetric icon={PlayCircle} label="Active Protocol Runs" value={activeRuns} sub="Currently in progress" accent="primary" onClick={goProtocols} variant="muted" />
+            <CompactMetric icon={CheckSquare} label="Active Tasks" value={tasksQueryResult.isSuccess ? openTasks.length : "—"} sub={tasksQueryResult.isError ? "Task data unavailable" : "Not yet done"} accent="primary" onClick={goTasks} variant="muted" />
+            <CompactMetric icon={PlayCircle} label="Active Protocol Runs" value={protocolRunsQueryResult.isSuccess ? activeRuns : "—"} sub={protocolRunsQueryResult.isError ? "Protocol data unavailable" : "Currently in progress"} accent="primary" onClick={goProtocols} variant="muted" />
             {showCmdbIpam && (
               <CompactMetric icon={Wrench} label="Assets in Maintenance" value={maintenanceAssets.length} sub="Under service" accent="warning" onClick={() => navigate({ to: "/cmdb" })} variant="muted" />
             )}
@@ -441,8 +482,8 @@ function Dashboard() {
         <section className="mt-5">
           <div className="glass-card rounded-2xl p-5">
             <div className="mb-3">
-              <h2 className="text-sm font-semibold tracking-tight">Tickets by Status</h2>
-              <p className="text-xs text-muted-foreground">Distribution across the queue.</p>
+              <h2 className="text-sm font-semibold tracking-tight">Browser-local Tickets by Status</h2>
+              <p className="text-xs text-muted-foreground">Preview data stored in this browser, not the live queue.</p>
             </div>
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -465,11 +506,11 @@ function Dashboard() {
       {/* Optional: Knowledge metrics row */}
       {prefs.knowledgeMetrics && (
         <section className="mt-5">
-          <SectionTitle title="Knowledge Metrics" caption="Documentation footprint." />
+          <SectionTitle title="Browser-local Knowledge Metrics" caption="Preview content stored in this browser." />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <MetricCard icon={FileText} label="Knowledge Pages" value={knowledgePages.length} sub="In knowledge base" accent="primary" />
             <MetricCard icon={Hash} label="Spaces" value={spaceCount} sub="Top-level areas" accent="primary" />
-            <MetricCard icon={StickyNote} label="Notes" value={notes.length} sub="Quick references" accent="primary" />
+            <MetricCard icon={StickyNote} label="Notes" value={notesQueryResult.isSuccess ? notes.length : "—"} sub={notesQueryResult.isError ? "Note data unavailable" : "Quick references"} accent="primary" />
             <MetricCard icon={Hourglass} label="In Review" value={reviewDocs.length} sub="Pending publication" accent="warning" />
           </div>
         </section>
@@ -480,9 +521,9 @@ function Dashboard() {
         <section className="mt-5">
           <SectionTitle title="Infrastructure Metrics" caption="CMDB and IPAM footprint." />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MetricCard icon={Server} label="CMDB Assets" value={assets.length} sub="Tracked infrastructure" accent="success" />
+            <MetricCard icon={Server} label="CMDB Assets" value={cmdbQuery.isSuccess ? assets.length : "—"} sub={cmdbQuery.isError ? "CMDB unavailable" : "Tracked infrastructure"} accent="success" />
             <MetricCard icon={Network} label="IP Records" value={ipamQuery.isSuccess ? ipamAddresses.length : "—"} sub={ipamQuery.isError ? "Shared IPAM unavailable" : ipamQuery.isLoading ? "Loading shared IPAM" : "IPAM entries"} accent="success" />
-            <MetricCard icon={Wrench} label="In Maintenance" value={maintenanceAssets.length} sub="Under service" accent="warning" />
+            <MetricCard icon={Wrench} label="In Maintenance" value={cmdbQuery.isSuccess ? maintenanceAssets.length : "—"} sub={cmdbQuery.isError ? "CMDB unavailable" : "Under service"} accent="warning" />
             <MetricCard icon={AlertTriangle} label="Unlinked IPs" value={ipamQuery.isSuccess ? unlinkedIP.length : "—"} sub={ipamQuery.isError ? "Shared IPAM unavailable" : ipamQuery.isLoading ? "Loading shared IPAM" : "Allocated, no asset"} accent="warning" />
           </div>
         </section>
@@ -492,7 +533,7 @@ function Dashboard() {
       {prefs.docsChart && docChart.length > 0 && (
         <section className="mt-5">
           <div className="glass-card rounded-2xl p-5">
-            <h2 className="mb-3 text-sm font-semibold tracking-tight">Knowledge Pages by Tag</h2>
+            <h2 className="mb-3 text-sm font-semibold tracking-tight">Browser-local Knowledge Pages by Tag</h2>
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={docChart} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
@@ -651,12 +692,12 @@ function WorkRow({ label, value, tone = "default", onClick }: { label: string; v
 
 function QuickActions({ role }: { role: Role }) {
   const actions: { to: string; icon: ComponentType<{ className?: string }>; label: string; cap?: string }[] = [
-    { to: "/tickets", icon: TicketIcon, label: "New ticket", cap: "tickets.create" },
-    { to: "/tasks", icon: CheckSquare, label: "New task", cap: "tasks.write" },
-    { to: "/protocols", icon: ListChecks, label: "Run protocol", cap: "protocols.manage" },
-    { to: "/cmdb", icon: Server, label: "Add asset", cap: "cmdb.manage" },
-    { to: "/ipam", icon: Network, label: "Add IP record", cap: "ipam.manage" },
-    { to: "/documents", icon: FileText, label: "New knowledge page", cap: "documents.create" },
+    { to: "/tickets/new", icon: TicketIcon, label: "New ticket", cap: "tickets.create" },
+    { to: "/tasks", icon: CheckSquare, label: "Open tasks", cap: "tasks.write" },
+    { to: "/protocols", icon: ListChecks, label: "Open protocols", cap: "protocols.manage" },
+    { to: "/cmdb", icon: Server, label: "Open CMDB", cap: "cmdb.manage" },
+    { to: "/ipam", icon: Network, label: "Open IPAM", cap: "ipam.manage" },
+    { to: "/documents", icon: FileText, label: "Open knowledge base", cap: "documents.create" },
   ];
   const filtered = actions.filter((a) => !a.cap || can(a.cap, role));
   return (
@@ -708,7 +749,7 @@ function AlertRow({
   }[severity];
   const sevLabel = { critical: "Critical", high: "Overdue", medium: "Warning", info: "Info" }[severity];
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/40 bg-background/30 p-2.5">
+    <div className="flex flex-col gap-3 rounded-xl border border-border/40 bg-background/30 p-2.5 sm:flex-row sm:items-center">
       <div className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg border", sevCls)}>
         <AlertTriangle className="h-4 w-4" />
       </div>
@@ -720,7 +761,7 @@ function AlertRow({
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</p>
       </div>
-      <Button size="sm" variant="ghost" className="shrink-0" onClick={onClick}>{cta}</Button>
+      <Button size="sm" variant="ghost" className="self-end shrink-0 sm:self-auto" onClick={onClick}>{cta}</Button>
     </div>
   );
 }
@@ -780,12 +821,12 @@ function CustomizeDrawer({
               {g.items.map((s) => (
                 <div key={s.key} className="flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-background/30 p-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                    <label htmlFor={`dashboard-section-${s.key}`} className="flex items-center gap-1.5 text-sm font-medium">
                       <Hash className="h-3 w-3 text-muted-foreground" /> {s.label}
-                    </div>
+                    </label>
                     <p className="text-xs text-muted-foreground">{s.hint}</p>
                   </div>
-                  <Switch checked={prefs[s.key]} onCheckedChange={(v) => setDashboardPref(s.key, !!v)} />
+                  <Switch id={`dashboard-section-${s.key}`} checked={prefs[s.key]} onCheckedChange={(v) => setDashboardPref(s.key, !!v)} />
                 </div>
               ))}
             </div>

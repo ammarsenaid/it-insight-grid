@@ -9,6 +9,7 @@ import {
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatusBadge, statusTone } from "@/components/common/StatusBadge";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,6 +61,8 @@ function ProtocolRunPage() {
 
   const [commentDraft, setCommentDraft] = useState("");
   const [tab, setTab] = useState("overview");
+  const [confirmAction, setConfirmAction] = useState<"rejected" | "completed_with_issues" | "failed" | "cancelled" | null>(null);
+  const [actionRationale, setActionRationale] = useState("");
 
   const invalidateRuns = () => qc.invalidateQueries({ queryKey: protocolRunsKeys.all });
 
@@ -183,17 +186,17 @@ function ProtocolRunPage() {
             {run.status === "waiting_approval" && (
               <>
                 <Button size="sm" onClick={() => approvalMutation.mutate({ runId: run.id, decision: "approved" })}><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />Approve</Button>
-                <Button size="sm" variant="outline" className="text-destructive" onClick={() => approvalMutation.mutate({ runId: run.id, decision: "rejected", comment: "Rejected" })}><X className="mr-1.5 h-3.5 w-3.5" />Reject</Button>
+                <Button size="sm" variant="outline" className="text-destructive" onClick={() => setConfirmAction("rejected")}><X className="mr-1.5 h-3.5 w-3.5" />Reject</Button>
               </>
             )}
             <Button size="sm" variant="outline" disabled={!allRequiredDone} onClick={() => setStatus("completed")}>
               <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />Complete
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setStatus("completed_with_issues")}>
+            <Button size="sm" variant="outline" onClick={() => setConfirmAction("completed_with_issues")}>
               <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />Complete with Issues
             </Button>
-            <Button size="sm" variant="outline" className="text-destructive" onClick={() => setStatus("failed")}>Mark Failed</Button>
-            <Button size="sm" variant="ghost" onClick={() => setStatus("cancelled")}>Cancel</Button>
+            <Button size="sm" variant="outline" className="text-destructive" onClick={() => setConfirmAction("failed")}>Mark Failed</Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmAction("cancelled")}>Cancel</Button>
           </div>
         )}
       </div>
@@ -317,6 +320,7 @@ function ProtocolRunPage() {
                   <Textarea rows={2} placeholder="Add a comment..." value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} className="text-xs" />
                   <Button
                     size="sm"
+                    aria-label="Add protocol comment"
                     disabled={commentMutation.isPending}
                     onClick={() => {
                       const body = commentDraft.trim();
@@ -344,6 +348,45 @@ function ProtocolRunPage() {
           </Tabs>
         </aside>
       </div>
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmAction(null);
+            setActionRationale("");
+          }
+        }}
+        title={confirmAction === "rejected"
+          ? "Reject this protocol run?"
+          : confirmAction === "completed_with_issues"
+            ? "Complete this run with issues?"
+            : confirmAction === "failed"
+              ? "Mark this run as failed?"
+              : "Cancel this protocol run?"}
+        description="This changes the run lifecycle and may affect operational reporting. Review the run before continuing."
+        confirmLabel={confirmAction === "rejected" ? "Reject run" : "Confirm status change"}
+        destructive={confirmAction === "rejected" || confirmAction === "failed" || confirmAction === "cancelled"}
+        onConfirm={() => {
+          if (!confirmAction) return;
+          if (confirmAction === "rejected") {
+            approvalMutation.mutate({ runId: run.id, decision: "rejected", comment: actionRationale.trim() || "Rejected" });
+          } else {
+            setStatus(confirmAction);
+          }
+          setConfirmAction(null);
+          setActionRationale("");
+        }}
+      >
+        {confirmAction === "rejected" && (
+          <Textarea
+            value={actionRationale}
+            onChange={(event) => setActionRationale(event.target.value)}
+            placeholder="Reason for rejection (optional)"
+            rows={3}
+          />
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

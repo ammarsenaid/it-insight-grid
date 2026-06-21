@@ -17,7 +17,11 @@ function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="Settings" description="Configure your personal application preferences." />
+      <PageHeader title="Browser Preferences" description="Configure personal display preferences stored only in this browser." />
+
+      <p className="mb-4 rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-xs text-muted-foreground">
+        These preferences are not synchronized to your account and may differ on another browser or device.
+      </p>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card title="Appearance">

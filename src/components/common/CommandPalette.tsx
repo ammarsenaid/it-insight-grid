@@ -22,6 +22,8 @@ import {
   Settings as SettingsIcon,
   Ticket,
   Inbox,
+  Bell,
+  ShoppingBag,
   ShieldCheck,
   BarChart3,
   Users,
@@ -34,8 +36,6 @@ import {
   CornerDownLeft,
   type LucideIcon,
 } from "lucide-react";
-import { useData } from "@/lib/data/store";
-import { useKnowledge } from "@/lib/knowledge/store";
 import { useTeamArticles } from "@/lib/knowledge/useTeamArticles";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { canSeePage, hasPageVisibilityRule, useRole, type Role } from "@/lib/permissions";
@@ -66,6 +66,8 @@ const NAV: NavEntry[] = [
   { label: "Global search", to: "/search", icon: Search, group: "Pages", keywords: "find" },
   { label: "Tickets", to: "/tickets", icon: Ticket, group: "Tickets" },
   { label: "My requests", to: "/my-requests", icon: Inbox, group: "Tickets" },
+  { label: "Service catalog", to: "/service-catalog", icon: ShoppingBag, group: "Tickets" },
+  { label: "Notifications", to: "/notifications", icon: Bell, group: "Tickets" },
   { label: "Knowledge base", to: "/documents", icon: FileText, group: "Knowledge", keywords: "docs articles" },
   { label: "CMDB", to: "/cmdb", icon: Server, group: "Assets", keywords: "inventory hardware" },
   { label: "IPAM", to: "/ipam", icon: Network, group: "IPAM", keywords: "subnet ip address" },
@@ -77,7 +79,7 @@ const NAV: NavEntry[] = [
   { label: "Users", to: "/admin/users", icon: Users, group: "Admin" },
   { label: "Teams", to: "/admin/teams", icon: UsersRound, group: "Admin" },
   { label: "Roles", to: "/admin/roles", icon: KeyRound, group: "Admin" },
-  { label: "Ticket configuration", to: "/admin/ticket-settings", icon: Sliders, group: "Admin" },
+  { label: "Ticket configuration overview", to: "/admin/ticket-settings", icon: Sliders, group: "Admin" },
   { label: "Recycle bin", to: "/trash", icon: Trash2, group: "System" },
   { label: "Settings", to: "/settings", icon: SettingsIcon, group: "System" },
 ];
@@ -119,8 +121,6 @@ export function CommandPalette({
   onOpenChange: (o: boolean) => void;
 }) {
   const navigate = useNavigate();
-  const data = useData();
-  const knowledge = useKnowledge();
   const backend = useTeamArticles();
   const { isPlatformAdmin } = useAuth();
   const role = useRole();
@@ -128,8 +128,6 @@ export function CommandPalette({
   const [recent, setRecent] = useState<string[]>([]);
 
   const canViewDocuments = canViewDestination("/documents", role, isPlatformAdmin);
-  const canViewCmdb = canViewDestination("/cmdb", role, isPlatformAdmin);
-  const canViewTasks = canViewDestination("/tasks", role, isPlatformAdmin);
   const canViewSearch = canViewDestination("/search", role, isPlatformAdmin);
 
   useEffect(() => {
@@ -142,28 +140,15 @@ export function CommandPalette({
 
   const records = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return { pages: [], backendArticles: [], assets: [], tasks: [] };
+    if (!q) return { backendArticles: [] };
     return {
-      pages: canViewDocuments
-        ? knowledge.nodes
-            .filter((n) => n.type === "page" && n.title.toLowerCase().includes(q))
-            .slice(0, 5)
-        : [],
       backendArticles: canViewDocuments
         ? backend.articles
             .filter((a) => a.title.toLowerCase().includes(q) || (a.excerpt ?? "").toLowerCase().includes(q))
             .slice(0, 6)
         : [],
-      assets: canViewCmdb
-        ? data.assets
-            .filter((a) => a.hostname.toLowerCase().includes(q) || a.displayName.toLowerCase().includes(q))
-            .slice(0, 5)
-        : [],
-      tasks: canViewTasks
-        ? data.tasks.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 5)
-        : [],
     };
-  }, [query, data, knowledge, backend, canViewDocuments, canViewCmdb, canViewTasks]);
+  }, [query, backend, canViewDocuments]);
 
   const visibleNav = useMemo(
     () => NAV.filter((n) => canViewDestination(n.to, role, isPlatformAdmin)),
@@ -266,7 +251,7 @@ export function CommandPalette({
         ))}
 
         {hasQuery &&
-          records.pages.length + records.backendArticles.length + records.assets.length + records.tasks.length > 0 && (
+          records.backendArticles.length > 0 && (
             <>
               <CommandSeparator />
               {records.backendArticles.length > 0 && (
@@ -276,33 +261,6 @@ export function CommandPalette({
                       <BookOpen className="mr-2 h-4 w-4" />
                       <span className="truncate">{a.title}</span>
                       <span className="ml-2 truncate text-xs text-muted-foreground">{a.team_name}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-              {records.pages.length > 0 && (
-                <CommandGroup heading="Knowledge pages">
-                  {records.pages.map((d) => (
-                    <CommandItem key={d.id} value={`page ${d.title}`} onSelect={() => go("/documents")}>
-                      <FileText className="mr-2 h-4 w-4" /> {d.title}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-              {records.assets.length > 0 && (
-                <CommandGroup heading="Assets">
-                  {records.assets.map((a) => (
-                    <CommandItem key={a.id} value={`asset ${a.hostname}`} onSelect={() => go("/cmdb")}>
-                      <Server className="mr-2 h-4 w-4" /> {a.hostname}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-              {records.tasks.length > 0 && (
-                <CommandGroup heading="Tasks">
-                  {records.tasks.map((t) => (
-                    <CommandItem key={t.id} value={`task ${t.title}`} onSelect={() => go("/tasks")}>
-                      <CheckSquare className="mr-2 h-4 w-4" /> {t.title}
                     </CommandItem>
                   ))}
                 </CommandGroup>

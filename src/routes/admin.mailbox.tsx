@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, Info, Loader2, Lock, Mail } from "lucide-react";
+import { AlertCircle, Info, Loader2, Lock, Mail, RefreshCw } from "lucide-react";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useRole, can } from "@/lib/permissions";
@@ -27,6 +28,7 @@ function MailboxAdmin() {
     isLoading,
     isError,
     error,
+    refetch,
   } = useQuery({
     ...mailboxConfigsQuery(),
     enabled,
@@ -76,7 +78,12 @@ function MailboxAdmin() {
             role="alert"
           >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            {error instanceof Error ? error.message : "Failed to load mailbox configs."}
+            <div className="flex-1">
+              <p>{error instanceof Error ? error.message : "Failed to load mailbox configs."}</p>
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => refetch()}>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Retry
+              </Button>
+            </div>
           </div>
         ) : configs.length === 0 ? (
           <EmptyState

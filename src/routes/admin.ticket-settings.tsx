@@ -28,7 +28,7 @@ import {
 } from "@/lib/service-desk/queries";
 
 export const Route = createFileRoute("/admin/ticket-settings")({
-  head: () => ({ meta: [{ title: "Ticket Configuration · IT Knowledge Center" }] }),
+  head: () => ({ meta: [{ title: "Ticket Configuration Overview · IT Knowledge Center" }] }),
   component: TicketSettings,
 });
 
@@ -65,7 +65,7 @@ function TicketSettings() {
     return (
       <div>
         <PageHeader
-          title="Ticket Configuration"
+          title="Ticket Configuration Overview"
           description="Categories, priorities, SLA policies, routing rules, and canned responses."
         />
         <EmptyState
@@ -81,7 +81,7 @@ function TicketSettings() {
     return (
       <div>
         <PageHeader
-          title="Ticket Configuration"
+          title="Ticket Configuration Overview"
           description="Categories, priorities, SLA policies, routing rules, and canned responses."
         />
         <EmptyState
@@ -106,7 +106,7 @@ function TicketSettings() {
   return (
     <div className="space-y-5 pb-8">
       <PageHeader
-        title="Ticket Configuration"
+        title="Ticket Configuration Overview"
         description="Review the live service desk taxonomy, targets, routing, and agent response standards."
       />
 
@@ -248,11 +248,13 @@ function TicketSettings() {
                       <td className="px-3 py-2 font-mono">{r.priorityOrder}</td>
                       <td className="px-3 py-2">{r.name}</td>
                       <td className="px-3 py-2 font-mono text-[10px] text-muted-foreground">
-                        {JSON.stringify(r.matchWhen)}
+                        <RuleFields value={r.matchWhen} />
                       </td>
                       <td className="px-3 py-2 font-mono text-[10px]">
-                        <RouteIcon className="mr-1 inline h-3 w-3 text-muted-foreground" />
-                        {JSON.stringify(r.action)}
+                        <div className="flex items-start gap-1">
+                          <RouteIcon className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+                          <RuleFields value={r.action} />
+                        </div>
                       </td>
                       <td className="px-3 py-2">{r.isActive ? "Yes" : "No"}</td>
                     </tr>
@@ -300,5 +302,21 @@ function TicketSettings() {
         </SectionCard>
       </div>
     </div>
+  );
+}
+
+function RuleFields({ value }: { value: Record<string, unknown> }) {
+  const entries = Object.entries(value);
+  if (entries.length === 0) return <span>None</span>;
+
+  return (
+    <dl className="space-y-1">
+      {entries.map(([key, fieldValue]) => (
+        <div key={key} className="grid grid-cols-[minmax(80px,auto)_1fr] gap-2">
+          <dt className="font-sans font-medium text-muted-foreground">{key.replaceAll("_", " ")}</dt>
+          <dd className="break-words">{typeof fieldValue === "string" ? fieldValue : JSON.stringify(fieldValue)}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

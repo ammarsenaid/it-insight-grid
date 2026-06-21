@@ -158,6 +158,9 @@ function TasksPage() {
   const [saveViewOpen, setSaveViewOpen] = useState(false);
   const [newViewName, setNewViewName] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmBulkAction, setConfirmBulkAction] = useState<"archive" | "delete" | null>(null);
+  const [bulkTagOpen, setBulkTagOpen] = useState(false);
+  const [bulkTagValue, setBulkTagValue] = useState("");
   const [calCursor, setCalCursor] = useState<Date>(new Date());
   const allRegistryTemplates = useTemplates();
   const taskRegistryTemplates = useMemo(
@@ -515,31 +518,31 @@ function TasksPage() {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <SearchInput value={query} onChange={setQuery} placeholder="Search tasks..." className="w-full sm:w-64" />
           <Select value={fCat} onValueChange={setFCat}>
-            <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Category" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full sm:w-[140px]"><SelectValue placeholder="Category" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All categories</SelectItem>{cats.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={fPrio} onValueChange={setFPrio}>
-            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="Priority" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full sm:w-[130px]"><SelectValue placeholder="Priority" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All priority</SelectItem>{PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={fStatus} onValueChange={setFStatus}>
-            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full sm:w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All status</SelectItem>{STATUSES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={fTeam} onValueChange={setFTeam}>
-            <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Team" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full sm:w-[140px]"><SelectValue placeholder="Team" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All teams</SelectItem>{TASK_TEAMS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={fAssignee} onValueChange={setFAssignee}>
-            <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Assignee" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full sm:w-[140px]"><SelectValue placeholder="Assignee" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All assignees</SelectItem>{TASK_OWNERS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={fSource} onValueChange={setFSource}>
-            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="Source" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full sm:w-[130px]"><SelectValue placeholder="Source" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All sources</SelectItem>{TASK_SOURCES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={fDue} onValueChange={setFDue}>
-            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="Due" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full sm:w-[130px]"><SelectValue placeholder="Due" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Any time</SelectItem>
               <SelectItem value="overdue">Overdue</SelectItem>
@@ -554,14 +557,14 @@ function TasksPage() {
           <Button variant="ghost" size="sm" className="h-9" onClick={resetFilters}>Reset</Button>
           <div className="ml-auto flex items-center gap-2">
             <Select value="" onValueChange={applyView}>
-              <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Saved views" /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Browser-saved views" /></SelectTrigger>
               <SelectContent>
                 {data.taskViews.length === 0 && <SelectItem value="__none" disabled>No views</SelectItem>}
                 {data.taskViews.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
               </SelectContent>
             </Select>
             <Button variant="ghost" size="sm" className="h-9" onClick={() => setSaveViewOpen(true)}>
-              <Bookmark className="mr-1.5 h-3.5 w-3.5" /> Save view
+              <Bookmark className="mr-1.5 h-3.5 w-3.5" /> Save view locally
             </Button>
             {data.taskViews.length > 0 && (
               <DropdownMenu>
@@ -602,14 +605,11 @@ function TasksPage() {
               if (!e.target.value) return;
               bulkUpdateMutation.mutate({ dueDate: e.target.value }, { onSuccess: () => { toast.success("Due date set"); setSelected(new Set()); } });
             }} />
-            <Button size="sm" variant="ghost" className="h-7" onClick={() => {
-              const t = prompt("Tag to add:");
-              if (t) bulkAddTagMutation.mutate(t, { onSuccess: () => { toast.success("Tag added"); setSelected(new Set()); } });
-            }}>Add tag</Button>
-            <Button size="sm" variant="ghost" className="h-7" onClick={() => bulkArchiveMutation.mutate(undefined, { onSuccess: () => { toast.success("Archived"); setSelected(new Set()); } })}>
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => setBulkTagOpen(true)}>Add tag</Button>
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfirmBulkAction("archive")}>
               <Archive className="mr-1 h-3 w-3" /> Archive
             </Button>
-            <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => bulkDeleteMutation.mutate(undefined, { onSuccess: () => { toast.success("Moved to recycle bin"); setSelected(new Set()); } })}>
+            <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => setConfirmBulkAction("delete")}>
               <Trash2 className="mr-1 h-3 w-3" /> Delete
             </Button>
             <Button size="sm" variant="ghost" className="h-7 ml-auto" onClick={() => setSelected(new Set())}>Clear</Button>
@@ -828,9 +828,35 @@ function TasksPage() {
       </FormDrawer>
 
       {/* Save view dialog */}
-      <FormDrawer open={saveViewOpen} onOpenChange={setSaveViewOpen} title="Save current view" onSubmit={persistView} submitLabel="Save view">
+      <FormDrawer open={saveViewOpen} onOpenChange={setSaveViewOpen} title="Save view in this browser" description="This view will not sync to your account or other devices." onSubmit={persistView} submitLabel="Save view locally">
         <FormGrid columns={1}>
           <FormField label="View name"><Input value={newViewName} onChange={(e) => setNewViewName(e.target.value)} className="h-9" /></FormField>
+        </FormGrid>
+      </FormDrawer>
+
+      <FormDrawer
+        open={bulkTagOpen}
+        onOpenChange={setBulkTagOpen}
+        title="Add tag to selected tasks"
+        description={`The tag will be added to ${selected.size} selected task${selected.size === 1 ? "" : "s"}.`}
+        submitLabel="Add tag"
+        onSubmit={() => {
+          const tag = bulkTagValue.trim();
+          if (!tag) { toast.error("Tag is required"); return; }
+          bulkAddTagMutation.mutate(tag, {
+            onSuccess: () => {
+              toast.success("Tag added");
+              setSelected(new Set());
+              setBulkTagValue("");
+              setBulkTagOpen(false);
+            },
+          });
+        }}
+      >
+        <FormGrid columns={1}>
+          <FormField label="Tag" required>
+            <Input value={bulkTagValue} onChange={(event) => setBulkTagValue(event.target.value)} placeholder="e.g. urgent" />
+          </FormField>
         </FormGrid>
       </FormDrawer>
 
@@ -846,6 +872,25 @@ function TasksPage() {
           const id = confirmDelete;
           deleteMutation.mutate(id, { onSuccess: () => toast.success("Moved to recycle bin") });
           setConfirmDelete(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmBulkAction !== null}
+        onOpenChange={(open) => !open && setConfirmBulkAction(null)}
+        title={confirmBulkAction === "delete" ? "Delete selected tasks?" : "Archive selected tasks?"}
+        description={confirmBulkAction === "delete"
+          ? `${selected.size} selected task${selected.size === 1 ? "" : "s"} will be moved to the recycle bin.`
+          : `${selected.size} selected task${selected.size === 1 ? "" : "s"} will be archived.`}
+        confirmLabel={confirmBulkAction === "delete" ? "Delete tasks" : "Archive tasks"}
+        destructive={confirmBulkAction === "delete"}
+        onConfirm={() => {
+          if (confirmBulkAction === "delete") {
+            bulkDeleteMutation.mutate(undefined, { onSuccess: () => { toast.success("Moved to recycle bin"); setSelected(new Set()); } });
+          } else if (confirmBulkAction === "archive") {
+            bulkArchiveMutation.mutate(undefined, { onSuccess: () => { toast.success("Archived"); setSelected(new Set()); } });
+          }
+          setConfirmBulkAction(null);
         }}
       />
 

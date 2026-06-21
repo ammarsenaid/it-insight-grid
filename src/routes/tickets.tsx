@@ -1,5 +1,5 @@
 import { Outlet, createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Ticket as TicketIcon,
@@ -92,6 +92,7 @@ import type {
   TicketStatus,
   TicketType,
 } from "@/lib/service-desk/types";
+import { consumePendingTicketFilters } from "@/lib/dashboard-prefs";
 
 export const Route = createFileRoute("/tickets")({
   head: () => ({ meta: [{ title: "Tickets · IT Knowledge Center" }] }),
@@ -190,6 +191,21 @@ export function TicketsPage() {
   const [tagOpen, setTagOpen] = useState(false);
   const [tagValue, setTagValue] = useState("");
   const [showMoreMetrics, setShowMoreMetrics] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    const pending = consumePendingTicketFilters();
+    if (!pending) return;
+
+    if (pending.status && TICKET_STATUSES.includes(pending.status as TicketStatus)) {
+      setFStatus(pending.status);
+    }
+    if (pending.scope === "mine") setFAssignee(userId);
+    if (pending.scope === "unassigned") setFAssignee("unassigned");
+    if (pending.scope === "waiting") setFStatus("on_hold");
+    if (pending.scope === "resolvedToday") setFStatus("resolved");
+    setPage(1);
+  }, [userId]);
 
   const resetFilters = () => {
     setQuery(""); setFStatus("all"); setFPriority("all"); setFType("all"); setFTeam("all");
@@ -673,7 +689,7 @@ function SelectFilter({
 }: { value: string; onChange: (v: string) => void; placeholder: string; options: { value: string; label: string }[] }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-9 w-[140px] text-xs"><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectTrigger className="h-9 w-full text-xs sm:w-[140px]"><SelectValue placeholder={placeholder} /></SelectTrigger>
       <SelectContent>
         {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
       </SelectContent>
@@ -756,7 +772,7 @@ function RowActions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="ghost" className="h-7 w-7 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" aria-label={`Actions for ticket ${ticket.ticketNumber}`}><MoreHorizontal className="h-4 w-4" /></Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel className="text-[10px] text-muted-foreground">{ticket.ticketNumber}</DropdownMenuLabel>
@@ -857,4 +873,3 @@ function CreateTicketDrawer({
     />
   );
 }
-

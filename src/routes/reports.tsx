@@ -85,8 +85,8 @@ function ReportsPage() {
   return (
     <div>
       <PageHeader
-        title="Reports"
-        description="Monitor service performance and operational trends."
+        title="Browser-local Report Preview"
+        description="Explore report layouts using data stored in this browser. These are not live production reports."
         actions={
           <div className="flex items-center gap-2">
             <Select value={range} onValueChange={setRange}>
@@ -101,6 +101,17 @@ function ReportsPage() {
           </div>
         }
       />
+
+      <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+        <div>
+          <p className="font-medium text-amber-100">Preview data only</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-amber-100/80">
+            All values and CSV exports on this page come from browser-local legacy data. Verify
+            operational information in the live Tickets, CMDB, IPAM, Tasks, and Knowledge modules.
+          </p>
+        </div>
+      </div>
 
       {/* Overview cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">

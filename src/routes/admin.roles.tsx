@@ -1563,9 +1563,11 @@ function RoleDirectoryGrid({
                   <Eye className="mr-1.5 h-3.5 w-3.5" /> Preview
                 </Button>
               ) : (
-                <Button size="sm" variant="secondary" className="flex-1" disabled>
-                  <Eye className="mr-1.5 h-3.5 w-3.5 opacity-50" /> Preview
-                </Button>
+                <span className="flex-1" title="Preview is unavailable because this database role has no frontend preview mapping.">
+                  <Button size="sm" variant="secondary" className="w-full" disabled>
+                    <Eye className="mr-1.5 h-3.5 w-3.5 opacity-50" /> Preview unavailable
+                  </Button>
+                </span>
               )}
             </div>
           </article>
