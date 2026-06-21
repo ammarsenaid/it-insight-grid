@@ -98,41 +98,80 @@ check_url() {
     "$url"
 }
 
+fetch_html() {
+  local label=$1
+  local url=$2
+  local output_file=$3
+
+  printf 'Fetching %s HTML: %s\n' "$label" "$url"
+  curl \
+    --fail \
+    --silent \
+    --show-error \
+    --location \
+    --max-time 20 \
+    --retry 3 \
+    --retry-delay 2 \
+    --output "$output_file" \
+    "$url"
+}
+
+extract_asset_references() {
+  local html_file=$1
+  local -n output=$2
+
+  mapfile -t output < <(
+    grep -aEo '/assets/[A-Za-z0-9._/-]+\.(js|css)(\?[^"'"'"'<>[:space:]]*)?' "$html_file" |
+      sed 's/?[^?]*$//' |
+      sort -u
+  )
+}
+
+verify_local_assets() {
+  local -n assets=$1
+
+  (( ${#assets[@]} > 0 )) ||
+    fail "Local frontend HTML did not reference any JavaScript or CSS assets."
+
+  for asset in "${assets[@]}"; do
+    local asset_path="dist/client/${asset#/}"
+    [[ -f "$asset_path" ]] || fail "Referenced local asset is missing: $asset_path"
+    printf 'Found local asset: %s\n' "$asset_path"
+  done
+}
+
+verify_public_assets() {
+  local -n assets=$1
+
+  (( ${#assets[@]} > 0 )) ||
+    fail "Public frontend HTML did not reference any JavaScript or CSS assets."
+
+  for asset in "${assets[@]}"; do
+    check_url "public asset" "$public_base_url$asset"
+  done
+}
+
 check_url "local root" "$local_base_url/"
 check_url "local admin roles" "$local_base_url/admin/roles"
 check_url "public root" "$public_base_url/"
 check_url "public admin roles" "$public_base_url/admin/roles"
 
 section "Verify HTML asset references"
-html_file=$(mktemp)
-trap 'rm -f "$html_file"' EXIT
+local_html_file=$(mktemp)
+public_html_file=$(mktemp)
+trap 'rm -f "$local_html_file" "$public_html_file"' EXIT
 
-curl \
-  --fail \
-  --silent \
-  --show-error \
-  --location \
-  --max-time 20 \
-  --retry 3 \
-  --retry-delay 2 \
-  --output "$html_file" \
-  "$local_base_url/"
+fetch_html "local root" "$local_base_url/" "$local_html_file"
+fetch_html "public root" "$public_base_url/" "$public_html_file"
 
-mapfile -t referenced_assets < <(
-  grep -aEo '/assets/[A-Za-z0-9._/-]+\.(js|css)(\?[^"'"'"'<>[:space:]]*)?' "$html_file" |
-    sed 's/?[^?]*$//' |
-    sort -u
-)
+local_assets=()
+public_assets=()
+extract_asset_references "$local_html_file" local_assets
+extract_asset_references "$public_html_file" public_assets
 
-(( ${#referenced_assets[@]} > 0 )) ||
-  fail "Local frontend HTML did not reference any JavaScript or CSS assets."
-
-for asset in "${referenced_assets[@]}"; do
-  asset_path="dist/client/${asset#/}"
-  [[ -f "$asset_path" ]] || fail "Referenced asset is missing: $asset_path"
-  printf 'Found %s\n' "$asset_path"
-done
+verify_local_assets local_assets
+verify_public_assets public_assets
 
 section "Deployment successful"
-printf 'Frontend build, restart, route checks, and %d asset checks passed.\n' \
-  "${#referenced_assets[@]}"
+printf 'Frontend build, restart, route checks, %d local asset checks, and %d public asset checks passed.\n' \
+  "${#local_assets[@]}" "${#public_assets[@]}"
