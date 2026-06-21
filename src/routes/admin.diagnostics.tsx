@@ -1,6 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { AlertTriangle, Database, Download, FileText, Inbox, Plus, RefreshCw, RotateCcw, Save, Ticket, Trash2, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  Database,
+  Download,
+  FileText,
+  Inbox,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Ticket,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/common/PageHeader";
@@ -37,7 +50,11 @@ function DiagnosticsPage() {
   const [confirmDeleteSnap, setConfirmDeleteSnap] = useState<string | null>(null);
   const [confirmRestoreSnap, setConfirmRestoreSnap] = useState<string | null>(null);
   const [snapshotName, setSnapshotName] = useState("");
-  const [importPreview, setImportPreview] = useState<{ json: string; summary: Record<string, number>; ok: boolean } | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    json: string;
+    summary: Record<string, number>;
+    ok: boolean;
+  } | null>(null);
 
   if (!isPlatformAdmin) {
     return (
@@ -71,7 +88,21 @@ function DiagnosticsPage() {
     try {
       const parsed = JSON.parse(text);
       const summary: Record<string, number> = {};
-      for (const k of ["folders", "documents", "assets", "ipam", "tasks", "notes", "tickets", "users", "teams", "trash", "activity", "snapshots", "notifications"]) {
+      for (const k of [
+        "folders",
+        "documents",
+        "assets",
+        "ipam",
+        "tasks",
+        "notes",
+        "tickets",
+        "users",
+        "teams",
+        "trash",
+        "activity",
+        "snapshots",
+        "notifications",
+      ]) {
         if (Array.isArray(parsed[k])) summary[k] = parsed[k].length;
       }
       setImportPreview({ json: text, summary, ok: !!parsed.settings });
@@ -91,7 +122,16 @@ function DiagnosticsPage() {
     const json = exportJSON();
     setState((st) => ({
       ...st,
-      snapshots: [{ id: uid("snap"), name: snapshotName || `Snapshot ${st.snapshots.length + 1}`, createdAt: new Date().toISOString(), data: json, sizeBytes: json.length }, ...st.snapshots],
+      snapshots: [
+        {
+          id: uid("snap"),
+          name: snapshotName || `Snapshot ${st.snapshots.length + 1}`,
+          createdAt: new Date().toISOString(),
+          data: json,
+          sizeBytes: json.length,
+        },
+        ...st.snapshots,
+      ],
     }));
     setSnapshotName("");
     toast.success("Snapshot created");
@@ -121,11 +161,29 @@ function DiagnosticsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Diagnostics" description="Internal developer and operations tools." />
+    <div className="space-y-5 pb-8">
+      <PageHeader
+        title="Diagnostics"
+        description="Inspect local workspace state and run restricted support operations."
+      />
+
+      <div className="flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3 text-xs text-amber-100/80 shadow-sm">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+        <div>
+          <p className="font-semibold text-amber-100">Platform administrator tools</p>
+          <p className="mt-0.5 leading-relaxed">
+            These utilities operate on browser-local application data and should be used
+            deliberately during support or QA.
+          </p>
+        </div>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <SectionCard title="Workspace status" description="Local environment health">
+        <SectionCard
+          title="Workspace status"
+          description="Local environment health"
+          className="border-border/50 shadow-sm"
+        >
           <ul className="space-y-2 text-sm">
             <li className="flex items-center gap-2 text-emerald-300">
               <FileText className="h-3.5 w-3.5" /> Knowledge module ready
@@ -156,7 +214,11 @@ function DiagnosticsPage() {
           </Button>
         </SectionCard>
 
-        <SectionCard title="Developer tools" description="Restricted utilities for QA and support">
+        <SectionCard
+          title="Developer tools"
+          description="Restricted utilities for QA and support"
+          className="border-border/50 shadow-sm"
+        >
           <ul className="space-y-2 text-sm">
             <li>
               <Link
@@ -165,13 +227,17 @@ function DiagnosticsPage() {
               >
                 <Inbox className="h-4 w-4 text-primary" />
                 <span className="flex-1">Mailbox Simulator</span>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">QA tool</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  QA tool
+                </span>
               </Link>
             </li>
             <li className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/40 px-3 py-2 text-muted-foreground">
               <Database className="h-4 w-4" />
               <span className="flex-1">Knowledge backend</span>
-              <span className="text-[10px] uppercase tracking-wider text-emerald-400">Connected</span>
+              <span className="text-[10px] uppercase tracking-wider text-emerald-400">
+                Connected
+              </span>
             </li>
           </ul>
         </SectionCard>
@@ -180,10 +246,14 @@ function DiagnosticsPage() {
       <SectionCard
         title="Local Data Tools"
         description="Administrative tools for managing locally stored application data."
+        className="border-border/50 shadow-sm"
       >
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>These actions affect data stored in this browser only. They do not touch any remote backend or other users.</p>
+          <p>
+            These actions affect data stored in this browser only. They do not touch any remote
+            backend or other users.
+          </p>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -197,35 +267,93 @@ function DiagnosticsPage() {
           <Stat label="Trash" value={data.trash.length} />
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button size="sm" onClick={doExport}><Download className="mr-1.5 h-4 w-4" /> Export data</Button>
-          <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()}><Upload className="mr-1.5 h-4 w-4" /> Import data</Button>
-          <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) previewImport(f); e.target.value = ""; }} />
-          <Button size="sm" variant="secondary" onClick={() => setConfirmReset(true)}><RotateCcw className="mr-1.5 h-4 w-4" /> Reset local data</Button>
-          <Button size="sm" variant="destructive" onClick={() => setConfirmClear(true)}><Trash2 className="mr-1.5 h-4 w-4" /> Clear local data</Button>
+        <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+          <div className="flex flex-wrap gap-2 rounded-xl border border-border/40 bg-background/25 p-3">
+            <Button size="sm" onClick={doExport}>
+              <Download className="mr-1.5 h-4 w-4" /> Export data
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()}>
+              <Upload className="mr-1.5 h-4 w-4" /> Import data
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) previewImport(f);
+                e.target.value = "";
+              }}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2 rounded-xl border border-destructive/25 bg-destructive/[0.05] p-3">
+            <Button size="sm" variant="secondary" onClick={() => setConfirmReset(true)}>
+              <RotateCcw className="mr-1.5 h-4 w-4" /> Reset local data
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setConfirmClear(true)}>
+              <Trash2 className="mr-1.5 h-4 w-4" /> Clear local data
+            </Button>
+          </div>
         </div>
 
-        <div className="mt-6 border-t border-border/40 pt-4">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Backup snapshots</h4>
+        <div className="mt-6 rounded-xl border border-border/40 bg-background/20 p-4">
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Backup snapshots
+          </h4>
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-48 flex-1 space-y-1.5">
               <Label className="text-xs text-muted-foreground">Snapshot name</Label>
-              <Input value={snapshotName} onChange={(e) => setSnapshotName(e.target.value)} placeholder="Optional name" />
+              <Input
+                value={snapshotName}
+                onChange={(e) => setSnapshotName(e.target.value)}
+                placeholder="Optional name"
+              />
             </div>
-            <Button size="sm" onClick={createSnapshot}><Plus className="mr-1.5 h-4 w-4" /> Create snapshot</Button>
+            <Button size="sm" onClick={createSnapshot}>
+              <Plus className="mr-1.5 h-4 w-4" /> Create snapshot
+            </Button>
           </div>
           <div className="mt-3 space-y-2">
-            {data.snapshots.length === 0 && <p className="text-xs text-muted-foreground">No snapshots yet.</p>}
+            {data.snapshots.length === 0 && (
+              <p className="text-xs text-muted-foreground">No snapshots yet.</p>
+            )}
             {data.snapshots.map((sn) => (
-              <div key={sn.id} className="flex items-center justify-between rounded-xl border border-border/40 bg-background/40 p-3">
+              <div
+                key={sn.id}
+                className="flex flex-col gap-3 rounded-xl border border-border/40 bg-card/40 p-3 transition-colors hover:border-border sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div>
                   <div className="text-sm font-medium">{sn.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{formatDateTime(sn.createdAt)} · {(sn.sizeBytes / 1024).toFixed(1)} KB</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {formatDateTime(sn.createdAt)} · {(sn.sizeBytes / 1024).toFixed(1)} KB
+                  </div>
                 </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => downloadSnapshot(sn.id)} title="Download"><Download className="h-3.5 w-3.5" /></Button>
-                  <Button size="sm" variant="secondary" onClick={() => setConfirmRestoreSnap(sn.id)}><Save className="mr-1.5 h-3.5 w-3.5" /> Restore</Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setConfirmDeleteSnap(sn.id)} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => downloadSnapshot(sn.id)}
+                    title="Download"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setConfirmRestoreSnap(sn.id)}
+                  >
+                    <Save className="mr-1.5 h-3.5 w-3.5" /> Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => setConfirmDeleteSnap(sn.id)}
+                    title="Delete"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
             ))}
@@ -240,7 +368,11 @@ function DiagnosticsPage() {
         description="This replaces locally stored application data with the default dataset. This affects this browser only."
         destructive
         confirmLabel="Reset"
-        onConfirm={() => { resetDemo(); toast.success("Data restored to defaults"); setConfirmReset(false); }}
+        onConfirm={() => {
+          resetDemo();
+          toast.success("Data restored to defaults");
+          setConfirmReset(false);
+        }}
       />
       <ConfirmDialog
         open={confirmClear}
@@ -249,7 +381,11 @@ function DiagnosticsPage() {
         description="This removes locally stored application data from this browser. This cannot be undone."
         destructive
         confirmLabel="Clear"
-        onConfirm={() => { clearAll(); toast.success("All data cleared"); setConfirmClear(false); }}
+        onConfirm={() => {
+          clearAll();
+          toast.success("All data cleared");
+          setConfirmClear(false);
+        }}
       />
       <ConfirmDialog
         open={!!confirmRestoreSnap}
@@ -258,7 +394,10 @@ function DiagnosticsPage() {
         description="This replaces locally stored application data with the contents of this snapshot."
         destructive
         confirmLabel="Restore"
-        onConfirm={() => { if (confirmRestoreSnap) restoreSnapshot(confirmRestoreSnap); setConfirmRestoreSnap(null); }}
+        onConfirm={() => {
+          if (confirmRestoreSnap) restoreSnapshot(confirmRestoreSnap);
+          setConfirmRestoreSnap(null);
+        }}
       />
       <ConfirmDialog
         open={!!confirmDeleteSnap}
@@ -267,21 +406,31 @@ function DiagnosticsPage() {
         description="The snapshot will be permanently removed from this browser."
         destructive
         confirmLabel="Delete"
-        onConfirm={() => { if (confirmDeleteSnap) deleteSnapshot(confirmDeleteSnap); setConfirmDeleteSnap(null); }}
+        onConfirm={() => {
+          if (confirmDeleteSnap) deleteSnapshot(confirmDeleteSnap);
+          setConfirmDeleteSnap(null);
+        }}
       />
       <ConfirmDialog
         open={!!importPreview}
         onOpenChange={(o) => !o && setImportPreview(null)}
         title={importPreview?.ok ? "Replace local data with import?" : "Invalid import file"}
-        description={importPreview?.ok ? "Review the contents below — your current data will be replaced." : "The selected file does not appear to be a valid backup."}
+        description={
+          importPreview?.ok
+            ? "Review the contents below — your current data will be replaced."
+            : "The selected file does not appear to be a valid backup."
+        }
         destructive={importPreview?.ok}
         confirmLabel={importPreview?.ok ? "Replace data" : "OK"}
-        onConfirm={() => importPreview?.ok ? confirmImport() : setImportPreview(null)}
+        onConfirm={() => (importPreview?.ok ? confirmImport() : setImportPreview(null))}
       >
         {importPreview?.ok && (
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
             {Object.entries(importPreview.summary).map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between rounded-md border border-border/40 bg-background/40 px-2 py-1">
+              <div
+                key={k}
+                className="flex items-center justify-between rounded-md border border-border/40 bg-background/40 px-2 py-1"
+              >
                 <span className="capitalize text-muted-foreground">{k}</span>
                 <span className="font-mono">{v}</span>
               </div>
@@ -295,9 +444,11 @@ function DiagnosticsPage() {
 
 function Stat({ label, value, tone }: { label: string; value: string | number; tone?: "success" }) {
   return (
-    <div className="rounded-xl border border-border/40 bg-background/40 p-3">
+    <div className="rounded-xl border border-border/40 bg-background/40 p-3 transition-colors hover:border-border/70 hover:bg-muted/15">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`mt-1 text-sm font-semibold ${tone === "success" ? "text-[#52D6A4]" : ""}`}>{value}</div>
+      <div className={`mt-1 text-sm font-semibold ${tone === "success" ? "text-[#52D6A4]" : ""}`}>
+        {value}
+      </div>
     </div>
   );
 }

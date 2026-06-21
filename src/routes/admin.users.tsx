@@ -68,7 +68,6 @@ export const Route = createFileRoute("/admin/users")({
   component: AdminUsersPage,
 });
 
-const BACKEND_ACTION_PENDING = "Backend action pending";
 const NO_SELECTION = "none";
 
 type UserDraft = {
@@ -286,10 +285,10 @@ function AdminUsersPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-5 pb-8">
       <PageHeader
         title="Users"
-        description="Manage workspace users and access."
+        description="Manage workspace identities, account status, teams, and assigned roles."
         actions={
           <Button size="sm" onClick={openCreate}>
             <Plus className="mr-1.5 h-4 w-4" /> Add user
@@ -297,9 +296,9 @@ function AdminUsersPage() {
         }
       />
 
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-xl border border-border/50 bg-card/60 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <Tabs value={tab} onValueChange={(value) => setTab(value as typeof tab)}>
-          <TabsList>
+          <TabsList className="h-9 border border-border/40 bg-background/40 p-1">
             <TabsTrigger value="active">
               Active ({data.filter((user) => user.isActive).length})
             </TabsTrigger>
@@ -308,7 +307,7 @@ function AdminUsersPage() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="relative max-w-sm flex-1 sm:w-72 sm:flex-none">
+        <div className="relative max-w-sm flex-1 sm:w-80 sm:flex-none">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
@@ -319,7 +318,7 @@ function AdminUsersPage() {
         </div>
       </div>
 
-      <SectionCard contentClassName="p-0">
+      <SectionCard className="overflow-hidden border-border/50 shadow-sm" contentClassName="p-0">
         {isLoading ? (
           <div className="p-6 text-sm text-muted-foreground">Loading users…</div>
         ) : isError ? (
@@ -343,65 +342,74 @@ function AdminUsersPage() {
             className="m-4"
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visible.map((user) => (
-                <TableRow key={user.id} className="cursor-pointer" onClick={() => setDetails(user)}>
-                  <TableCell>
-                    <div className="font-medium">{user.displayName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {user.email ?? "Email unavailable"}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">Not available</TableCell>
-                  <TableCell className="text-sm">{listLabel(user.teamNames)}</TableCell>
-                  <TableCell>
-                    <StatusBadge label={listLabel(user.roleNames, "No global role")} tone="info" />
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      label={user.isActive ? "active" : "inactive"}
-                      tone={user.isActive ? "success" : "muted"}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setDetails(user)}>
-                          View user details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEdit(user)}>
-                          Edit user
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          disabled={statusActionUserId === user.id}
-                          onClick={() => handleSetUserActive(user, !user.isActive)}
-                        >
-                          {user.isActive ? "Disable" : "Enable"} user
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          <div className="max-h-[68vh] overflow-auto">
+            <Table className="min-w-[900px]">
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>User</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Team</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {visible.map((user) => (
+                  <TableRow
+                    key={user.id}
+                    className="cursor-pointer transition-colors hover:bg-muted/25"
+                    onClick={() => setDetails(user)}
+                  >
+                    <TableCell>
+                      <div className="font-medium">{user.displayName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {user.email ?? "Email unavailable"}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">Not available</TableCell>
+                    <TableCell className="text-sm">{listLabel(user.teamNames)}</TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        label={listLabel(user.roleNames, "No global role")}
+                        tone="info"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        label={user.isActive ? "active" : "inactive"}
+                        tone={user.isActive ? "success" : "muted"}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setDetails(user)}>
+                            View user details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(user)}>
+                            Edit user
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            disabled={statusActionUserId === user.id}
+                            onClick={() => handleSetUserActive(user, !user.isActive)}
+                          >
+                            {user.isActive ? "Disable" : "Enable"} user
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </SectionCard>
 
@@ -415,7 +423,7 @@ function AdminUsersPage() {
         onSubmit={submitCreate}
         submitLabel={createMutation.isPending ? "Creating…" : "Create user"}
       >
-        <div className="space-y-1.5">
+        <div className="space-y-2 rounded-xl border border-border/40 bg-card/30 p-3.5">
           <Label htmlFor="new-user-display-name" className="text-xs">
             Display name
           </Label>
@@ -427,7 +435,7 @@ function AdminUsersPage() {
             autoComplete="name"
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2 rounded-xl border border-border/40 bg-card/30 p-3.5">
           <Label htmlFor="new-user-email" className="text-xs">
             Email
           </Label>
@@ -440,7 +448,7 @@ function AdminUsersPage() {
             autoComplete="email"
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2 rounded-xl border border-border/40 bg-card/30 p-3.5">
           <Label className="text-xs">Initial global role</Label>
           <Select
             value={draft.roleId ?? NO_SELECTION}
@@ -461,7 +469,7 @@ function AdminUsersPage() {
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2 rounded-xl border border-border/40 bg-card/30 p-3.5">
           <Label className="text-xs">Team</Label>
           <Select
             value={draft.teamId ?? NO_SELECTION}
@@ -482,7 +490,7 @@ function AdminUsersPage() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-border/40 p-3">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-card/30 p-3.5">
           <div>
             <Label htmlFor="new-user-active" className="text-xs">
               Active account
@@ -529,7 +537,7 @@ function AdminUsersPage() {
         onSubmit={submitEdit}
         submitLabel={updateMutation.isPending ? "Saving…" : "Save changes"}
       >
-        <div className="space-y-1.5">
+        <div className="space-y-2 rounded-xl border border-border/40 bg-card/30 p-3.5">
           <Label htmlFor="edit-user-display-name" className="text-xs">
             Display name
           </Label>
@@ -542,7 +550,7 @@ function AdminUsersPage() {
           />
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2 rounded-xl border border-border/40 bg-card/30 p-3.5">
           <Label htmlFor="edit-user-email" className="text-xs">
             Email
           </Label>
@@ -558,7 +566,7 @@ function AdminUsersPage() {
           </p>
         </div>
 
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-border/40 p-3">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-card/30 p-3.5">
           <div>
             <Label htmlFor="edit-user-active" className="text-xs">
               Active account

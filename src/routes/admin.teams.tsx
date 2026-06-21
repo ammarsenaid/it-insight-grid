@@ -172,10 +172,10 @@ function AdminTeamsPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-5 pb-8">
       <PageHeader
         title="Teams"
-        description="Manage teams, ownership and membership."
+        description="Organize service ownership, team membership, and operational responsibilities."
         actions={
           <Button size="sm" onClick={openCreate}>
             <Plus className="mr-1.5 h-4 w-4" /> Add team
@@ -183,8 +183,11 @@ function AdminTeamsPage() {
         }
       />
 
-      <div className="mb-4 flex items-center justify-end">
-        <div className="relative max-w-sm flex-1 sm:w-72 sm:flex-none">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/60 p-3 shadow-sm">
+        <span className="text-xs text-muted-foreground">
+          {visible.length} of {(data ?? []).length} teams
+        </span>
+        <div className="relative max-w-sm flex-1 sm:w-80 sm:flex-none">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
@@ -195,7 +198,7 @@ function AdminTeamsPage() {
         </div>
       </div>
 
-      <SectionCard contentClassName="p-0">
+      <SectionCard className="overflow-hidden border-border/50 shadow-sm" contentClassName="p-0">
         {isLoading ? (
           <div className="p-6 text-sm text-muted-foreground">Loading teams…</div>
         ) : isError ? (
@@ -215,58 +218,72 @@ function AdminTeamsPage() {
             className="m-4"
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Team</TableHead>
-                <TableHead>Slug</TableHead>
-                <TableHead>Members</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visible.map((t) => (
-                <TableRow key={t.id} className="cursor-pointer" onClick={() => setDetails(t)}>
-                  <TableCell>
-                    <div className="font-medium">{t.name}</div>
-                    {t.description && (
-                      <div className="line-clamp-1 text-xs text-muted-foreground">
-                        {t.description}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{t.slug}</TableCell>
-                  <TableCell className="text-sm">{t.memberCount}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(t.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setDetails(t)}>
-                          View details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEdit(t)}>Edit team</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => setConfirmDelete(t)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          <div className="max-h-[68vh] overflow-auto">
+            <Table className="min-w-[760px]">
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Team</TableHead>
+                  <TableHead>Slug</TableHead>
+                  <TableHead>Members</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {visible.map((t) => (
+                  <TableRow
+                    key={t.id}
+                    className="cursor-pointer transition-colors hover:bg-muted/25"
+                    onClick={() => setDetails(t)}
+                  >
+                    <TableCell>
+                      <div className="font-medium">{t.name}</div>
+                      {t.description && (
+                        <div className="line-clamp-1 text-xs text-muted-foreground">
+                          {t.description}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <code className="rounded-md border border-border/30 bg-background/40 px-2 py-1 text-xs text-muted-foreground">
+                        {t.slug}
+                      </code>
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex min-w-8 justify-center rounded-full border border-border/40 bg-muted/25 px-2 py-0.5 text-xs font-medium">
+                        {t.memberCount}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(t.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setDetails(t)}>
+                            View details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(t)}>Edit team</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setConfirmDelete(t)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </SectionCard>
 
@@ -352,7 +369,7 @@ function TeamForm({
 }) {
   return (
     <div className="space-y-3">
-      <div className="space-y-1.5">
+      <div className="space-y-2 rounded-xl border border-border/40 bg-card/30 p-3.5">
         <Label className="text-xs">Team name</Label>
         <Input
           value={draft.name}
@@ -362,7 +379,7 @@ function TeamForm({
           }}
         />
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-2 rounded-xl border border-border/40 bg-card/30 p-3.5">
         <Label className="text-xs">Slug</Label>
         <Input
           value={draft.slug}
@@ -375,7 +392,7 @@ function TeamForm({
           Lowercase letters, numbers and hyphens. Used as the team's unique identifier.
         </p>
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-2 rounded-xl border border-border/40 bg-card/30 p-3.5">
         <Label className="text-xs">Description</Label>
         <Textarea
           rows={2}
@@ -457,7 +474,10 @@ function TeamDetails({ team }: { team: TeamSummary }) {
         ) : (
           <div className="space-y-2 text-sm">
             {members.map((m) => (
-              <div key={m.userId} className="flex items-center justify-between gap-2">
+              <div
+                key={m.userId}
+                className="flex items-center justify-between gap-2 rounded-lg border border-border/35 bg-background/25 p-2.5"
+              >
                 <div className="min-w-0">
                   <div className="truncate font-medium">{m.displayName}</div>
                   {m.email && (
@@ -508,7 +528,7 @@ function TeamDetails({ team }: { team: TeamSummary }) {
           />
         )}
 
-        <div className="mt-3 flex items-center gap-1.5 border-t border-border/40 pt-3">
+        <div className="mt-3 flex flex-col gap-2 rounded-lg border border-border/40 bg-background/25 p-3 sm:flex-row sm:items-center">
           <Select value={addUserId || undefined} onValueChange={setAddUserId}>
             <SelectTrigger className="h-8 flex-1 text-xs">
               <SelectValue placeholder="Add member…" />

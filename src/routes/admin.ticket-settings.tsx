@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AlarmClock, CircleAlert, Route as RouteIcon, Tag, Users as UsersIcon, Lock, MessageSquare } from "lucide-react";
+import {
+  AlarmClock,
+  CircleAlert,
+  Info,
+  Route as RouteIcon,
+  Tag,
+  Users as UsersIcon,
+  Lock,
+  MessageSquare,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -23,7 +32,9 @@ export const Route = createFileRoute("/admin/ticket-settings")({
   component: TicketSettings,
 });
 
-function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1).replace("_", " "); }
+function cap(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1).replace("_", " ");
+}
 
 function TicketSettings() {
   const { session } = useAuth();
@@ -53,8 +64,15 @@ function TicketSettings() {
   if (!allowed) {
     return (
       <div>
-        <PageHeader title="Ticket Configuration" description="Categories, priorities, SLA policies, routing rules, and canned responses." />
-        <EmptyState icon={Lock} title="Admin access required" description="You need the tickets.config permission to manage ticket configuration." />
+        <PageHeader
+          title="Ticket Configuration"
+          description="Categories, priorities, SLA policies, routing rules, and canned responses."
+        />
+        <EmptyState
+          icon={Lock}
+          title="Admin access required"
+          description="You need the tickets.config permission to manage ticket configuration."
+        />
       </div>
     );
   }
@@ -62,7 +80,10 @@ function TicketSettings() {
   if (configError) {
     return (
       <div>
-        <PageHeader title="Ticket Configuration" description="Categories, priorities, SLA policies, routing rules, and canned responses." />
+        <PageHeader
+          title="Ticket Configuration"
+          description="Categories, priorities, SLA policies, routing rules, and canned responses."
+        />
         <EmptyState
           icon={CircleAlert}
           title="Failed to load ticket configuration"
@@ -83,18 +104,32 @@ function TicketSettings() {
   }
 
   return (
-    <div>
+    <div className="space-y-5 pb-8">
       <PageHeader
         title="Ticket Configuration"
-        description="Read the live ticket configuration. Inline editing is not available in this version."
+        description="Review the live service desk taxonomy, targets, routing, and agent response standards."
       />
 
+      <div className="flex items-start gap-3 rounded-xl border border-sky-500/20 bg-sky-500/[0.06] px-4 py-3 text-xs text-muted-foreground shadow-sm">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
+        <div>
+          <p className="font-semibold text-foreground">Live configuration overview</p>
+          <p className="mt-0.5 leading-relaxed">
+            Values are loaded from the current ticket configuration. Inline editing is not available
+            in this view.
+          </p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SectionCard title={`Categories (${categories.length})`}>
+        <SectionCard
+          title={`Categories (${categories.length})`}
+          className="border-border/50 shadow-sm"
+        >
           {categories.length === 0 ? (
             <p className="text-xs text-muted-foreground">No categories configured.</p>
           ) : (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {categories.map((c) => (
                 <StatusBadge key={c.id} label={c.name} tone={c.isActive ? "muted" : "default"} />
               ))}
@@ -102,13 +137,19 @@ function TicketSettings() {
           )}
         </SectionCard>
 
-        <SectionCard title={`Priorities (${priorities.length})`}>
+        <SectionCard
+          title={`Priorities (${priorities.length})`}
+          className="border-border/50 shadow-sm"
+        >
           {priorities.length === 0 ? (
             <p className="text-xs text-muted-foreground">No priorities configured.</p>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {priorities.map((p) => (
-                <div key={p.id} className="flex items-center justify-between rounded-lg border border-border/40 bg-background/30 px-3 py-1.5 text-xs">
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between rounded-lg border border-border/40 bg-background/30 px-3 py-2.5 text-xs transition-colors hover:bg-muted/20"
+                >
                   <span className="inline-flex items-center gap-2">
                     <Tag className="h-3.5 w-3.5" style={{ color: p.color || undefined }} />
                     <span className="capitalize">{p.name}</span>
@@ -122,13 +163,17 @@ function TicketSettings() {
           )}
         </SectionCard>
 
-        <SectionCard title={`SLA policies (${slas.length})`} className="lg:col-span-2">
+        <SectionCard
+          title={`SLA policies (${slas.length})`}
+          className="overflow-hidden border-border/50 shadow-sm lg:col-span-2"
+          contentClassName="p-0"
+        >
           {slas.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No SLA policies configured.</p>
+            <p className="p-4 text-xs text-muted-foreground">No SLA policies configured.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="max-h-[55vh] overflow-auto">
+              <table className="w-full min-w-[700px] text-xs">
+                <thead className="sticky top-0 z-10 bg-card/95 text-[10px] uppercase tracking-wider text-muted-foreground backdrop-blur">
                   <tr>
                     <th className="px-3 py-2 text-left">Policy</th>
                     <th className="px-3 py-2 text-left">Priority</th>
@@ -139,11 +184,33 @@ function TicketSettings() {
                 </thead>
                 <tbody>
                   {slas.map((p) => (
-                    <tr key={p.id} className="border-t border-border/40">
+                    <tr
+                      key={p.id}
+                      className="border-t border-border/40 transition-colors hover:bg-muted/20"
+                    >
                       <td className="px-3 py-2">{p.name}</td>
-                      <td className="px-3 py-2"><StatusBadge label={cap(p.priorityKey)} tone={p.priorityKey === "critical" ? "danger" : p.priorityKey === "high" ? "warning" : p.priorityKey === "low" ? "muted" : "info"} /></td>
-                      <td className="px-3 py-2"><AlarmClock className="mr-1 inline h-3 w-3 text-muted-foreground" />{p.responseMinutes} min</td>
-                      <td className="px-3 py-2"><AlarmClock className="mr-1 inline h-3 w-3 text-muted-foreground" />{Math.round(p.resolutionMinutes / 60)} h</td>
+                      <td className="px-3 py-2">
+                        <StatusBadge
+                          label={cap(p.priorityKey)}
+                          tone={
+                            p.priorityKey === "critical"
+                              ? "danger"
+                              : p.priorityKey === "high"
+                                ? "warning"
+                                : p.priorityKey === "low"
+                                  ? "muted"
+                                  : "info"
+                          }
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <AlarmClock className="mr-1 inline h-3 w-3 text-muted-foreground" />
+                        {p.responseMinutes} min
+                      </td>
+                      <td className="px-3 py-2">
+                        <AlarmClock className="mr-1 inline h-3 w-3 text-muted-foreground" />
+                        {Math.round(p.resolutionMinutes / 60)} h
+                      </td>
                       <td className="px-3 py-2">{p.isActive ? "Yes" : "No"}</td>
                     </tr>
                   ))}
@@ -153,13 +220,17 @@ function TicketSettings() {
           )}
         </SectionCard>
 
-        <SectionCard title={`Routing rules (${rules.length})`} className="lg:col-span-2">
+        <SectionCard
+          title={`Routing rules (${rules.length})`}
+          className="overflow-hidden border-border/50 shadow-sm lg:col-span-2"
+          contentClassName="p-0"
+        >
           {rules.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No routing rules configured.</p>
+            <p className="p-4 text-xs text-muted-foreground">No routing rules configured.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="max-h-[55vh] overflow-auto">
+              <table className="w-full min-w-[820px] text-xs">
+                <thead className="sticky top-0 z-10 bg-card/95 text-[10px] uppercase tracking-wider text-muted-foreground backdrop-blur">
                   <tr>
                     <th className="px-3 py-2 text-left">Order</th>
                     <th className="px-3 py-2 text-left">Name</th>
@@ -170,11 +241,19 @@ function TicketSettings() {
                 </thead>
                 <tbody>
                   {rules.map((r) => (
-                    <tr key={r.id} className="border-t border-border/40">
+                    <tr
+                      key={r.id}
+                      className="border-t border-border/40 transition-colors hover:bg-muted/20"
+                    >
                       <td className="px-3 py-2 font-mono">{r.priorityOrder}</td>
                       <td className="px-3 py-2">{r.name}</td>
-                      <td className="px-3 py-2 font-mono text-[10px] text-muted-foreground">{JSON.stringify(r.matchWhen)}</td>
-                      <td className="px-3 py-2 font-mono text-[10px]"><RouteIcon className="mr-1 inline h-3 w-3 text-muted-foreground" />{JSON.stringify(r.action)}</td>
+                      <td className="px-3 py-2 font-mono text-[10px] text-muted-foreground">
+                        {JSON.stringify(r.matchWhen)}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-[10px]">
+                        <RouteIcon className="mr-1 inline h-3 w-3 text-muted-foreground" />
+                        {JSON.stringify(r.action)}
+                      </td>
                       <td className="px-3 py-2">{r.isActive ? "Yes" : "No"}</td>
                     </tr>
                   ))}
@@ -184,20 +263,30 @@ function TicketSettings() {
           )}
         </SectionCard>
 
-        <SectionCard title={`Canned responses (${canned.length})`} className="lg:col-span-2">
+        <SectionCard
+          title={`Canned responses (${canned.length})`}
+          className="border-border/50 shadow-sm lg:col-span-2"
+        >
           {canned.length === 0 ? (
             <p className="text-xs text-muted-foreground">No canned responses configured.</p>
           ) : (
             <div className="space-y-2">
               {canned.map((c) => (
-                <div key={c.id} className="rounded-lg border border-border/40 bg-background/30 p-3">
+                <div
+                  key={c.id}
+                  className="rounded-lg border border-border/40 bg-background/30 p-3.5 transition-colors hover:border-border/70 hover:bg-muted/15"
+                >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-xs">
                       <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
                       <code className="font-mono text-[11px] text-primary">/{c.shortcut}</code>
                       <span className="font-medium">{c.title}</span>
                     </div>
-                    {c.isInternal && <Badge variant="outline" className="text-[10px]">Internal</Badge>}
+                    {c.isInternal && (
+                      <Badge variant="outline" className="text-[10px]">
+                        Internal
+                      </Badge>
+                    )}
                   </div>
                   <p className="mt-1 whitespace-pre-line text-xs text-muted-foreground">{c.body}</p>
                 </div>
@@ -205,7 +294,8 @@ function TicketSettings() {
             </div>
           )}
           <p className="mt-3 text-[11px] text-muted-foreground">
-            <UsersIcon className="mr-1 inline h-3 w-3" /> CRUD for canned responses lives on the dedicated Templates page.
+            <UsersIcon className="mr-1 inline h-3 w-3" /> CRUD for canned responses lives on the
+            dedicated Templates page.
           </p>
         </SectionCard>
       </div>
