@@ -91,7 +91,7 @@ function listLabel(values: string[], fallback = "—"): string {
 }
 
 function AdminUsersPage() {
-  const { session } = useAuth();
+  const { session, isPlatformAdmin } = useAuth();
   const role = useRole();
   const allowed = can("admin.users", role);
   const enabled = Boolean(session?.user) && allowed;
@@ -106,7 +106,10 @@ function AdminUsersPage() {
     ...adminUsersQuery(),
     enabled,
   });
-  const optionsQuery = useQuery({ ...adminUserFormOptionsQuery(), enabled });
+  const optionsQuery = useQuery({
+    ...adminUserFormOptionsQuery(),
+    enabled: enabled && isPlatformAdmin,
+  });
 
   const [tab, setTab] = useState<"active" | "inactive">("active");
   const [q, setQ] = useState("");
@@ -122,6 +125,7 @@ function AdminUsersPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      if (!isPlatformAdmin) throw new Error("Platform Administrator access is required.");
       if (!session?.access_token) throw new Error("Your session is no longer available.");
       return createAdminUser({ ...draft, accessToken: session.access_token });
     },
@@ -143,6 +147,7 @@ function AdminUsersPage() {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      if (!isPlatformAdmin) throw new Error("Platform Administrator access is required.");
       if (!session?.access_token) throw new Error("Your session is no longer available.");
       if (!editUser) throw new Error("No user is selected for editing.");
       return updateAdminUser({
@@ -186,6 +191,7 @@ function AdminUsersPage() {
   }, [data, q, tab]);
 
   function openCreate() {
+    if (!isPlatformAdmin) return;
     setDraft(EMPTY_USER);
     setCreateError(null);
     createMutation.reset();
@@ -193,6 +199,7 @@ function AdminUsersPage() {
   }
 
   function submitCreate() {
+    if (!isPlatformAdmin) return;
     if (createMutation.isPending) return;
     if (!draft.displayName.trim()) {
       setCreateError("Display name is required.");
@@ -207,6 +214,7 @@ function AdminUsersPage() {
   }
 
   function openEdit(user: AdminUser) {
+    if (!isPlatformAdmin) return;
     setDetails(null);
     setEditUser(user);
     setEditDraft({
@@ -221,6 +229,7 @@ function AdminUsersPage() {
   }
 
   function submitEdit() {
+    if (!isPlatformAdmin) return;
     if (updateMutation.isPending) return;
     if (!editUser) {
       setEditError("No user is selected for editing.");
@@ -235,6 +244,7 @@ function AdminUsersPage() {
   }
 
   async function handleSetUserActive(user: AdminUser, isActive: boolean) {
+    if (!isPlatformAdmin) return;
     if (!session?.access_token) {
       toast.error("User status was not updated", {
         description: "Your session is no longer available.",
@@ -290,11 +300,22 @@ function AdminUsersPage() {
         title="Users"
         description="Manage workspace identities, account status, teams, and assigned roles."
         actions={
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="mr-1.5 h-4 w-4" /> Add user
-          </Button>
+          isPlatformAdmin ? (
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="mr-1.5 h-4 w-4" /> Add user
+            </Button>
+          ) : undefined
         }
       />
+
+      {!isPlatformAdmin && (
+        <Alert className="border-border/50 bg-muted/30 text-muted-foreground">
+          <Lock className="h-4 w-4" />
+          <AlertDescription>
+            User management changes require Platform Administrator access.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="flex flex-col gap-3 rounded-xl border border-border/50 bg-card/60 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <Tabs value={tab} onValueChange={(value) => setTab(value as typeof tab)}>
@@ -392,16 +413,20 @@ function AdminUsersPage() {
                           <DropdownMenuItem onClick={() => setDetails(user)}>
                             View user details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openEdit(user)}>
-                            Edit user
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            disabled={statusActionUserId === user.id}
-                            onClick={() => handleSetUserActive(user, !user.isActive)}
-                          >
-                            {user.isActive ? "Disable" : "Enable"} user
-                          </DropdownMenuItem>
+                          {isPlatformAdmin && (
+                            <>
+                              <DropdownMenuItem onClick={() => openEdit(user)}>
+                                Edit user
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                disabled={statusActionUserId === user.id}
+                                onClick={() => handleSetUserActive(user, !user.isActive)}
+                              >
+                                {user.isActive ? "Disable" : "Enable"} user
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -414,7 +439,7 @@ function AdminUsersPage() {
       </SectionCard>
 
       <FormDrawer
-        open={createOpen}
+        open={createOpen && isPlatformAdmin}
         onOpenChange={(open) => {
           if (!createMutation.isPending) setCreateOpen(open);
         }}
@@ -524,7 +549,7 @@ function AdminUsersPage() {
       </FormDrawer>
 
       <FormDrawer
-        open={Boolean(editUser)}
+        open={Boolean(editUser) && isPlatformAdmin}
         onOpenChange={(open) => {
           if (!updateMutation.isPending && !open) {
             setEditUser(null);
@@ -601,7 +626,7 @@ function AdminUsersPage() {
             : undefined
         }
         actions={
-          details && (
+          details && isPlatformAdmin && (
             <Button size="sm" variant="secondary" onClick={() => openEdit(details)}>
               Edit user
             </Button>
