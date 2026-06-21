@@ -34,6 +34,8 @@ import {
 import { useData } from "@/lib/data/store";
 import { useKnowledge } from "@/lib/knowledge/store";
 import { useTeamArticles } from "@/lib/knowledge/useTeamArticles";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { canSeePage, hasPageVisibilityRule, useRole, type Role } from "@/lib/permissions";
 import { toast } from "sonner";
 
 const NAV = [
@@ -57,6 +59,11 @@ const NAV = [
   { label: "Settings", to: "/settings", icon: SettingsIcon, group: "System" },
 ];
 
+function canViewDestination(to: string, role: Role, isPlatformAdmin: boolean): boolean {
+  if (to.startsWith("/admin") && !hasPageVisibilityRule(to)) return isPlatformAdmin;
+  return canSeePage(to, role);
+}
+
 export function CommandPalette({
   open,
   onOpenChange,
@@ -68,7 +75,13 @@ export function CommandPalette({
   const data = useData();
   const knowledge = useKnowledge();
   const backend = useTeamArticles();
+  const { isPlatformAdmin } = useAuth();
+  const role = useRole();
   const [query, setQuery] = useState("");
+  const canViewDocuments = canViewDestination("/documents", role, isPlatformAdmin);
+  const canViewCmdb = canViewDestination("/cmdb", role, isPlatformAdmin);
+  const canViewTasks = canViewDestination("/tasks", role, isPlatformAdmin);
+  const canViewSearch = canViewDestination("/search", role, isPlatformAdmin);
 
   useEffect(() => {
     if (!open) setQuery("");
@@ -78,18 +91,29 @@ export function CommandPalette({
     const q = query.toLowerCase().trim();
     if (!q) return { pages: [], backendArticles: [], assets: [], tasks: [] };
     return {
-      pages: knowledge.nodes
-        .filter((n) => n.type === "page" && n.title.toLowerCase().includes(q))
-        .slice(0, 5),
-      backendArticles: backend.articles
-        .filter((a) => a.title.toLowerCase().includes(q) || (a.excerpt ?? "").toLowerCase().includes(q))
-        .slice(0, 6),
-      assets: data.assets.filter((a) => a.hostname.toLowerCase().includes(q) || a.displayName.toLowerCase().includes(q)).slice(0, 5),
-      tasks: data.tasks.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 5),
+      pages: canViewDocuments
+        ? knowledge.nodes
+            .filter((n) => n.type === "page" && n.title.toLowerCase().includes(q))
+            .slice(0, 5)
+        : [],
+      backendArticles: canViewDocuments
+        ? backend.articles
+            .filter((a) => a.title.toLowerCase().includes(q) || (a.excerpt ?? "").toLowerCase().includes(q))
+            .slice(0, 6)
+        : [],
+      assets: canViewCmdb
+        ? data.assets
+            .filter((a) => a.hostname.toLowerCase().includes(q) || a.displayName.toLowerCase().includes(q))
+            .slice(0, 5)
+        : [],
+      tasks: canViewTasks
+        ? data.tasks.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 5)
+        : [],
     };
-  }, [query, data, knowledge, backend]);
+  }, [query, data, knowledge, backend, canViewDocuments, canViewCmdb, canViewTasks]);
 
   const go = (to: string) => {
+    if (!canViewDestination(to, role, isPlatformAdmin)) return;
     onOpenChange(false);
     navigate({ to });
   };
@@ -101,9 +125,13 @@ export function CommandPalette({
 
   const groups = useMemo(() => {
     const g: Record<string, typeof NAV> = {};
-    for (const item of NAV) (g[item.group] ??= []).push(item);
+    for (const item of NAV) {
+      if (canViewDestination(item.to, role, isPlatformAdmin)) {
+        (g[item.group] ??= []).push(item);
+      }
+    }
     return g;
-  }, []);
+  }, [isPlatformAdmin, role]);
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
@@ -115,9 +143,11 @@ export function CommandPalette({
           <CommandItem onSelect={() => { onOpenChange(false); toast.info("Open the create menu in the top bar."); }}>
             <Plus className="mr-2 h-4 w-4" /> New…
           </CommandItem>
-          <CommandItem onSelect={() => go("/search")}>
-            <Search className="mr-2 h-4 w-4" /> Open global search
-          </CommandItem>
+          {canViewSearch && (
+            <CommandItem onSelect={() => go("/search")}>
+              <Search className="mr-2 h-4 w-4" /> Open global search
+            </CommandItem>
+          )}
         </CommandGroup>
 
         <CommandSeparator />
