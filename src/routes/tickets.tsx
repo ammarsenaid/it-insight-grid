@@ -45,6 +45,7 @@ import { FilterBar } from "@/components/common/FilterBar";
 import { FormDrawer } from "@/components/common/FormDrawer";
 import { TicketComposer, type TicketComposerValues } from "@/components/service-desk/TicketComposer";
 import { EmptyState } from "@/components/common/EmptyState";
+import { MetricCardsSkeleton, TableRowsSkeleton } from "@/components/common/LoadingStates";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { timeAgo } from "@/components/common/format";
 
@@ -377,14 +378,20 @@ export function TicketsPage() {
       />
 
       {isLoading ? (
-        <div className="glass-card rounded-2xl p-6 text-sm text-muted-foreground">Loading tickets…</div>
+        <div className="space-y-4">
+          <MetricCardsSkeleton count={5} />
+          <TableRowsSkeleton rows={8} cols={6} />
+        </div>
       ) : isError ? (
         <EmptyState
           icon={AlertCircle}
-          title="Could not load tickets"
-          description={error instanceof Error ? error.message : "Unexpected error."}
+          title="Couldn't load tickets"
+          description={error instanceof Error ? error.message : "An unexpected error occurred while loading the ticket queue."}
           actionLabel="Retry"
           onAction={() => refetch()}
+          secondaryActionLabel="Reload page"
+          onSecondaryAction={() => window.location.reload()}
+          tone="danger"
         />
       ) : (
         <>
@@ -465,18 +472,21 @@ export function TicketsPage() {
               tickets.length === 0 ? (
                 <EmptyState
                   icon={TicketIcon}
-                  title="No tickets yet"
-                  description="Create the first request to start tracking service work."
-                  actionLabel={canCreate ? "Create ticket" : undefined}
+                  title="The queue is clear"
+                  description="No tickets have been created yet. Open the first request to start tracking service work and SLA performance."
+                  actionLabel={canCreate ? "New ticket" : undefined}
                   onAction={canCreate ? () => navigate({ to: "/tickets/new" }) : undefined}
+                  hint="Tickets can be created here or auto-generated from email, the service catalog, or monitoring alerts."
                 />
               ) : (
                 <EmptyState
                   icon={Eye}
-                  title="No tickets found"
-                  description="No tickets match the current filters."
-                  actionLabel="Clear filters"
+                  title="No results found"
+                  description="No tickets match the current filters or search."
+                  actionLabel="Reset filters"
                   onAction={resetFilters}
+                  secondaryActionLabel={query ? "Clear search" : undefined}
+                  onSecondaryAction={query ? () => setQuery("") : undefined}
                 />
               )
             ) : (

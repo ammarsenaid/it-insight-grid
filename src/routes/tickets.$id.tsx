@@ -436,7 +436,7 @@ function TicketDetail() {
           {/* Tabbed content */}
           <div className="glass-card rounded-2xl border border-border/50 p-5">
             <Tabs defaultValue="overview">
-              <TabsList className="mb-4 h-auto gap-1 bg-transparent p-0">
+              <TabsList className="mb-4 flex h-auto w-full justify-start gap-1 overflow-x-auto bg-transparent p-0">
                 <TabPill value="overview" icon={MessageSquare} label="Overview" />
                 <TabPill value="comments" icon={MessageSquare} label="Comments" count={publicReplies.length} />
                 <TabPill value="attachments" icon={Paperclip} label="Attachments" count={attachments.length} />
@@ -598,7 +598,8 @@ function TicketDetail() {
         </div>
 
         {/* RIGHT RAIL */}
-        <div className="space-y-5">
+        <aside className="space-y-5 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:self-start xl:overflow-y-auto xl:pr-1 dt-scroll">
+
           <div className="glass-card rounded-2xl border border-border/50 p-5">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold">Ticket details</h3>
@@ -726,7 +727,7 @@ function TicketDetail() {
               </div>
             </div>
           )}
-        </div>
+        </aside>
       </div>
 
       <FormDrawer
@@ -886,7 +887,7 @@ function ConversationList({
         return (
           <div key={c.id} className="flex items-start gap-3">
             <Avatar text={initials} tone={mine ? "violet" : "blue"} />
-            <div className={`min-w-0 flex-1 rounded-xl border p-3 ${c.internal ? "border-[#FFC86B]/30 bg-[#FFC86B]/5" : "border-border/40 bg-background/30"}`}>
+            <div className={`min-w-0 flex-1 rounded-xl border p-3 ${c.internal ? "border-l-2 border-l-[#FFC86B] border-[#FFC86B]/30 bg-[#FFC86B]/[0.06]" : "border-border/40 bg-background/30"}`}>
               <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
                 <span className="font-medium">
                   {name}

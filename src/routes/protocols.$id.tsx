@@ -266,7 +266,7 @@ function ProtocolRunPage() {
         </div>
 
         {/* Side panel */}
-        <div className="space-y-3">
+        <aside className="space-y-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto lg:pr-1 dt-scroll">
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="w-full">
               <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
@@ -342,7 +342,7 @@ function ProtocolRunPage() {
               ))}
             </TabsContent>
           </Tabs>
-        </div>
+        </aside>
       </div>
     </div>
   );

@@ -14,8 +14,9 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge, statusTone } from "@/components/common/StatusBadge";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { FormDrawer } from "@/components/common/FormDrawer";
+import { FormGrid, FormField, FormSection } from "@/components/common/FormGrid";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
@@ -624,18 +625,21 @@ function TasksPage() {
               (query || fCat !== "all" || fPrio !== "all" || fStatus !== "all" || fTeam !== "all" || fAssignee !== "all" || fSource !== "all" || fDue !== "all") ? (
                 <EmptyState
                   icon={CheckSquare}
-                  title="No matching records"
-                  description="No records match the selected filters."
-                  actionLabel="Clear filters"
+                  title="No results found"
+                  description="No tasks match the current filters or search."
+                  actionLabel="Reset filters"
                   onAction={resetFilters}
+                  secondaryActionLabel={query ? "Clear search" : undefined}
+                  onSecondaryAction={query ? () => setQuery("") : undefined}
                 />
               ) : (
                 <EmptyState
                   icon={CheckSquare}
                   title={tasksQ.isLoading ? "Loading tasks" : "No tasks yet"}
-                  description={tasksQ.isLoading ? "Loading shared task data." : "Create the first task to begin tracking operational work."}
-                  actionLabel={writable ? "Create task" : undefined}
-                  onAction={writable ? () => openCreate() : undefined}
+                  description={tasksQ.isLoading ? "Loading shared task data." : "Create operational work for yourself, your team, maintenance windows, or protocol runs."}
+                  actionLabel={writable && !tasksQ.isLoading ? "Create task" : undefined}
+                  onAction={writable && !tasksQ.isLoading ? () => openCreate() : undefined}
+                  hint={tasksQ.isLoading ? undefined : "Tasks support personal, team, maintenance, and protocol-driven workflows."}
                 />
               )
             ) : (
@@ -723,121 +727,113 @@ function TasksPage() {
       </div>
 
       {/* Create/Edit drawer */}
-      <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit task" : "New task"} onSubmit={save} submitLabel={editId ? "Save changes" : "Create"}>
-        {!editId && (
-          <div>
-            <Label className="text-xs">Use template</Label>
-            <Select value={templateId} onValueChange={(v) => { setTemplateId(v); if (v !== "none") { setForm((p) => applyTemplateToForm(v, p, taskRegistryTemplates)); incrementUsage(v); } }}>
-              <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No template</SelectItem>
-                {taskRegistryTemplates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        <div>
-          <Label className="text-xs">Title</Label>
-          <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="mt-1" />
-        </div>
-        <div>
-          <Label className="text-xs">Description</Label>
-          <Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs">Category</Label>
-            <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-              <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>{cats.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Priority</Label>
-            <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v as TaskPriority })}>
-              <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Status</Label>
-            <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as TaskStatus })}>
-              <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>{STATUSES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Scope</Label>
-            <Select value={form.scope} onValueChange={(v) => setForm({ ...form, scope: v as TaskScope })}>
-              <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="personal">Personal</SelectItem>
-                <SelectItem value="team">Team</SelectItem>
-                <SelectItem value="shared">Shared</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Assigned to</Label>
-            <Select value={form.assignedTo} onValueChange={(v) => setForm({ ...form, assignedTo: v })}>
-              <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>{TASK_OWNERS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Team</Label>
-            <Select value={form.team} onValueChange={(v) => setForm({ ...form, team: v })}>
-              <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>{TASK_TEAMS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Due date</Label>
-            <Input type="date" className="mt-1 h-9" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
-          </div>
-          <div>
-            <Label className="text-xs">Reminder</Label>
-            <Input type="datetime-local" className="mt-1 h-9" value={form.reminderAt} onChange={(e) => setForm({ ...form, reminderAt: e.target.value })} />
-          </div>
-          <div>
-            <Label className="text-xs">Recurrence</Label>
-            <Select value={form.recurringFreq} onValueChange={(v) => setForm({ ...form, recurringFreq: v as FormState["recurringFreq"] })}>
-              <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="quarterly">Quarterly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Repeat every (n)</Label>
-            <Input type="number" min={1} className="mt-1 h-9" value={form.recurringInterval} onChange={(e) => setForm({ ...form, recurringInterval: Math.max(1, parseInt(e.target.value || "1", 10)) })} />
-          </div>
-        </div>
-        <div>
-          <Label className="text-xs">Tags (comma separated)</Label>
-          <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className="mt-1 h-9" />
-        </div>
-        <div>
-          <Label className="text-xs">Watchers (comma separated)</Label>
-          <Input value={form.watchers} onChange={(e) => setForm({ ...form, watchers: e.target.value })} className="mt-1 h-9" />
-        </div>
-        <div>
-          <Label className="text-xs">Notes</Label>
-          <Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1" />
+      <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit task" : "New task"} onSubmit={save} submitLabel={editId ? "Save changes" : "Create"} size="lg">
+        <div className="space-y-6">
+          {!editId && (
+            <FormSection title="Source / linking" description="Start from a saved template, or skip to author from scratch.">
+              <FormGrid columns={1}>
+                <FormField label="Use template">
+                  <Select value={templateId} onValueChange={(v) => { setTemplateId(v); if (v !== "none") { setForm((p) => applyTemplateToForm(v, p, taskRegistryTemplates)); incrementUsage(v); } }}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No template</SelectItem>
+                      {taskRegistryTemplates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          )}
+
+          <FormSection title="Basics" description="What the task is and how it is classified.">
+            <FormGrid>
+              <FormField label="Title" required full><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></FormField>
+              <FormField label="Description" full><Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></FormField>
+              <FormField label="Category">
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>{cats.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Priority">
+                <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v as TaskPriority })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Status">
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as TaskStatus })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>{STATUSES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Tags" hint="Comma separated"><Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className="h-9" /></FormField>
+            </FormGrid>
+          </FormSection>
+
+          <FormSection title="Assignment" description="Who owns and watches this task.">
+            <FormGrid>
+              <FormField label="Scope">
+                <Select value={form.scope} onValueChange={(v) => setForm({ ...form, scope: v as TaskScope })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="team">Team</SelectItem>
+                    <SelectItem value="shared">Shared</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Assigned to">
+                <Select value={form.assignedTo} onValueChange={(v) => setForm({ ...form, assignedTo: v })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>{TASK_OWNERS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Team">
+                <Select value={form.team} onValueChange={(v) => setForm({ ...form, team: v })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>{TASK_TEAMS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Watchers" hint="Comma separated"><Input value={form.watchers} onChange={(e) => setForm({ ...form, watchers: e.target.value })} className="h-9" /></FormField>
+            </FormGrid>
+          </FormSection>
+
+          <FormSection title="Scheduling" description="When the task is due and how often it repeats.">
+            <FormGrid>
+              <FormField label="Due date"><Input type="date" className="h-9" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></FormField>
+              <FormField label="Recurrence">
+                <Select value={form.recurringFreq} onValueChange={(v) => setForm({ ...form, recurringFreq: v as FormState["recurringFreq"] })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Repeat every (n)"><Input type="number" min={1} className="h-9" value={form.recurringInterval} onChange={(e) => setForm({ ...form, recurringInterval: Math.max(1, parseInt(e.target.value || "1", 10)) })} /></FormField>
+            </FormGrid>
+          </FormSection>
+
+          <FormSection title="Reminder" description="Optional notification and operator notes.">
+            <FormGrid>
+              <FormField label="Reminder at"><Input type="datetime-local" className="h-9" value={form.reminderAt} onChange={(e) => setForm({ ...form, reminderAt: e.target.value })} /></FormField>
+              <FormField label="Notes" full><Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></FormField>
+            </FormGrid>
+          </FormSection>
         </div>
       </FormDrawer>
 
       {/* Save view dialog */}
       <FormDrawer open={saveViewOpen} onOpenChange={setSaveViewOpen} title="Save current view" onSubmit={persistView} submitLabel="Save view">
-        <div>
-          <Label className="text-xs">View name</Label>
-          <Input value={newViewName} onChange={(e) => setNewViewName(e.target.value)} className="mt-1 h-9" />
-        </div>
+        <FormGrid columns={1}>
+          <FormField label="View name"><Input value={newViewName} onChange={(e) => setNewViewName(e.target.value)} className="h-9" /></FormField>
+        </FormGrid>
       </FormDrawer>
+
 
       <ConfirmDialog
         open={!!confirmDelete}

@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataTable, type Column } from "@/components/common/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { FormDrawer } from "@/components/common/FormDrawer";
+import { FormGrid, FormField, FormSection } from "@/components/common/FormGrid";
 import { ImportPreviewDialog } from "@/components/common/ImportPreviewDialog";
 import { MetricCard } from "@/components/common/MetricCard";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -23,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -280,27 +281,69 @@ function IPAMPage() {
       <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>Clear</Button>
     </div>}
 
-    <div className="mt-4"><DataTable data={visible} columns={columns} pageSize={20} emptyState={<EmptyState icon={Network} title={addressesQuery.isLoading ? "Loading IPAM" : showDeleted ? "No deleted addresses" : "No matching addresses"} description={addressesQuery.isLoading ? "Loading shared address data." : "No addresses match the current view."} />} /></div>
+    <div className="mt-4"><DataTable data={visible} columns={columns} pageSize={20} emptyState={(() => {
+      const filtersActive = query.trim().length > 0 || filterSubnet !== "all" || filterVlan !== "all" || filterState !== "all" || filterType !== "all";
+      if (addressesQuery.isLoading) return <EmptyState icon={Network} title="Loading IPAM" description="Loading shared address data." />;
+      if (showDeleted) return <EmptyState icon={Network} title="Recycle bin is empty" description="Deleted addresses will appear here for 30 days before being purged." />;
+      if (filtersActive) return <EmptyState icon={Network} title="No results found" description="No addresses match the current filters or search." actionLabel="Reset filters" onAction={() => { setQuery(""); setFilterSubnet("all"); setFilterVlan("all"); setFilterState("all"); setFilterType("all"); }} secondaryActionLabel="Clear search" onSecondaryAction={() => setQuery("")} />;
+      return <EmptyState icon={Network} title="No IP addresses yet" description="Start by adding your first network, then create subnets and addresses to track allocations and reservations." actionLabel={writable ? "Add address" : undefined} onAction={writable ? openCreate : undefined} secondaryActionLabel={writable ? "Import CSV" : undefined} onSecondaryAction={writable ? () => setImportOpen(true) : undefined} hint="Networks group subnets · subnets group addresses · reservations hold an address for future use." />;
+    })()} /></div>
 
-    <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit IP address" : "Add IP address"} description="Network, subnet, allocation, and reservation changes are validated by the shared backend." onSubmit={submit}>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Network name"><Input value={form.networkName} onChange={(event) => setForm({ ...form, networkName: event.target.value })} /></Field>
-        <Field label="Network CIDR"><Input value={form.networkCidr} onChange={(event) => setForm({ ...form, networkCidr: event.target.value })} /></Field>
-        <Field label="Subnet CIDR"><Input value={form.subnet} onChange={(event) => setForm({ ...form, subnet: event.target.value })} /></Field>
-        <Field label="Gateway"><Input value={form.gateway} onChange={(event) => setForm({ ...form, gateway: event.target.value })} /></Field>
-        <Field label="IP address"><Input value={form.ipAddress} onChange={(event) => setForm({ ...form, ipAddress: event.target.value })} /></Field>
-        <Field label="Hostname"><Input value={form.hostname} onChange={(event) => setForm({ ...form, hostname: event.target.value })} /></Field>
-        <Field label="Address type"><Select value={form.type} onValueChange={(type: IpamAddressInput["type"]) => setForm({ ...form, type })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["static", "dhcp", "virtual"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></Field>
-        <Field label="Allocation"><Select value={form.allocationState} onValueChange={(allocationState: IpamAddressInput["allocationState"]) => setForm({ ...form, allocationState, linkedAssetId: allocationState === "allocated" ? form.linkedAssetId : null })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["free", "allocated", "reserved"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></Field>
-        <Field label="VLAN"><Input value={form.vlan} onChange={(event) => setForm({ ...form, vlan: event.target.value })} /></Field>
-        <Field label="Location"><Input value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} /></Field>
-        {form.allocationState === "allocated" && <Field label="Linked CMDB asset"><Select value={form.linkedAssetId ?? "none"} onValueChange={(linkedAssetId) => setForm({ ...form, linkedAssetId: linkedAssetId === "none" ? null : linkedAssetId })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Select asset</SelectItem>{assets.map((asset) => <SelectItem key={asset.id} value={asset.id}>{asset.hostname}</SelectItem>)}</SelectContent></Select></Field>}
-        {form.allocationState === "reserved" && <Field label="Reservation name"><Input value={form.reservationName ?? ""} onChange={(event) => setForm({ ...form, reservationName: event.target.value })} /></Field>}
-        {form.allocationState === "reserved" && <Field label="Reservation expiry"><Input type="datetime-local" value={form.reservationExpiresAt?.slice(0, 16) ?? ""} onChange={(event) => setForm({ ...form, reservationExpiresAt: event.target.value || null })} /></Field>}
-        {form.allocationState === "reserved" && <Field label="Reservation notes"><Input value={form.reservationNotes ?? ""} onChange={(event) => setForm({ ...form, reservationNotes: event.target.value })} /></Field>}
+    <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit IP address" : "Add IP address"} description="Network, subnet, allocation, and reservation changes are validated by the shared backend." onSubmit={submit} size="lg">
+      <div className="space-y-6">
+        <FormSection title="Network" description="The parent network this address belongs to.">
+          <FormGrid>
+            <FormField label="Network name" required><Input value={form.networkName} onChange={(event) => setForm({ ...form, networkName: event.target.value })} /></FormField>
+            <FormField label="Network CIDR" required><Input value={form.networkCidr} onChange={(event) => setForm({ ...form, networkCidr: event.target.value })} placeholder="10.0.0.0/16" /></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Subnet" description="Subnet, gateway and VLAN.">
+          <FormGrid>
+            <FormField label="Subnet CIDR" required><Input value={form.subnet} onChange={(event) => setForm({ ...form, subnet: event.target.value })} placeholder="10.0.1.0/24" /></FormField>
+            <FormField label="Gateway"><Input value={form.gateway} onChange={(event) => setForm({ ...form, gateway: event.target.value })} /></FormField>
+            <FormField label="VLAN"><Input value={form.vlan} onChange={(event) => setForm({ ...form, vlan: event.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Address" description="The address itself.">
+          <FormGrid>
+            <FormField label="IP address" required><Input value={form.ipAddress} onChange={(event) => setForm({ ...form, ipAddress: event.target.value })} /></FormField>
+            <FormField label="Hostname"><Input value={form.hostname} onChange={(event) => setForm({ ...form, hostname: event.target.value })} /></FormField>
+            <FormField label="Address type"><Select value={form.type} onValueChange={(type: IpamAddressInput["type"]) => setForm({ ...form, type })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["static", "dhcp", "virtual"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Allocation" description="Who or what this address is allocated to.">
+          <FormGrid>
+            <FormField label="Allocation state"><Select value={form.allocationState} onValueChange={(allocationState: IpamAddressInput["allocationState"]) => setForm({ ...form, allocationState, linkedAssetId: allocationState === "allocated" ? form.linkedAssetId : null })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["free", "allocated", "reserved"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FormField>
+            {form.allocationState === "allocated" && (
+              <FormField label="Linked CMDB asset"><Select value={form.linkedAssetId ?? "none"} onValueChange={(linkedAssetId) => setForm({ ...form, linkedAssetId: linkedAssetId === "none" ? null : linkedAssetId })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Select asset</SelectItem>{assets.map((asset) => <SelectItem key={asset.id} value={asset.id}>{asset.hostname}</SelectItem>)}</SelectContent></Select></FormField>
+            )}
+            {form.allocationState === "reserved" && (
+              <>
+                <FormField label="Reservation name"><Input value={form.reservationName ?? ""} onChange={(event) => setForm({ ...form, reservationName: event.target.value })} /></FormField>
+                <FormField label="Reservation expiry"><Input type="datetime-local" value={form.reservationExpiresAt?.slice(0, 16) ?? ""} onChange={(event) => setForm({ ...form, reservationExpiresAt: event.target.value || null })} /></FormField>
+                <FormField label="Reservation notes" full><Input value={form.reservationNotes ?? ""} onChange={(event) => setForm({ ...form, reservationNotes: event.target.value })} /></FormField>
+              </>
+            )}
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Location" description="Physical or logical placement.">
+          <FormGrid columns={1}>
+            <FormField label="Location"><Input value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Notes">
+          <FormGrid columns={1}>
+            <FormField label="Operator notes"><Textarea rows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
       </div>
-      <Field label="Notes"><Textarea rows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></Field>
     </FormDrawer>
+
 
     <ImportPreviewDialog open={importOpen} onOpenChange={setImportOpen} title="Import IPAM addresses" description="The complete import is validated and committed atomically, with a maximum of 500 rows." expectedHeaders={CSV_COLS} onImport={importRows} />
     <SubnetDetailsDrawer subnet={subnets.find((subnet) => subnet.id === subnetOpen) ?? null} entries={liveAddresses.filter((address) => address.subnetId === subnetOpen)} onOpenChange={(open) => !open && setSubnetOpen(null)} onReserveNext={(subnetId) => reserveNextMutation.mutateAsync(subnetId)} />
@@ -308,9 +351,7 @@ function IPAMPage() {
   </div>;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="col-span-2 space-y-1.5 md:col-span-1"><Label className="text-xs text-muted-foreground">{label}</Label>{children}</div>;
-}
+
 
 function Filter({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: [string, string][] }) {
   return <Select value={value} onValueChange={onChange}><SelectTrigger className="h-9 w-[170px] rounded-xl border-border/60 bg-card/60"><SelectValue /></SelectTrigger><SelectContent>{options.map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent></Select>;

@@ -8,6 +8,7 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
+  CommandShortcut,
 } from "@/components/ui/command";
 import {
   LayoutDashboard,
@@ -21,43 +22,89 @@ import {
   Settings as SettingsIcon,
   Ticket,
   Inbox,
-  
   ShieldCheck,
   BarChart3,
   Users,
   UsersRound,
   KeyRound,
   Sliders,
-  Plus,
+
   BookOpen,
+  Clock,
+  CornerDownLeft,
+  type LucideIcon,
 } from "lucide-react";
 import { useData } from "@/lib/data/store";
 import { useKnowledge } from "@/lib/knowledge/store";
 import { useTeamArticles } from "@/lib/knowledge/useTeamArticles";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { canSeePage, hasPageVisibilityRule, useRole, type Role } from "@/lib/permissions";
-import { toast } from "sonner";
 
-const NAV = [
-  { label: "Dashboard", to: "/", icon: LayoutDashboard, group: "Knowledge" },
-  { label: "Knowledge Base", to: "/documents", icon: FileText, group: "Knowledge" },
-  { label: "Global Search", to: "/search", icon: Search, group: "Knowledge" },
-  { label: "Tickets", to: "/tickets", icon: Ticket, group: "Service Desk" },
-  { label: "My Requests", to: "/my-requests", icon: Inbox, group: "Service Desk" },
-  
-  { label: "CMDB", to: "/cmdb", icon: Server, group: "Operations" },
-  { label: "IPAM", to: "/ipam", icon: Network, group: "Operations" },
-  { label: "Tasks", to: "/tasks", icon: CheckSquare, group: "Operations" },
-  { label: "Notes", to: "/notes", icon: StickyNote, group: "Operations" },
-  { label: "Audit Log", to: "/audit", icon: ShieldCheck, group: "Governance" },
-  { label: "Reports", to: "/reports", icon: BarChart3, group: "Governance" },
-  { label: "Users", to: "/admin/users", icon: Users, group: "Administration" },
-  { label: "Teams", to: "/admin/teams", icon: UsersRound, group: "Administration" },
-  { label: "Roles", to: "/admin/roles", icon: KeyRound, group: "Administration" },
-  { label: "Ticket Configuration", to: "/admin/ticket-settings", icon: Sliders, group: "Administration" },
-  { label: "Recycle Bin", to: "/trash", icon: Trash2, group: "System" },
+
+type NavGroup =
+  | "Pages"
+  | "Tickets"
+  | "Knowledge"
+  | "Assets"
+  | "IPAM"
+  | "Tasks"
+  | "Protocols"
+  | "Notes"
+  | "Admin"
+  | "System";
+
+interface NavEntry {
+  label: string;
+  to: string;
+  icon: LucideIcon;
+  group: NavGroup;
+  keywords?: string;
+}
+
+const NAV: NavEntry[] = [
+  { label: "Dashboard", to: "/", icon: LayoutDashboard, group: "Pages" },
+  { label: "Global search", to: "/search", icon: Search, group: "Pages", keywords: "find" },
+  { label: "Tickets", to: "/tickets", icon: Ticket, group: "Tickets" },
+  { label: "My requests", to: "/my-requests", icon: Inbox, group: "Tickets" },
+  { label: "Knowledge base", to: "/documents", icon: FileText, group: "Knowledge", keywords: "docs articles" },
+  { label: "CMDB", to: "/cmdb", icon: Server, group: "Assets", keywords: "inventory hardware" },
+  { label: "IPAM", to: "/ipam", icon: Network, group: "IPAM", keywords: "subnet ip address" },
+  { label: "Tasks", to: "/tasks", icon: CheckSquare, group: "Tasks" },
+  { label: "Protocols", to: "/protocols", icon: ShieldCheck, group: "Protocols", keywords: "runbook" },
+  { label: "Notes", to: "/notes", icon: StickyNote, group: "Notes" },
+  { label: "Audit log", to: "/audit", icon: ShieldCheck, group: "Admin" },
+  { label: "Reports", to: "/reports", icon: BarChart3, group: "Admin" },
+  { label: "Users", to: "/admin/users", icon: Users, group: "Admin" },
+  { label: "Teams", to: "/admin/teams", icon: UsersRound, group: "Admin" },
+  { label: "Roles", to: "/admin/roles", icon: KeyRound, group: "Admin" },
+  { label: "Ticket configuration", to: "/admin/ticket-settings", icon: Sliders, group: "Admin" },
+  { label: "Recycle bin", to: "/trash", icon: Trash2, group: "System" },
   { label: "Settings", to: "/settings", icon: SettingsIcon, group: "System" },
 ];
+
+const RECENT_KEY = "cmdk:recent";
+const MAX_RECENT = 5;
+
+function readRecent(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(RECENT_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function pushRecent(to: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const cur = readRecent().filter((x) => x !== to);
+    const next = [to, ...cur].slice(0, MAX_RECENT);
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
 
 function canViewDestination(to: string, role: Role, isPlatformAdmin: boolean): boolean {
   if (to.startsWith("/admin") && !hasPageVisibilityRule(to)) return isPlatformAdmin;
@@ -78,13 +125,19 @@ export function CommandPalette({
   const { isPlatformAdmin } = useAuth();
   const role = useRole();
   const [query, setQuery] = useState("");
+  const [recent, setRecent] = useState<string[]>([]);
+
   const canViewDocuments = canViewDestination("/documents", role, isPlatformAdmin);
   const canViewCmdb = canViewDestination("/cmdb", role, isPlatformAdmin);
   const canViewTasks = canViewDestination("/tasks", role, isPlatformAdmin);
   const canViewSearch = canViewDestination("/search", role, isPlatformAdmin);
 
   useEffect(() => {
-    if (!open) setQuery("");
+    if (open) {
+      setRecent(readRecent());
+    } else {
+      setQuery("");
+    }
   }, [open]);
 
   const records = useMemo(() => {
@@ -112,8 +165,20 @@ export function CommandPalette({
     };
   }, [query, data, knowledge, backend, canViewDocuments, canViewCmdb, canViewTasks]);
 
+  const visibleNav = useMemo(
+    () => NAV.filter((n) => canViewDestination(n.to, role, isPlatformAdmin)),
+    [role, isPlatformAdmin],
+  );
+
+  const navByPath = useMemo(() => {
+    const m = new Map<string, NavEntry>();
+    visibleNav.forEach((n) => m.set(n.to, n));
+    return m;
+  }, [visibleNav]);
+
   const go = (to: string) => {
     if (!canViewDestination(to, role, isPlatformAdmin)) return;
+    pushRecent(to);
     onOpenChange(false);
     navigate({ to });
   };
@@ -124,38 +189,75 @@ export function CommandPalette({
   };
 
   const groups = useMemo(() => {
-    const g: Record<string, typeof NAV> = {};
-    for (const item of NAV) {
-      if (canViewDestination(item.to, role, isPlatformAdmin)) {
-        (g[item.group] ??= []).push(item);
-      }
+    const g: Record<string, NavEntry[]> = {};
+    for (const item of visibleNav) {
+      (g[item.group] ??= []).push(item);
     }
     return g;
-  }, [isPlatformAdmin, role]);
+  }, [visibleNav]);
+
+  const hasQuery = query.trim().length > 0;
+  const recentItems = recent
+    .map((to) => navByPath.get(to))
+    .filter((x): x is NavEntry => Boolean(x));
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Search pages, knowledge, assets, tasks…" value={query} onValueChange={setQuery} />
-      <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+      <CommandInput
+        autoFocus
+        placeholder="Search pages, tickets, knowledge, assets, tasks…"
+        value={query}
+        onValueChange={setQuery}
+      />
+      <CommandList className="max-h-[60vh]">
+        <CommandEmpty>
+          <div className="flex flex-col items-center gap-1 py-2">
+            <Search className="h-4 w-4 text-muted-foreground/60" />
+            <span className="text-sm">No results for “{query}”.</span>
+            <span className="text-xs text-muted-foreground">Try a shorter or different term.</span>
+          </div>
+        </CommandEmpty>
 
-        <CommandGroup heading="Quick actions">
-          <CommandItem onSelect={() => { onOpenChange(false); toast.info("Open the create menu in the top bar."); }}>
-            <Plus className="mr-2 h-4 w-4" /> New…
-          </CommandItem>
-          {canViewSearch && (
-            <CommandItem onSelect={() => go("/search")}>
-              <Search className="mr-2 h-4 w-4" /> Open global search
-            </CommandItem>
-          )}
-        </CommandGroup>
+        {!hasQuery && (
+          <>
+            {canViewSearch && (
+              <CommandGroup heading="Quick actions">
+                <CommandItem onSelect={() => go("/search")}>
+                  <Search className="mr-2 h-4 w-4" /> Open global search
+                  <CommandShortcut>/</CommandShortcut>
+                </CommandItem>
+              </CommandGroup>
+            )}
 
-        <CommandSeparator />
+            {recentItems.length > 0 && (
+              <>
+                <CommandSeparator />
+                <CommandGroup heading="Recent">
+                  {recentItems.map((item) => (
+                    <CommandItem key={`recent-${item.to}`} onSelect={() => go(item.to)}>
+                      <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                      {item.label}
+                      <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {item.group}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+            )}
+
+            <CommandSeparator />
+          </>
+        )}
 
         {Object.entries(groups).map(([group, items]) => (
           <CommandGroup key={group} heading={group}>
             {items.map((item) => (
-              <CommandItem key={item.to} onSelect={() => go(item.to)}>
+              <CommandItem
+                key={item.to}
+                value={`${item.label} ${item.keywords ?? ""} ${item.group}`}
+                onSelect={() => go(item.to)}
+              >
                 <item.icon className="mr-2 h-4 w-4" />
                 {item.label}
               </CommandItem>
@@ -163,50 +265,72 @@ export function CommandPalette({
           </CommandGroup>
         ))}
 
-        {(records.pages.length + records.backendArticles.length + records.assets.length + records.tasks.length) > 0 && (
-          <>
-            <CommandSeparator />
-            {records.backendArticles.length > 0 && (
-              <CommandGroup heading="Knowledge Base (Live)">
-                {records.backendArticles.map((a) => (
-                  <CommandItem key={a.id} onSelect={() => goArticle(a.id)}>
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    <span className="truncate">{a.title}</span>
-                    <span className="ml-2 truncate text-xs text-muted-foreground">{a.team_name}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {records.pages.length > 0 && (
-              <CommandGroup heading="Knowledge Base">
-                {records.pages.map((d) => (
-                  <CommandItem key={d.id} onSelect={() => go("/documents")}>
-                    <FileText className="mr-2 h-4 w-4" /> {d.title}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {records.assets.length > 0 && (
-              <CommandGroup heading="CMDB">
-                {records.assets.map((a) => (
-                  <CommandItem key={a.id} onSelect={() => go("/cmdb")}>
-                    <Server className="mr-2 h-4 w-4" /> {a.hostname}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {records.tasks.length > 0 && (
-              <CommandGroup heading="Tasks">
-                {records.tasks.map((t) => (
-                  <CommandItem key={t.id} onSelect={() => go("/tasks")}>
-                    <CheckSquare className="mr-2 h-4 w-4" /> {t.title}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-          </>
-        )}
+        {hasQuery &&
+          records.pages.length + records.backendArticles.length + records.assets.length + records.tasks.length > 0 && (
+            <>
+              <CommandSeparator />
+              {records.backendArticles.length > 0 && (
+                <CommandGroup heading="Knowledge">
+                  {records.backendArticles.map((a) => (
+                    <CommandItem key={a.id} value={`kb ${a.title}`} onSelect={() => goArticle(a.id)}>
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      <span className="truncate">{a.title}</span>
+                      <span className="ml-2 truncate text-xs text-muted-foreground">{a.team_name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {records.pages.length > 0 && (
+                <CommandGroup heading="Knowledge pages">
+                  {records.pages.map((d) => (
+                    <CommandItem key={d.id} value={`page ${d.title}`} onSelect={() => go("/documents")}>
+                      <FileText className="mr-2 h-4 w-4" /> {d.title}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {records.assets.length > 0 && (
+                <CommandGroup heading="Assets">
+                  {records.assets.map((a) => (
+                    <CommandItem key={a.id} value={`asset ${a.hostname}`} onSelect={() => go("/cmdb")}>
+                      <Server className="mr-2 h-4 w-4" /> {a.hostname}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {records.tasks.length > 0 && (
+                <CommandGroup heading="Tasks">
+                  {records.tasks.map((t) => (
+                    <CommandItem key={t.id} value={`task ${t.title}`} onSelect={() => go("/tasks")}>
+                      <CheckSquare className="mr-2 h-4 w-4" /> {t.title}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+            </>
+          )}
       </CommandList>
+
+      {/* Keyboard hint footer */}
+      <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1">
+            <kbd className="rounded border border-border/60 bg-background/60 px-1 py-0.5 font-mono">↑↓</kbd>
+            Navigate
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="inline-flex items-center rounded border border-border/60 bg-background/60 px-1 py-0.5 font-mono">
+              <CornerDownLeft className="h-2.5 w-2.5" />
+            </kbd>
+            Select
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="rounded border border-border/60 bg-background/60 px-1 py-0.5 font-mono">Esc</kbd>
+            Close
+          </span>
+        </div>
+        <span className="hidden sm:inline">Permission-aware</span>
+      </div>
     </CommandDialog>
   );
 }

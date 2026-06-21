@@ -135,15 +135,15 @@ function CatalogItemPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-        <Link to="/service-catalog" className="inline-flex items-center gap-1 hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" /> Service Catalog
-        </Link>
-        <span>/</span>
-        <span className="text-foreground">{item.category}</span>
-      </div>
-
-      <PageHeader title={item.name} description={item.description} />
+      <PageHeader
+        title={item.name}
+        description={item.description}
+        breadcrumbs={[
+          { label: "Service Catalog", to: "/service-catalog" },
+          { label: item.category },
+          { label: item.name },
+        ]}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">

@@ -84,10 +84,56 @@
     border-color: var(--color-border);
   }
 
+  /* Global focus-visible — consistent ring on every interactive element.
+     Stays subtle on dark enterprise backgrounds, never ugly outlines. */
+  :where(
+    button,
+    a,
+    [role="button"],
+    [role="link"],
+    [role="menuitem"],
+    [role="tab"],
+    [role="option"],
+    [role="checkbox"],
+    [role="radio"],
+    [role="switch"],
+    input,
+    select,
+    textarea,
+    summary,
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+    outline: 2px solid var(--color-ring, oklch(0.7 0.15 250));
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* Respect OS-level reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  :root {
+    /* Height of the sticky TopHeader. Use as `top: var(--app-header-h)` for
+       any in-page sticky toolbar so it never disappears beneath the bar. */
+    --app-header-h: 4rem;
+  }
+
   html,
   body,
   #root {
     min-height: 100vh;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 
   body {
@@ -96,6 +142,42 @@
       radial-gradient(ellipse at bottom right, oklch(0.22 0.08 255 / 0.4), transparent 50%), #07111f;
     color: var(--color-foreground);
     font-feature-settings: "cv11", "ss01";
+  }
+
+  /* Main app scroll area: in-page anchors clear the sticky header. */
+  .app-main {
+    scroll-padding-top: calc(var(--app-header-h) + 1rem);
+  }
+
+  /* Headings with ids land below the sticky header when anchored. */
+  :where(h1, h2, h3, h4, h5, h6)[id] {
+    scroll-margin-top: calc(var(--app-header-h) + 0.5rem);
+  }
+
+  /* Subtle, dark-aware scrollbars by default. Prevents the white WebKit
+     default from punching through dark drawers, dialogs and tables. */
+  html {
+    scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.22);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 
@@ -150,6 +232,27 @@
   background-color: rgba(255, 255, 255, 0.2);
   background-clip: padding-box;
 }
+
+/* DataTable scroll container: subtle scrollbar + horizontal scroll-shadow hint. */
+.dt-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  background:
+    linear-gradient(to right, hsl(var(--card)) 30%, hsla(var(--card) / 0)) left center / 24px 100% no-repeat,
+    linear-gradient(to left,  hsl(var(--card)) 30%, hsla(var(--card) / 0)) right center / 24px 100% no-repeat,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.35), transparent) left center / 14px 100% no-repeat,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.35), transparent) right center / 14px 100% no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+.dt-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+.dt-scroll::-webkit-scrollbar-track { background: transparent; }
+.dt-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.dt-scroll:hover::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.2); }
 
 /* Manuscript-style reading column for Knowledge pages */
 .kb-manuscript {

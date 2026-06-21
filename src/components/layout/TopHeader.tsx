@@ -124,23 +124,39 @@ export function TopHeader() {
           {/* Profile menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="ml-1 flex items-center gap-2 rounded-xl border border-border/60 bg-card/60 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-card/80">
+              <button
+                className="ml-1 flex items-center gap-2 rounded-xl border border-border/60 bg-card/60 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-card/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                aria-label="Open profile menu"
+              >
                 <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-primary">
-                  <User className="h-3.5 w-3.5" />
+                  <User className="h-3.5 w-3.5" aria-hidden="true" />
                 </div>
                 <div className="hidden text-xs leading-tight sm:block">
-                  <div className="font-medium">{displayName}</div>
+                  <div className="max-w-[140px] truncate font-medium">{displayName}</div>
                   <div className="text-[10px] text-muted-foreground">
                     {isPlatformAdmin ? "Platform admin" : "Authenticated user"}
                   </div>
                 </div>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuContent align="end" className="w-72">
               <DropdownMenuLabel>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">{displayName}</span>
-                  <span className="text-[11px] font-normal text-muted-foreground">{userEmail}</span>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-medium">{displayName}</span>
+                    <span className="truncate text-[11px] font-normal text-muted-foreground">{userEmail}</span>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "shrink-0 text-[10px]",
+                      isPlatformAdmin
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border/60 text-muted-foreground",
+                    )}
+                  >
+                    {isPlatformAdmin ? "Admin" : "User"}
+                  </Badge>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

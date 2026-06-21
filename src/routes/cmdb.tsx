@@ -14,12 +14,13 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge, statusTone } from "@/components/common/StatusBadge";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { FormDrawer } from "@/components/common/FormDrawer";
+import { FormGrid, FormField, FormSection } from "@/components/common/FormGrid";
 import { ImportPreviewDialog } from "@/components/common/ImportPreviewDialog";
 import { AssetDetailsDrawer } from "@/components/cmdb/AssetDetailsDrawer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -269,30 +270,66 @@ function CMDBPage() {
 
     <div className="mt-4"><DataTable
       data={filtered} columns={columns} pageSize={20} onRowClick={(asset) => !asset.deletedAt && setDetailsId(asset.id)}
-      emptyState={<EmptyState icon={Server} title={assetsQuery.isLoading ? "Loading CMDB" : showDeleted ? "No deleted assets" : "No matching assets"} description={assetsQuery.isLoading ? "Loading shared asset data." : "No assets match the current view."} />}
+      emptyState={(() => {
+        const filtersActive = query.trim().length > 0 || filterType !== "all" || filterStatus !== "all" || filterEnv !== "all" || filterOwner !== "all" || filterLocation !== "all";
+        if (assetsQuery.isLoading) return <EmptyState icon={Server} title="Loading CMDB" description="Loading shared asset data." />;
+        if (showDeleted) return <EmptyState icon={Archive} title="Recycle bin is empty" description="Deleted assets will appear here and can be restored at any time." />;
+        if (filtersActive) return <EmptyState icon={Server} title="No results found" description="No assets match the current filters or search." actionLabel="Reset filters" onAction={() => { setQuery(""); setFilterType("all"); setFilterStatus("all"); setFilterEnv("all"); setFilterOwner("all"); setFilterLocation("all"); }} secondaryActionLabel="Clear search" onSecondaryAction={() => setQuery("")} />;
+        return <EmptyState icon={Server} title="No assets yet" description="Build your CMDB by registering servers, network devices, endpoints, and other infrastructure." actionLabel={writable && assetTypes.length > 0 ? "Add asset" : undefined} onAction={writable && assetTypes.length > 0 ? openCreate : undefined} secondaryActionLabel={writable ? "Import CSV" : undefined} onSecondaryAction={writable ? () => setImportOpen(true) : undefined} hint="Tip: organize by type, environment and owner to make lookups effortless." />;
+      })()}
     /></div>
 
-    <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit Asset" : "Add CMDB Asset"} description="Changes are saved to the shared CMDB." onSubmit={submit}>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Hostname"><Input value={form.hostname} onChange={(e) => setForm({ ...form, hostname: e.target.value })} /></Field>
-        <Field label="Display name"><Input value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} /></Field>
-        <Field label="Asset type"><Select value={form.assetTypeId} onValueChange={(assetTypeId) => setForm({ ...form, assetTypeId })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{assetTypes.map((type) => <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>)}</SelectContent></Select></Field>
-        <Field label="Status"><Select value={form.status} onValueChange={(status: CmdbAsset["status"]) => setForm({ ...form, status })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["active", "maintenance", "retired"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></Field>
-        <Field label="IP address"><Input value={form.ipAddress} onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} /></Field>
-        <Field label="MAC address"><Input value={form.macAddress} onChange={(e) => setForm({ ...form, macAddress: e.target.value })} /></Field>
-        <Field label="Operating system"><Input value={form.os} onChange={(e) => setForm({ ...form, os: e.target.value })} /></Field>
-        <Field label="Role"><Input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} /></Field>
-        <Field label="Environment"><Select value={form.environment} onValueChange={(environment: CmdbAsset["environment"]) => setForm({ ...form, environment })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["production", "staging", "development"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></Field>
-        <Field label="Location"><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></Field>
-        <Field label="Owner"><Input value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} /></Field>
-        <Field label="Vendor"><Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} /></Field>
-        <Field label="Model"><Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} /></Field>
-        <Field label="Serial number"><Input value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.target.value })} /></Field>
-        <Field label="Asset tag"><Input value={form.assetTag} onChange={(e) => setForm({ ...form, assetTag: e.target.value })} /></Field>
-        <Field label="Warranty expiration"><Input type="date" value={form.warrantyExpiration?.slice(0, 10) ?? ""} onChange={(e) => setForm({ ...form, warrantyExpiration: e.target.value })} /></Field>
+    <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit Asset" : "Add CMDB Asset"} description="Changes are saved to the shared CMDB." onSubmit={submit} size="lg">
+      <div className="space-y-6">
+        <FormSection title="Identity" description="How this asset is named and identified.">
+          <FormGrid>
+            <FormField label="Hostname" required><Input value={form.hostname} onChange={(e) => setForm({ ...form, hostname: e.target.value })} /></FormField>
+            <FormField label="Display name"><Input value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} /></FormField>
+            <FormField label="Asset tag"><Input value={form.assetTag} onChange={(e) => setForm({ ...form, assetTag: e.target.value })} /></FormField>
+            <FormField label="Serial number"><Input value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Classification" description="Type, role and environment.">
+          <FormGrid>
+            <FormField label="Asset type" required><Select value={form.assetTypeId} onValueChange={(assetTypeId) => setForm({ ...form, assetTypeId })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{assetTypes.map((type) => <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>)}</SelectContent></Select></FormField>
+            <FormField label="Role"><Input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} /></FormField>
+            <FormField label="Environment"><Select value={form.environment} onValueChange={(environment: CmdbAsset["environment"]) => setForm({ ...form, environment })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["production", "staging", "development"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FormField>
+            <FormField label="Operating system"><Input value={form.os} onChange={(e) => setForm({ ...form, os: e.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Network" description="Networking identifiers.">
+          <FormGrid>
+            <FormField label="IP address"><Input value={form.ipAddress} onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} /></FormField>
+            <FormField label="MAC address"><Input value={form.macAddress} onChange={(e) => setForm({ ...form, macAddress: e.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Ownership" description="Responsible team and physical location.">
+          <FormGrid>
+            <FormField label="Owner"><Input value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} /></FormField>
+            <FormField label="Location"><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Hardware details" description="Vendor and model information.">
+          <FormGrid>
+            <FormField label="Vendor"><Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} /></FormField>
+            <FormField label="Model"><Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Lifecycle" description="Status, warranty and operator notes.">
+          <FormGrid>
+            <FormField label="Status"><Select value={form.status} onValueChange={(status: CmdbAsset["status"]) => setForm({ ...form, status })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["active", "maintenance", "retired"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FormField>
+            <FormField label="Warranty expiration"><Input type="date" value={form.warrantyExpiration?.slice(0, 10) ?? ""} onChange={(e) => setForm({ ...form, warrantyExpiration: e.target.value })} /></FormField>
+            <FormField label="Notes" full><Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
       </div>
-      <Field label="Notes"><Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
     </FormDrawer>
+
 
     <ImportPreviewDialog open={importOpen} onOpenChange={setImportOpen} title="Import CMDB Assets" description="Imports are validated and committed atomically, with a maximum of 500 rows." expectedHeaders={CSV_COLS} onImport={importRows} />
     <AssetDetailsDrawer asset={assets.find((asset) => asset.id === detailsId) ?? null} onOpenChange={(open) => !open && setDetailsId(null)} onEdit={(asset) => { setDetailsId(null); openEdit(asset); }} onStatusChange={(id, status) => updateAsset(id, { status }).then(invalidate)} onDelete={(id) => deleteMutation.mutateAsync(id).then(() => setDetailsId(null))} />
@@ -300,9 +337,7 @@ function CMDBPage() {
   </div>;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1.5 col-span-2 md:col-span-1"><Label className="text-xs text-muted-foreground">{label}</Label>{children}</div>;
-}
+
 
 function FilterSelect({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: [string, string][] }) {
   return <Select value={value} onValueChange={onChange}><SelectTrigger className="h-9 w-[160px] rounded-xl border-border/60 bg-card/60"><SelectValue /></SelectTrigger><SelectContent>{options.map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent></Select>;

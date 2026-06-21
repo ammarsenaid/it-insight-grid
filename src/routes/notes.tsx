@@ -12,10 +12,11 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { MetricCard } from "@/components/common/MetricCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FormDrawer } from "@/components/common/FormDrawer";
+import { FormGrid, FormField, FormSection } from "@/components/common/FormGrid";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -414,42 +415,54 @@ function NotesPage() {
                 </div>
               </>
             ) : notes.length === 0 ? (
-              <EmptyState icon={StickyNote} title={notesQ.isLoading ? "Loading notes" : "No notes yet"} description={notesQ.isLoading ? "Loading shared note data." : "Create a note to capture quick information."} actionLabel={writable && !notesQ.isLoading ? "Create note" : undefined} onAction={writable && !notesQ.isLoading ? () => openCreate() : undefined} />
+              <EmptyState
+                icon={StickyNote}
+                title={notesQ.isLoading ? "Loading notes" : "No notes yet"}
+                description={notesQ.isLoading ? "Loading shared note data." : "Capture quick information in markdown. Promote a note into a task or document when it grows up."}
+                actionLabel={writable && !notesQ.isLoading ? "Create note" : undefined}
+                onAction={writable && !notesQ.isLoading ? () => openCreate() : undefined}
+                hint={notesQ.isLoading ? undefined : "Notes support markdown, pins, tags, and templates."}
+              />
             ) : (
-              <EmptyState icon={StickyNote} title="Select a note" description="Choose a note from the list or create a new one." actionLabel={writable ? "Create note" : undefined} onAction={writable ? () => openCreate() : undefined} />
+              <EmptyState icon={StickyNote} title="Select a note" description="Choose a note from the list or create a new one to begin writing." actionLabel={writable ? "Create note" : undefined} onAction={writable ? () => openCreate() : undefined} />
             )}
           </section>
         </div>
       )}
 
-      <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit note" : "New note"} onSubmit={save}>
-        <div className="space-y-3">
-          <div className="space-y-1.5"><Label className="text-xs">Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label className="text-xs">Category</Label>
-              <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5"><Label className="text-xs">Tags (comma separated)</Label><Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="vpn, runbook" /></div>
-          </div>
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.pinned} onChange={(e) => setForm({ ...form, pinned: e.target.checked })} /> Pinned</label>
-            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.isTemplate} onChange={(e) => setForm({ ...form, isTemplate: e.target.checked })} /> Mark as template</label>
-          </div>
-          <div className="space-y-1.5"><Label className="text-xs">Linked document</Label>
-            <Select value={form.linkedDocumentId ?? "none"} onValueChange={(v) => setForm({ ...form, linkedDocumentId: v === "none" ? null : v })}>
-              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-              <SelectContent><SelectItem value="none">None</SelectItem>{data.documents.map((d) => <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Content (Markdown)</Label>
-            <MarkdownEditor value={form.content} onChange={(v) => setForm({ ...form, content: v })} rows={14} />
-          </div>
+      <FormDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={editId ? "Edit note" : "New note"} onSubmit={save} size="xl">
+        <div className="space-y-6">
+          <FormSection title="Details" description="Title, category and tags.">
+            <FormGrid>
+              <FormField label="Title" required full><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></FormField>
+              <FormField label="Category">
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Tags" hint="Comma separated"><Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="vpn, runbook" /></FormField>
+              <FormField label="Linked document" full>
+                <Select value={form.linkedDocumentId ?? "none"} onValueChange={(v) => setForm({ ...form, linkedDocumentId: v === "none" ? null : v })}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent><SelectItem value="none">None</SelectItem>{data.documents.map((d) => <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>)}</SelectContent>
+                </Select>
+              </FormField>
+              <FormField full>
+                <div className="flex flex-wrap items-center gap-5 rounded-lg border border-border/50 bg-card/40 px-3 py-2.5">
+                  <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.pinned} onChange={(e) => setForm({ ...form, pinned: e.target.checked })} /> Pinned</label>
+                  <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.isTemplate} onChange={(e) => setForm({ ...form, isTemplate: e.target.checked })} /> Mark as template</label>
+                </div>
+              </FormField>
+            </FormGrid>
+          </FormSection>
+
+          <FormSection title="Content" description="Write in Markdown. Preview is available in the editor.">
+            <MarkdownEditor value={form.content} onChange={(v) => setForm({ ...form, content: v })} rows={18} />
+          </FormSection>
         </div>
       </FormDrawer>
+
 
       <ConfirmDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)} title="Delete note?" destructive confirmLabel="Delete"
         onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete); setConfirmDelete(null); }} />

@@ -12,10 +12,11 @@ import { StatusBadge, statusTone } from "@/components/common/StatusBadge";
 import { EmptyState } from "@/components/common/EmptyState";
 import { DataTable, type Column } from "@/components/common/DataTable";
 import { FormDrawer } from "@/components/common/FormDrawer";
+import { FormGrid, FormField, FormSection } from "@/components/common/FormGrid";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -321,14 +322,26 @@ function ProtocolsPage() {
           data={filteredTemplates}
           columns={templateCols}
           onRowClick={(t) => setEditingTemplateId(t.id)}
-          emptyState={<EmptyState icon={ListChecks} title={templatesQ.isLoading ? "Loading templates" : q ? "No matching records" : "No templates yet"} description={templatesQ.isLoading ? "Loading shared protocol data." : q ? "No records match the selected filters." : "Create the first protocol template to standardise repeatable procedures."} />}
+          emptyState={
+            templatesQ.isLoading
+              ? <EmptyState icon={ListChecks} title="Loading templates" description="Loading shared protocol data." />
+              : q
+                ? <EmptyState icon={ListChecks} title="No results found" description="No templates match your search." actionLabel="Clear search" onAction={() => setQ("")} />
+                : <EmptyState icon={ListChecks} title="No templates yet" description="Templates define repeatable IT procedures (onboarding, maintenance, incident response) that your team can run consistently." actionLabel={canWrite ? "New template" : undefined} onAction={canWrite ? () => setShowCreate(true) : undefined} hint="Templates describe the procedure · runs are individual executions of a template." />
+          }
         />
       ) : (
         <DataTable
           data={filteredRuns}
           columns={runCols}
           onRowClick={(r) => navigate({ to: "/protocols/$id", params: { id: r.id } })}
-          emptyState={<EmptyState icon={Play} title={runsQ.isLoading ? "Loading runs" : (q || statusFilter !== "all") ? "No matching records" : "No protocol runs yet"} description={runsQ.isLoading ? "Loading shared protocol data." : (q || statusFilter !== "all") ? "No records match the selected filters." : "Start a protocol run to track repeatable IT procedures."} />}
+          emptyState={
+            runsQ.isLoading
+              ? <EmptyState icon={Play} title="Loading runs" description="Loading shared protocol data." />
+              : (q || statusFilter !== "all")
+                ? <EmptyState icon={Play} title="No results found" description="No runs match the current filters." actionLabel="Reset filters" onAction={() => { setQ(""); setStatusFilter("all"); }} />
+                : <EmptyState icon={Play} title="No protocol runs yet" description="A run executes a template step by step with assignment, approvals and a full history." actionLabel={canWrite && templates.filter((t) => !t.archived).length > 0 ? "Start a run" : undefined} onAction={canWrite && templates.filter((t) => !t.archived).length > 0 ? () => startRunMutation.mutate(templates.find((t) => !t.archived)!.id) : undefined} secondaryActionLabel={canWrite ? "New template" : undefined} onSecondaryAction={canWrite ? () => setShowCreate(true) : undefined} hint="Create a template first, then start a run from it." />
+          }
         />
       )}
 
@@ -412,84 +425,105 @@ function TemplateDrawer({
       title={editing ? "Edit Protocol Template" : "New Protocol Template"}
       onSubmit={save}
       submitLabel={editing ? "Save" : "Create"}
+      size="lg"
     >
-      <div className="space-y-4">
-        <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><Label>Category</Label><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></div>
-          <div><Label>Assigned Team</Label><Input value={form.assignedTeam ?? ""} onChange={(e) => setForm({ ...form, assignedTeam: e.target.value })} /></div>
-        </div>
-        <div><Label>Description</Label><Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><Label>Purpose</Label><Textarea rows={2} value={form.purpose ?? ""} onChange={(e) => setForm({ ...form, purpose: e.target.value })} /></div>
-          <div><Label>Scope</Label><Textarea rows={2} value={form.scope ?? ""} onChange={(e) => setForm({ ...form, scope: e.target.value })} /></div>
-        </div>
-        <div><Label>Preconditions</Label><Textarea rows={2} value={form.preconditions ?? ""} onChange={(e) => setForm({ ...form, preconditions: e.target.value })} /></div>
-        <div className="grid grid-cols-3 gap-3">
-          <div><Label>Est. minutes</Label><Input type="number" value={form.estimatedMinutes ?? 30} onChange={(e) => setForm({ ...form, estimatedMinutes: parseInt(e.target.value, 10) || 0 })} /></div>
-          <div>
-            <Label>Recurrence</Label>
-            <Select value={form.recurrence} onValueChange={(v) => setForm({ ...form, recurrence: v as ProtocolRecurrence })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="quarterly">Quarterly</SelectItem>
-              </SelectContent>
-            </Select>
+      <div className="space-y-6">
+        <FormSection title="Basic information" description="Name this runbook and tell operators which team owns it.">
+          <FormGrid>
+            <FormField label="Title" required full><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></FormField>
+            <FormField label="Category"><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></FormField>
+            <FormField label="Assigned team"><Input value={form.assignedTeam ?? ""} onChange={(e) => setForm({ ...form, assignedTeam: e.target.value })} /></FormField>
+            <FormField label="Description" full><Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></FormField>
+            <FormField label="Tags" hint="Comma separated" full>
+              <Input value={form.tags.join(", ")} onChange={(e) => setForm({ ...form, tags: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
+            </FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Purpose and scope" description="What this runbook does and what it covers.">
+          <FormGrid>
+            <FormField label="Purpose" full><Textarea rows={3} value={form.purpose ?? ""} onChange={(e) => setForm({ ...form, purpose: e.target.value })} /></FormField>
+            <FormField label="Scope" full><Textarea rows={3} value={form.scope ?? ""} onChange={(e) => setForm({ ...form, scope: e.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Preconditions" description="Conditions, access or systems that must be ready before running this protocol.">
+          <FormGrid columns={1}>
+            <FormField label="Preconditions"><Textarea rows={3} value={form.preconditions ?? ""} onChange={(e) => setForm({ ...form, preconditions: e.target.value })} /></FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Timing and recurrence" description="Estimated duration and how often this runbook is executed.">
+          <FormGrid>
+            <FormField label="Estimated minutes"><Input type="number" min={0} value={form.estimatedMinutes ?? 30} onChange={(e) => setForm({ ...form, estimatedMinutes: parseInt(e.target.value, 10) || 0 })} /></FormField>
+            <FormField label="Recurrence">
+              <Select value={form.recurrence} onValueChange={(v) => setForm({ ...form, recurrence: v as ProtocolRecurrence })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Approval" description="Optionally require sign-off before this protocol completes.">
+          <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 p-3">
+            <div>
+              <div className="text-sm font-medium">Approval required</div>
+              <p className="text-xs text-muted-foreground">Require sign-off before completion.</p>
+            </div>
+            <Switch checked={form.approvalRequired} onCheckedChange={(c) => setForm({ ...form, approvalRequired: c })} />
           </div>
-          <div>
-            <Label>Visibility</Label>
-            <Select value={form.visibility} onValueChange={(v) => setForm({ ...form, visibility: v as ProtocolTemplateInput["visibility"] })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="internal">Internal</SelectItem>
-                <SelectItem value="restricted">Restricted</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 p-3">
-          <div>
-            <Label>Approval required</Label>
-            <p className="text-xs text-muted-foreground">Require sign-off before completion.</p>
-          </div>
-          <Switch checked={form.approvalRequired} onCheckedChange={(c) => setForm({ ...form, approvalRequired: c })} />
-        </div>
-        <div><Label>Tags (comma-separated)</Label>
-          <Input value={form.tags.join(", ")} onChange={(e) => setForm({ ...form, tags: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
-        </div>
+        </FormSection>
+
+        <FormSection title="Visibility" description="Who can discover and execute this protocol.">
+          <FormGrid columns={1}>
+            <FormField label="Visibility">
+              <Select value={form.visibility} onValueChange={(v) => setForm({ ...form, visibility: v as ProtocolTemplateInput["visibility"] })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Internal</SelectItem>
+                  <SelectItem value="restricted">Restricted</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+          </FormGrid>
+        </FormSection>
 
         {/* Step builder - only when editing existing template */}
         {editing && template && (
-          <div className="rounded-lg border border-border/60 bg-card/40 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-sm font-medium">Checklist Steps ({template.steps.length})</div>
-              <Button size="sm" variant="outline" onClick={addStep} disabled={stepsMutation.isPending}><Plus className="mr-1 h-3 w-3" />Add Step</Button>
-            </div>
-            <div className="space-y-2">
-              {template.steps.length === 0 && <p className="text-xs text-muted-foreground">No steps yet.</p>}
-              {template.steps.map((s, i) => (
-                <div key={s.id} className="rounded-md border border-border/60 bg-background/50 p-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-muted-foreground">{i + 1}.</span>
-                    <Input className="h-7 flex-1" value={s.title} onChange={(e) => updateStep(s.id, { title: e.target.value })} />
-                    <Button size="sm" variant="ghost" disabled={i === 0 || stepsMutation.isPending} onClick={() => moveStep(s.id, -1)}>↑</Button>
-                    <Button size="sm" variant="ghost" disabled={i === template.steps.length - 1 || stepsMutation.isPending} onClick={() => moveStep(s.id, 1)}>↓</Button>
-                    <Button size="sm" variant="ghost" className="text-destructive" disabled={stepsMutation.isPending} onClick={() => deleteStep(s.id)}><Trash2 className="h-3 w-3" /></Button>
+          <FormSection title={`Checklist steps (${template.steps.length})`} description="Define the ordered actions operators take during execution.">
+            <div className="rounded-lg border border-border/60 bg-card/40 p-3">
+              <div className="mb-2 flex items-center justify-end">
+                <Button size="sm" variant="outline" onClick={addStep} disabled={stepsMutation.isPending}><Plus className="mr-1 h-3 w-3" />Add step</Button>
+              </div>
+              <div className="space-y-2">
+                {template.steps.length === 0 && <p className="text-xs text-muted-foreground">No steps yet.</p>}
+                {template.steps.map((s, i) => (
+                  <div key={s.id} className="rounded-md border border-border/60 bg-background/50 p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-muted-foreground">{i + 1}.</span>
+                      <Input className="h-7 flex-1" value={s.title} onChange={(e) => updateStep(s.id, { title: e.target.value })} />
+                      <Button size="sm" variant="ghost" disabled={i === 0 || stepsMutation.isPending} onClick={() => moveStep(s.id, -1)}>↑</Button>
+                      <Button size="sm" variant="ghost" disabled={i === template.steps.length - 1 || stepsMutation.isPending} onClick={() => moveStep(s.id, 1)}>↓</Button>
+                      <Button size="sm" variant="ghost" className="text-destructive" disabled={stepsMutation.isPending} onClick={() => deleteStep(s.id)}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                    <Textarea className="mt-2" rows={2} placeholder="Instructions" value={s.instructions} onChange={(e) => updateStep(s.id, { instructions: e.target.value })} />
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                      <label className="flex items-center gap-1.5"><Checkbox checked={s.required} onCheckedChange={(c) => updateStep(s.id, { required: !!c })} />Required</label>
+                      <label className="flex items-center gap-1.5"><Checkbox checked={s.approvalCheckpoint} onCheckedChange={(c) => updateStep(s.id, { approvalCheckpoint: !!c })} />Approval checkpoint</label>
+                      <label className="flex items-center gap-1.5"><Checkbox checked={s.evidenceAllowed} onCheckedChange={(c) => updateStep(s.id, { evidenceAllowed: !!c })} />Evidence</label>
+                    </div>
                   </div>
-                  <Textarea className="mt-2" rows={2} placeholder="Instructions" value={s.instructions} onChange={(e) => updateStep(s.id, { instructions: e.target.value })} />
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
-                    <label className="flex items-center gap-1.5"><Checkbox checked={s.required} onCheckedChange={(c) => updateStep(s.id, { required: !!c })} />Required</label>
-                    <label className="flex items-center gap-1.5"><Checkbox checked={s.approvalCheckpoint} onCheckedChange={(c) => updateStep(s.id, { approvalCheckpoint: !!c })} />Approval checkpoint</label>
-                    <label className="flex items-center gap-1.5"><Checkbox checked={s.evidenceAllowed} onCheckedChange={(c) => updateStep(s.id, { evidenceAllowed: !!c })} />Evidence</label>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          </FormSection>
         )}
         {!editing && (
           <p className="text-xs text-muted-foreground">Create the template first, then add checklist steps from the edit drawer.</p>
