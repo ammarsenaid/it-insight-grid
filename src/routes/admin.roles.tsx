@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   AlertCircle,
   Check,
+  Database,
   Eye,
   Info,
   KeyRound,
@@ -11,14 +12,15 @@ import {
   Lock,
   Pencil,
   RefreshCw,
+  Search,
   ShieldCheck,
+  UsersRound,
   X,
 } from "lucide-react";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
-import { StatusBadge } from "@/components/common/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -262,36 +264,56 @@ function AdminRolesPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-5 pb-8">
       <PageHeader
         title="Roles and Permissions"
-        description="Control workspace capabilities and access levels."
+        description="Manage role definitions, capability grants, and workspace visibility from one administrative view."
       />
 
-      <div className="mb-4 flex items-start gap-3 rounded-xl border border-border/40 bg-card/40 p-3 text-xs text-muted-foreground">
-        <Info className="mt-0.5 h-4 w-4 shrink-0" />
-        <div>
-          <p className="font-medium text-foreground">Database permission management</p>
-          <p className="mt-0.5">
+      <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-3 text-xs text-muted-foreground shadow-sm">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-300">
+          <Database className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-foreground">Database-backed role management</p>
+          <p className="mt-0.5 leading-relaxed">
             Roles, permissions, and page visibility are loaded from the database. Route enforcement
             and role preview remain on the current static safety rules.
           </p>
         </div>
+        <Badge
+          variant="outline"
+          className="hidden border-emerald-500/30 bg-emerald-500/10 text-[10px] font-semibold uppercase tracking-wider text-emerald-200 sm:inline-flex"
+        >
+          Live data
+        </Badge>
       </div>
 
-      <Tabs defaultValue="roles" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="roles">
-            <KeyRound className="mr-1.5 h-3.5 w-3.5" /> Role list
+      <Tabs defaultValue="roles" className="space-y-5">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border border-border/50 bg-card/60 p-1.5 shadow-sm lg:grid-cols-4">
+          <TabsTrigger
+            value="roles"
+            className="min-h-10 justify-start gap-2 rounded-lg px-3 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <KeyRound className="h-4 w-4" /> Role list
           </TabsTrigger>
-          <TabsTrigger value="capabilities">
-            <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Capability matrix
+          <TabsTrigger
+            value="capabilities"
+            className="min-h-10 justify-start gap-2 rounded-lg px-3 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <ShieldCheck className="h-4 w-4" /> Capability matrix
           </TabsTrigger>
-          <TabsTrigger value="pages">
-            <Eye className="mr-1.5 h-3.5 w-3.5" /> Page visibility
+          <TabsTrigger
+            value="pages"
+            className="min-h-10 justify-start gap-2 rounded-lg px-3 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <Eye className="h-4 w-4" /> Page visibility
           </TabsTrigger>
-          <TabsTrigger value="preview">
-            <Eye className="mr-1.5 h-3.5 w-3.5" /> Role preview
+          <TabsTrigger
+            value="preview"
+            className="min-h-10 justify-start gap-2 rounded-lg px-3 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <UsersRound className="h-4 w-4" /> Role preview
           </TabsTrigger>
         </TabsList>
 
@@ -414,62 +436,101 @@ function DatabaseRoleList({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {matrix.roles.map((dbRole) => {
         const previewRole = staticRoleFor(dbRole.roleKey);
         const pageCount = previewRole
           ? Object.values(PAGE_VISIBILITY).filter((roles) => roles.includes(previewRole)).length
           : 0;
+        const platformRole = dbRole.scope === "platform";
         return (
-          <SectionCard
+          <article
             key={dbRole.id}
-            title={dbRole.name}
-            description={dbRole.description ?? "No description provided."}
-            actions={
-              <StatusBadge label={dbRole.scope === "platform" ? "Platform" : "Team"} tone="info" />
-            }
+            className={`group relative flex min-h-72 flex-col overflow-hidden rounded-xl border bg-card/70 shadow-sm transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md ${
+              platformRole ? "border-cyan-500/20" : "border-violet-500/20"
+            }`}
           >
-            <dl className="mb-3 grid gap-1 rounded-lg border border-border/30 bg-background/30 p-2 text-[11px]">
-              <ReadOnlyMetadata label="Role key" value={dbRole.roleKey} mono />
-              <ReadOnlyMetadata label="Scope" value={dbRole.scope} />
-              <ReadOnlyMetadata label="System role" value={dbRole.isSystem ? "Yes" : "No"} />
-            </dl>
-            <dl className="grid grid-cols-2 gap-2 text-xs">
-              <Cell label="Pages" value={pageCount} />
-              <Cell label="Permissions" value={grantCounts.get(dbRole.id) ?? 0} />
-            </dl>
-            <div className="mt-3 flex gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                className="flex-1"
-                disabled={!isPlatformAdmin}
-                title={
-                  isPlatformAdmin
-                    ? "Edit display metadata"
-                    : "Only a platform administrator can edit role metadata."
-                }
-                onClick={() => onEdit(dbRole)}
-              >
-                <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
-              </Button>
-              {previewRole && (
+            <div
+              className={`h-1 w-full ${
+                platformRole
+                  ? "bg-gradient-to-r from-cyan-500/80 to-cyan-500/10"
+                  : "bg-gradient-to-r from-violet-500/80 to-violet-500/10"
+              }`}
+            />
+            <div className="flex flex-1 flex-col p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2
+                    className="truncate text-sm font-semibold text-foreground"
+                    title={dbRole.name}
+                  >
+                    {dbRole.name}
+                  </h2>
+                  <code className="mt-1 block truncate text-[10px] text-muted-foreground">
+                    {dbRole.roleKey}
+                  </code>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`shrink-0 text-[9px] font-semibold uppercase tracking-wider ${
+                    platformRole
+                      ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
+                      : "border-violet-500/30 bg-violet-500/10 text-violet-200"
+                  }`}
+                >
+                  {platformRole ? "Platform" : "Team"}
+                </Badge>
+              </div>
+
+              <p className="mt-3 min-h-10 text-xs leading-relaxed text-muted-foreground">
+                {dbRole.description ?? "No description provided."}
+              </p>
+
+              <dl className="mt-4 grid grid-cols-2 divide-x divide-border/40 rounded-lg border border-border/40 bg-background/35">
+                <Cell label="Visible pages" value={pageCount} />
+                <Cell label="Permissions" value={grantCounts.get(dbRole.id) ?? 0} />
+              </dl>
+
+              <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>System managed</span>
+                <span className="font-medium text-foreground">
+                  {dbRole.isSystem ? "Yes" : "No"}
+                </span>
+              </div>
+
+              <div className="mt-auto flex gap-2 pt-4">
                 <Button
                   size="sm"
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={() => setPreview(previewRole)}
+                  variant="outline"
+                  className="flex-1 border-border/60 bg-background/30"
+                  disabled={!isPlatformAdmin}
+                  title={
+                    isPlatformAdmin
+                      ? "Edit display metadata"
+                      : "Only a platform administrator can edit role metadata."
+                  }
+                  onClick={() => onEdit(dbRole)}
                 >
-                  Preview
+                  <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
                 </Button>
+                {previewRole && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="flex-1 font-medium"
+                    onClick={() => setPreview(previewRole)}
+                  >
+                    <Eye className="mr-1.5 h-3.5 w-3.5" /> Preview
+                  </Button>
+                )}
+              </div>
+              {!previewRole && (
+                <p className="mt-3 rounded-md bg-muted/30 px-2.5 py-2 text-[10px] leading-relaxed text-muted-foreground">
+                  No static page-visibility preview exists for this DB role.
+                </p>
               )}
             </div>
-            {!previewRole && (
-              <p className="mt-3 text-[11px] text-muted-foreground">
-                No static page-visibility preview exists for this DB role.
-              </p>
-            )}
-          </SectionCard>
+          </article>
         );
       })}
     </div>
@@ -643,21 +704,49 @@ function PermissionMatrix({
           Only an active platform administrator can change database permissions.
         </div>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1050px] text-xs">
-          <thead>
-            <tr className="border-b border-border/40 text-left text-muted-foreground">
-              <th className="sticky left-0 z-10 min-w-64 bg-card px-2 py-2 font-medium">
-                Permission
+      <div className="mb-3 flex flex-col gap-3 rounded-lg border border-border/40 bg-muted/15 px-3 py-2.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <p>Scan by capability group, then compare grants across role columns.</p>
+        <div className="flex flex-wrap items-center gap-3" aria-label="Permission matrix legend">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded border border-emerald-500/30 bg-emerald-500/10">
+              <Check className="h-3 w-3 text-emerald-300" />
+            </span>
+            Granted
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-5 w-5 rounded border border-border/60 bg-background/40" /> Not
+            granted
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Lock className="h-3.5 w-3.5 text-amber-400" /> Protected
+          </span>
+        </div>
+      </div>
+      <div className="max-h-[68vh] overflow-auto rounded-xl border border-border/50 bg-background/20 shadow-inner">
+        <table className="w-full min-w-[1120px] border-separate border-spacing-0 text-xs">
+          <thead className="sticky top-0 z-30 bg-card/95 shadow-[0_1px_0_hsl(var(--border))] backdrop-blur">
+            <tr className="text-left text-muted-foreground">
+              <th className="sticky left-0 z-40 min-w-72 border-r border-border/50 bg-card px-4 py-3 font-semibold text-foreground">
+                <div>Permission</div>
+                <div className="mt-0.5 text-[9px] font-normal uppercase tracking-wider text-muted-foreground">
+                  Capability and key
+                </div>
               </th>
               {matrix.roles.map((dbRole) => (
                 <th
                   key={dbRole.id}
-                  className="min-w-24 px-2 py-2 text-center font-medium"
+                  className="min-w-28 border-l border-border/20 px-2 py-3 text-center font-medium"
                   title={dbRole.name}
                 >
-                  <div>{abbreviation(dbRole.name)}</div>
-                  <div className="mt-0.5 text-[9px] font-normal uppercase">{dbRole.scope}</div>
+                  <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-md border border-border/50 bg-background/60 text-[10px] font-bold text-foreground">
+                    {abbreviation(dbRole.name)}
+                  </span>
+                  <div className="mt-1.5 truncate text-[9px] font-medium text-foreground">
+                    {dbRole.name}
+                  </div>
+                  <div className="mt-0.5 text-[8px] font-normal uppercase tracking-wider">
+                    {dbRole.scope}
+                  </div>
                 </th>
               ))}
             </tr>
@@ -676,7 +765,8 @@ function PermissionMatrix({
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-[10px] text-muted-foreground">
+      <p className="mt-3 flex items-start gap-1.5 text-[10px] leading-relaxed text-muted-foreground">
+        <Info className="mt-0.5 h-3 w-3 shrink-0" />
         Platform Administrator cells are read-only to prevent administrative lockout. Page
         visibility is not controlled by this matrix yet.
       </p>
@@ -705,19 +795,19 @@ function PermissionGroupRows({
 }) {
   return (
     <>
-      <tr className="bg-muted/30">
+      <tr className="bg-muted/40">
         <td
           colSpan={1 + roles.length}
-          className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+          className="border-y border-border/40 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground"
         >
           {group.label}
         </td>
       </tr>
       {group.permissions.map((permission) => (
-        <tr key={permission.id} className="border-b border-border/20">
-          <td className="sticky left-0 z-10 bg-card px-2 py-2">
-            <div className="font-medium">{permission.name}</div>
-            <div className="font-mono text-[10px] text-muted-foreground">
+        <tr key={permission.id} className="group/permission transition-colors hover:bg-muted/20">
+          <td className="sticky left-0 z-20 border-r border-b border-border/30 bg-card px-4 py-2.5 group-hover/permission:bg-muted">
+            <div className="font-medium text-foreground">{permission.name}</div>
+            <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">
               {permission.permissionKey}
             </div>
           </td>
@@ -741,10 +831,21 @@ function PermissionGroupRows({
                     : "Grant permission";
 
             return (
-              <td key={dbRole.id} className="px-2 py-2 text-center">
+              <td
+                key={dbRole.id}
+                className={`border-l border-b border-border/20 px-2 py-2 text-center transition-colors ${
+                  checked ? "bg-emerald-500/[0.035]" : ""
+                }`}
+              >
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="inline-flex h-7 w-7 items-center justify-center">
+                    <span
+                      className={`relative inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors ${
+                        checked
+                          ? "border-emerald-500/25 bg-emerald-500/10"
+                          : "border-transparent hover:border-border/60 hover:bg-muted/30"
+                      }`}
+                    >
                       {saving ? (
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       ) : (
@@ -760,6 +861,9 @@ function PermissionGroupRows({
                             })
                           }
                         />
+                      )}
+                      {platformAdminProtected && !saving && (
+                        <Lock className="pointer-events-none absolute -right-1 -bottom-1 h-2.5 w-2.5 text-amber-400" />
                       )}
                     </span>
                   </TooltipTrigger>
@@ -929,28 +1033,46 @@ function LivePageVisibility({
         </div>
       )}
       <PageVisibilityLegend />
-      <div className="mb-3 max-w-sm space-y-1.5">
-        <Label htmlFor="live-page-visibility-route-filter">Filter routes</Label>
-        <Input
-          id="live-page-visibility-route-filter"
-          type="search"
-          value={routeFilter}
-          placeholder="Search route label or path"
-          onChange={(event) => setRouteFilter(event.target.value)}
-        />
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="w-full max-w-md space-y-1.5">
+          <Label htmlFor="live-page-visibility-route-filter">Filter routes</Label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="live-page-visibility-route-filter"
+              type="search"
+              className="pl-9"
+              value={routeFilter}
+              placeholder="Search route label or path"
+              onChange={(event) => setRouteFilter(event.target.value)}
+            />
+          </div>
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          Showing {filteredRoutePaths.length} of {routePaths.length} routes
+        </span>
       </div>
-      <div className="max-h-[65vh] overflow-auto rounded-lg border border-border/40">
-        <table className="w-full min-w-[900px] text-xs">
-          <thead className="sticky top-0 z-20 bg-muted/95 shadow-sm backdrop-blur">
-            <tr className="border-b border-border/60 text-left text-foreground">
-              <th className="sticky left-0 z-30 min-w-64 bg-muted px-4 py-3 font-semibold">
-                Route
+      <div className="max-h-[68vh] overflow-auto rounded-xl border border-border/50 bg-background/20 shadow-inner">
+        <table className="w-full min-w-[980px] border-separate border-spacing-0 text-xs">
+          <thead className="sticky top-0 z-30 bg-card/95 shadow-[0_1px_0_hsl(var(--border))] backdrop-blur">
+            <tr className="text-left text-foreground">
+              <th className="sticky left-0 z-40 min-w-72 border-r border-border/50 bg-card px-4 py-3 font-semibold">
+                <div>Route</div>
+                <div className="mt-0.5 text-[9px] font-normal uppercase tracking-wider text-muted-foreground">
+                  Page and path
+                </div>
               </th>
               {platformRoles.map((dbRole) => (
-                <th key={dbRole.id} className="min-w-28 px-3 py-3 text-center font-semibold">
+                <th
+                  key={dbRole.id}
+                  className="min-w-28 border-l border-border/20 px-2 py-3 text-center font-semibold"
+                >
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="inline-block cursor-help leading-tight">
+                      <span className="inline-flex max-w-24 cursor-help flex-col items-center leading-tight">
+                        <span className="mb-1 flex h-6 min-w-7 items-center justify-center rounded border border-border/50 bg-background/60 px-1.5 text-[9px] font-bold">
+                          {abbreviation(PAGE_VISIBILITY_ROLE_LABELS[dbRole.roleKey] ?? dbRole.name)}
+                        </span>
                         {PAGE_VISIBILITY_ROLE_LABELS[dbRole.roleKey] ?? dbRole.name}
                       </span>
                     </TooltipTrigger>
@@ -964,8 +1086,8 @@ function LivePageVisibility({
             {filteredRoutePaths.map((routePath) => {
               const knownPage = PAGES.find((page) => page.path === routePath);
               return (
-                <tr key={routePath} className="border-b border-border/30 hover:bg-muted/20">
-                  <td className="sticky left-0 z-10 bg-card px-4 py-2.5 shadow-[1px_0_0_hsl(var(--border))]">
+                <tr key={routePath} className="group/route transition-colors hover:bg-muted/20">
+                  <td className="sticky left-0 z-20 border-r border-b border-border/30 bg-card px-4 py-2.5 group-hover/route:bg-muted">
                     <div className="font-semibold text-foreground">
                       {knownPage?.label ?? "Unlisted route"}
                     </div>
@@ -995,13 +1117,26 @@ function LivePageVisibility({
                           ? "Employee access to admin pages is intentionally blocked."
                           : "Required recovery destination. This route cannot be disabled.";
                     return (
-                      <td key={dbRole.id} className="px-3 py-2.5 text-center align-middle">
+                      <td
+                        key={dbRole.id}
+                        className={`border-l border-b border-border/20 px-3 py-2.5 text-center align-middle ${
+                          cell === true ? "bg-emerald-500/[0.025]" : ""
+                        }`}
+                      >
                         {savingCell ? (
-                          <Loader2 className="mx-auto h-4 w-4 animate-spin text-muted-foreground" />
+                          <span className="mx-auto flex h-8 w-8 items-center justify-center rounded-md border border-border/40 bg-muted/30">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          </span>
                         ) : isPlatformAdmin && cell !== undefined ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="relative inline-flex h-7 w-7 items-center justify-center">
+                              <span
+                                className={`relative inline-flex h-8 w-8 items-center justify-center rounded-md border ${
+                                  cell
+                                    ? "border-emerald-500/25 bg-emerald-500/10"
+                                    : "border-border/40 bg-background/30"
+                                }`}
+                              >
                                 <Checkbox
                                   checked={cell}
                                   disabled={isSaving || protectedCell}
@@ -1028,15 +1163,19 @@ function LivePageVisibility({
                             </TooltipContent>
                           </Tooltip>
                         ) : cell === true ? (
-                          <Check
-                            className="mx-auto h-3.5 w-3.5 text-[#52D6A4]"
-                            aria-label={`${dbRole.name} can view ${routePath}`}
-                          />
+                          <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/10">
+                            <Check
+                              className="h-3.5 w-3.5 text-[#52D6A4]"
+                              aria-label={`${dbRole.name} can view ${routePath}`}
+                            />
+                          </span>
                         ) : cell === false ? (
-                          <X
-                            className="mx-auto h-3.5 w-3.5 text-muted-foreground/50"
-                            aria-label={`${dbRole.name} cannot view ${routePath}`}
-                          />
+                          <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-md border border-border/30 bg-background/20">
+                            <X
+                              className="h-3.5 w-3.5 text-muted-foreground/50"
+                              aria-label={`${dbRole.name} cannot view ${routePath}`}
+                            />
+                          </span>
                         ) : (
                           <span className="text-muted-foreground" aria-label="No database row">
                             —
@@ -1080,29 +1219,47 @@ function StaticPageVisibility() {
       title="Page visibility"
       description="Read-only static fallback. Live page visibility is deferred to a later milestone."
     >
-      <PageVisibilityLegend />
-      <div className="mb-3 max-w-sm space-y-1.5">
-        <Label htmlFor="static-page-visibility-route-filter">Filter routes</Label>
-        <Input
-          id="static-page-visibility-route-filter"
-          type="search"
-          value={routeFilter}
-          placeholder="Search route label or path"
-          onChange={(event) => setRouteFilter(event.target.value)}
-        />
+      <PageVisibilityLegend staticMatrix />
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="w-full max-w-md space-y-1.5">
+          <Label htmlFor="static-page-visibility-route-filter">Filter routes</Label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="static-page-visibility-route-filter"
+              type="search"
+              className="pl-9"
+              value={routeFilter}
+              placeholder="Search route label or path"
+              onChange={(event) => setRouteFilter(event.target.value)}
+            />
+          </div>
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          Showing {filteredPages.length} of {PAGES.length} routes
+        </span>
       </div>
-      <div className="max-h-[65vh] overflow-auto rounded-lg border border-border/40">
-        <table className="w-full min-w-[900px] text-xs">
-          <thead className="sticky top-0 z-20 bg-muted/95 shadow-sm backdrop-blur">
-            <tr className="border-b border-border/60 text-left text-foreground">
-              <th className="sticky left-0 z-30 min-w-64 bg-muted px-4 py-3 font-semibold">
-                Route
+      <div className="max-h-[68vh] overflow-auto rounded-xl border border-border/50 bg-background/20 shadow-inner">
+        <table className="w-full min-w-[980px] border-separate border-spacing-0 text-xs">
+          <thead className="sticky top-0 z-30 bg-card/95 shadow-[0_1px_0_hsl(var(--border))] backdrop-blur">
+            <tr className="text-left text-foreground">
+              <th className="sticky left-0 z-40 min-w-72 border-r border-border/50 bg-card px-4 py-3 font-semibold">
+                <div>Route</div>
+                <div className="mt-0.5 text-[9px] font-normal uppercase tracking-wider text-muted-foreground">
+                  Static page rule
+                </div>
               </th>
               {ROLES.map((role) => (
-                <th key={role.id} className="min-w-28 px-3 py-3 text-center font-semibold">
+                <th
+                  key={role.id}
+                  className="min-w-28 border-l border-border/20 px-2 py-3 text-center font-semibold"
+                >
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="inline-block cursor-help leading-tight">
+                      <span className="inline-flex max-w-24 cursor-help flex-col items-center leading-tight">
+                        <span className="mb-1 flex h-6 min-w-7 items-center justify-center rounded border border-border/50 bg-background/60 px-1.5 text-[9px] font-bold">
+                          {abbreviation(PAGE_VISIBILITY_ROLE_LABELS[role.id] ?? role.label)}
+                        </span>
                         {PAGE_VISIBILITY_ROLE_LABELS[role.id] ?? role.label}
                       </span>
                     </TooltipTrigger>
@@ -1116,8 +1273,8 @@ function StaticPageVisibility() {
           </thead>
           <tbody>
             {filteredPages.map((page) => (
-              <tr key={page.path} className="border-b border-border/30 hover:bg-muted/20">
-                <td className="sticky left-0 z-10 bg-card px-4 py-2.5 shadow-[1px_0_0_hsl(var(--border))]">
+              <tr key={page.path} className="group/route transition-colors hover:bg-muted/20">
+                <td className="sticky left-0 z-20 border-r border-b border-border/30 bg-card px-4 py-2.5 group-hover/route:bg-muted">
                   <div className="font-semibold text-foreground">{page.label}</div>
                   <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
                     {page.path}
@@ -1126,11 +1283,20 @@ function StaticPageVisibility() {
                 {ROLES.map((staticRole) => {
                   const visible = (PAGE_VISIBILITY[page.path] ?? []).includes(staticRole.id);
                   return (
-                    <td key={staticRole.id} className="px-3 py-2.5 text-center align-middle">
+                    <td
+                      key={staticRole.id}
+                      className={`border-l border-b border-border/20 px-3 py-2.5 text-center align-middle ${
+                        visible ? "bg-emerald-500/[0.025]" : ""
+                      }`}
+                    >
                       {visible ? (
-                        <Check className="mx-auto h-3.5 w-3.5 text-[#52D6A4]" />
+                        <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/10">
+                          <Check className="h-3.5 w-3.5 text-[#52D6A4]" />
+                        </span>
                       ) : (
-                        <X className="mx-auto h-3.5 w-3.5 text-muted-foreground/50" />
+                        <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-md border border-border/30 bg-background/20">
+                          <X className="h-3.5 w-3.5 text-muted-foreground/50" />
+                        </span>
                       )}
                     </td>
                   );
@@ -1154,24 +1320,39 @@ function StaticPageVisibility() {
   );
 }
 
-function PageVisibilityLegend() {
+function PageVisibilityLegend({ staticMatrix = false }: { staticMatrix?: boolean }) {
   return (
     <div
-      className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground"
+      className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/40 bg-muted/15 px-3 py-2.5 text-[11px] text-muted-foreground"
       aria-label="Page visibility legend"
     >
       <span className="inline-flex items-center gap-1.5">
-        <Checkbox checked disabled aria-hidden="true" /> Checked = visible
+        <span className="flex h-6 w-6 items-center justify-center rounded border border-emerald-500/25 bg-emerald-500/10">
+          <Check className="h-3.5 w-3.5 text-emerald-300" />
+        </span>
+        Checked = visible
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <Checkbox checked={false} disabled aria-hidden="true" /> Empty = hidden
+        <span className="flex h-6 w-6 items-center justify-center rounded border border-border/40 bg-background/30">
+          <X className="h-3.5 w-3.5 text-muted-foreground/50" />
+        </span>
+        Empty = hidden
       </span>
-      <span className="inline-flex items-center gap-1.5">
-        <Lock className="h-3.5 w-3.5 text-amber-400" /> Locked = protected safety route
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving = update in progress
-      </span>
+      {!staticMatrix && (
+        <>
+          <span className="inline-flex items-center gap-1.5">
+            <Lock className="h-3.5 w-3.5 text-amber-400" /> Locked = protected safety route
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving = update in progress
+          </span>
+        </>
+      )}
+      {staticMatrix && (
+        <Badge variant="outline" className="ml-auto text-[9px] uppercase tracking-wider">
+          Static fallback
+        </Badge>
+      )}
     </div>
   );
 }
@@ -1187,6 +1368,23 @@ function StaticRolePreview({
   role: Role;
   setPreview: (role: Role) => void;
 }) {
+  const [actionFilter, setActionFilter] = useState("");
+  const visiblePages = PAGES.filter((page) => (PAGE_VISIBILITY[page.path] ?? []).includes(preview));
+  const hiddenPages = PAGES.filter((page) => !(PAGE_VISIBILITY[page.path] ?? []).includes(preview));
+  const normalizedActionFilter = actionFilter.trim().toLowerCase();
+  const capabilityGroups = CAPABILITY_GROUPS.map((group) => ({
+    ...group,
+    caps: group.caps.filter(
+      (capability) =>
+        normalizedActionFilter.length === 0 ||
+        capability.label.toLowerCase().includes(normalizedActionFilter) ||
+        capability.key.toLowerCase().includes(normalizedActionFilter),
+    ),
+  })).filter((group) => group.caps.length > 0);
+  const allowedActionCount = CAPABILITY_GROUPS.flatMap((group) => group.caps).filter((capability) =>
+    can(capability.key, [preview]),
+  ).length;
+
   return (
     <SectionCard
       title="Role preview"
@@ -1195,10 +1393,13 @@ function StaticRolePreview({
           ? "Inspect the current static fallback. The active role comes from your account."
           : "Inspect the current static fallback, then optionally activate it."
       }
-      actions={
-        <div className="flex items-center gap-2">
+    >
+      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-border/50 bg-background/30 p-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="w-full max-w-sm space-y-1.5">
+          <Label htmlFor="role-preview-selector">Preview role</Label>
           <select
-            className="rounded-lg border border-border/40 bg-background/40 px-2 py-1 text-xs"
+            id="role-preview-selector"
+            className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-sm font-medium text-foreground shadow-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             value={preview}
             onChange={(event) => setPreview(event.target.value as Role)}
           >
@@ -1208,76 +1409,171 @@ function StaticRolePreview({
               </option>
             ))}
           </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="h-8 bg-card/60 px-3 text-[10px]">
+            Active: {roleLabel(role)}
+          </Badge>
           {!isSignedIn && (
-            <Button size="sm" onClick={() => setRole(preview)}>
+            <Button size="sm" className="h-8" onClick={() => setRole(preview)}>
               Activate role
             </Button>
           )}
         </div>
-      }
-    >
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Visible pages
-          </h3>
-          <div className="flex flex-wrap gap-1.5">
-            {PAGES.filter((page) => (PAGE_VISIBILITY[page.path] ?? []).includes(preview)).map(
-              (page) => (
-                <Badge key={page.path} variant="outline" className="text-[11px]">
-                  {page.label}
-                </Badge>
-              ),
-            )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <PreviewMetric label="Visible pages" value={visiblePages.length} icon={Eye} />
+        <PreviewMetric label="Hidden pages" value={hiddenPages.length} icon={Lock} />
+        <PreviewMetric label="Allowed actions" value={allowedActionCount} icon={ShieldCheck} />
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border/50 bg-card/40 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Visible pages</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Destinations included in the current static role preview.
+            </p>
           </div>
-          <h3 className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Hidden pages
-          </h3>
-          <div className="flex flex-wrap gap-1.5">
-            {PAGES.filter((page) => !(PAGE_VISIBILITY[page.path] ?? []).includes(preview)).map(
-              (page) => (
+          <Badge variant="outline" className="text-[9px] uppercase tracking-wider">
+            {visiblePages.length} routes
+          </Badge>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {visiblePages.map((page) => (
+            <div
+              key={page.path}
+              className="flex items-center gap-2.5 rounded-lg border border-emerald-500/15 bg-emerald-500/[0.045] px-3 py-2.5"
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/10">
+                <Check className="h-3.5 w-3.5 text-emerald-300" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-medium text-foreground">
+                  {page.label}
+                </span>
+                <code className="block truncate text-[9px] text-muted-foreground">{page.path}</code>
+              </span>
+            </div>
+          ))}
+        </div>
+        {visiblePages.length === 0 && (
+          <p className="rounded-lg border border-dashed border-border/50 p-4 text-xs text-muted-foreground">
+            This role has no visible pages in the static preview.
+          </p>
+        )}
+        {hiddenPages.length > 0 && (
+          <div className="mt-4 border-t border-border/40 pt-3">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Hidden pages
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {hiddenPages.map((page) => (
                 <Badge
                   key={page.path}
                   variant="outline"
-                  className="text-[11px] text-muted-foreground line-through"
+                  className="border-border/30 bg-background/20 text-[10px] font-normal text-muted-foreground/70"
                 >
                   {page.label}
                 </Badge>
-              ),
-            )}
-            {PAGES.every((page) => (PAGE_VISIBILITY[page.path] ?? []).includes(preview)) && (
-              <span className="text-xs text-muted-foreground">None — full access.</span>
-            )}
+              ))}
+            </div>
           </div>
-        </div>
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Allowed actions
-          </h3>
-          <div className="max-h-72 space-y-1.5 overflow-y-auto pr-2 text-xs">
-            {CAPABILITY_GROUPS.flatMap((group) => group.caps).map((capability) => {
-              const permitted = can(capability.key, [preview]);
-              return (
-                <div
-                  key={capability.key}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-border/30 bg-background/40 px-2 py-1.5"
-                >
-                  <span>{capability.label}</span>
-                  {permitted ? (
-                    <Check className="h-3.5 w-3.5 text-[#52D6A4]" />
-                  ) : (
-                    <X className="h-3.5 w-3.5 text-muted-foreground/50" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        )}
       </div>
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        Currently active role: <strong>{roleLabel(role)}</strong>.
-      </p>
+
+      <div className="mt-4 rounded-xl border border-border/50 bg-card/40 p-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Capability overview</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Allowed and unavailable actions grouped by administrative area.
+            </p>
+          </div>
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              className="h-9 pl-9 text-xs"
+              value={actionFilter}
+              placeholder="Search actions or keys"
+              aria-label="Search role preview actions"
+              onChange={(event) => setActionFilter(event.target.value)}
+            />
+          </div>
+        </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {capabilityGroups.map((group) => (
+            <div key={group.label} className="overflow-hidden rounded-lg border border-border/40">
+              <div className="border-b border-border/40 bg-muted/25 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {group.label}
+              </div>
+              <div className="divide-y divide-border/25">
+                {group.caps.map((capability) => {
+                  const permitted = can(capability.key, [preview]);
+                  return (
+                    <div
+                      key={capability.key}
+                      className="flex items-center justify-between gap-3 px-3 py-2 text-xs transition-colors hover:bg-muted/15"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-foreground">{capability.label}</span>
+                        <code className="block truncate text-[9px] text-muted-foreground">
+                          {capability.key}
+                        </code>
+                      </span>
+                      <span
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
+                          permitted
+                            ? "border-emerald-500/25 bg-emerald-500/10"
+                            : "border-border/30 bg-background/20"
+                        }`}
+                      >
+                        {permitted ? (
+                          <Check className="h-3.5 w-3.5 text-[#52D6A4]" />
+                        ) : (
+                          <X className="h-3.5 w-3.5 text-muted-foreground/50" />
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        {capabilityGroups.length === 0 && (
+          <p className="rounded-lg border border-dashed border-border/50 px-4 py-8 text-center text-xs text-muted-foreground">
+            No actions match “{actionFilter}”.
+          </p>
+        )}
+      </div>
     </SectionCard>
+  );
+}
+
+function PreviewMetric({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  icon: typeof Eye;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/30 p-3.5">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span>
+        <span className="block text-lg font-semibold leading-none text-foreground">{value}</span>
+        <span className="mt-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
+      </span>
+    </div>
   );
 }
 
@@ -1293,9 +1589,9 @@ function abbreviation(label: string): string {
 
 function Cell({ label, value }: { label: string; value: string | number }) {
   return (
-    <div>
+    <div className="px-3 py-2.5 text-center">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-base font-semibold">{value}</div>
+      <div className="mt-1 text-lg font-semibold leading-none text-foreground">{value}</div>
     </div>
   );
 }
