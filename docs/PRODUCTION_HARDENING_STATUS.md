@@ -1911,3 +1911,31 @@ Operational notes:
 - No database schema or migration change is part of this milestone.
 - The live database was not contacted or written.
 - No service restart, commit, or push was performed.
+
+## Milestone 4E - Safe Frontend Deployment
+
+Date: 2026-06-21
+
+Status: IMPLEMENTED - SHELL SYNTAX VALIDATION PASSED; NOT EXECUTED.
+
+Implementation:
+- Added `scripts/ops/deploy_frontend_safe.sh` to require the expected repository,
+  clean `main` checkout, exact `origin/main` commit, and absence of prohibited
+  Lovable files before deployment.
+- Added the existing admin-role QA, Git diff, TypeScript, and production build
+  gates.
+- Made the frontend restart the immediate next command after a successful build.
+- Added post-restart service, local route, public route, and local HTML asset
+  checks. Every referenced JavaScript and CSS asset must exist under
+  `dist/client`.
+- Documented the required workflow and asset-mismatch failure mode in
+  `docs/production-deployment.md`.
+
+Validation:
+- `bash -n scripts/ops/deploy_frontend_safe.sh` passed.
+- The deployment script was intentionally not executed.
+
+Operational notes:
+- No database, migration, Supabase, authentication, authorization, backend API,
+  permission, or Lovable file was changed.
+- No build, service restart, commit, pull, or push was performed.
