@@ -1939,3 +1939,25 @@ Operational notes:
 - No database, migration, Supabase, authentication, authorization, backend API,
   permission, or Lovable file was changed.
 - No build, service restart, commit, pull, or push was performed.
+
+## Milestone 4E.1 - Safe Deployment Asset Extraction Fix
+
+Date: 2026-06-21
+
+Status: IMPLEMENTED - LOCAL VALIDATION PENDING.
+
+Reason:
+- The first execution of `scripts/ops/deploy_frontend_safe.sh` successfully built
+  the frontend, restarted `itkc-frontend`, and verified local and public routes.
+- The final asset-reference check failed because `grep` treated the downloaded
+  HTML response as binary and did not emit the matched `/assets/*.js` and
+  `/assets/*.css` paths.
+
+Fix:
+- Updated the asset extraction command from `grep -Eo` to `grep -aEo` so the
+  HTML response is always processed as text.
+
+Operational notes:
+- No database, migration, Supabase, authentication, authorization, backend API,
+  permission, or Lovable file was changed.
+- No build, service restart, commit, pull, or push was performed by this fix step.

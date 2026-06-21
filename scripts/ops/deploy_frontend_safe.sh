@@ -119,7 +119,7 @@ curl \
   "$local_base_url/"
 
 mapfile -t referenced_assets < <(
-  grep -Eo '/assets/[A-Za-z0-9._/-]+\.(js|css)(\?[^"'"'"'<>[:space:]]*)?' "$html_file" |
+  grep -aEo '/assets/[A-Za-z0-9._/-]+\.(js|css)(\?[^"'"'"'<>[:space:]]*)?' "$html_file" |
     sed 's/?[^?]*$//' |
     sort -u
 )
