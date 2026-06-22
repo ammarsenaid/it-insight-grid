@@ -42,7 +42,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { useRole, can, canSeePage, type Role } from "@/lib/permissions";
+import { useRole, can, type Role } from "@/lib/permissions";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { canAccessRoute } from "@/lib/auth/effective-access";
 import {
   useDashboardPrefs,
   setDashboardPref,
@@ -130,6 +132,7 @@ function Dashboard() {
   const knowledgePages = useMemo(() => knowledge.nodes.filter((n) => n.type === "page"), [knowledge.nodes]);
   const spaceCount = useMemo(() => knowledge.nodes.filter((n) => n.type === "space").length, [knowledge.nodes]);
   const role = useRole();
+  const { effectiveAccess } = useAuth();
   const navigate = useNavigate();
   const prefs = useDashboardPrefs();
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -240,8 +243,8 @@ function Dashboard() {
   }, [tickets]);
 
   // -------- role visibility --------
-  const showServiceDesk = !isRequester(role) && canSeePage("/tickets", role);
-  const showCmdbIpam = !isRequester(role) && !isReadOnly(role) && canSeePage("/cmdb", role);
+  const showServiceDesk = canAccessRoute(effectiveAccess, "/tickets");
+  const showCmdbIpam = canAccessRoute(effectiveAccess, "/cmdb");
   const showMyWork = !isReadOnly(role);
   const showTicketsChart = showServiceDesk;
   const showAuditLink = can("audit.view", role);

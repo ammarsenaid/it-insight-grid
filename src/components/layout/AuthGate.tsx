@@ -3,7 +3,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { AppShell } from "./AppShell";
-import { useRole, canSeePage, hasPageVisibilityRule } from "@/lib/permissions";
+import { canAccessRoute } from "@/lib/auth/effective-access";
 
 const PUBLIC_PATHS = new Set<string>(["/auth"]);
 
@@ -13,28 +13,16 @@ const PUBLIC_PATHS = new Set<string>(["/auth"]);
  * Routing rules (applied after auth resolves on the client):
  *  - unauthenticated user on a protected route → /auth
  *  - authenticated user on /auth → /
- *  - authenticated non-admin on /admin/* → role home
- *  - role-based PAGE_VISIBILITY violation → role home
- *      employee → /my-requests, other roles → /
- *
- * Dynamic sub-paths must match an explicit page-visibility pattern before
- * their page-level per-record authorization runs.
+ * Backend visibility and permission requirements must both allow a protected
+ * route. Unknown routes and unavailable access context fail closed.
  */
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const { loading, contextLoading, session, isPlatformAdmin } = useAuth();
+  const { loading, contextLoading, session, effectiveAccess } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
-  const role = useRole();
   const isPublic = PUBLIC_PATHS.has(pathname);
-  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
-  const homeForRole = role === "employee" ? "/my-requests" : "/";
-  const isKnownPage = hasPageVisibilityRule(pathname);
-  // Unknown non-admin paths fail closed. Unknown admin paths retain the
-  // platform-admin-only fallback below.
-  const roleForbidden = isKnownPage ? !canSeePage(pathname, role) : !isAdminRoute;
-  // Known admin pages use the explicit role matrix. Unknown admin paths,
-  // including diagnostics, remain restricted to platform administrators.
-  const platformAdminRequired = isAdminRoute && !isKnownPage;
+  const homeForRole = effectiveAccess?.safeRecoveryRoute ?? "/auth";
+  const routeForbidden = !isPublic && !canAccessRoute(effectiveAccess, pathname);
   const identityContextPending = Boolean(session) && contextLoading;
 
   const [mounted, setMounted] = useState(false);
@@ -51,12 +39,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       navigate({ to: homeForRole, replace: true });
     } else if (identityContextPending) {
       return;
-    } else if (session && platformAdminRequired && !isPlatformAdmin) {
-      navigate({ to: homeForRole, replace: true });
-    } else if (session && roleForbidden) {
+    } else if (session && routeForbidden) {
       navigate({ to: homeForRole, replace: true });
     }
-  }, [mounted, loading, session, isPublic, identityContextPending, platformAdminRequired, isPlatformAdmin, roleForbidden, homeForRole, navigate]);
+  }, [mounted, loading, session, isPublic, identityContextPending, routeForbidden, homeForRole, navigate]);
 
   // /auth is always bare — same on SSR and client.
   if (isPublic) return <>{children}</>;
@@ -68,8 +54,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   // Resolved but not allowed here → render nothing while redirect runs.
   if (!session) return null;
-  if (platformAdminRequired && !isPlatformAdmin) return null;
-  if (roleForbidden) return null;
+  if (routeForbidden) return null;
 
   return <AppShell>{children}</AppShell>;
 }

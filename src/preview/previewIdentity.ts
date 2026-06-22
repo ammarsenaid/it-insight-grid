@@ -7,6 +7,7 @@
  */
 import type { Session } from "@supabase/supabase-js";
 import type { ProfileRow, SdRoleKey, TeamRow } from "@/lib/auth/AuthProvider";
+import { ROUTE_REQUIREMENTS } from "@/lib/auth/effective-access";
 
 const PREVIEW_USER_ID = "preview-user";
 const PREVIEW_TEAM_ID = "preview-team-it-ops";
@@ -48,6 +49,13 @@ export const PREVIEW_AUTH_CONTEXT = {
   user: PREVIEW_SESSION.user,
   profile: PREVIEW_PROFILE,
   isPlatformAdmin: true,
+  effectiveAccess: {
+    roleKeys: ["platform_admin"],
+    permissionKeys: [],
+    visibleRoutes: Object.keys(ROUTE_REQUIREMENTS),
+    safeRecoveryRoute: "/admin/roles",
+    isPlatformAdmin: true,
+  },
   roleKeys: ["platform_admin"],
   role: "admin" as SdRoleKey,
   teams: [PREVIEW_TEAM] as TeamRow[],

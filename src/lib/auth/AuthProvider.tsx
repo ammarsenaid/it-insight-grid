@@ -20,6 +20,7 @@ import {
   setSessionRoles,
   type Role,
 } from "@/lib/permissions";
+import type { EffectiveAccess } from "./effective-access";
 
 
 export interface ProfileRow {
@@ -50,7 +51,9 @@ interface AuthContextValue {
   user: User | null;
   profile: ProfileRow | null;
   isPlatformAdmin: boolean;
-  /** All DB role_key strings currently granted globally to the user. */
+  /** Backend-derived authorization snapshot. Null means fail closed. */
+  effectiveAccess: EffectiveAccess | null;
+  /** All effective DB role_key strings from global and active team grants. */
   roleKeys: string[];
   /** Highest-ranked role mapped to the frontend Role enum, or null. */
   role: SdRoleKey | null;
@@ -69,11 +72,36 @@ const AUTH_CONTEXT_ERROR = "Account context could not be loaded. Please try agai
 const AUTH_SESSION_ERROR = "Your session could not be restored. Please sign in again.";
 const AUTH_SIGN_OUT_ERROR = "Signed out locally, but the remote session could not be closed.";
 
+function parseEffectiveAccess(value: unknown): EffectiveAccess | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const strings = (candidate: unknown) =>
+    Array.isArray(candidate) && candidate.every((item) => typeof item === "string")
+      ? candidate as string[]
+      : null;
+  const roleKeys = strings(row.role_keys);
+  const permissionKeys = strings(row.permission_keys);
+  const visibleRoutes = strings(row.visible_routes);
+  if (
+    !roleKeys || !permissionKeys || !visibleRoutes ||
+    typeof row.safe_recovery_route !== "string" ||
+    typeof row.is_platform_admin !== "boolean"
+  ) return null;
+  return {
+    roleKeys,
+    permissionKeys,
+    visibleRoutes,
+    safeRecoveryRoute: row.safe_recovery_route,
+    isPlatformAdmin: row.is_platform_admin,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [effectiveAccess, setEffectiveAccess] = useState<EffectiveAccess | null>(null);
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [teamsError, setTeamsError] = useState<string | null>(null);
   const [roleKeys, setRoleKeys] = useState<string[]>([]);
@@ -103,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isCurrentContextRequest()) return;
       setProfile(null);
       setIsPlatformAdmin(false);
+      setEffectiveAccess(null);
       setTeams([]);
       setTeamsError(null);
       setRoleKeys([]);
@@ -118,10 +147,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const failures: string[] = [];
 
+    // Route authorization fails closed for every refresh, including same-user
+    // token refreshes, until a complete new snapshot has been validated.
+    setEffectiveAccess(null);
+    setContextLoading(true);
+
     if (pinToLeastPrivilege) {
       // A new authenticated identity must never inherit the local preview role.
       setSessionRoles(["employee"], "employee");
-      setContextLoading(true);
     }
 
     setContextError(null);
@@ -142,14 +175,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile((profileData as ProfileRow) ?? null);
       }
 
-      // Platform admin flag
-      const { data: adminData, error: adminError } = await supabase.rpc("is_platform_admin");
+      // One backend-derived authorization snapshot drives every route decision.
+      const { data: accessData, error: accessError } = await supabase.rpc("get_my_effective_access");
       if (!isCurrentContextRequest()) return;
-      if (adminError) {
+      const access = accessError ? null : parseEffectiveAccess(accessData);
+      if (!access) {
         setIsPlatformAdmin(false);
-        failures.push("admin status");
+        setEffectiveAccess(null);
+        setRoleKeys([]);
+        setRoleState(null);
+        setSessionRoles(["employee"], "employee");
+        failures.push("effective access");
       } else {
-        setIsPlatformAdmin(Boolean(adminData));
+        setEffectiveAccess(access);
+        setIsPlatformAdmin(access.isPlatformAdmin);
+        setRoleKeys(access.roleKeys);
+        const effectiveRoles = rolesForRoleKeys(access.roleKeys);
+        const displayRole = pickDisplayRole(effectiveRoles);
+        setRoleState(displayRole);
+        setSessionRoles(
+          effectiveRoles.length > 0 ? effectiveRoles : ["employee"],
+          displayRole ?? "employee",
+        );
       }
 
       // Teams visible to this user (RLS enforces visibility)
@@ -167,36 +214,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTeamsError(null);
       }
 
-      // Global role keys for this user. Display precedence is separate from
-      // the additive effective-role set used for authorization.
-      const { data: rolesData, error: rolesErr } = await supabase
-        .from("user_global_roles")
-        .select("role_id, roles!inner(role_key, role_scope)")
-        .eq("user_id", userId);
-      if (!isCurrentContextRequest()) return;
-      if (rolesErr) {
-        setRoleKeys([]);
-        setRoleState(null);
-        // Authenticated: degrade to least-privilege, never to localStorage.
-        setSessionRoles(["employee"], "employee");
-        failures.push("roles");
-      } else {
-        const keys = ((rolesData ?? []) as unknown as Array<{
-          roles: { role_key: string; role_scope: string } | null;
-        }>)
-          .map((r) => r.roles?.role_key ?? null)
-          .filter((k): k is string => Boolean(k));
-        setRoleKeys(keys);
-        const effectiveRoles = rolesForRoleKeys(keys);
-        const displayRole = pickDisplayRole(effectiveRoles);
-        setRoleState(displayRole);
-        // No known/recognised role → least-privilege employee.
-        setSessionRoles(
-          effectiveRoles.length > 0 ? effectiveRoles : ["employee"],
-          displayRole ?? "employee",
-        );
-      }
-
       if (!isCurrentContextRequest()) return;
       setContextError(
         failures.length === 0
@@ -207,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isCurrentContextRequest()) return;
       setProfile(null);
       setIsPlatformAdmin(false);
+      setEffectiveAccess(null);
       setTeams([]);
       setTeamsError(null);
       setRoleKeys([]);
@@ -246,6 +264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Clear the previous identity before exposing a new session to guards.
         setProfile(null);
         setIsPlatformAdmin(false);
+        setEffectiveAccess(null);
         setTeams([]);
         setTeamsError(null);
         setRoleKeys([]);
@@ -295,6 +314,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
         setProfile(null);
         setIsPlatformAdmin(false);
+        setEffectiveAccess(null);
         setTeams([]);
         setTeamsError(null);
         setRoleKeys([]);
@@ -337,6 +357,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setProfile(null);
       setIsPlatformAdmin(false);
+      setEffectiveAccess(null);
       setTeams([]);
       setTeamsError(null);
       setRoleKeys([]);
@@ -411,6 +432,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         profile,
         isPlatformAdmin,
+        effectiveAccess,
         roleKeys,
         role,
         teams,
@@ -427,6 +449,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       profile,
       isPlatformAdmin,
+      effectiveAccess,
       roleKeys,
       role,
       teams,

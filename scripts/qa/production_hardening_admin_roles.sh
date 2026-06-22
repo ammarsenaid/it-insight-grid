@@ -14,9 +14,16 @@ page_visibility_recovery_sql="$root/supabase/pending/20260622000000_harden_role_
 page_visibility_recovery_qa="$root/supabase/pending/20260622000000_harden_role_page_visibility_recovery.qa.sql"
 types="$root/src/lib/admin-roles/types.ts"
 permissions="$root/src/lib/permissions.tsx"
+effective_access="$root/src/lib/auth/effective-access.ts"
+auth_provider="$root/src/lib/auth/AuthProvider.tsx"
+auth_gate="$root/src/components/layout/AuthGate.tsx"
+app_sidebar="$root/src/components/layout/AppSidebar.tsx"
+command_palette="$root/src/components/common/CommandPalette.tsx"
+effective_access_sql="$root/supabase/pending/20260622010000_effective_access_rpc.sql"
+effective_access_qa="$root/supabase/pending/20260622010000_effective_access_rpc.qa.sql"
 status="$root/docs/PRODUCTION_HARDENING_STATUS.md"
 
-for file in "$route" "$api_route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$page_visibility_mutation" "$page_visibility_api" "$page_visibility_recovery_sql" "$page_visibility_recovery_qa" "$types" "$permissions"; do
+for file in "$route" "$api_route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$page_visibility_mutation" "$page_visibility_api" "$page_visibility_recovery_sql" "$page_visibility_recovery_qa" "$types" "$permissions" "$effective_access" "$auth_provider" "$auth_gate" "$app_sidebar" "$command_palette" "$effective_access_sql" "$effective_access_qa"; do
   test -f "$file"
 done
 
@@ -76,11 +83,11 @@ rg -Fq '.update({ can_view: parsed.canView, updated_by: callerId })' "$page_visi
 ! rg -U -q 'from\("role_page_visibility"\)[\s\S]{0,240}\.(insert|update|delete|upsert)\(' \
   "$route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$page_visibility_mutation"
 ! rg -q 'SUPABASE_SERVICE_ROLE_KEY|serviceRoleKey' "$page_visibility_mutation"
-rg -Fq 'This edits the live DB matrix only. Routing still uses static safety rules. DB-backed enforcement is disabled.' "$route"
-rg -Fq 'Stored configuration only — not active routing' "$route"
-rg -Fq 'Changes save to' "$route"
-rg -Fq 'AppSidebar, AuthGate, and CommandPalette still enforce static PAGE_VISIBILITY' "$route"
-rg -Fq 'Page visibility also does not grant backend data permissions or bypass RLS.' "$route"
+rg -Fq 'Backend-driven routing is staged and requires the pending effective-access RPC migration.' "$route"
+rg -Fq 'Backend-driven routing is staged' "$route"
+rg -Fq 'Changes save and refetch from' "$route"
+rg -Fq 'Visibility never' "$route"
+rg -Fq 'grants backend data permissions or bypasses RLS.' "$route"
 rg -Fq 'Stored DB config' "$route"
 ! rg -Fq 'Live (DB-enforced)' "$route"
 ! rg -Fq 'decide what each role can reach' "$route"
@@ -119,12 +126,27 @@ rg -Fq 'Only an active platform administrator can edit role metadata.' "$api_rou
 rg -Fq 'Role key' "$route"
 rg -Fq 'System role' "$route"
 
-# Milestone 1 must retain the static page-visibility fallback and must not wire
-# AppSidebar/AuthGate to the live permission matrix.
+# Static visibility remains comparison-only. Authenticated route decisions must
+# consume the single backend effective-access object and fail closed.
 rg -Fq 'PAGE_VISIBILITY' "$route"
 rg -Fq 'export const PAGE_VISIBILITY' "$permissions"
-! git -C "$root" diff --name-only -- src/lib/permissions.tsx src/components/layout/AppSidebar.tsx src/components/layout/AuthGate.tsx | rg -q .
-test ! -e "$root/src/lib/page-visibility.ts"
+rg -Fq 'export function canAccessRoute' "$effective_access"
+rg -Fq 'if (!access || !hasVisibleRoute(access, path)) return false;' "$effective_access"
+rg -Fq 'if (!requirement || requirement.kind === "missing") return false;' "$effective_access"
+rg -Fq 'supabase.rpc("get_my_effective_access")' "$auth_provider"
+for consumer in "$auth_gate" "$app_sidebar" "$command_palette"; do
+  rg -Fq 'canAccessRoute' "$consumer"
+  ! rg -q 'canSeePage|hasPageVisibilityRule|PAGE_VISIBILITY' "$consumer"
+done
+rg -Fq 'roleHasRouteRequirement' "$route"
+rg -Fq 'Visible, but blocked:' "$route"
+rg -Fq 'Backend access is granted, but this route is hidden.' "$route"
+rg -Fq 'refetchQueries' "$route"
+rg -Fq 'create or replace function public.get_my_effective_access()' "$effective_access_sql"
+rg -Fq "revoke all on function public.get_my_effective_access() from public, anon" "$effective_access_sql"
+rg -Fq "grant execute on function public.get_my_effective_access() to authenticated, service_role" "$effective_access_sql"
+rg -Fq "No safe recovery route is configured for this account" "$effective_access_sql"
+rg -Fq "get_my_effective_access() must be security definer" "$effective_access_qa"
 ! git -C "$root" diff --name-only -- supabase/migrations | rg -q .
 
 # Milestone 85 changes only the page-visibility presentation. Role headers are
@@ -152,12 +174,7 @@ rg -Fq 'Filter routes' "$route"
 rg -Fq 'Search route label or path' "$route"
 rg -Fq 'routePath.toLowerCase().includes(normalizedFilter)' "$route"
 rg -Fq 'routeLabel.toLowerCase().includes(normalizedFilter)' "$route"
-! git -C "$root" diff --name-only -- \
-  src/components/layout/AuthGate.tsx \
-  src/components/layout/AppSidebar.tsx \
-  src/lib/permissions.tsx \
-  src/lib/page-visibility.ts \
-  supabase/migrations | rg -q .
+! git -C "$root" diff --name-only -- supabase/migrations | rg -q .
 
 rg -Fq '## Milestone 78 - Live Database Role Permission Matrix' "$status"
 rg -Fq '## Milestone 79 - Live Role Display Metadata Editing' "$status"
@@ -167,5 +184,6 @@ rg -Fq '## Milestone 84 - Page Visibility Recovery-route Guardrails' "$status"
 rg -Fq '## Milestone 85 - Page Visibility Matrix UI Clarity' "$status"
 rg -Fq '## Milestone 86 - Page Visibility Recovery Invariants at the Data Boundary' "$status"
 rg -Fq '## Milestone 87 - Page Visibility Enforcement Status Clarity' "$status"
+rg -Fq '## Milestone 88 - Backend-driven Effective Access (Staged)' "$status"
 
 echo "admin roles permission matrix assertions passed"

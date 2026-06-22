@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import { useTeamArticles } from "@/lib/knowledge/useTeamArticles";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { canSeePage, hasPageVisibilityRule, useRole, type Role } from "@/lib/permissions";
+import { canAccessRoute, type EffectiveAccess } from "@/lib/auth/effective-access";
 
 
 type NavGroup =
@@ -109,9 +109,8 @@ function pushRecent(to: string) {
   }
 }
 
-function canViewDestination(to: string, role: Role, isPlatformAdmin: boolean): boolean {
-  if (to.startsWith("/admin") && !hasPageVisibilityRule(to)) return isPlatformAdmin;
-  return canSeePage(to, role);
+function canViewDestination(to: string, access: EffectiveAccess | null): boolean {
+  return canAccessRoute(access, to);
 }
 
 export function CommandPalette({
@@ -123,13 +122,12 @@ export function CommandPalette({
 }) {
   const navigate = useNavigate();
   const backend = useTeamArticles();
-  const { isPlatformAdmin } = useAuth();
-  const role = useRole();
+  const { effectiveAccess } = useAuth();
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>([]);
 
-  const canViewDocuments = canViewDestination("/documents", role, isPlatformAdmin);
-  const canViewSearch = canViewDestination("/search", role, isPlatformAdmin);
+  const canViewDocuments = canViewDestination("/documents", effectiveAccess);
+  const canViewSearch = canViewDestination("/search", effectiveAccess);
 
   useEffect(() => {
     if (open) {
@@ -152,8 +150,8 @@ export function CommandPalette({
   }, [query, backend, canViewDocuments]);
 
   const visibleNav = useMemo(
-    () => NAV.filter((n) => !(role === "employee" && n.hideForRequester) && canViewDestination(n.to, role, isPlatformAdmin)),
-    [role, isPlatformAdmin],
+    () => NAV.filter((n) => canViewDestination(n.to, effectiveAccess)),
+    [effectiveAccess],
   );
 
   const navByPath = useMemo(() => {
@@ -163,7 +161,7 @@ export function CommandPalette({
   }, [visibleNav]);
 
   const go = (to: string) => {
-    if (!canViewDestination(to, role, isPlatformAdmin)) return;
+    if (!canViewDestination(to, effectiveAccess)) return;
     pushRecent(to);
     onOpenChange(false);
     navigate({ to });

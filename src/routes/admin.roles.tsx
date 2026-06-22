@@ -100,6 +100,10 @@ import { updateRoleMetadata } from "@/lib/admin-roles/update-role-metadata";
 import { updateRolePageVisibility } from "@/lib/admin-roles/update-role-page-visibility";
 import { updateRolePermission } from "@/lib/admin-roles/update-role-permission";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import {
+  describeRouteRequirement,
+  roleHasRouteRequirement,
+} from "@/lib/auth/effective-access";
 import { roleLabel } from "@/lib/data/users";
 import {
   CAPABILITY_GROUPS,
@@ -152,7 +156,7 @@ import {
  * This block intentionally mirrors static UI safety text required by
  * scripts/qa/production_hardening_admin_roles.sh after visual refactors.
  *
- * This edits the live DB matrix only. Routing still uses static safety rules. DB-backed enforcement is disabled.
+ * Backend-driven routing is staged and requires the pending effective-access RPC migration.
  * Platform Admin must always keep access to role management.
  * Employee access to admin pages is intentionally blocked.
  * Platform Administrator permissions are read-only to prevent lockout.
@@ -189,8 +193,8 @@ type PermissionChange = { roleId: string; permissionId: string; action: "grant" 
 
 function AdminRolesPage() {
   const role = useRole();
-  const allowed = can("admin.roles", role);
   const { session, isPlatformAdmin } = useAuth();
+  const allowed = isPlatformAdmin;
   const isSignedIn = Boolean(session);
   const enabled = Boolean(session?.user) && allowed;
   const queryClient = useQueryClient();
@@ -243,7 +247,7 @@ function AdminRolesPage() {
         return;
       }
       flashCell(`${input.roleId}:${input.permissionId}`);
-      await queryClient.invalidateQueries({ queryKey: adminRolesKeys.all });
+      await queryClient.refetchQueries({ queryKey: adminRolesKeys.all, type: "active" });
       toast.success(input.action === "grant" ? "Permission granted" : "Permission revoked", {
         action: {
           label: "Undo",
@@ -276,7 +280,7 @@ function AdminRolesPage() {
         setMetadataError(result.error);
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: adminRolesKeys.all });
+      await queryClient.refetchQueries({ queryKey: adminRolesKeys.all, type: "active" });
       setEditingRole(null);
       toast.success("Role metadata updated");
     },
@@ -294,7 +298,7 @@ function AdminRolesPage() {
         return;
       }
       flashCell(`pv:${input.roleId}:${input.routePath}`);
-      await queryClient.invalidateQueries({ queryKey: adminRolesKeys.pageVisibility() });
+      await queryClient.refetchQueries({ queryKey: adminRolesKeys.pageVisibility(), type: "active" });
       toast.success(input.canView ? "Route allowed" : "Route hidden", {
         action: {
           label: "Undo",
@@ -2391,11 +2395,12 @@ function PageVisibilityTab({
         <div className="flex items-start gap-2">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <p className="font-semibold">Stored configuration only — not active routing</p>
+            <p className="font-semibold">Backend-driven routing is staged</p>
             <p className="mt-1 leading-relaxed text-amber-100/80">
-              Changes save to <code className="rounded bg-background/30 px-1">role_page_visibility</code>,
-              but AppSidebar, AuthGate, and CommandPalette still enforce static PAGE_VISIBILITY
-              rules. Page visibility also does not grant backend data permissions or bypass RLS.
+              Changes save and refetch from <code className="rounded bg-background/30 px-1">role_page_visibility</code>.
+              The source now consumes effective backend access, but it must ship with the reviewed
+              pending RPC migration. Existing sessions must refresh afterward. Visibility never
+              grants backend data permissions or bypasses RLS.
             </p>
           </div>
         </div>
@@ -2413,7 +2418,7 @@ function PageVisibilityTab({
 
       {source === "live" && rolesQuery.data && visibilityQuery.data ? (
         <LivePageVisibilityMatrix
-          roles={rolesQuery.data.roles}
+          matrix={rolesQuery.data}
           visibility={visibilityQuery.data}
           isPlatformAdmin={isPlatformAdmin}
           mutation={mutation}
@@ -2521,13 +2526,13 @@ function PageVisibilityToolbar({
           <p>
             <strong className="text-foreground">Stored</strong> rows in{" "}
             <code className="rounded bg-muted/40 px-1 text-[10px]">role_page_visibility</code>{" "}
-            are server-validated and refetched after every save, but they are not currently
-            consumed by navigation or route guards.
+            are server-validated and refetched after every save. The staged effective-access RPC
+            supplies these routes to navigation and route guards.
           </p>
           <p className="mt-2">
-            <strong className="text-foreground">Static</strong> PAGE_VISIBILITY rules currently
-            control AppSidebar, AuthGate, and CommandPalette. Backend permissions and RLS are a
-            separate required authorization layer.
+            <strong className="text-foreground">Static</strong> PAGE_VISIBILITY is retained only
+            for comparison and explicit preview tooling. Backend permissions and RLS remain the
+            required authorization layer.
           </p>
         </PopoverContent>
       </Popover>
@@ -2536,7 +2541,7 @@ function PageVisibilityToolbar({
 }
 
 function LivePageVisibilityMatrix({
-  roles,
+  matrix,
   visibility,
   isPlatformAdmin,
   mutation,
@@ -2547,7 +2552,7 @@ function LivePageVisibilityMatrix({
   density,
   flashCells,
 }: {
-  roles: AdminRole[];
+  matrix: AdminRolesData;
   visibility: AdminRolePageVisibility[];
   isPlatformAdmin: boolean;
   mutation: ReturnType<
@@ -2565,12 +2570,23 @@ function LivePageVisibilityMatrix({
   flashCells: Set<string>;
 }) {
   const visibleRoleIds = new Set(visibility.map((row) => row.roleId));
-  const platformRoles = roles.filter(
+  const platformRoles = matrix.roles.filter(
     (r) => r.scope === "platform" && visibleRoleIds.has(r.id),
   );
   const visibilityByCell = new Map(
     visibility.map((row) => [`${row.routePath}:${row.roleId}`, row.canView]),
   );
+  const permissionKeyById = new Map(
+    matrix.permissions.map((permission) => [permission.id, permission.permissionKey]),
+  );
+  const permissionKeysByRole = new Map<string, Set<string>>();
+  for (const grant of matrix.grants) {
+    const permissionKey = permissionKeyById.get(grant.permissionId);
+    if (!permissionKey) continue;
+    const keys = permissionKeysByRole.get(grant.roleId) ?? new Set<string>();
+    keys.add(permissionKey);
+    permissionKeysByRole.set(grant.roleId, keys);
+  }
   const routePaths = Array.from(new Set(visibility.map((row) => row.routePath))).sort();
   const q = search.trim().toLowerCase();
 
@@ -2649,6 +2665,7 @@ function LivePageVisibilityMatrix({
               routes={routes}
               roles={platformRoles}
               visibilityByCell={visibilityByCell}
+              permissionKeysByRole={permissionKeysByRole}
               isPlatformAdmin={isPlatformAdmin}
               mutation={mutation}
               collapsed={collapsed.has(`pv:${area}`)}
@@ -2670,6 +2687,7 @@ function PageVisibilityAreaRows({
   routes,
   roles,
   visibilityByCell,
+  permissionKeysByRole,
   isPlatformAdmin,
   mutation,
   collapsed,
@@ -2683,6 +2701,7 @@ function PageVisibilityAreaRows({
   routes: string[];
   roles: AdminRole[];
   visibilityByCell: Map<string, boolean>;
+  permissionKeysByRole: Map<string, Set<string>>;
   isPlatformAdmin: boolean;
   mutation: ReturnType<
     typeof useMutation<
@@ -2774,6 +2793,18 @@ function PageVisibilityAreaRows({
                   mutation.isPending &&
                   mutation.variables?.roleId === dbRole.id &&
                   mutation.variables.routePath === routePath;
+                const hasRequirement = roleHasRouteRequirement(
+                  routePath,
+                  permissionKeysByRole.get(dbRole.id) ?? new Set<string>(),
+                  dbRole.roleKey,
+                );
+                const mismatch = cell === true
+                  ? !hasRequirement
+                    ? `Visible, but blocked: ${describeRouteRequirement(routePath)}`
+                    : null
+                  : hasRequirement
+                    ? `Backend access is granted, but this route is hidden. ${describeRouteRequirement(routePath)}`
+                    : null;
                 return (
                   <PageVisibilityCell
                     key={dbRole.id}
@@ -2782,8 +2813,9 @@ function PageVisibilityAreaRows({
                     flashing={flashing}
                     canEdit={isPlatformAdmin && !protection.protected && !mutation.isPending}
                     protectedCell={protection.protected}
+                    warning={mismatch}
                     explanation={
-                      protection.reason ??
+                      mismatch ?? protection.reason ??
                       (cell ? "Click to hide this route" : "Click to allow this route")
                     }
                     sizeClass={density.cellSize}
@@ -2810,6 +2842,7 @@ function PageVisibilityCell({
   flashing,
   canEdit,
   protectedCell,
+  warning,
   explanation,
   sizeClass,
   onToggle,
@@ -2819,6 +2852,7 @@ function PageVisibilityCell({
   flashing: boolean;
   canEdit: boolean;
   protectedCell: boolean;
+  warning: string | null;
   explanation: string;
   sizeClass: string;
   onToggle: () => void;
@@ -2859,6 +2893,9 @@ function PageVisibilityCell({
             )}
             {protectedCell && !saving && (
               <Lock className="pointer-events-none absolute -right-1 -bottom-1 h-2.5 w-2.5 text-amber-400" />
+            )}
+            {warning && !saving && (
+              <AlertCircle className="pointer-events-none absolute -right-1 -top-1 h-3 w-3 text-amber-400" />
             )}
           </button>
         </TooltipTrigger>

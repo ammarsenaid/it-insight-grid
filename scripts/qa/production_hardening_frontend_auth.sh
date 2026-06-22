@@ -7,18 +7,20 @@ auth_gate="$root/src/components/layout/AuthGate.tsx"
 app_sidebar="$root/src/components/layout/AppSidebar.tsx"
 auth_route="$root/src/routes/auth.tsx"
 permissions="$root/src/lib/permissions.tsx"
+effective_access="$root/src/lib/auth/effective-access.ts"
+command_palette="$root/src/components/common/CommandPalette.tsx"
 ticket_queue="$root/src/routes/tickets.tsx"
 ticket_detail="$root/src/routes/tickets.\$id.tsx"
 auth_provider="$root/src/lib/auth/AuthProvider.tsx"
 top_header="$root/src/components/layout/TopHeader.tsx"
 
-rg -q 'const platformAdminRequired = isAdminRoute && !isKnownPage;' "$auth_gate"
-rg -q 'session && platformAdminRequired && !isPlatformAdmin' "$auth_gate"
-! rg -q 'session && isAdminRoute && !isPlatformAdmin' "$auth_gate"
-rg -q 'const isKnownPage = hasPageVisibilityRule\(pathname\);' "$auth_gate"
-rg -q 'const isAdminRoute = pathname === "/admin" || pathname\.startsWith\("/admin/"\);' "$auth_gate"
-rg -q 'const roleForbidden = isKnownPage \? !canSeePage\(pathname, role\) : !isAdminRoute;' "$auth_gate"
-rg -q 'if \(!hasPageVisibilityRule\(it\.url\)\) return isPlatformAdmin;' "$app_sidebar"
+rg -Fq 'const routeForbidden = !isPublic && !canAccessRoute(effectiveAccess, pathname);' "$auth_gate"
+rg -Fq 'const homeForRole = effectiveAccess?.safeRecoveryRoute ?? "/auth";' "$auth_gate"
+rg -Fq 'return canAccessRoute(effectiveAccess, it.url);' "$app_sidebar"
+rg -Fq 'return canAccessRoute(access, to);' "$command_palette"
+for consumer in "$auth_gate" "$app_sidebar" "$command_palette"; do
+  ! rg -q 'canSeePage|hasPageVisibilityRule|PAGE_VISIBILITY' "$consumer"
+done
 
 # Every matrix-managed protected URL has an explicit rule. The public auth route
 # is handled separately, while diagnostics intentionally exercises the unknown
@@ -31,12 +33,13 @@ for route in \
   /admin/ticket-settings /admin/mailbox /admin/templates /admin/catalog \
   /recycle-bin /trash /settings
 do
-  rg -q "^[[:space:]]*\"${route}\":" "$permissions"
+  rg -q "^[[:space:]]*\"${route}\":" "$effective_access"
 done
-! rg -q '^[[:space:]]*"/auth":' "$permissions"
-! rg -q '^[[:space:]]*"/admin/diagnostics":' "$permissions"
-rg -q 'segment\.startsWith\(":"\) \? pathSegments\[index\]\.length > 0' "$permissions"
-rg -q 'return pageVisibilityFor\(path\) !== undefined;' "$permissions"
+! rg -q '^[[:space:]]*"/auth":' "$effective_access"
+! rg -q '^[[:space:]]*"/admin/diagnostics":' "$effective_access"
+rg -q 'segment\.startsWith\(":"\) \? pathSegments\[index\]\.length > 0' "$effective_access"
+rg -Fq 'if (!access || !hasVisibleRoute(access, path)) return false;' "$effective_access"
+rg -Fq 'if (!requirement || requirement.kind === "missing") return false;' "$effective_access"
 rg -q 'return sessionRoles \?\? \[current \?\? currentRole\(\)\];' "$permissions"
 rg -q 'authorizationRoles\(current\)\.some\(\(candidate\) => allowedRoles\.includes\(candidate\)\)' "$permissions"
 rg -q 'authorizationRoles\(current\)\.some\(\(candidate\) => list\.includes\(candidate\)\)' "$permissions"
@@ -66,7 +69,8 @@ do
 done
 
 bun -e '
-import { CAPS, CAPABILITY_GROUPS, can, canSeePage, hasPageVisibilityRule, pickDisplayRole, rolesForRoleKeys, setSessionRoles } from "./src/lib/permissions.tsx";
+import { CAPS, CAPABILITY_GROUPS, can, pickDisplayRole, rolesForRoleKeys, setSessionRoles } from "./src/lib/permissions.tsx";
+import { canAccessRoute } from "./src/lib/auth/effective-access.ts";
 const assert = (condition: boolean, message: string) => {
   if (!condition) throw new Error(message);
 };
@@ -95,32 +99,27 @@ assert(can("audit.view", helpdeskAuditor), "helpdesk + auditor lost audit access
 const networkAuditor = rolesForRoleKeys(["network_admin", "platform_auditor"]);
 assert(can("ipam.manage", networkAuditor), "network admin + auditor lost IPAM management");
 assert(can("audit.view", networkAuditor), "network admin + auditor lost audit access");
-assert(canSeePage("/audit", networkAuditor), "network admin + auditor denied audit page");
 assert(!can("tickets.assign", networkAuditor), "network admin + auditor allowed ticket assignment");
 assert(!can("tickets.resolve", networkAuditor), "network admin + auditor allowed ticket resolution");
 const platformAdmin = rolesForRoleKeys(["platform_admin", "platform_auditor"]);
 assert(pickDisplayRole(platformAdmin) === "super_admin", "platform admin display precedence changed");
 assert(can("admin.users", platformAdmin), "platform admin lost admin capability");
 assert(can("audit.view", platformAdmin), "platform admin + auditor lost audit capability");
-for (const path of ["/protocols", "/protocols/", "/protocols/run-123"]) {
-  assert(hasPageVisibilityRule(path), `missing protocol rule: ${path}`);
-  assert(canSeePage(path, "technician"), `technician denied: ${path}`);
-  assert(!canSeePage(path, "employee"), `employee allowed: ${path}`);
-}
-assert(canSeePage("/dashboard", "auditor"), "auditor denied dashboard");
-assert(!canSeePage("/dashboard", "employee"), "employee allowed dashboard");
-assert(canSeePage("/tickets/ticket-123", "employee"), "employee denied ticket detail");
-assert(canSeePage("/service-catalog/item-123", "employee"), "employee denied catalog detail");
-assert(!hasPageVisibilityRule("/protocols/run-123/extra"), "overlong protocol path matched");
-assert(!canSeePage("/unknown-protected-page", "super_admin"), "unknown route allowed");
+const access = { roleKeys: ["technician"], permissionKeys: ["protocols.view"], visibleRoutes: ["/protocols/:id"], safeRecoveryRoute: "/", isPlatformAdmin: false };
+assert(canAccessRoute(access, "/protocols/run-123"), "backend-visible permitted route denied");
+assert(!canAccessRoute(access, "/protocols/run-123/extra"), "overlong route matched");
+assert(!canAccessRoute(access, "/unknown-protected-page"), "unknown route allowed");
+assert(!canAccessRoute({ ...access, permissionKeys: [] }, "/protocols/run-123"), "route visibility bypassed permission requirement");
+assert(!canAccessRoute(null, "/protocols/run-123"), "missing access context allowed route");
 setSessionRoles(docAuditor, "doc_editor");
 assert(can("audit.view", "doc_editor"), "authenticated scalar caller ignored additive roles");
-assert(canSeePage("/audit", "doc_editor"), "authenticated page check ignored additive roles");
 setSessionRoles(null);
 ' >/dev/null
 
 rg -q 'onAuthStateChange\(\(event, next\)' "$auth_provider"
-rg -q 'const effectiveRoles = rolesForRoleKeys\(keys\);' "$auth_provider"
+rg -q 'const effectiveRoles = rolesForRoleKeys\(access\.roleKeys\);' "$auth_provider"
+rg -Fq 'supabase.rpc("get_my_effective_access")' "$auth_provider"
+rg -Fq 'setEffectiveAccess(null);' "$auth_provider"
 rg -q 'setSessionRoles\(' "$auth_provider"
 ! rg -q 'pickHighestRole|ROLE_PRECEDENCE|DB_ROLE_ALIASES' "$auth_provider"
 rg -q 'const sameUser = nextUserId !== null && nextUserId === activeUserIdRef\.current;' "$auth_provider"
@@ -305,16 +304,22 @@ done
 rg -q 'const AUTH_CONTEXT_ERROR = "Account context could not be loaded\. Please try again\.";' "$auth_provider"
 rg -q 'setTeamsError\("Teams could not be loaded\."\);' "$auth_provider"
 
-# Blocking context loading is entered only when least-privilege pinning is
-# required for a newly introduced identity. AuthGate waits for that state before
-# role-based redirects or protected rendering.
+# Every effective-access refresh enters blocking, fail-closed context loading.
+# New identities additionally pin the legacy display role to least privilege.
 pin_block=$(awk '
   /if \(pinToLeastPrivilege\)/ { in_block = 1 }
   in_block { print }
   in_block && /^[[:space:]]*}/ { exit }
 ' "$auth_provider")
 printf '%s\n' "$pin_block" | rg -q 'setSessionRoles\(\["employee"\], "employee"\)'
-printf '%s\n' "$pin_block" | rg -q 'setContextLoading\(true\)'
+access_reset_line=$(rg -n '^[[:space:]]*setEffectiveAccess\(null\);' "$auth_provider" | head -1 | cut -d: -f1)
+access_loading_line=$(rg -n '^[[:space:]]*setContextLoading\(true\);' "$auth_provider" | head -1 | cut -d: -f1)
+rpc_line=$(rg -n 'supabase\.rpc\("get_my_effective_access"\)' "$auth_provider" | cut -d: -f1)
+test -n "$access_reset_line"
+test -n "$access_loading_line"
+test -n "$rpc_line"
+test "$access_reset_line" -lt "$rpc_line"
+test "$access_loading_line" -lt "$rpc_line"
 rg -q 'const identityContextPending = Boolean\(session\) && contextLoading;' "$auth_gate"
 rg -q 'else if \(identityContextPending\)' "$auth_gate"
 rg -q 'loading \|\| identityContextPending' "$auth_gate"

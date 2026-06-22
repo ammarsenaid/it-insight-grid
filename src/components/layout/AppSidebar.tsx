@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/sidebar";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { canSeePage, hasPageVisibilityRule, useRole } from "@/lib/permissions";
+import { canAccessRoute } from "@/lib/auth/effective-access";
 
 type SidebarItem = {
   title: string;
@@ -107,23 +107,14 @@ const groups: { label: string; items: SidebarItem[] }[] = [
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   
-  const { isPlatformAdmin } = useAuth();
-  const role = useRole();
+  const { effectiveAccess } = useAuth();
 
-  // Every item is gated by canSeePage (role-based PAGE_VISIBILITY).
-  // Admin items additionally require the real is_platform_admin() flag,
-  // except for the prototype-only admin pages that allow non-admin roles
-  // listed in PAGE_VISIBILITY (e.g. /admin/catalog also allows sd_lead).
+  // The same backend-derived decision used by AuthGate filters navigation.
   const visibleGroups = groups
     .map((g) => ({
       ...g,
       items: g.items.filter((it) => {
-        if (role === "employee" && it.hideForRequester) return false;
-        if (it.url.startsWith("/admin")) {
-          if (!hasPageVisibilityRule(it.url)) return isPlatformAdmin;
-          return canSeePage(it.url, role);
-        }
-        return canSeePage(it.url, role);
+        return canAccessRoute(effectiveAccess, it.url);
       }),
     }))
     .filter((g) => g.items.length > 0);

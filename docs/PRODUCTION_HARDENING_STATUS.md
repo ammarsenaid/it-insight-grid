@@ -2032,3 +2032,91 @@ Operational notes:
 - No database, migration, Supabase, authentication, authorization, backend API,
   permission, or Lovable file was changed.
 - No build, service restart, commit, pull, or push was performed by this fix step.
+
+## Milestone 88 - Backend-driven Effective Access (Staged)
+
+Date: 2026-06-22
+
+Status: SOURCE AND PENDING MIGRATION IMPLEMENTED; NOT APPLIED OR DEPLOYED.
+
+Problem confirmed:
+- `/admin/roles` persisted permission grants to `role_permissions` and visibility
+  booleans to `role_page_visibility`, but authenticated routing still evaluated
+  frontend role arrays in `PAGE_VISIBILITY` through `canSeePage`.
+- The static consumers were `AuthGate`, `AppSidebar`, `CommandPalette`, and the
+  dashboard route's conditional links. The Roles page also used the static
+  matrix for preview/comparison. `permissions.tsx` defined `PAGE_VISIBILITY`,
+  `pageVisibilityFor`, `hasPageVisibilityRule`, and `canSeePage`.
+- Consequently a successful visibility save changed a database row but did not
+  change route guards or navigation. Permission saves did affect RLS/RPC checks
+  that use `has_permission`, but did not affect the static frontend capability
+  or route matrices.
+
+Staged architecture:
+- Added pending `public.get_my_effective_access()` returning one JSON object with
+  effective global/team role keys, effective permission keys, visible route
+  patterns, a protected recovery route, and the platform-admin flag.
+- The RPC derives state from `profiles`, `roles`, `permissions`,
+  `role_permissions`, `role_page_visibility`, `user_global_roles`,
+  `team_members`, and `team_member_roles`. Existing data-boundary helpers remain
+  `is_platform_admin`, `has_permission`, `has_team_role`, and `is_team_member`.
+- `AuthProvider` validates the RPC response and exposes `effectiveAccess`.
+  Missing, malformed, inactive-account, or RPC-error states remain null and
+  therefore fail closed. Token refresh calls reload the snapshot.
+- `ROUTE_REQUIREMENTS` is the single code-reviewed mapping from a route pattern
+  to existing backend permission keys or a documented self-scoped contract.
+  `canAccessRoute` requires both a saved visible route and its backend contract.
+  Unknown routes and routes marked `missing` deny by default.
+- `AuthGate`, `AppSidebar`, `CommandPalette`, and dashboard conditional links now
+  consume this shared decision. Static `PAGE_VISIBILITY` remains only for the
+  Roles comparison/preview display and is not authenticated enforcement.
+
+Route/backend contract audit:
+- Knowledge/dashboard/search use `knowledge.read`; knowledge tables and storage
+  are protected by RLS using `has_permission` and article visibility helpers.
+- Ticket queue uses `tickets.view_all`; ticket detail and My Requests are
+  self-scoped, with ticket RLS/RPC ownership checks remaining authoritative.
+- Catalog requests use `catalog.request`; notifications use
+  `notifications.view_own` plus owner-scoped RLS.
+- CMDB, IPAM, Tasks, Notes, and Protocols use their existing `*.view` or
+  `*.manage` keys. Their RLS and write RPCs check `has_permission`.
+- Audit and Reports use existing `audit.view`/`platform.view_audit` and
+  `reports.view` keys. Admin Users, Teams, and Roles remain restricted to
+  `platform_admin`, matching their current server mutation APIs; the broader
+  catalog permissions are not treated as an authorization bypass. Ticket
+  administration uses `tickets.config`.
+- Templates, admin catalog management, recycle bin/trash, and Settings have no
+  defensible dedicated backend permission contract yet. They are explicitly
+  marked missing and fail closed even if visibility is checked.
+
+Roles-page behavior:
+- Permission, metadata, and visibility writes remain in authenticated,
+  platform-admin-only server APIs using the service credential server-side.
+- Every successful write now explicitly refetches active role queries before a
+  success toast. Rejected and failed writes continue to show errors and never
+  show fake success.
+- Visibility cells warn when visibility is enabled without the required backend
+  permission, or when a backend permission is granted while visibility is off.
+  Missing backend route contracts are shown as blocked warnings.
+- The UI states that the runtime source and pending migration must be released
+  together and that existing sessions need an access refresh afterward.
+
+Pending database files:
+- `supabase/pending/20260622010000_effective_access_rpc.sql`
+- `supabase/pending/20260622010000_effective_access_rpc.qa.sql`
+
+Disposable rehearsal order:
+1. Restore a production-shaped schema into an isolated disposable Supabase DB.
+2. Apply pending page-visibility migrations in timestamp order, then apply the
+   effective-access RPC migration.
+3. Run the paired SQL QA inside the disposable DB and test active/inactive users,
+   additive global roles, active/suspended team roles, permission revocation,
+   visibility toggles, unknown routes, and protected recovery routes.
+4. Run both static QA scripts, TypeScript, and the production build.
+5. Release the reviewed database migration before or atomically with frontend
+   source. Deploying this frontend without the RPC intentionally fails closed.
+
+Operational notes:
+- No SQL was executed and no database connection was made.
+- No live migration, live data write, deployment, restart, commit, or push
+  occurred.
