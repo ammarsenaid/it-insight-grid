@@ -2144,3 +2144,22 @@ Status: IMPLEMENTED AND LOCALLY VALIDATED.
 Operational notes:
 - No database, SQL, migration, Supabase pending file, authorization, route-guard,
   backend API, deployment, service restart, commit, or push operation was performed.
+
+## Milestone 90 - Service Navigation Removal
+
+Date: 2026-06-22
+
+Status: IMPLEMENTED AND LOCALLY VALIDATED.
+
+- Removed Service Catalog and Notifications from the left sidebar for every
+  role.
+- Removed the same destinations from Command Palette navigation and recent-item
+  resolution.
+- Preserved both routes, backend-driven effective access, route guards,
+  authorization, RLS, database permissions, and backend behavior.
+- Added static frontend authorization QA assertions that prevent either route
+  from returning to these navigation surfaces.
+
+Operational notes:
+- No database, SQL, migration, Supabase pending file, authorization, route-guard,
+  backend API, deployment, service restart, commit, or push operation was performed.

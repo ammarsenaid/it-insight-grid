@@ -12,7 +12,6 @@ import {
   Brain,
   Ticket,
   Inbox,
-  
   ShieldCheck,
   BarChart3,
   Users,
@@ -22,8 +21,6 @@ import {
   ListChecks,
   FileCode,
   Wrench,
-  Bell,
-  ShoppingBag,
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,7 +42,6 @@ type SidebarItem = {
   title: string;
   url: string;
   icon: typeof LayoutDashboard;
-  hideForRequester?: boolean;
 };
 
 const groups: { label: string; items: SidebarItem[] }[] = [
@@ -62,8 +58,6 @@ const groups: { label: string; items: SidebarItem[] }[] = [
     items: [
       { title: "Tickets", url: "/tickets", icon: Ticket },
       { title: "My Requests", url: "/my-requests", icon: Inbox },
-      { title: "Service Catalog", url: "/service-catalog", icon: ShoppingBag, hideForRequester: true },
-      { title: "Notifications", url: "/notifications", icon: Bell, hideForRequester: true },
     ],
   },
   {

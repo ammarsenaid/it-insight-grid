@@ -18,6 +18,11 @@ rg -Fq 'const routeForbidden = !isPublic && !canAccessRoute(effectiveAccess, pat
 rg -Fq 'const homeForRole = effectiveAccess?.safeRecoveryRoute ?? "/auth";' "$auth_gate"
 rg -Fq 'return canAccessRoute(effectiveAccess, it.url);' "$app_sidebar"
 rg -Fq 'return canAccessRoute(access, to);' "$command_palette"
+# These routes remain guarded and directly addressable, but are intentionally
+# absent from navigation for every role.
+for navigation in "$app_sidebar" "$command_palette"; do
+  ! rg -q '/service-catalog|/notifications' "$navigation"
+done
 for consumer in "$auth_gate" "$app_sidebar" "$command_palette"; do
   ! rg -q 'canSeePage|hasPageVisibilityRule|PAGE_VISIBILITY' "$consumer"
 done

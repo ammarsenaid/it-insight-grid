@@ -22,8 +22,6 @@ import {
   Settings as SettingsIcon,
   Ticket,
   Inbox,
-  Bell,
-  ShoppingBag,
   ShieldCheck,
   BarChart3,
   Users,
@@ -59,7 +57,6 @@ interface NavEntry {
   icon: LucideIcon;
   group: NavGroup;
   keywords?: string;
-  hideForRequester?: boolean;
 }
 
 const NAV: NavEntry[] = [
@@ -67,8 +64,6 @@ const NAV: NavEntry[] = [
   { label: "Global search", to: "/search", icon: Search, group: "Pages", keywords: "find" },
   { label: "Tickets", to: "/tickets", icon: Ticket, group: "Tickets" },
   { label: "My requests", to: "/my-requests", icon: Inbox, group: "Tickets" },
-  { label: "Service catalog", to: "/service-catalog", icon: ShoppingBag, group: "Tickets", hideForRequester: true },
-  { label: "Notifications", to: "/notifications", icon: Bell, group: "Tickets", hideForRequester: true },
   { label: "Knowledge base", to: "/documents", icon: FileText, group: "Knowledge", keywords: "docs articles" },
   { label: "CMDB", to: "/cmdb", icon: Server, group: "Assets", keywords: "inventory hardware" },
   { label: "IPAM", to: "/ipam", icon: Network, group: "IPAM", keywords: "subnet ip address" },
