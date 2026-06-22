@@ -10,28 +10,35 @@ export const Route = createFileRoute("/documents")({
       { title: "Documents · IT Knowledge Center" },
       {
         name: "description",
-        content:
-          "Books, chapters and pages — a backend-powered knowledge base for your team.",
+        content: "Books, chapters and pages — a backend-powered knowledge base for your team.",
       },
     ],
   }),
-  errorComponent: ({ error, reset }) => (
-    <div className="p-8 text-sm text-destructive">
-      Could not load Documents: {error.message}{" "}
-      <button className="underline" onClick={() => reset()}>
+  errorComponent: ({ reset }) => (
+    <div
+      className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm"
+      role="alert"
+    >
+      <h1 className="font-semibold text-destructive">Could not load Documents</h1>
+      <p className="mt-1 text-muted-foreground">
+        The knowledge center could not be opened. Retry, or contact an administrator if the problem
+        continues.
+      </p>
+      <button
+        className="mt-3 font-medium text-primary underline underline-offset-4"
+        onClick={() => reset()}
+      >
         Retry
       </button>
     </div>
   ),
-  notFoundComponent: () => (
-    <div className="p-8 text-sm text-muted-foreground">Page not found.</div>
-  ),
+  notFoundComponent: () => <div className="p-8 text-sm text-muted-foreground">Page not found.</div>,
   component: DocumentsPage,
 });
 
 function DocumentsPage() {
   return (
-    <div className="-mt-2">
+    <div>
       <KnowledgeBackendWorkspace />
     </div>
   );

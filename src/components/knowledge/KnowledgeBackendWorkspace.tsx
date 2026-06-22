@@ -149,11 +149,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_PILL: Record<string, string> = {
-  draft: "border-slate-500/30 bg-slate-500/10 text-slate-200",
-  in_review: "border-amber-500/30 bg-amber-500/10 text-amber-200",
-  approved: "border-sky-500/30 bg-sky-500/10 text-sky-200",
-  published: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-  archived: "border-zinc-500/30 bg-zinc-500/10 text-zinc-300",
+  draft: "border-slate-500/30 bg-slate-500/10 text-slate-700 dark:text-slate-200",
+  in_review: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-200",
+  approved: "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-200",
+  published: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200",
+  archived: "border-zinc-500/30 bg-zinc-500/10 text-zinc-700 dark:text-zinc-300",
 };
 
 // Deterministic accent gradient per book (used as fallback when no override).
@@ -307,7 +307,11 @@ export function KnowledgeBackendWorkspace() {
   }, [teams, activeTeamId]);
 
   const { data, loading, error, reload } = useKnowledgeBackend(activeTeamId);
-  const { perms } = useKnowledgePermissions(activeTeamId);
+  const {
+    perms,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = useKnowledgePermissions(activeTeamId);
 
   const [selection, setSelection] = useState<Selection>({ kind: "home" });
   const [editingArticle, setEditingArticle] = useState(false);
@@ -357,6 +361,7 @@ export function KnowledgeBackendWorkspace() {
     setSelection({ kind: "home" });
     setEditingArticle(false);
     setExpanded(new Set());
+    setQuery("");
     setStatusFilter("all");
     setShowArchived(false);
     setTagFilter("");
@@ -456,11 +461,15 @@ export function KnowledgeBackendWorkspace() {
 
   const filteredArticleIds = useMemo(() => {
     if (!data) return null;
-    const filterActive =
-      !!ql || statusFilter !== "all" || !!tagFilter || !showArchived;
+    const filterActive = !!ql || statusFilter !== "all" || !!tagFilter || !showArchived;
     if (!filterActive) return null;
     const m = new Set<string>();
     for (const a of data.articles) {
+      const parentSpace = data.spaces.find((space) => space.id === a.space_id);
+      const parentCategory = a.category_id
+        ? data.categories.find((category) => category.id === a.category_id)
+        : null;
+      if (!showArchived && (parentSpace?.is_archived || parentCategory?.is_archived)) continue;
       if (!showArchived && a.status === "archived") continue;
       if (statusFilter !== "all" && a.status !== statusFilter) continue;
       if (tagFilter && !tagIdsByArticle.get(a.id)?.has(tagFilter)) continue;
@@ -473,6 +482,18 @@ export function KnowledgeBackendWorkspace() {
     }
     return m;
   }, [data, ql, statusFilter, tagFilter, showArchived, tagIdsByArticle, tagsByArticle]);
+
+  const filtersActive = !!ql || statusFilter !== "all" || !!tagFilter || showArchived;
+  const matchingArticleCount = filteredArticleIds?.size ?? data?.articles.length ?? 0;
+  const activeTeam = teams.find((team) => team.id === activeTeamId) ?? null;
+
+  const clearFilters = () => {
+    setQuery("");
+    setStatusFilter("all");
+    setTagFilter("");
+    setShowArchived(false);
+    searchInputRef.current?.focus();
+  };
 
   // ───────── Auth/team gating ─────────
   if (authLoading || contextLoading) return <WorkspaceSkeleton />;
@@ -489,12 +510,9 @@ export function KnowledgeBackendWorkspace() {
     return (
       <div className="rounded-2xl border border-border/60 bg-card/40 p-10 text-center text-sm text-muted-foreground">
         <Library className="mx-auto mb-3 h-8 w-8 opacity-60" />
-        <div className="text-base font-medium text-foreground">
-          No accessible team found
-        </div>
+        <div className="text-base font-medium text-foreground">No accessible team found</div>
         <p className="mx-auto mt-2 max-w-md">
-          Ask an administrator to grant access to a team before browsing the
-          knowledge base.
+          Ask an administrator to grant access to a team before browsing the knowledge base.
         </p>
       </div>
     );
@@ -529,8 +547,7 @@ export function KnowledgeBackendWorkspace() {
         if (r.error) toast.error(r.error);
         else {
           toast.success("Book deleted.");
-          if (selection.kind === "space" && selection.id === s.id)
-            setSelection({ kind: "home" });
+          if (selection.kind === "space" && selection.id === s.id) setSelection({ kind: "home" });
           reload();
         }
       },
@@ -583,8 +600,7 @@ export function KnowledgeBackendWorkspace() {
         else {
           toast.success("Page deleted.");
           if (selection.kind === "article" && selection.id === a.id) {
-            if (a.category_id)
-              setSelection({ kind: "category", id: a.category_id });
+            if (a.category_id) setSelection({ kind: "category", id: a.category_id });
             else setSelection({ kind: "space", id: a.space_id });
           }
           reload();
@@ -602,9 +618,7 @@ export function KnowledgeBackendWorkspace() {
           : `Archive "${a.title}". It will be hidden from the default view; content and history are preserved.`,
       onConfirm: async () => {
         const r =
-          a.status === "archived"
-            ? await restoreArticleToDraft(a)
-            : await reviewArchiveArticle(a);
+          a.status === "archived" ? await restoreArticleToDraft(a) : await reviewArchiveArticle(a);
         if (r.error) toast.error(r.error);
         else {
           toast.success(a.status === "archived" ? "Page restored." : "Page archived.");
@@ -638,7 +652,121 @@ export function KnowledgeBackendWorkspace() {
   const canNewArticle = perms.create && !!selectedSpaceId;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <header className="rounded-2xl border border-border/60 bg-card/40 p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                Knowledge center
+              </h1>
+              {!permissionsLoading && !perms.update && !perms.create && (
+                <Badge variant="outline" className="font-normal text-muted-foreground">
+                  <Eye className="mr-1 h-3 w-3" /> Read only
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Find trusted guidance, browse team spaces, and keep operational knowledge current.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {teams.length > 1 ? (
+              <Select value={activeTeamId ?? undefined} onValueChange={setActiveTeamId}>
+                <SelectTrigger
+                  className="h-9 w-[min(18rem,75vw)]"
+                  aria-label="Active knowledge team"
+                >
+                  <SelectValue placeholder="Select a team" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : activeTeam ? (
+              <Badge variant="secondary" className="h-9 px-3 font-medium">
+                <Library className="mr-1.5 h-3.5 w-3.5" /> {activeTeam.name}
+              </Badge>
+            ) : null}
+            {canNewSpace && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9"
+                onClick={() => setSpaceDialog({ open: true, initial: null })}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> New space
+              </Button>
+            )}
+            {canNewArticle && selectedSpaceId && (
+              <Button
+                size="sm"
+                className="h-9"
+                onClick={() =>
+                  setArticleDialog({
+                    open: true,
+                    initial: null,
+                    spaceId: selectedSpaceId,
+                    categoryId: selectedCategoryId,
+                  })
+                }
+              >
+                <FileText className="mr-1.5 h-3.5 w-3.5" /> New article
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1">
+            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search article titles, summaries, and tags"
+              aria-label="Search knowledge articles"
+              className="h-10 bg-background/60 pl-9 pr-12"
+            />
+            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground sm:block">
+              /
+            </kbd>
+          </div>
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
+              {matchingArticleCount} {matchingArticleCount === 1 ? "article" : "articles"}
+            </span>
+            {filtersActive && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-9"
+                onClick={clearFilters}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {permissionsError && (
+          <div
+            className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200"
+            role="status"
+          >
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Editing controls are unavailable because permissions could not be verified. Content
+            remains read only.
+          </div>
+        )}
+      </header>
 
       {/* Layout */}
       <div
@@ -680,10 +808,10 @@ export function KnowledgeBackendWorkspace() {
                 <div className="group relative">
                   <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
                   <Input
-                    ref={searchInputRef}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search…"
+                    placeholder="Search articles"
+                    aria-label="Search articles in library"
                     className="h-8 border-border/40 bg-background/30 pl-8 pr-7 text-[12px] focus-visible:bg-background/60"
                   />
                   <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground/50">
@@ -695,7 +823,10 @@ export function KnowledgeBackendWorkspace() {
                 <div className="mt-2 flex items-center gap-1.5 text-[10.5px]">
                   <Select
                     value={statusFilter}
-                    onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+                    onValueChange={(v) => {
+                      setStatusFilter(v as StatusFilter);
+                      if (v === "archived") setShowArchived(true);
+                    }}
                   >
                     <SelectTrigger className="h-6 flex-1 border-border/30 bg-transparent px-1.5 text-[10.5px] text-muted-foreground hover:text-foreground">
                       <SelectValue />
@@ -727,23 +858,26 @@ export function KnowledgeBackendWorkspace() {
                       </SelectContent>
                     </Select>
                   )}
-                  <label
+                  <button
+                    type="button"
+                    onClick={() => setShowArchived((shown) => !shown)}
+                    aria-pressed={showArchived}
+                    aria-label={
+                      showArchived
+                        ? "Hide archived articles and spaces"
+                        : "Show archived articles and spaces"
+                    }
                     className={cn(
-                      "flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 transition-colors",
+                      "flex h-6 items-center gap-1 rounded px-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       showArchived
                         ? "text-foreground"
                         : "text-muted-foreground/70 hover:text-foreground",
                     )}
                     title="Show archived"
                   >
-                    <input
-                      type="checkbox"
-                      checked={showArchived}
-                      onChange={(e) => setShowArchived(e.target.checked)}
-                      className="hidden"
-                    />
                     <Archive className="h-3 w-3" />
-                  </label>
+                    <span className="sr-only">Archived</span>
+                  </button>
                 </div>
               </div>
 
@@ -781,10 +915,26 @@ export function KnowledgeBackendWorkspace() {
                   <div className="mx-1 rounded-lg border border-dashed border-border/30 p-4 text-center">
                     <Book className="mx-auto mb-1.5 h-4 w-4 text-muted-foreground/50" />
                     <div className="text-[11px] text-muted-foreground/70">
-                      {perms.manageTeam
-                        ? "No books yet."
-                        : "No books in this team."}
+                      {perms.manageTeam ? "No books yet." : "No books in this team."}
                     </div>
+                  </div>
+                ) : filteredArticleIds && filteredArticleIds.size === 0 ? (
+                  <div
+                    className="mx-1 rounded-lg border border-dashed border-border/50 p-4 text-center"
+                    role="status"
+                  >
+                    <SearchIcon className="mx-auto mb-2 h-4 w-4 text-muted-foreground/60" />
+                    <p className="text-[11px] font-medium">No matching articles</p>
+                    <p className="mt-1 text-[10.5px] text-muted-foreground">
+                      Try another term or clear the filters.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="mt-2 text-[11px] font-medium text-primary underline underline-offset-4"
+                    >
+                      Clear filters
+                    </button>
                   </div>
                 ) : (
                   <ul className="space-y-px">
@@ -795,8 +945,7 @@ export function KnowledgeBackendWorkspace() {
                           key={space.id}
                           space={space}
                           categories={data.categories.filter(
-                            (c) =>
-                              c.space_id === space.id && (showArchived || !c.is_archived),
+                            (c) => c.space_id === space.id && (showArchived || !c.is_archived),
                           )}
                           articles={data.articles.filter((a) => a.space_id === space.id)}
                           expanded={expanded}
@@ -846,9 +995,7 @@ export function KnowledgeBackendWorkspace() {
               onEditSpace={(s) => setSpaceDialog({ open: true, initial: s })}
               onArchiveSpace={handleArchiveSpace}
               onDeleteSpace={handleDeleteSpace}
-              onNewCategory={(spaceId) =>
-                setCategoryDialog({ open: true, initial: null, spaceId })
-              }
+              onNewCategory={(spaceId) => setCategoryDialog({ open: true, initial: null, spaceId })}
               onEditCategory={(c) =>
                 setCategoryDialog({ open: true, initial: c, spaceId: c.space_id })
               }
@@ -857,14 +1004,10 @@ export function KnowledgeBackendWorkspace() {
               onNewArticle={(spaceId, categoryId) =>
                 setArticleDialog({ open: true, initial: null, spaceId, categoryId })
               }
-              onEditArticleMeta={(a) =>
-                setArticleDialog({ open: true, initial: a })
-              }
+              onEditArticleMeta={(a) => setArticleDialog({ open: true, initial: a })}
               onArchiveArticle={handleArchiveArticle}
               onDeleteArticle={handleDeleteArticle}
-              onEditArticleTags={(a) =>
-                setTagsDialog({ open: true, articleId: a.id })
-              }
+              onEditArticleTags={(a) => setTagsDialog({ open: true, articleId: a.id })}
               onReload={reload}
             />
           )}
@@ -893,9 +1036,7 @@ export function KnowledgeBackendWorkspace() {
               initial={categoryDialog.initial}
               defaultSortOrder={
                 data
-                  ? data.categories.filter(
-                      (c) => c.space_id === categoryDialog.spaceId,
-                    ).length * 10
+                  ? data.categories.filter((c) => c.space_id === categoryDialog.spaceId).length * 10
                   : 0
               }
               onSaved={(id) => {
@@ -925,9 +1066,7 @@ export function KnowledgeBackendWorkspace() {
             articleId={tagsDialog.articleId}
             allTags={data?.tags ?? []}
             assignedTagIds={
-              tagsDialog.articleId
-                ? tagIdsByArticle.get(tagsDialog.articleId)
-                : undefined
+              tagsDialog.articleId ? tagIdsByArticle.get(tagsDialog.articleId) : undefined
             }
             canUpdate={perms.update}
             canDelete={perms.delete}
@@ -1494,6 +1633,7 @@ function HomePane({
   onNewArticle: (spaceId: string) => void;
   onReload: () => void;
 }) {
+  const { profile } = useAuth();
   const visibleSpaces = data.spaces.filter((s) => !s.is_archived);
   const archivedSpaces = data.spaces.filter((s) => s.is_archived).length;
   const visibleCategories = data.categories.filter((c) => !c.is_archived).length;
@@ -1536,7 +1676,6 @@ function HomePane({
     );
   }
 
-  const { profile } = useAuth();
   const greetingName =
     (profile?.display_name ?? "").split(" ")[0] ||
     (profile?.email ?? "").split("@")[0] ||
@@ -1616,7 +1755,7 @@ function HomePane({
             />
             <Stat
               icon={<PencilLine className="h-3.5 w-3.5 text-sky-400" />}
-              label="Drafts"
+              label="Archived"
               value={archivedPages + archivedSpaces}
             />
           </div>
@@ -2410,14 +2549,6 @@ function ArticlePane({
                   </DropdownMenu>
                 </div>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-9 gap-1.5"
-                onClick={() => setTab("content")}
-              >
-                <Eye className="h-3.5 w-3.5" /> Preview
-              </Button>
               <Button
                 size="sm"
                 variant="outline"

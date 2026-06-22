@@ -2163,3 +2163,30 @@ Status: IMPLEMENTED AND LOCALLY VALIDATED.
 Operational notes:
 - No database, SQL, migration, Supabase pending file, authorization, route-guard,
   backend API, deployment, service restart, commit, or push operation was performed.
+
+## Milestone 91 - Documents Knowledge Center UX Hardening
+
+Date: 2026-06-22
+
+Status: IMPLEMENTED AND LOCALLY VALIDATED.
+
+- Added a clear Knowledge Center header with active-team context, backend-driven
+  read-only state, permission-resolution failure messaging, quick actions, and a
+  prominent article search with live result counts.
+- Added explicit multi-team selection instead of silently leaving users on the
+  first accessible team, while preserving the existing team-scoped backend hook
+  and permission checks.
+- Improved library filters with an accessible archived toggle, automatic archived
+  visibility for the Archived status, clear-filter actions, and a real no-results
+  state. Articles under archived spaces or categories no longer inflate visible
+  search results.
+- Corrected the overview metric that labeled archived content as drafts, removed
+  a Preview button that had no effect, improved light-theme status contrast, and
+  replaced route error detail exposure with safe recovery copy. Fixed a
+  conditional React hook that could break after creating the first space.
+- Preserved existing knowledge CRUD, review workflow, revision, attachment,
+  audit, route guard, RBAC, RLS, and effective-access behavior.
+
+Operational notes:
+- No database, SQL, migration, Supabase pending file, authorization, route-guard,
+  backend API, deployment, service restart, commit, or push operation was performed.
