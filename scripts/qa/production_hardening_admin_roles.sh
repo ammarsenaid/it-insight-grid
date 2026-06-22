@@ -10,11 +10,13 @@ client_mutation="$root/src/lib/admin-roles/update-role-permission.ts"
 metadata_mutation="$root/src/lib/admin-roles/update-role-metadata.ts"
 page_visibility_mutation="$root/src/lib/admin-roles/update-role-page-visibility.ts"
 page_visibility_api="$root/src/routes/api.admin-role-page-visibility.ts"
+page_visibility_recovery_sql="$root/supabase/pending/20260622000000_harden_role_page_visibility_recovery.sql"
+page_visibility_recovery_qa="$root/supabase/pending/20260622000000_harden_role_page_visibility_recovery.qa.sql"
 types="$root/src/lib/admin-roles/types.ts"
 permissions="$root/src/lib/permissions.tsx"
 status="$root/docs/PRODUCTION_HARDENING_STATUS.md"
 
-for file in "$route" "$api_route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$page_visibility_mutation" "$page_visibility_api" "$types" "$permissions"; do
+for file in "$route" "$api_route" "$service" "$queries" "$client_mutation" "$metadata_mutation" "$page_visibility_mutation" "$page_visibility_api" "$page_visibility_recovery_sql" "$page_visibility_recovery_qa" "$types" "$permissions"; do
   test -f "$file"
 done
 
@@ -58,6 +60,11 @@ rg -Fq 'targetRow.route_path === "/"' "$page_visibility_api"
 rg -Fq 'nonEmployeeRecoveryRoleKeys.has(joinedRole.role_key)' "$page_visibility_api"
 rg -Fq 'targetRow.route_path === "/my-requests" && joinedRole.role_key === "employee"' "$page_visibility_api"
 rg -Fq 'parsed.canView === false' "$page_visibility_api"
+rg -Fq "non_employee_recovery_role_keys constant text[]" "$page_visibility_recovery_sql"
+rg -Fq "Required recovery destination visibility is protected" "$page_visibility_recovery_sql"
+rg -Fq "recovery route disable unexpectedly succeeded" "$page_visibility_recovery_qa"
+rg -Fq "recovery route move unexpectedly succeeded" "$page_visibility_recovery_qa"
+rg -Fq "recovery route delete unexpectedly succeeded" "$page_visibility_recovery_qa"
 rg -Fq 'const recoveryRouteCell =' "$route"
 rg -Fq 'NON_EMPLOYEE_RECOVERY_ROLE_KEYS.has(dbRole.roleKey)' "$route"
 rg -Fq 'routePath === "/my-requests" && dbRole.roleKey === "employee"' "$route"
@@ -111,7 +118,7 @@ rg -Fq 'PAGE_VISIBILITY' "$route"
 rg -Fq 'export const PAGE_VISIBILITY' "$permissions"
 ! git -C "$root" diff --name-only -- src/lib/permissions.tsx src/components/layout/AppSidebar.tsx src/components/layout/AuthGate.tsx | rg -q .
 test ! -e "$root/src/lib/page-visibility.ts"
-! git -C "$root" diff --name-only -- supabase | rg -q .
+! git -C "$root" diff --name-only -- supabase/migrations | rg -q .
 
 # Milestone 85 changes only the page-visibility presentation. Role headers are
 # readable and unique, the matrix explains every state, and filtering is local.
@@ -143,7 +150,7 @@ rg -Fq 'routeLabel.toLowerCase().includes(normalizedFilter)' "$route"
   src/components/layout/AppSidebar.tsx \
   src/lib/permissions.tsx \
   src/lib/page-visibility.ts \
-  supabase | rg -q .
+  supabase/migrations | rg -q .
 
 rg -Fq '## Milestone 78 - Live Database Role Permission Matrix' "$status"
 rg -Fq '## Milestone 79 - Live Role Display Metadata Editing' "$status"
@@ -151,5 +158,6 @@ rg -Fq '## Milestone 81 - Live Page Visibility Read-only Display' "$status"
 rg -Fq '## Milestone 82 - Live Page Visibility Editing' "$status"
 rg -Fq '## Milestone 84 - Page Visibility Recovery-route Guardrails' "$status"
 rg -Fq '## Milestone 85 - Page Visibility Matrix UI Clarity' "$status"
+rg -Fq '## Milestone 86 - Page Visibility Recovery Invariants at the Data Boundary' "$status"
 
 echo "admin roles permission matrix assertions passed"

@@ -45,6 +45,10 @@ declare
   selected_role_key text;
   selected_role_scope text;
   previous_role_key text;
+  non_employee_recovery_role_keys constant text[] := array[
+    'platform_admin', 'it_admin', 'sd_lead', 'helpdesk',
+    'technician', 'network_admin', 'doc_editor', 'platform_auditor'
+  ];
 begin
   if tg_op = 'DELETE' then
     select role_key
@@ -52,9 +56,10 @@ begin
       from public.roles
      where id = old.role_id;
 
-    if selected_role_key = 'platform_admin'
-       and old.route_path = '/admin/roles' then
-      raise exception 'Platform administrator role-management visibility is protected'
+    if (selected_role_key = 'platform_admin' and old.route_path = '/admin/roles')
+       or (selected_role_key = any(non_employee_recovery_role_keys) and old.route_path = '/')
+       or (selected_role_key = 'employee' and old.route_path = '/my-requests') then
+      raise exception 'Protected page visibility cannot be deleted'
         using errcode = '42501';
     end if;
 
@@ -75,6 +80,18 @@ begin
          or not new.can_view
        ) then
       raise exception 'Platform administrator role-management visibility is protected'
+        using errcode = '42501';
+    end if;
+
+    if (
+      (previous_role_key = any(non_employee_recovery_role_keys) and old.route_path = '/')
+      or (previous_role_key = 'employee' and old.route_path = '/my-requests')
+    ) and (
+      new.role_id is distinct from old.role_id
+      or new.route_path is distinct from old.route_path
+      or not new.can_view
+    ) then
+      raise exception 'Required recovery destination visibility is protected'
         using errcode = '42501';
     end if;
   end if;
@@ -105,6 +122,14 @@ begin
      and new.route_path = '/admin/roles'
      and not new.can_view then
     raise exception 'Platform administrator role-management visibility is protected'
+      using errcode = '42501';
+  end if;
+
+  if not new.can_view and (
+    (selected_role_key = any(non_employee_recovery_role_keys) and new.route_path = '/')
+    or (selected_role_key = 'employee' and new.route_path = '/my-requests')
+  ) then
+    raise exception 'Required recovery destination visibility is protected'
       using errcode = '42501';
   end if;
 

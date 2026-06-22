@@ -1912,6 +1912,37 @@ Operational notes:
 - The live database was not contacted or written.
 - No service restart, commit, or push was performed.
 
+## Milestone 86 - Page Visibility Recovery Invariants at the Data Boundary
+
+Date: 2026-06-22
+
+Status: STAGED ONLY - NOT APPLIED TO LIVE DATABASE.
+
+Implementation:
+- Confirmed that the page-visibility API protected required recovery routes,
+  but the staged database trigger protected only Platform Administrator access
+  to `/admin/roles` and Employee denial on `/admin/*`.
+- Hardened the clean-deployment trigger and added an additive pending migration
+  for databases where the base page-visibility migration was already applied.
+- Database invariants now reject disabling, moving, or deleting `/` for every
+  managed non-employee platform role and `/my-requests` for Employee.
+- Added rollback-only SQL QA that exercises all protected role/route pairs and
+  extended static admin-role QA assertions for the migration and QA contract.
+
+Validation:
+- Static repository QA only. No SQL was executed against any database.
+
+Next gate:
+- Review and apply the page-visibility migrations in order to a disposable
+  database, then execute both matching QA files and confirm they roll back.
+- If the base migration is already live, review and apply only the additive
+  `20260622000000_harden_role_page_visibility_recovery.sql` migration after the
+  disposable rehearsal.
+
+Operational notes:
+- DB-backed route enforcement remains disabled; static routing remains active.
+- No live database write, service restart, commit, push, or deployment occurred.
+
 ## Milestone 4E - Safe Frontend Deployment
 
 Date: 2026-06-21
