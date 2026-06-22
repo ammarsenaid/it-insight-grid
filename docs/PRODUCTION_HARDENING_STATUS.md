@@ -1943,6 +1943,46 @@ Operational notes:
 - DB-backed route enforcement remains disabled; static routing remains active.
 - No live database write, service restart, commit, push, or deployment occurred.
 
+## Milestone 87 - Page Visibility Enforcement Status Clarity
+
+Date: 2026-06-22
+
+Status: IMPLEMENTED - LOCAL VALIDATION PASSED.
+
+Implementation:
+- Confirmed that `/admin/roles` saves page-visibility edits to the backend
+  `role_page_visibility` table, but `AppSidebar`, `AuthGate`, and
+  `CommandPalette` continue to enforce static `PAGE_VISIBILITY` rules.
+- Confirmed that static `/notes` visibility excludes frontend role `employee`.
+- Confirmed that the database role key is `employee`; “Employee / Requester” is
+  its display label. No `requester` or `normal_user` role mapping is involved.
+- Confirmed that Notes data access separately requires backend permission
+  `notes.view` or `notes.manage`; Employee is intentionally seeded with neither.
+- Replaced incorrect “DB-enforced” UI claims with a prominent warning that the
+  stored matrix is not active routing and cannot grant backend permissions or
+  bypass RLS.
+- Did not add Notes to requester navigation, grant Notes data access, or enable
+  DB-backed routing. Those changes require a separate product and security
+  milestone because Notes are organization-wide internal content.
+
+Validation:
+- `scripts/qa/production_hardening_admin_roles.sh`: passed.
+- `bunx tsc --noEmit`: passed.
+- `bun run build`: passed for client and SSR output.
+- `git diff --check`: passed.
+
+Blocked follow-up:
+- A future DB-backed visibility milestone must define authenticated loading,
+  fail-closed behavior, multi-role resolution, cache/session transitions, and
+  consistency across all three consumers before replacing static enforcement.
+- Requester Notes access additionally requires an explicit data-scope decision
+  and reviewed `role_permissions`/RLS changes; page visibility alone is
+  insufficient.
+
+Operational notes:
+- No database connection, migration execution, live-data change, restart,
+  deployment, commit, or push occurred.
+
 ## Milestone 4E - Safe Frontend Deployment
 
 Date: 2026-06-21

@@ -456,7 +456,7 @@ function AdminRolesPage() {
               eyebrow="Tab 3 of 4"
               icon={Eye}
               title="Page visibility"
-              description="Decide which roles can reach each route. The live matrix is enforced by the database; the static fallback shows the code-defined safety net."
+              description="Review stored page-visibility configuration and compare it with the static rules currently enforced by navigation and route guards."
               stats={[
                 {
                   label: "Live rows",
@@ -2387,6 +2387,20 @@ function PageVisibilityTab({
 
   return (
     <div className="space-y-3">
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+        <div className="flex items-start gap-2">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-semibold">Stored configuration only — not active routing</p>
+            <p className="mt-1 leading-relaxed text-amber-100/80">
+              Changes save to <code className="rounded bg-background/30 px-1">role_page_visibility</code>,
+              but AppSidebar, AuthGate, and CommandPalette still enforce static PAGE_VISIBILITY
+              rules. Page visibility also does not grant backend data permissions or bypass RLS.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <PageVisibilityToolbar
         source={source}
         onSourceChange={setSource}
@@ -2457,7 +2471,7 @@ function PageVisibilityToolbar({
               : "text-muted-foreground hover:text-foreground"
           } disabled:cursor-not-allowed disabled:opacity-50`}
         >
-          <Eye className="h-3 w-3" /> Live (DB-enforced)
+          <Eye className="h-3 w-3" /> Stored DB config
         </button>
         <button
           type="button"
@@ -2505,15 +2519,15 @@ function PageVisibilityToolbar({
         <PopoverContent align="end" className="w-72 text-xs text-muted-foreground">
           <p className="mb-2 font-semibold text-foreground">How visibility resolves</p>
           <p>
-            <strong className="text-foreground">Live</strong> rows in{" "}
+            <strong className="text-foreground">Stored</strong> rows in{" "}
             <code className="rounded bg-muted/40 px-1 text-[10px]">role_page_visibility</code>{" "}
-            decide what each role can reach. They are server-validated and refetched after
-            every save.
+            are server-validated and refetched after every save, but they are not currently
+            consumed by navigation or route guards.
           </p>
           <p className="mt-2">
-            <strong className="text-foreground">Static</strong> rules are a code-defined safety
-            net used when live data is unreachable. Recovery routes and admin lockouts apply in
-            both modes.
+            <strong className="text-foreground">Static</strong> PAGE_VISIBILITY rules currently
+            control AppSidebar, AuthGate, and CommandPalette. Backend permissions and RLS are a
+            separate required authorization layer.
           </p>
         </PopoverContent>
       </Popover>
