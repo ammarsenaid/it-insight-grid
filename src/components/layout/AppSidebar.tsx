@@ -41,7 +41,14 @@ import {
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { canSeePage, hasPageVisibilityRule, useRole } from "@/lib/permissions";
 
-const groups = [
+type SidebarItem = {
+  title: string;
+  url: string;
+  icon: typeof LayoutDashboard;
+  hideForRequester?: boolean;
+};
+
+const groups: { label: string; items: SidebarItem[] }[] = [
   {
     label: "Knowledge",
     items: [
@@ -55,8 +62,8 @@ const groups = [
     items: [
       { title: "Tickets", url: "/tickets", icon: Ticket },
       { title: "My Requests", url: "/my-requests", icon: Inbox },
-      { title: "Service Catalog", url: "/service-catalog", icon: ShoppingBag },
-      { title: "Notifications", url: "/notifications", icon: Bell },
+      { title: "Service Catalog", url: "/service-catalog", icon: ShoppingBag, hideForRequester: true },
+      { title: "Notifications", url: "/notifications", icon: Bell, hideForRequester: true },
     ],
   },
   {
@@ -111,6 +118,7 @@ export function AppSidebar() {
     .map((g) => ({
       ...g,
       items: g.items.filter((it) => {
+        if (role === "employee" && it.hideForRequester) return false;
         if (it.url.startsWith("/admin")) {
           if (!hasPageVisibilityRule(it.url)) return isPlatformAdmin;
           return canSeePage(it.url, role);

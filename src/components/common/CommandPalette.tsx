@@ -59,6 +59,7 @@ interface NavEntry {
   icon: LucideIcon;
   group: NavGroup;
   keywords?: string;
+  hideForRequester?: boolean;
 }
 
 const NAV: NavEntry[] = [
@@ -66,8 +67,8 @@ const NAV: NavEntry[] = [
   { label: "Global search", to: "/search", icon: Search, group: "Pages", keywords: "find" },
   { label: "Tickets", to: "/tickets", icon: Ticket, group: "Tickets" },
   { label: "My requests", to: "/my-requests", icon: Inbox, group: "Tickets" },
-  { label: "Service catalog", to: "/service-catalog", icon: ShoppingBag, group: "Tickets" },
-  { label: "Notifications", to: "/notifications", icon: Bell, group: "Tickets" },
+  { label: "Service catalog", to: "/service-catalog", icon: ShoppingBag, group: "Tickets", hideForRequester: true },
+  { label: "Notifications", to: "/notifications", icon: Bell, group: "Tickets", hideForRequester: true },
   { label: "Knowledge base", to: "/documents", icon: FileText, group: "Knowledge", keywords: "docs articles" },
   { label: "CMDB", to: "/cmdb", icon: Server, group: "Assets", keywords: "inventory hardware" },
   { label: "IPAM", to: "/ipam", icon: Network, group: "IPAM", keywords: "subnet ip address" },
@@ -151,7 +152,7 @@ export function CommandPalette({
   }, [query, backend, canViewDocuments]);
 
   const visibleNav = useMemo(
-    () => NAV.filter((n) => canViewDestination(n.to, role, isPlatformAdmin)),
+    () => NAV.filter((n) => !(role === "employee" && n.hideForRequester) && canViewDestination(n.to, role, isPlatformAdmin)),
     [role, isPlatformAdmin],
   );
 
