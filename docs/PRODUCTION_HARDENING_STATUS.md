@@ -2120,3 +2120,27 @@ Operational notes:
 - No SQL was executed and no database connection was made.
 - No live migration, live data write, deployment, restart, commit, or push
   occurred.
+
+## Milestone 89 - Roles and Permissions Effective-access UX
+
+Date: 2026-06-22
+
+Status: IMPLEMENTED AND LOCALLY VALIDATED.
+
+- Reframed the Roles page around the active two-gate access model: stored page
+  visibility controls navigation and route exposure, while backend permissions
+  and RLS remain authoritative for data and actions.
+- Added session-refresh guidance and explicit, non-color-only labels for
+  visible-and-allowed, visibility/permission mismatch, protected recovery route,
+  and missing backend-contract states.
+- Improved matrix scanning with legends, sensitive-permission warnings, sticky
+  headers, keyboard-focusable scroll regions, and narrow-screen guidance.
+- Rebuilt Role Preview to combine live database grants and stored visibility.
+  Blocked, hidden, and missing-contract routes are no longer presented as
+  accessible. Static preview data is identified as non-authoritative fallback.
+- Preserved mutations, query refetch behavior, protected cells, route guards,
+  authorization rules, effective-access consumers, and backend APIs.
+
+Operational notes:
+- No database, SQL, migration, Supabase pending file, authorization, route-guard,
+  backend API, deployment, service restart, commit, or push operation was performed.

@@ -24,15 +24,13 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  ShieldAlert,
   SlidersHorizontal,
   UsersRound,
   X,
 } from "lucide-react";
 
-import {
-  CommandBar,
-  HeadlineMetricRow,
-} from "@/components/admin/roles/CommandBar";
+import { CommandBar, HeadlineMetricRow } from "@/components/admin/roles/CommandBar";
 import {
   densityClasses,
   useCollapsedGroups,
@@ -103,6 +101,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   describeRouteRequirement,
   roleHasRouteRequirement,
+  routeRequirementFor,
 } from "@/lib/auth/effective-access";
 import { roleLabel } from "@/lib/data/users";
 import {
@@ -156,7 +155,7 @@ import {
  * This block intentionally mirrors static UI safety text required by
  * scripts/qa/production_hardening_admin_roles.sh after visual refactors.
  *
- * Backend-driven routing is staged and requires the pending effective-access RPC migration.
+ * Backend-driven effective access is active.
  * Platform Admin must always keep access to role management.
  * Employee access to admin pages is intentionally blocked.
  * Platform Administrator permissions are read-only to prevent lockout.
@@ -298,7 +297,10 @@ function AdminRolesPage() {
         return;
       }
       flashCell(`pv:${input.roleId}:${input.routePath}`);
-      await queryClient.refetchQueries({ queryKey: adminRolesKeys.pageVisibility(), type: "active" });
+      await queryClient.refetchQueries({
+        queryKey: adminRolesKeys.pageVisibility(),
+        type: "active",
+      });
       toast.success(input.canView ? "Route allowed" : "Route hidden", {
         action: {
           label: "Undo",
@@ -368,8 +370,10 @@ function AdminRolesPage() {
       <div className="space-y-5">
         <HeadlineMetricRow items={metrics} />
 
+        <AccessModelNotice />
+
         <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="space-y-5">
-          <TabsList className="sticky top-[68px] z-30 -mx-1 flex h-auto w-full justify-start gap-1 rounded-none border-b border-border/50 bg-background/85 px-1 py-1 backdrop-blur sm:gap-2">
+          <TabsList className="sticky top-[68px] z-30 -mx-1 flex h-auto w-[calc(100%+0.5rem)] justify-start gap-1 overflow-x-auto rounded-none border-b border-border/50 bg-background/85 px-1 py-1 backdrop-blur sm:gap-2">
             <UnderlineTab value="roles" icon={KeyRound} label="Role list" accent="cyan" />
             <UnderlineTab
               value="capabilities"
@@ -378,12 +382,7 @@ function AdminRolesPage() {
               accent="violet"
             />
             <UnderlineTab value="pages" icon={Eye} label="Page visibility" accent="emerald" />
-            <UnderlineTab
-              value="preview"
-              icon={UsersRound}
-              label="Role preview"
-              accent="amber"
-            />
+            <UnderlineTab value="preview" icon={UsersRound} label="Role preview" accent="amber" />
           </TabsList>
 
           <TabsContent value="roles" className="space-y-4">
@@ -460,7 +459,7 @@ function AdminRolesPage() {
               eyebrow="Tab 3 of 4"
               icon={Eye}
               title="Page visibility"
-              description="Review stored page-visibility configuration and compare it with the static rules currently enforced by navigation and route guards."
+              description="Review stored route visibility beside the backend contract required for effective access. Static rules are comparison-only."
               stats={[
                 {
                   label: "Live rows",
@@ -472,8 +471,7 @@ function AdminRolesPage() {
                 },
                 {
                   label: "Platform roles",
-                  value:
-                    rolesQuery.data?.roles.filter((r) => r.scope === "platform").length ?? "—",
+                  value: rolesQuery.data?.roles.filter((r) => r.scope === "platform").length ?? "—",
                 },
               ]}
               tips={[
@@ -498,7 +496,7 @@ function AdminRolesPage() {
               eyebrow="Tab 4 of 4"
               icon={UsersRound}
               title="Role preview"
-              description="See the product through any role’s eyes — sidebar, capability cards, and restrictions update live without changing your real session."
+              description="Audit what a role can actually reach from stored visibility and backend permission grants. Preview never changes your session."
               stats={[
                 { label: "Acting as", value: roleLabel(preview) },
                 {
@@ -513,7 +511,7 @@ function AdminRolesPage() {
               tips={[
                 "Switch ‘Acting as’ in the rail",
                 "Compare against another role",
-                "Jump to a page to try it",
+                "Inspect every access blocker",
               ]}
             />
             <RolePreviewTab
@@ -522,6 +520,7 @@ function AdminRolesPage() {
               role={role}
               isSignedIn={isSignedIn}
               matrix={rolesQuery.data}
+              visibility={pageVisibilityQuery.data}
             />
           </TabsContent>
         </Tabs>
@@ -539,6 +538,40 @@ function AdminRolesPage() {
         onSave={() => metadataMutation.mutate()}
       />
     </div>
+  );
+}
+
+function AccessModelNotice() {
+  return (
+    <section
+      aria-labelledby="access-model-title"
+      className="grid gap-3 rounded-xl border border-sky-500/25 bg-sky-500/[0.06] p-4 md:grid-cols-[auto_minmax(0,1fr)]"
+    >
+      <ShieldCheck className="mt-0.5 h-5 w-5 text-sky-300" aria-hidden />
+      <div>
+        <h2 id="access-model-title" className="text-sm font-semibold text-foreground">
+          Effective access requires visibility and backend permission
+        </h2>
+        <div className="mt-2 grid gap-2 text-xs leading-relaxed text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
+          <p>
+            <strong className="text-foreground">Visibility</strong> controls whether navigation and
+            route guards expose a page.
+          </p>
+          <p>
+            <strong className="text-foreground">Permissions</strong> control backend data and
+            actions; visibility never bypasses RLS.
+          </p>
+          <p>
+            <strong className="text-foreground">Both gates must pass.</strong> A permission alone
+            does not show a hidden page.
+          </p>
+          <p>
+            <strong className="text-foreground">After changes,</strong> existing sessions may need
+            refresh or sign-out and sign-in to reload access.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -741,7 +774,6 @@ function DatabaseGate({
         actionLabel="Retry"
         onAction={() => void query.refetch()}
       />
-
     );
   }
   return <>{children(query.data)}</>;
@@ -769,8 +801,7 @@ function buildMetrics(
   const restrictedRouteCount = visibilityData
     ? new Set(visibilityData.filter((row) => !row.canView).map((row) => row.routePath)).size
     : null;
-  const placeholder = (value: number | null) =>
-    isLoading && value === null ? null : value;
+  const placeholder = (value: number | null) => (isLoading && value === null ? null : value);
   return [
     {
       label: "Total roles",
@@ -915,7 +946,6 @@ function RoleDirectoryTab({
               setSystemOnly(false);
             }}
           />
-
         ) : view === "table" ? (
           <RoleDirectoryTable
             rows={filtered}
@@ -942,11 +972,7 @@ function RoleDirectoryTab({
       </div>
 
       <aside className="xl:sticky xl:top-[150px] xl:self-start">
-        <SelectedRoleRail
-          preview={preview}
-          matrix={matrix}
-          onSwitchTab={onSwitchTab}
-        />
+        <SelectedRoleRail preview={preview} matrix={matrix} onSwitchTab={onSwitchTab} />
       </aside>
     </div>
   );
@@ -1092,9 +1118,7 @@ function SortItem({
 }) {
   return (
     <DropdownMenuItem onSelect={() => onChange(value)} className="text-xs">
-      <Check
-        className={`mr-2 h-3.5 w-3.5 ${current === value ? "opacity-100" : "opacity-0"}`}
-      />
+      <Check className={`mr-2 h-3.5 w-3.5 ${current === value ? "opacity-100" : "opacity-0"}`} />
       {label}
     </DropdownMenuItem>
   );
@@ -1353,15 +1377,7 @@ function Th({
   );
 }
 
-function Meter({
-  value,
-  max,
-  tone,
-}: {
-  value: number;
-  max: number;
-  tone: "primary" | "muted";
-}) {
+function Meter({ value, max, tone }: { value: number; max: number; tone: "primary" | "muted" }) {
   const ratio = max > 0 ? Math.min(1, value / max) : 0;
   const barColor = tone === "primary" ? "bg-primary/70" : "bg-muted-foreground/40";
   return (
@@ -1370,10 +1386,7 @@ function Meter({
         {value}
         <span className="ml-0.5 text-[10px] text-muted-foreground">/{max}</span>
       </span>
-      <span
-        aria-hidden
-        className="h-1.5 w-16 overflow-hidden rounded-full bg-muted/40"
-      >
+      <span aria-hidden className="h-1.5 w-16 overflow-hidden rounded-full bg-muted/40">
         <span
           className={`block h-full rounded-full ${barColor}`}
           style={{ width: `${ratio * 100}%` }}
@@ -1526,9 +1539,7 @@ function RoleDirectoryGrid({
 
             <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
               {dbRole.description ?? (
-                <span className="italic text-muted-foreground/70">
-                  No description provided.
-                </span>
+                <span className="italic text-muted-foreground/70">No description provided.</span>
               )}
             </p>
 
@@ -1539,12 +1550,7 @@ function RoleDirectoryGrid({
                 max={totalPermissions}
                 tone="primary"
               />
-              <MeterRow
-                label="Visible pages"
-                value={pageCount}
-                max={totalPages}
-                tone="muted"
-              />
+              <MeterRow label="Visible pages" value={pageCount} max={totalPages} tone="muted" />
             </div>
 
             <div className="mt-auto flex gap-2 pt-3">
@@ -1567,7 +1573,10 @@ function RoleDirectoryGrid({
                   <Eye className="mr-1.5 h-3.5 w-3.5" /> Preview
                 </Button>
               ) : (
-                <span className="flex-1" title="Preview is unavailable because this database role has no frontend preview mapping.">
+                <span
+                  className="flex-1"
+                  title="Preview is unavailable because this database role has no frontend preview mapping."
+                >
                   <Button size="sm" variant="secondary" className="w-full" disabled>
                     <Eye className="mr-1.5 h-3.5 w-3.5 opacity-50" /> Preview unavailable
                   </Button>
@@ -1597,18 +1606,13 @@ function MeterRow({
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between text-[10px]">
-        <span className="font-medium uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
+        <span className="font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
         <span className="tabular-nums text-foreground">
           {value} <span className="text-muted-foreground">/ {max}</span>
         </span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40" aria-hidden>
-        <div
-          className={`h-full rounded-full ${barColor}`}
-          style={{ width: `${ratio * 100}%` }}
-        />
+        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${ratio * 100}%` }} />
       </div>
     </div>
   );
@@ -1746,11 +1750,7 @@ function PermissionMatrixTab({
   isPlatformAdmin: boolean;
   density: "comfortable" | "compact";
   mutation: ReturnType<
-    typeof useMutation<
-      { ok: true } | { ok: false; error: string },
-      Error,
-      PermissionChange
-    >
+    typeof useMutation<{ ok: true } | { ok: false; error: string }, Error, PermissionChange>
   >;
   flashCells: Set<string>;
 }) {
@@ -1787,15 +1787,10 @@ function PermissionMatrixTab({
         ...g,
         permissions: g.permissions.filter((p) => {
           if (q.length > 0) {
-            if (
-              !p.name.toLowerCase().includes(q) &&
-              !p.permissionKey.toLowerCase().includes(q)
-            )
+            if (!p.name.toLowerCase().includes(q) && !p.permissionKey.toLowerCase().includes(q))
               return false;
           }
-          const statesInVisible = visibleRoles.map((r) =>
-            grantKeys.has(`${r.id}:${p.id}`),
-          );
+          const statesInVisible = visibleRoles.map((r) => grantKeys.has(`${r.id}:${p.id}`));
           if (grantFilter === "granted" && !statesInVisible.some(Boolean)) return false;
           if (grantFilter === "not-granted" && statesInVisible.every(Boolean)) return false;
           if (diffOnly && visibleRoles.length >= 2) {
@@ -1860,10 +1855,19 @@ function PermissionMatrixTab({
 
       {!isPlatformAdmin && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-          You can view this matrix but cannot change grants. Only an active platform
-          administrator can edit permissions.
+          You can view this matrix but cannot change grants. Only an active platform administrator
+          can edit permissions.
         </div>
       )}
+
+      <MatrixLegend
+        items={[
+          { icon: Check, label: "Granted", tone: "text-emerald-300" },
+          { icon: X, label: "Revoked", tone: "text-muted-foreground" },
+          { icon: Lock, label: "Protected", tone: "text-amber-300" },
+          { icon: ShieldAlert, label: "Sensitive permission", tone: "text-amber-300" },
+        ]}
+      />
 
       {grouped.length === 0 ? (
         <EmptyState
@@ -1879,9 +1883,12 @@ function PermissionMatrixTab({
             setGrantFilter("all");
           }}
         />
-
       ) : (
-        <div className="max-h-[68vh] overflow-auto rounded-xl border border-border/50 bg-background/20 shadow-inner">
+        <div
+          className="max-h-[68vh] overflow-auto overscroll-contain rounded-xl border border-border/50 bg-background/20 shadow-inner"
+          tabIndex={0}
+          aria-label="Permission matrix. Scroll horizontally to review all roles."
+        >
           <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-xs">
             <thead className="sticky top-0 z-30 bg-card/95 shadow-[0_1px_0_hsl(var(--border))] backdrop-blur">
               <tr className="text-left text-muted-foreground">
@@ -1918,9 +1925,27 @@ function PermissionMatrixTab({
 
       <p className="flex items-start gap-1.5 text-[10px] leading-relaxed text-muted-foreground">
         <Info className="mt-0.5 h-3 w-3 shrink-0" />
-        Platform Administrator cells are read-only to prevent administrative lockout. Use the
-        Undo action in toasts to revert the last change.
+        Platform Administrator cells are read-only to prevent administrative lockout. Use the Undo
+        action in toasts to revert the last change.
       </p>
+    </div>
+  );
+}
+
+function MatrixLegend({ items }: { items: { icon: typeof Check; label: string; tone: string }[] }) {
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/40 bg-card/30 px-3 py-2 text-[10px] text-muted-foreground"
+      aria-label="Matrix legend"
+    >
+      {items.map(({ icon: Icon, label, tone }) => (
+        <span key={label} className="inline-flex items-center gap-1.5">
+          <Icon className={`h-3 w-3 ${tone}`} aria-hidden /> {label}
+        </span>
+      ))}
+      <span className="ml-auto hidden sm:inline">
+        Use Shift + mouse wheel or horizontal swipe to review roles.
+      </span>
     </div>
   );
 }
@@ -2076,9 +2101,7 @@ function MultiSelectFilter({
       <DropdownMenuTrigger asChild>
         <Button size="sm" variant="outline" className="h-9 gap-1.5">
           <Icon className="h-3.5 w-3.5" />
-          <span className="text-xs">
-            {activeCount === 0 ? empty : `${label}: ${activeCount}`}
-          </span>
+          <span className="text-xs">{activeCount === 0 ? empty : `${label}: ${activeCount}`}</span>
           <ChevronDown className="h-3 w-3 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
@@ -2114,9 +2137,7 @@ function MatrixColumnHeader({ dbRole }: { dbRole: AdminRole }) {
       >
         {abbreviation(dbRole.name)}
       </span>
-      <div className="mt-1.5 truncate text-[9px] font-medium text-foreground">
-        {dbRole.name}
-      </div>
+      <div className="mt-1.5 truncate text-[9px] font-medium text-foreground">{dbRole.name}</div>
       <div className="mt-0.5 text-[8px] font-normal uppercase tracking-wider text-muted-foreground">
         {dbRole.scope}
       </div>
@@ -2140,11 +2161,7 @@ function MatrixGroupRows({
   grantKeys: Set<string>;
   isPlatformAdmin: boolean;
   mutation: ReturnType<
-    typeof useMutation<
-      { ok: true } | { ok: false; error: string },
-      Error,
-      PermissionChange
-    >
+    typeof useMutation<{ ok: true } | { ok: false; error: string }, Error, PermissionChange>
   >;
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -2197,7 +2214,25 @@ function MatrixGroupRows({
               <td
                 className={`sticky left-0 z-20 border-r border-b border-border/30 px-4 ${density.rowPaddingY} group-hover/permission:bg-muted ${stickyBg}`}
               >
-                <div className="font-medium text-foreground">{permission.name}</div>
+                <div className="flex flex-wrap items-center gap-1.5 font-medium text-foreground">
+                  <span>{permission.name}</span>
+                  {isSensitivePermission(permission.permissionKey) ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[8px] font-semibold uppercase tracking-wider text-amber-200"
+                        >
+                          <ShieldAlert className="mr-1 h-2.5 w-2.5" aria-hidden /> Sensitive
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        This permission can change configuration, records, or administrative state.
+                        Review the role scope before granting it.
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                </div>
                 <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">
                   {permission.permissionKey}
                 </div>
@@ -2244,6 +2279,12 @@ function MatrixGroupRows({
           );
         })}
     </>
+  );
+}
+
+function isSensitivePermission(permissionKey: string) {
+  return /(?:^|\.)(?:manage|delete|admin|configure|assign|approve|write)(?:$|\.)/.test(
+    permissionKey,
   );
 }
 
@@ -2326,11 +2367,7 @@ function PageVisibilityTab({
   isPlatformAdmin: boolean;
   density: "comfortable" | "compact";
   mutation: ReturnType<
-    typeof useMutation<
-      { ok: true } | { ok: false; error: string },
-      Error,
-      PageVisibilityChange
-    >
+    typeof useMutation<{ ok: true } | { ok: false; error: string }, Error, PageVisibilityChange>
   >;
   flashCells: Set<string>;
 }) {
@@ -2342,9 +2379,9 @@ function PageVisibilityTab({
 
   const liveAvailable = Boolean(
     rolesQuery.isSuccess &&
-      visibilityQuery.isSuccess &&
-      rolesQuery.data?.roles.length &&
-      visibilityQuery.data?.length,
+    visibilityQuery.isSuccess &&
+    rolesQuery.data?.roles.length &&
+    visibilityQuery.data?.length,
   );
 
   if (rolesQuery.isLoading || visibilityQuery.isLoading) {
@@ -2387,20 +2424,19 @@ function PageVisibilityTab({
     );
   }
 
-
-
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+      <div className="rounded-xl border border-sky-500/30 bg-sky-500/[0.07] p-3 text-xs text-sky-100">
         <div className="flex items-start gap-2">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <p className="font-semibold">Backend-driven routing is staged</p>
-            <p className="mt-1 leading-relaxed text-amber-100/80">
-              Changes save and refetch from <code className="rounded bg-background/30 px-1">role_page_visibility</code>.
-              The source now consumes effective backend access, but it must ship with the reviewed
-              pending RPC migration. Existing sessions must refresh afterward. Visibility never
-              grants backend data permissions or bypasses RLS.
+            <p className="font-semibold">Backend-driven effective access is active</p>
+            <p className="mt-1 leading-relaxed text-sky-100/80">
+              Changes save and refetch from{" "}
+              <code className="rounded bg-background/30 px-1">role_page_visibility</code>.
+              Navigation and route guards require this visibility plus the route&apos;s backend
+              permission contract. Existing sessions may need refresh or sign-out and sign-in
+              afterward. Visibility never grants backend data permissions or bypasses RLS.
             </p>
           </div>
         </div>
@@ -2414,6 +2450,15 @@ function PageVisibilityTab({
         onSearch={setSearch}
         diffLens={diffLens}
         onDiffLens={setDiffLens}
+      />
+
+      <MatrixLegend
+        items={[
+          { icon: Check, label: "Visible + allowed", tone: "text-emerald-300" },
+          { icon: AlertCircle, label: "Visibility/permission mismatch", tone: "text-amber-300" },
+          { icon: Lock, label: "Protected recovery route", tone: "text-amber-300" },
+          { icon: ShieldAlert, label: "Missing backend contract", tone: "text-rose-300" },
+        ]}
       />
 
       {source === "live" && rolesQuery.data && visibilityQuery.data ? (
@@ -2525,14 +2570,14 @@ function PageVisibilityToolbar({
           <p className="mb-2 font-semibold text-foreground">How visibility resolves</p>
           <p>
             <strong className="text-foreground">Stored</strong> rows in{" "}
-            <code className="rounded bg-muted/40 px-1 text-[10px]">role_page_visibility</code>{" "}
-            are server-validated and refetched after every save. The staged effective-access RPC
+            <code className="rounded bg-muted/40 px-1 text-[10px]">role_page_visibility</code> are
+            server-validated and refetched after every save. The staged effective-access RPC
             supplies these routes to navigation and route guards.
           </p>
           <p className="mt-2">
-            <strong className="text-foreground">Static</strong> PAGE_VISIBILITY is retained only
-            for comparison and explicit preview tooling. Backend permissions and RLS remain the
-            required authorization layer.
+            <strong className="text-foreground">Static</strong> PAGE_VISIBILITY is retained only for
+            comparison and explicit preview tooling. Backend permissions and RLS remain the required
+            authorization layer.
           </p>
         </PopoverContent>
       </Popover>
@@ -2556,11 +2601,7 @@ function LivePageVisibilityMatrix({
   visibility: AdminRolePageVisibility[];
   isPlatformAdmin: boolean;
   mutation: ReturnType<
-    typeof useMutation<
-      { ok: true } | { ok: false; error: string },
-      Error,
-      PageVisibilityChange
-    >
+    typeof useMutation<{ ok: true } | { ok: false; error: string }, Error, PageVisibilityChange>
   >;
   search: string;
   diffLens: boolean;
@@ -2704,11 +2745,7 @@ function PageVisibilityAreaRows({
   permissionKeysByRole: Map<string, Set<string>>;
   isPlatformAdmin: boolean;
   mutation: ReturnType<
-    typeof useMutation<
-      { ok: true } | { ok: false; error: string },
-      Error,
-      PageVisibilityChange
-    >
+    typeof useMutation<{ ok: true } | { ok: false; error: string }, Error, PageVisibilityChange>
   >;
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -2771,7 +2808,10 @@ function PageVisibilityAreaRows({
                   {differs && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-label="Differs from static" />
+                        <span
+                          className="h-1.5 w-1.5 rounded-full bg-amber-400"
+                          aria-label="Differs from static"
+                        />
                       </TooltipTrigger>
                       <TooltipContent>Live values differ from the static fallback</TooltipContent>
                     </Tooltip>
@@ -2798,13 +2838,27 @@ function PageVisibilityAreaRows({
                   permissionKeysByRole.get(dbRole.id) ?? new Set<string>(),
                   dbRole.roleKey,
                 );
-                const mismatch = cell === true
-                  ? !hasRequirement
-                    ? `Visible, but blocked: ${describeRouteRequirement(routePath)}`
-                    : null
-                  : hasRequirement
-                    ? `Backend access is granted, but this route is hidden. ${describeRouteRequirement(routePath)}`
-                    : null;
+                const requirement = routeRequirementFor(routePath);
+                const statusLabel =
+                  !requirement || requirement.kind === "missing"
+                    ? "Missing backend contract"
+                    : protection.protected
+                      ? "Protected route"
+                      : cell === true && hasRequirement
+                        ? "Visible + allowed"
+                        : cell === true
+                          ? "Visible but blocked by missing permission"
+                          : hasRequirement
+                            ? "Hidden but permission exists"
+                            : "Hidden + blocked";
+                const mismatch =
+                  cell === true
+                    ? !hasRequirement
+                      ? `Visible, but blocked: ${describeRouteRequirement(routePath)}`
+                      : null
+                    : hasRequirement
+                      ? `Backend access is granted, but this route is hidden. ${describeRouteRequirement(routePath)}`
+                      : null;
                 return (
                   <PageVisibilityCell
                     key={dbRole.id}
@@ -2814,8 +2868,10 @@ function PageVisibilityAreaRows({
                     canEdit={isPlatformAdmin && !protection.protected && !mutation.isPending}
                     protectedCell={protection.protected}
                     warning={mismatch}
+                    statusLabel={statusLabel}
                     explanation={
-                      mismatch ?? protection.reason ??
+                      mismatch ??
+                      protection.reason ??
                       (cell ? "Click to hide this route" : "Click to allow this route")
                     }
                     sizeClass={density.cellSize}
@@ -2843,6 +2899,7 @@ function PageVisibilityCell({
   canEdit,
   protectedCell,
   warning,
+  statusLabel,
   explanation,
   sizeClass,
   onToggle,
@@ -2853,6 +2910,7 @@ function PageVisibilityCell({
   canEdit: boolean;
   protectedCell: boolean;
   warning: string | null;
+  statusLabel: string;
   explanation: string;
   sizeClass: string;
   onToggle: () => void;
@@ -2876,7 +2934,7 @@ function PageVisibilityCell({
           <button
             type="button"
             disabled={!canEdit}
-            aria-label={explanation}
+            aria-label={`${statusLabel}. ${explanation}`}
             onClick={onToggle}
             className={`relative inline-flex items-center justify-center rounded-md border transition-colors ${sizeClass} ${
               cell
@@ -2899,7 +2957,10 @@ function PageVisibilityCell({
             )}
           </button>
         </TooltipTrigger>
-        <TooltipContent>{explanation}</TooltipContent>
+        <TooltipContent className="max-w-xs">
+          <p className="font-semibold">{statusLabel}</p>
+          <p className="mt-1 text-muted-foreground">{explanation}</p>
+        </TooltipContent>
       </Tooltip>
     </td>
   );
@@ -2920,7 +2981,11 @@ function StaticPageVisibilityMatrix({
   const grouped = useMemo(() => {
     const map = new Map<string, typeof PAGES>();
     for (const page of PAGES) {
-      if (q.length > 0 && !page.label.toLowerCase().includes(q) && !page.path.toLowerCase().includes(q))
+      if (
+        q.length > 0 &&
+        !page.label.toLowerCase().includes(q) &&
+        !page.path.toLowerCase().includes(q)
+      )
         continue;
       const list = map.get(page.area) ?? [];
       list.push(page);
@@ -3001,10 +3066,7 @@ function StaticPageVisibilityMatrix({
                 </tr>
                 {!isCollapsed &&
                   pages.map((page) => (
-                    <tr
-                      key={page.path}
-                      className="group/route transition-colors hover:bg-muted/20"
-                    >
+                    <tr key={page.path} className="group/route transition-colors hover:bg-muted/20">
                       <td
                         className={`sticky left-0 z-20 border-r border-b border-border/30 bg-card px-4 ${density.rowPaddingY} group-hover/route:bg-muted`}
                       >
@@ -3054,6 +3116,11 @@ function StaticPageVisibilityMatrix({
  * ========================================================================== */
 
 type PreviewSubtab = "pages" | "capabilities" | "restrictions";
+type PreviewRoute = (typeof PAGES)[number] & {
+  visible: boolean;
+  allowed: boolean;
+  reason: string;
+};
 
 function RolePreviewTab({
   preview,
@@ -3061,23 +3128,62 @@ function RolePreviewTab({
   role,
   isSignedIn,
   matrix,
+  visibility,
 }: {
   preview: Role;
   setPreview: (role: Role) => void;
   role: Role;
   isSignedIn: boolean;
   matrix: AdminRolesData | undefined;
+  visibility: AdminRolePageVisibility[] | undefined;
 }) {
   const [compare, setCompare] = useState<Role | null>(null);
   const [subtab, setSubtab] = useState<PreviewSubtab>("pages");
   const [search, setSearch] = useState("");
 
-  const previewVisible = PAGES.filter((p) => (PAGE_VISIBILITY[p.path] ?? []).includes(preview));
-  const previewHidden = PAGES.filter((p) => !(PAGE_VISIBILITY[p.path] ?? []).includes(preview));
-  const previewAllowedCaps = CAPABILITY_GROUPS.flatMap((g) =>
-    g.caps.filter((c) => can(c.key, [preview])),
-  );
   const dbRole = matrix?.roles.find((r) => staticRoleFor(r.roleKey) === preview);
+  const permissionKeyById = new Map(
+    matrix?.permissions.map((permission) => [permission.id, permission.permissionKey]) ?? [],
+  );
+  const grantedPermissionKeys = new Set(
+    matrix?.grants
+      .filter((grant) => grant.roleId === dbRole?.id)
+      .map((grant) => permissionKeyById.get(grant.permissionId))
+      .filter((key): key is string => Boolean(key)) ?? [],
+  );
+  const storedVisibility = new Map(
+    visibility
+      ?.filter((row) => row.roleId === dbRole?.id)
+      .map((row) => [row.routePath, row.canView]) ?? [],
+  );
+  const usesLivePreview = Boolean(dbRole && matrix && visibility);
+  const previewRoutes: PreviewRoute[] = PAGES.map((page) => {
+    const visible = usesLivePreview
+      ? storedVisibility.get(page.path) === true
+      : (PAGE_VISIBILITY[page.path] ?? []).includes(preview);
+    const allowed = usesLivePreview
+      ? roleHasRouteRequirement(page.path, grantedPermissionKeys, dbRole?.roleKey ?? "")
+      : visible;
+    return {
+      ...page,
+      visible,
+      allowed,
+      reason: !visible
+        ? allowed
+          ? `Hidden but permission exists. ${describeRouteRequirement(page.path)}`
+          : `Hidden by route visibility. ${describeRouteRequirement(page.path)}`
+        : allowed
+          ? "Visible + allowed"
+          : `Visible but blocked. ${describeRouteRequirement(page.path)}`,
+    };
+  });
+  const previewVisible = previewRoutes.filter((page) => page.visible && page.allowed);
+  const previewHidden = previewRoutes.filter((page) => !(page.visible && page.allowed));
+  const previewAllowedCaps = usesLivePreview
+    ? grantedPermissionKeys.size
+    : CAPABILITY_GROUPS.flatMap((group) =>
+        group.caps.filter((capability) => can(capability.key, [preview])),
+      ).length;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
@@ -3089,12 +3195,34 @@ function RolePreviewTab({
         dbRole={dbRole}
         visibleCount={previewVisible.length}
         hiddenCount={previewHidden.length}
-        capabilityCount={previewAllowedCaps.length}
+        capabilityCount={previewAllowedCaps}
         compare={compare}
         setCompare={setCompare}
       />
 
       <div className="space-y-3">
+        <div
+          className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${
+            usesLivePreview
+              ? "border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-100"
+              : "border-amber-500/30 bg-amber-500/10 text-amber-100"
+          }`}
+          role="status"
+        >
+          {usesLivePreview ? (
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+          ) : (
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          )}
+          <p>
+            <strong>
+              {usesLivePreview ? "Effective-access preview" : "Static fallback preview"}.
+            </strong>{" "}
+            {usesLivePreview
+              ? "Results combine stored route visibility with database permission grants. Self-scoped routes still depend on the signed-in user and RLS."
+              : "Live role data is unavailable, so these results are illustrative and must not be treated as effective access."}
+          </p>
+        </div>
         <Tabs value={subtab} onValueChange={(v) => setSubtab(v as PreviewSubtab)}>
           <TabsList className="h-auto rounded-xl border border-border/50 bg-card/40 p-1 shadow-sm">
             <TabsTrigger value="pages" className="gap-1.5 text-xs">
@@ -3106,7 +3234,7 @@ function RolePreviewTab({
             <TabsTrigger value="capabilities" className="gap-1.5 text-xs">
               <ShieldCheck className="h-3 w-3" /> Capabilities
               <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[9px]">
-                {previewAllowedCaps.length}
+                {previewAllowedCaps}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="restrictions" className="gap-1.5 text-xs">
@@ -3130,18 +3258,15 @@ function RolePreviewTab({
             </div>
 
             <TabsContent value="pages" className="mt-0">
-              <PreviewPagesGrid
-                pages={previewVisible}
-                search={search}
-                preview={preview}
-                compare={compare}
-              />
+              <PreviewPagesGrid pages={previewVisible} search={search} />
             </TabsContent>
             <TabsContent value="capabilities" className="mt-0">
               <PreviewCapabilities
                 preview={preview}
                 compare={compare}
                 search={search}
+                matrix={matrix}
+                dbRole={dbRole}
               />
             </TabsContent>
             <TabsContent value="restrictions" className="mt-0">
@@ -3262,7 +3387,7 @@ function ActingAsPanel({
         </select>
         {compare && (
           <p className="text-[10px] leading-relaxed text-muted-foreground">
-            Page and capability lists below highlight differences against{" "}
+            Backend permission grants below highlight differences against{" "}
             <strong className="text-foreground">{roleLabel(compare)}</strong>.
           </p>
         )}
@@ -3271,21 +3396,10 @@ function ActingAsPanel({
   );
 }
 
-function PreviewPagesGrid({
-  pages,
-  search,
-  preview,
-  compare,
-}: {
-  pages: typeof PAGES;
-  search: string;
-  preview: Role;
-  compare: Role | null;
-}) {
+function PreviewPagesGrid({ pages, search }: { pages: PreviewRoute[]; search: string }) {
   const q = search.trim().toLowerCase();
   const filtered = pages.filter(
-    (p) =>
-      q.length === 0 || p.label.toLowerCase().includes(q) || p.path.toLowerCase().includes(q),
+    (p) => q.length === 0 || p.label.toLowerCase().includes(q) || p.path.toLowerCase().includes(q),
   );
   if (filtered.length === 0) {
     return (
@@ -3299,15 +3413,10 @@ function PreviewPagesGrid({
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {filtered.map((page) => {
-        const diff =
-          compare !== null &&
-          !(PAGE_VISIBILITY[page.path] ?? []).includes(compare);
         return (
           <div
             key={page.path}
-            className={`flex items-center gap-2.5 rounded-lg border bg-emerald-500/[0.045] px-3 py-2.5 ${
-              diff ? "border-emerald-500/40" : "border-emerald-500/15"
-            }`}
+            className="flex items-center gap-2.5 rounded-lg border border-emerald-500/15 bg-emerald-500/[0.045] px-3 py-2.5"
           >
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/10">
               <Check className="h-3.5 w-3.5 text-emerald-300" />
@@ -3316,18 +3425,9 @@ function PreviewPagesGrid({
               <span className="block truncate text-xs font-medium text-foreground">
                 {page.label}
               </span>
-              <code className="block truncate text-[9px] text-muted-foreground">
-                {page.path}
-              </code>
+              <code className="block truncate text-[9px] text-muted-foreground">{page.path}</code>
+              <span className="mt-0.5 block text-[9px] text-emerald-200">Visible + allowed</span>
             </span>
-            {diff && (
-              <Badge
-                variant="outline"
-                className="shrink-0 border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-emerald-200"
-              >
-                + only here
-              </Badge>
-            )}
           </div>
         );
       })}
@@ -3339,19 +3439,65 @@ function PreviewCapabilities({
   preview,
   compare,
   search,
+  matrix,
+  dbRole,
 }: {
   preview: Role;
   compare: Role | null;
   search: string;
+  matrix: AdminRolesData | undefined;
+  dbRole: AdminRole | undefined;
 }) {
   const q = search.trim().toLowerCase();
-  const groups = CAPABILITY_GROUPS.map((g) => ({
-    ...g,
-    caps: g.caps.filter(
-      (c) =>
-        q.length === 0 || c.label.toLowerCase().includes(q) || c.key.toLowerCase().includes(q),
-    ),
-  })).filter((g) => g.caps.length > 0);
+  const compareDbRole = matrix?.roles.find((role) => staticRoleFor(role.roleKey) === compare);
+  const permissionById = new Map(
+    matrix?.permissions.map((permission) => [permission.id, permission]) ?? [],
+  );
+  const grantsFor = (roleId: string | undefined) =>
+    new Set(
+      matrix?.grants
+        .filter((grant) => grant.roleId === roleId)
+        .map((grant) => grant.permissionId) ?? [],
+    );
+  const liveGranted = grantsFor(dbRole?.id);
+  const compareGranted = grantsFor(compareDbRole?.id);
+  const liveGroups = new Map<string, AdminPermission[]>();
+  for (const permission of matrix?.permissions ?? []) {
+    const group = formatGroupLabel(permissionGroup(permission.permissionKey));
+    liveGroups.set(group, [...(liveGroups.get(group) ?? []), permission]);
+  }
+  const groups =
+    dbRole && matrix
+      ? Array.from(liveGroups, ([label, permissions]) => ({
+          label,
+          caps: permissions
+            .filter(
+              (permission) =>
+                q.length === 0 ||
+                permission.name.toLowerCase().includes(q) ||
+                permission.permissionKey.toLowerCase().includes(q),
+            )
+            .map((permission) => ({
+              key: permission.id,
+              label: permission.name,
+              permissionKey: permission.permissionKey,
+            })),
+        })).filter((group) => group.caps.length > 0)
+      : CAPABILITY_GROUPS.map((group) => ({
+          label: group.label,
+          caps: group.caps
+            .filter(
+              (capability) =>
+                q.length === 0 ||
+                capability.label.toLowerCase().includes(q) ||
+                capability.key.toLowerCase().includes(q),
+            )
+            .map((capability) => ({
+              key: capability.key,
+              label: capability.label,
+              permissionKey: capability.key,
+            })),
+        })).filter((group) => group.caps.length > 0);
 
   if (groups.length === 0) {
     return (
@@ -3371,8 +3517,15 @@ function PreviewCapabilities({
           </div>
           <div className="divide-y divide-border/25">
             {g.caps.map((capability) => {
-              const allowed = can(capability.key, [preview]);
-              const comparedAllowed = compare ? can(capability.key, [compare]) : null;
+              const allowed =
+                dbRole && matrix
+                  ? liveGranted.has(capability.key)
+                  : can(capability.permissionKey, [preview]);
+              const comparedAllowed = compare
+                ? compareDbRole && matrix
+                  ? compareGranted.has(capability.key)
+                  : can(capability.permissionKey, [compare])
+                : null;
               const diffTone =
                 comparedAllowed === null
                   ? ""
@@ -3389,7 +3542,8 @@ function PreviewCapabilities({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-foreground">{capability.label}</span>
                     <code className="block truncate text-[9px] text-muted-foreground">
-                      {capability.key}
+                      {permissionById.get(capability.key)?.permissionKey ??
+                        capability.permissionKey}
                     </code>
                   </span>
                   {comparedAllowed !== null && comparedAllowed !== allowed && (
@@ -3432,15 +3586,19 @@ function PreviewRestrictions({
   search,
   preview,
 }: {
-  pages: typeof PAGES;
+  pages: PreviewRoute[];
   search: string;
   preview: Role;
 }) {
   const q = search.trim().toLowerCase();
   const grouped = useMemo(() => {
-    const map = new Map<string, typeof PAGES>();
+    const map = new Map<string, PreviewRoute[]>();
     for (const page of pages) {
-      if (q.length > 0 && !page.label.toLowerCase().includes(q) && !page.path.toLowerCase().includes(q))
+      if (
+        q.length > 0 &&
+        !page.label.toLowerCase().includes(q) &&
+        !page.path.toLowerCase().includes(q)
+      )
         continue;
       const list = map.get(page.area) ?? [];
       list.push(page);
@@ -3473,10 +3631,30 @@ function PreviewRestrictions({
           <ul className="flex flex-wrap gap-1.5">
             {g.pages.map((page) => (
               <li key={page.path}>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-border/40 bg-background/30 px-2 py-1 text-[11px] text-muted-foreground">
-                  <Lock className="h-3 w-3 text-amber-400/70" />
-                  {page.label}
-                  <code className="text-[9px] text-muted-foreground/70">{page.path}</code>
+                <span
+                  className={`inline-flex max-w-full items-start gap-2 rounded-md border px-2.5 py-2 text-[11px] ${
+                    page.visible
+                      ? "border-amber-500/25 bg-amber-500/[0.06] text-amber-100"
+                      : "border-border/40 bg-background/30 text-muted-foreground"
+                  }`}
+                  title={page.reason}
+                >
+                  {page.visible ? (
+                    <AlertCircle className="h-3 w-3 text-amber-300" />
+                  ) : (
+                    <EyeOff className="h-3 w-3 text-muted-foreground" />
+                  )}
+                  <span className="min-w-0">
+                    <span className="flex flex-wrap items-baseline gap-x-1.5 font-medium">
+                      {page.label}
+                      <code className="text-[9px] font-normal text-muted-foreground/70">
+                        {page.path}
+                      </code>
+                    </span>
+                    <span className="mt-0.5 block text-[9px] leading-relaxed opacity-80">
+                      {page.reason}
+                    </span>
+                  </span>
                 </span>
               </li>
             ))}
@@ -3548,9 +3726,7 @@ function RoleMetadataDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="role-metadata-description">Description</Label>
-                <span className="text-[10px] text-muted-foreground">
-                  {description.length}/1000
-                </span>
+                <span className="text-[10px] text-muted-foreground">{description.length}/1000</span>
               </div>
               <Textarea
                 id="role-metadata-description"
@@ -3604,9 +3780,7 @@ function ReadOnlyMetadata({
   return (
     <div className="flex min-w-0 items-center justify-between gap-3">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={`truncate ${mono ? "font-mono text-[10px]" : "font-medium"}`}>
-        {value}
-      </dd>
+      <dd className={`truncate ${mono ? "font-mono text-[10px]" : "font-medium"}`}>{value}</dd>
     </div>
   );
 }
