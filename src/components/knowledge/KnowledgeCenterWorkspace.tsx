@@ -58,6 +58,15 @@ import type {
   KbCategory,
   KbSpace,
 } from "@/lib/knowledge/backend-types";
+import {
+  EditPageDialog,
+  InheritancePreview,
+  ManagePermissionsDialog,
+  NewBookDialog,
+  NewChapterDialog,
+  NewPageDialog,
+  visFromString,
+} from "./KnowledgeCenterDialogs";
 
 // ---------------------------------------------------------------------------
 // Visibility model (frontend-only; mapped from KbArticle.visibility string)
@@ -477,9 +486,9 @@ export function KnowledgeCenterWorkspace() {
                 />
                 <span className="ml-1.5 hidden sm:inline">Refresh</span>
               </Button>
-              <DisabledActionButton
-                label="New Book"
-                icon={<Plus className="mr-1.5 h-3.5 w-3.5" />}
+              <NewBookDialog
+                teams={teams.map((t) => ({ id: t.id, name: t.name }))}
+                defaultTeamId={activeTeamId}
               />
             </div>
           </div>
@@ -1129,16 +1138,11 @@ function CenterColumn({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <DisabledActionButton
-                label="New Chapter"
-                variant="outline"
-                size="xs"
-                icon={<Plus className="mr-1 h-3 w-3" />}
-              />
-              <DisabledActionButton
-                label="New Page"
-                size="xs"
-                icon={<Plus className="mr-1 h-3 w-3" />}
+              <NewChapterDialog book={book} bookVis="all_employees" />
+              <NewPageDialog
+                book={book}
+                bookVis="all_employees"
+                chapters={chapters}
               />
             </div>
           </div>
@@ -1321,10 +1325,11 @@ function CenterColumn({
                 />
               </div>
             </div>
-            <DisabledActionButton
-              label="New Page"
-              size="xs"
-              icon={<Plus className="mr-1 h-3 w-3" />}
+            <NewPageDialog
+              book={book}
+              bookVis="all_employees"
+              chapters={chaptersByBook.get(book.id) ?? []}
+              defaultChapterId={chapter.id}
             />
           </div>
         </div>
@@ -1426,11 +1431,10 @@ function CenterColumn({
               </p>
             )}
           </div>
-          <DisabledActionButton
-            label="Edit page"
-            variant="outline"
-            size="xs"
-            icon={<Pencil className="mr-1 h-3 w-3" />}
+          <EditPageDialog
+            article={article}
+            bookName={fallback(book?.name, "Book")}
+            chapterName={chapter?.name ?? null}
           />
         </div>
       </div>
@@ -1645,11 +1649,16 @@ function RightColumn({
             title="Book permissions"
             body="Per-book ACL inheritance to chapters and pages lands in Phase 2."
           />
-          <DisabledActionButton
-            label="Manage access"
-            variant="outline"
-            size="xs"
-            icon={<Settings2 className="mr-1 h-3 w-3" />}
+          <InheritancePreview
+            bookName={fallback(book.name, "Untitled book")}
+            bookVis="all_employees"
+          />
+          <ManagePermissionsDialog
+            scope="book"
+            name={fallback(book.name, "Untitled book")}
+            bookName={fallback(book.name, "Untitled book")}
+            bookVis="all_employees"
+            currentVis="all_employees"
           />
         </div>
       </div>
@@ -1704,11 +1713,20 @@ function RightColumn({
             title="Chapter permissions"
             body="Inherits the parent book's access rules. Per-chapter overrides arrive in Phase 2."
           />
-          <DisabledActionButton
-            label="Manage access"
-            variant="outline"
-            size="xs"
-            icon={<Settings2 className="mr-1 h-3 w-3" />}
+          <InheritancePreview
+            bookName={fallback(book?.name, "Book")}
+            bookVis="all_employees"
+            chapterName={fallback(chapter.name, "Untitled chapter")}
+            chapterVis="all_employees"
+          />
+          <ManagePermissionsDialog
+            scope="chapter"
+            name={fallback(chapter.name, "Untitled chapter")}
+            bookName={fallback(book?.name, "Book")}
+            bookVis="all_employees"
+            chapterName={fallback(chapter.name, "Untitled chapter")}
+            chapterVis="all_employees"
+            currentVis="all_employees"
           />
         </div>
       </div>
@@ -1766,9 +1784,13 @@ function RightColumn({
           </div>
         </div>
 
-        <PermissionStub
-          title="Manage permissions"
-          body="Visibility + per-resource ACL rules will decide access in Phase 2. Editing access control is disabled for now."
+        <InheritancePreview
+          bookName={fallback(book?.name, "Book")}
+          bookVis="all_employees"
+          chapterName={chapter?.name ?? null}
+          chapterVis={chapter ? "all_employees" : null}
+          pageName={fallback(article.title, "Untitled page")}
+          pageVis={visFromString(article.visibility)}
         />
 
         <MetaGrid title="Metadata">
@@ -1785,17 +1807,19 @@ function RightColumn({
         </MetaGrid>
 
         <div className="flex flex-wrap gap-2 pt-1">
-          <DisabledActionButton
-            label="Edit"
-            variant="outline"
-            size="xs"
-            icon={<Pencil className="mr-1 h-3 w-3" />}
+          <EditPageDialog
+            article={article}
+            bookName={fallback(book?.name, "Book")}
+            chapterName={chapter?.name ?? null}
           />
-          <DisabledActionButton
-            label="Manage access"
-            variant="outline"
-            size="xs"
-            icon={<Settings2 className="mr-1 h-3 w-3" />}
+          <ManagePermissionsDialog
+            scope="page"
+            name={fallback(article.title, "Untitled page")}
+            bookName={fallback(book?.name, "Book")}
+            bookVis="all_employees"
+            chapterName={chapter?.name ?? null}
+            chapterVis={chapter ? "all_employees" : null}
+            currentVis={visFromString(article.visibility)}
           />
         </div>
       </div>
