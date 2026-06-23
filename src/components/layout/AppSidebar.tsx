@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   BarChart3,
   Users,
-  UsersRound,
+  
   KeyRound,
   Sliders,
   ListChecks,
@@ -80,8 +80,7 @@ const groups: { label: string; items: SidebarItem[] }[] = [
   {
     label: "Administration",
     items: [
-      { title: "Users", url: "/admin/users", icon: Users },
-      { title: "Teams", url: "/admin/teams", icon: UsersRound },
+      { title: "People & Organization", url: "/admin/users", icon: Users },
       { title: "Roles", url: "/admin/roles", icon: KeyRound },
       { title: "Templates", url: "/admin/templates", icon: FileCode },
       
