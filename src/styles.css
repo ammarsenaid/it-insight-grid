@@ -50,7 +50,7 @@
   --foreground: oklch(0.96 0.015 240);
   --card: oklch(0.235 0.045 255);
   --card-foreground: oklch(0.96 0.015 240);
-  --popover: oklch(0.22 0.045 255);
+  --popover: oklch(0.26 0.04 255);
   --popover-foreground: oklch(0.96 0.015 240);
   --primary: oklch(0.7 0.16 260);
   --primary-foreground: oklch(0.15 0.04 255);
@@ -2243,40 +2243,56 @@ body.compact-mode .glass-card {
   }
 }
 
-/* ITKC Admin Users action menu polish */
-[data-radix-popper-content-wrapper] [role="menu"] {
-  border-radius: 1rem !important;
-  border: 1px solid hsl(var(--border) / 0.48) !important;
-  background:
-    radial-gradient(circle at top left, hsl(var(--primary) / 0.08), transparent 14rem),
-    linear-gradient(180deg, hsl(218 52% 11% / 0.98), hsl(220 62% 8% / 0.98)) !important;
-  box-shadow:
-    0 26px 70px hsl(220 90% 3% / 0.42),
-    inset 0 1px 0 hsl(0 0% 100% / 0.05) !important;
-  overflow: hidden;
-  padding: 0.45rem !important;
+/* ITKC floating surface polish — solid, opaque overlays.
+   Targets every Radix portal popper (dropdown, popover, select, context, hover-card)
+   so page content can never bleed through. */
+[data-radix-popper-content-wrapper] {
+  z-index: 100 !important;
 }
 
-[data-radix-popper-content-wrapper] [role="menuitem"] {
-  min-height: 2.65rem;
-  border-radius: 0.75rem !important;
-  color: hsl(214 36% 90%) !important;
-  font-size: 0.92rem;
+[data-radix-popper-content-wrapper] [role="menu"],
+[data-radix-popper-content-wrapper] [role="listbox"],
+[data-radix-popper-content-wrapper] [role="dialog"],
+[data-radix-popper-content-wrapper] [role="tooltip"] {
+  border-radius: 0.9rem !important;
+  border: 1px solid hsl(218 30% 32%) !important;
+  /* Fully opaque deep-navy surface — no alpha, no see-through */
+  background-color: hsl(220 45% 11%) !important;
+  background-image: linear-gradient(180deg, hsl(218 42% 14%), hsl(220 50% 9%)) !important;
+  box-shadow:
+    0 30px 80px hsl(220 90% 2% / 0.7),
+    0 4px 16px hsl(220 90% 2% / 0.55),
+    inset 0 1px 0 hsl(0 0% 100% / 0.06) !important;
+  backdrop-filter: none !important;
+  overflow: hidden;
+  padding: 0.4rem !important;
+}
+
+[data-radix-popper-content-wrapper] [role="menuitem"],
+[data-radix-popper-content-wrapper] [role="option"] {
+  min-height: 2.4rem;
+  border-radius: 0.6rem !important;
+  color: hsl(214 36% 92%) !important;
+  font-size: 0.9rem;
   cursor: pointer;
 }
 
 [data-radix-popper-content-wrapper] [role="menuitem"]:hover,
-[data-radix-popper-content-wrapper] [role="menuitem"]:focus {
-  background: hsl(var(--primary) / 0.13) !important;
+[data-radix-popper-content-wrapper] [role="menuitem"]:focus,
+[data-radix-popper-content-wrapper] [role="option"]:hover,
+[data-radix-popper-content-wrapper] [role="option"]:focus,
+[data-radix-popper-content-wrapper] [role="option"][data-highlighted] {
+  background: hsl(var(--primary) / 0.18) !important;
   color: hsl(214 54% 98%) !important;
 }
 
-[data-radix-popper-content-wrapper] [role="menuitem"][data-disabled] {
+[data-radix-popper-content-wrapper] [role="menuitem"][data-disabled],
+[data-radix-popper-content-wrapper] [role="option"][data-disabled] {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
 [data-radix-popper-content-wrapper] [role="separator"] {
-  background: hsl(var(--border) / 0.36) !important;
-  margin-block: 0.35rem !important;
+  background: hsl(0 0% 100% / 0.08) !important;
+  margin-block: 0.3rem !important;
 }
