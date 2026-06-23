@@ -96,6 +96,7 @@ export function TopHeader() {
         </form>
 
         <div className="ml-auto flex items-center justify-end gap-2">
+          <WorkspaceContextSwitcher />
           <Button size="icon" variant="ghost" className="md:hidden" onClick={() => setPaletteOpen(true)} aria-label="Search">
             <Search className="h-4 w-4" />
           </Button>
