@@ -59,6 +59,11 @@ interface AuthContextValue {
   role: SdRoleKey | null;
   teams: TeamRow[];
   teamsError: string | null;
+  activeOrganization: EffectiveAccess["activeOrganization"];
+  workspaces: EffectiveAccess["workspaces"];
+  currentWorkspace: EffectiveAccess["workspaces"][number] | null;
+  currentWorkspaceId: string | null;
+  setCurrentWorkspaceId: (workspaceId: string | null) => void;
   contextLoading: boolean;
   contextError: string | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
@@ -71,6 +76,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const AUTH_CONTEXT_ERROR = "Account context could not be loaded. Please try again.";
 const AUTH_SESSION_ERROR = "Your session could not be restored. Please sign in again.";
 const AUTH_SIGN_OUT_ERROR = "Signed out locally, but the remote session could not be closed.";
+const WORKSPACE_CONTEXT_STORAGE_KEY = "itkc.currentWorkspaceId";
 
 function parseEffectiveAccess(value: unknown): EffectiveAccess | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -170,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [effectiveAccess, setEffectiveAccess] = useState<EffectiveAccess | null>(null);
+  const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<string | null>(null);
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [teamsError, setTeamsError] = useState<string | null>(null);
   const [roleKeys, setRoleKeys] = useState<string[]>([]);
@@ -475,6 +482,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadUserContext(session, false);
   }, [loadUserContext, session]);
 
+  const activeOrganization = effectiveAccess?.activeOrganization ?? null;
+  const workspaces = useMemo(() => effectiveAccess?.workspaces ?? [], [effectiveAccess]);
+  const workspaceStorageKey = session?.user?.id
+    ? `${WORKSPACE_CONTEXT_STORAGE_KEY}:${session.user.id}`
+    : null;
+
+  const setCurrentWorkspaceId = useCallback((workspaceId: string | null) => {
+    const normalized = workspaceId && workspaces.some((workspace) => workspace.id === workspaceId)
+      ? workspaceId
+      : null;
+
+    setCurrentWorkspaceIdState(normalized);
+
+    if (typeof window === "undefined" || !workspaceStorageKey) return;
+
+    try {
+      if (normalized) {
+        window.localStorage.setItem(workspaceStorageKey, normalized);
+      } else {
+        window.localStorage.removeItem(workspaceStorageKey);
+      }
+    } catch {
+      // Workspace selection is a convenience preference. Authorization remains backend-driven.
+    }
+  }, [workspaceStorageKey, workspaces]);
+
+  useEffect(() => {
+    if (!session?.user || workspaces.length === 0) {
+      setCurrentWorkspaceIdState(null);
+      return;
+    }
+
+    setCurrentWorkspaceIdState((current) => {
+      if (current && workspaces.some((workspace) => workspace.id === current)) {
+        return current;
+      }
+
+      if (typeof window !== "undefined" && workspaceStorageKey) {
+        try {
+          const stored = window.localStorage.getItem(workspaceStorageKey);
+          if (stored && workspaces.some((workspace) => workspace.id === stored)) {
+            return stored;
+          }
+        } catch {
+          // Ignore preference read failures and fall back to the first visible workspace.
+        }
+      }
+
+      return workspaces[0]?.id ?? null;
+    });
+  }, [session?.user, workspaceStorageKey, workspaces]);
+
+  const currentWorkspace = useMemo(
+    () => workspaces.find((workspace) => workspace.id === currentWorkspaceId) ?? workspaces[0] ?? null,
+    [currentWorkspaceId, workspaces],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => {
       // ────────────────────────────────────────────────────────────────
@@ -488,6 +552,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           configured: true,
           loading: false,
           ...PREVIEW_AUTH_CONTEXT,
+          activeOrganization,
+          workspaces,
+          currentWorkspace,
+          currentWorkspaceId,
+          setCurrentWorkspaceId,
           signIn,
           signOut,
           refresh,
@@ -505,6 +574,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role,
         teams,
         teamsError,
+        activeOrganization,
+        workspaces,
+        currentWorkspace,
+        currentWorkspaceId,
+        setCurrentWorkspaceId,
         contextLoading,
         contextError,
         signIn,
@@ -522,6 +596,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role,
       teams,
       teamsError,
+      activeOrganization,
+      workspaces,
+      currentWorkspace,
+      currentWorkspaceId,
+      setCurrentWorkspaceId,
       contextLoading,
       contextError,
       signIn,
@@ -542,4 +621,26 @@ export function useAuth(): AuthContextValue {
 export function useTeams() {
   const { teams, teamsError, loading } = useAuth();
   return { teams, error: teamsError, loading };
+}
+
+export function useWorkspaceContext() {
+  const {
+    activeOrganization,
+    workspaces,
+    currentWorkspace,
+    currentWorkspaceId,
+    setCurrentWorkspaceId,
+    contextLoading,
+    contextError,
+  } = useAuth();
+
+  return {
+    activeOrganization,
+    workspaces,
+    currentWorkspace,
+    currentWorkspaceId,
+    setCurrentWorkspaceId,
+    loading: contextLoading,
+    error: contextError,
+  };
 }
