@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useQuery } from "@tanstack/react-query";
 import { unreadNotificationsQuery } from "@/lib/service-desk/queries";
+import { WorkspaceContextSwitcher } from "./WorkspaceContextSwitcher";
 
 export function TopHeader() {
   const [q, setQ] = useState("");
