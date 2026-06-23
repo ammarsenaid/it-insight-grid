@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   BarChart3,
   Users,
-  UsersRound,
+
   KeyRound,
   Sliders,
   ListChecks,
@@ -80,11 +80,10 @@ const groups: { label: string; items: SidebarItem[] }[] = [
   {
     label: "Administration",
     items: [
-      { title: "Users", url: "/admin/users", icon: Users },
-      { title: "Teams", url: "/admin/teams", icon: UsersRound },
+      { title: "People & Organization", url: "/admin/users", icon: Users },
       { title: "Roles", url: "/admin/roles", icon: KeyRound },
       { title: "Templates", url: "/admin/templates", icon: FileCode },
-      
+
       { title: "Ticket Configuration Overview", url: "/admin/ticket-settings", icon: Sliders },
       { title: "Diagnostics", url: "/admin/diagnostics", icon: Wrench },
     ],
@@ -100,7 +99,7 @@ const groups: { label: string; items: SidebarItem[] }[] = [
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  
+
   const { effectiveAccess } = useAuth();
 
   // The same backend-derived decision used by AuthGate filters navigation.
