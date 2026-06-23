@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -309,22 +309,13 @@ function CreateMenu({
 }
 
 function useCreateEvent(name: string, handler: () => void) {
-  // Lightweight bridge from the toolbar menu to each tab's drawer state.
-  // No backend, just a UI event channel.
-  if (typeof window !== "undefined") {
-    // attach once per mount
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useMountedEventListener(name, handler);
-  }
-}
-
-import { useEffect } from "react";
-function useMountedEventListener(name: string, handler: () => void) {
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const fn = () => handler();
     window.addEventListener(name, fn);
     return () => window.removeEventListener(name, fn);
-  }, [name, handler]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name]);
 }
 
 /* ───────────────────────── Users tab ───────────────────────── */
