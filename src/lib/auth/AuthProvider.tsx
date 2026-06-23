@@ -74,25 +74,93 @@ const AUTH_SIGN_OUT_ERROR = "Signed out locally, but the remote session could no
 
 function parseEffectiveAccess(value: unknown): EffectiveAccess | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
   const row = value as Record<string, unknown>;
+  const isRecord = (candidate: unknown): candidate is Record<string, unknown> =>
+    Boolean(candidate) && typeof candidate === "object" && !Array.isArray(candidate);
+
   const strings = (candidate: unknown) =>
     Array.isArray(candidate) && candidate.every((item) => typeof item === "string")
       ? candidate as string[]
       : null;
+
+  const optionalString = (candidate: unknown) =>
+    typeof candidate === "string" ? candidate : null;
+
+  const parseOrganization = (candidate: unknown): EffectiveAccess["activeOrganization"] => {
+    if (!isRecord(candidate)) return null;
+    const id = optionalString(candidate.id);
+    const slug = optionalString(candidate.slug);
+    const name = optionalString(candidate.name);
+    const status = optionalString(candidate.status);
+    if (!id || !slug || !name || !status) return null;
+    return { id, slug, name, status };
+  };
+
+  const parseTeams = (candidate: unknown): EffectiveAccess["workspaces"][number]["teams"] => {
+    if (!Array.isArray(candidate)) return [];
+    return candidate.flatMap((item) => {
+      if (!isRecord(item)) return [];
+      const id = optionalString(item.id);
+      const name = optionalString(item.name);
+      const slug = item.slug === null ? null : optionalString(item.slug);
+      if (!id || !name) return [];
+      return [{ id, name, slug }];
+    });
+  };
+
+  const parseWorkspaces = (candidate: unknown): EffectiveAccess["workspaces"] => {
+    if (!Array.isArray(candidate)) return [];
+    return candidate.flatMap((item) => {
+      if (!isRecord(item)) return [];
+
+      const id = optionalString(item.id);
+      const organizationId = optionalString(item.organization_id);
+      const slug = optionalString(item.slug);
+      const name = optionalString(item.name);
+      const type = optionalString(item.type);
+      const status = optionalString(item.status);
+      const membershipStatus = optionalString(item.membership_status);
+      const roleKeys = strings(item.role_keys) ?? [];
+      const permissionKeys = strings(item.permission_keys) ?? [];
+
+      if (!id || !organizationId || !slug || !name || !type || !status || !membershipStatus) {
+        return [];
+      }
+
+      return [{
+        id,
+        organizationId,
+        slug,
+        name,
+        type,
+        status,
+        membershipStatus,
+        roleKeys,
+        permissionKeys,
+        teams: parseTeams(item.teams),
+      }];
+    });
+  };
+
   const roleKeys = strings(row.role_keys);
   const permissionKeys = strings(row.permission_keys);
   const visibleRoutes = strings(row.visible_routes);
+
   if (
     !roleKeys || !permissionKeys || !visibleRoutes ||
     typeof row.safe_recovery_route !== "string" ||
     typeof row.is_platform_admin !== "boolean"
   ) return null;
+
   return {
     roleKeys,
     permissionKeys,
     visibleRoutes,
     safeRecoveryRoute: row.safe_recovery_route,
     isPlatformAdmin: row.is_platform_admin,
+    activeOrganization: parseOrganization(row.active_organization),
+    workspaces: parseWorkspaces(row.workspaces),
   };
 }
 

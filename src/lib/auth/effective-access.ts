@@ -1,9 +1,37 @@
+export interface EffectiveAccessOrganization {
+  id: string;
+  slug: string;
+  name: string;
+  status: string;
+}
+
+export interface EffectiveAccessTeam {
+  id: string;
+  slug: string | null;
+  name: string;
+}
+
+export interface EffectiveAccessWorkspace {
+  id: string;
+  organizationId: string;
+  slug: string;
+  name: string;
+  type: string;
+  status: string;
+  membershipStatus: string;
+  roleKeys: string[];
+  permissionKeys: string[];
+  teams: EffectiveAccessTeam[];
+}
+
 export interface EffectiveAccess {
   roleKeys: string[];
   permissionKeys: string[];
   visibleRoutes: string[];
   safeRecoveryRoute: string;
   isPlatformAdmin: boolean;
+  activeOrganization: EffectiveAccessOrganization | null;
+  workspaces: EffectiveAccessWorkspace[];
 }
 
 type RouteRequirement =
