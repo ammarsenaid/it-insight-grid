@@ -116,6 +116,9 @@ assert(!canAccessRoute(access, "/protocols/run-123/extra"), "overlong route matc
 assert(!canAccessRoute(access, "/unknown-protected-page"), "unknown route allowed");
 assert(!canAccessRoute({ ...access, permissionKeys: [] }, "/protocols/run-123"), "route visibility bypassed permission requirement");
 assert(!canAccessRoute(null, "/protocols/run-123"), "missing access context allowed route");
+const settingsAccess = { ...access, permissionKeys: [], visibleRoutes: ["/settings"] };
+assert(canAccessRoute(settingsAccess, "/settings"), "visible self-service settings route denied");
+assert(!canAccessRoute({ ...settingsAccess, visibleRoutes: [] }, "/settings"), "settings bypassed backend route visibility");
 setSessionRoles(docAuditor, "doc_editor");
 assert(can("audit.view", "doc_editor"), "authenticated scalar caller ignored additive roles");
 setSessionRoles(null);

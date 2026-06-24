@@ -36,6 +36,7 @@ export interface EffectiveAccess {
 
 type RouteRequirement =
   | { kind: "permission"; anyOf: readonly string[] }
+  | { kind: "self-service" }
   | { kind: "self-scoped" }
   | { kind: "platform-admin" }
   | { kind: "missing"; reason: string };
@@ -76,7 +77,7 @@ export const ROUTE_REQUIREMENTS: Record<string, RouteRequirement> = {
   "/admin/catalog": { kind: "missing", reason: "No backend catalog-management permission exists." },
   "/recycle-bin": { kind: "missing", reason: "No backend recycle-bin permission exists." },
   "/trash": { kind: "missing", reason: "No backend recycle-bin permission exists." },
-  "/settings": { kind: "missing", reason: "No backend settings permission exists." },
+  "/settings": { kind: "self-service" },
 };
 
 function routeMatches(pattern: string, path: string): boolean {
@@ -101,6 +102,7 @@ export function canAccessRoute(access: EffectiveAccess | null, path: string): bo
   if (!access || !hasVisibleRoute(access, path)) return false;
   const requirement = routeRequirementFor(path);
   if (!requirement || requirement.kind === "missing") return false;
+  if (requirement.kind === "self-service") return true;
   if (requirement.kind === "self-scoped") return true;
   if (requirement.kind === "platform-admin") return access.isPlatformAdmin;
   if (access.isPlatformAdmin) return true;
@@ -112,6 +114,7 @@ export function describeRouteRequirement(path: string): string {
   const requirement = routeRequirementFor(path);
   if (!requirement) return "Unknown route: no backend authorization contract exists.";
   if (requirement.kind === "missing") return requirement.reason;
+  if (requirement.kind === "self-service") return "Authenticated self-service route; backend route visibility still controls exposure.";
   if (requirement.kind === "self-scoped") return "Backend access is restricted to the signed-in user's own records.";
   if (requirement.kind === "platform-admin") return "Requires the platform_admin backend role.";
   return `Requires any of: ${requirement.anyOf.join(", ")}.`;
@@ -124,6 +127,7 @@ export function roleHasRouteRequirement(
 ): boolean {
   const requirement = routeRequirementFor(path);
   if (!requirement || requirement.kind === "missing") return false;
+  if (requirement.kind === "self-service") return true;
   if (requirement.kind === "self-scoped") return true;
   if (requirement.kind === "platform-admin") return roleKey === "platform_admin";
   if (roleKey === "platform_admin") return true;
