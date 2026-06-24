@@ -80,16 +80,91 @@ export async function listCannedResponses(): Promise<TicketCannedResponse[]> {
   return asRows<SbRow>(data).map(mapCannedResponse);
 }
 
+const MAILBOX_CONFIG_COLS =
+  "id, name, inbound_address, outbound_from, reply_to, default_category, default_priority, default_team, is_active";
+
+export interface TicketMailboxConfigInput {
+  name: string;
+  inboundAddress: string;
+  outboundFrom?: string | null;
+  replyTo?: string | null;
+  defaultCategory?: string | null;
+  defaultPriority: TicketMailboxConfig["defaultPriority"];
+  defaultTeam?: string | null;
+  isActive: boolean;
+}
+
+function cleanNullable(value: string | null | undefined): string | null {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function mailboxInputToRow(input: TicketMailboxConfigInput): Record<string, unknown> {
+  return {
+    name: input.name.trim(),
+    inbound_address: input.inboundAddress.trim(),
+    outbound_from: cleanNullable(input.outboundFrom),
+    reply_to: cleanNullable(input.replyTo),
+    default_category: cleanNullable(input.defaultCategory),
+    default_priority: input.defaultPriority,
+    default_team: cleanNullable(input.defaultTeam),
+    is_active: input.isActive,
+  };
+}
+
 export async function listMailboxConfigs(): Promise<TicketMailboxConfig[]> {
   const sb = getSupabase();
   const { data, error } = await sb
     .from("ticket_mailbox_configs")
-    .select(
-      "id, name, inbound_address, outbound_from, reply_to, default_category, default_priority, default_team, is_active",
-    )
+    .select(MAILBOX_CONFIG_COLS)
     .order("name", { ascending: true });
   if (error) throw error;
   return asRows<SbRow>(data).map(mapMailboxConfig);
+}
+
+export async function createMailboxConfig(
+  input: TicketMailboxConfigInput,
+): Promise<TicketMailboxConfig> {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from("ticket_mailbox_configs")
+    .insert(mailboxInputToRow(input))
+    .select(MAILBOX_CONFIG_COLS)
+    .single();
+  if (error) throw error;
+  return mapMailboxConfig(data as SbRow);
+}
+
+export async function updateMailboxConfig(
+  id: string,
+  patch: Partial<TicketMailboxConfigInput>,
+): Promise<TicketMailboxConfig> {
+  const row: Record<string, unknown> = {};
+
+  if (patch.name !== undefined) row.name = patch.name.trim();
+  if (patch.inboundAddress !== undefined) row.inbound_address = patch.inboundAddress.trim();
+  if (patch.outboundFrom !== undefined) row.outbound_from = cleanNullable(patch.outboundFrom);
+  if (patch.replyTo !== undefined) row.reply_to = cleanNullable(patch.replyTo);
+  if (patch.defaultCategory !== undefined) row.default_category = cleanNullable(patch.defaultCategory);
+  if (patch.defaultPriority !== undefined) row.default_priority = patch.defaultPriority;
+  if (patch.defaultTeam !== undefined) row.default_team = cleanNullable(patch.defaultTeam);
+  if (patch.isActive !== undefined) row.is_active = patch.isActive;
+
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from("ticket_mailbox_configs")
+    .update(row)
+    .eq("id", id)
+    .select(MAILBOX_CONFIG_COLS)
+    .single();
+  if (error) throw error;
+  return mapMailboxConfig(data as SbRow);
+}
+
+export async function deleteMailboxConfig(id: string): Promise<void> {
+  const sb = getSupabase();
+  const { error } = await sb.from("ticket_mailbox_configs").delete().eq("id", id);
+  if (error) throw error;
 }
 
 // ---------- Canned response CRUD (RLS gates writes to tickets.config) ----------
