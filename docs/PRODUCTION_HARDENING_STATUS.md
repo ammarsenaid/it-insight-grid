@@ -44,6 +44,7 @@ Last updated: 2026-06-24
 - Completed milestone: 38 - Disposable Execution Commands Preparation Only
 - Completed milestone: 77 - Admin Users Live-Data Integration
 - Completed milestone: 92 - Dashboard Command Center UX Hardening
+- Completed milestone: 93 - Documents Backend Workspace Activation
 - Active milestone: none; disposable execution remains unapproved.
 - Repository inventory completed without reading secret-bearing files.
 - Existing uncommitted ticket-attachment SQL and QA changes identified and
@@ -2216,3 +2217,25 @@ Operational notes:
 - No database, SQL, migration, Supabase pending file, authorization, route-guard,
   backend API, commit, push, branch, package, or generated route-tree operation
   was performed.
+
+## Milestone 93 - Documents Backend Workspace Activation
+
+Date: 2026-06-24
+
+Status: IMPLEMENTED AND LOCALLY VALIDATED.
+
+- Switched `/documents` from the older read-only Knowledge Center shell to the
+  backend-powered Knowledge workspace that uses Supabase-backed spaces,
+  categories, articles, tags, workflow transitions, revisions, audit entries,
+  attachments, and per-team permission checks.
+- Replaced route-level raw error rendering with safe recovery copy.
+- Prevented archived articles from presenting normal edit, metadata, and tag
+  editing affordances; archived pages now expose restore, delete, and read
+  actions according to existing permissions and backend workflow rules.
+- Added a static QA assertion so `/documents` cannot regress to the older
+  read-only workspace shell.
+
+Operational notes:
+- No database, SQL, migration, Supabase pending file, authorization, route-guard,
+  backend API, commit, push, branch, package, generated route-tree, Dashboard,
+  Roles & Permissions, or People & Organization operation was performed.

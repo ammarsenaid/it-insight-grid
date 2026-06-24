@@ -2473,6 +2473,9 @@ function ArticlePane({
   const updatedByLabel = article.updated_by
     ? article.updated_by.slice(0, 8)
     : "—";
+  const articleArchived = article.status === "archived";
+  const canEditActiveArticle = canUpdate && !articleArchived;
+  const canTransitionArchiveState = canUpdate && (article.status === "published" || articleArchived);
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -2516,7 +2519,7 @@ function ArticlePane({
               )}
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              {canUpdate && (
+              {canEditActiveArticle && (
                 <div className="flex h-9 overflow-hidden rounded-lg shadow-sm shadow-primary/20">
                   <Button
                     size="sm"
@@ -2572,7 +2575,7 @@ function ArticlePane({
                   <DropdownMenuItem onClick={handleCopyLink}>
                     <Link2 className="mr-2 h-3.5 w-3.5" /> Copy link
                   </DropdownMenuItem>
-                  {canUpdate && (
+                  {canTransitionArchiveState && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={onArchive}>
@@ -2807,7 +2810,7 @@ function ArticlePane({
                     {t}
                   </Badge>
                 ))}
-                {canUpdate && (
+                {canEditActiveArticle && (
                   <button
                     onClick={onEditTags}
                     className="inline-flex h-6 items-center gap-0.5 rounded-full border border-dashed border-border/50 px-2 text-[11px] text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"

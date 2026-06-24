@@ -5,6 +5,11 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 workspace="$root/src/components/knowledge/KnowledgeBackendWorkspace.tsx"
 route="$root/src/routes/documents.tsx"
 
+# The /documents route must mount the backend CRUD workspace, not the older
+# read-only preview shell.
+rg -Fq 'KnowledgeBackendWorkspace' "$route"
+! rg -Fq 'KnowledgeCenterWorkspace' "$route"
+
 # The page exposes real team context and never presents unresolved permissions
 # as writable access.
 rg -Fq 'aria-label="Active knowledge team"' "$workspace"
