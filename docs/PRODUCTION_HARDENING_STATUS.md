@@ -1,6 +1,6 @@
 # Production Hardening Status
 
-Last updated: 2026-06-15
+Last updated: 2026-06-24
 
 ## Current Progress
 
@@ -43,6 +43,7 @@ Last updated: 2026-06-15
 - Completed milestone: 37 - Disposable Database Preflight Only
 - Completed milestone: 38 - Disposable Execution Commands Preparation Only
 - Completed milestone: 77 - Admin Users Live-Data Integration
+- Completed milestone: 92 - Dashboard Command Center UX Hardening
 - Active milestone: none; disposable execution remains unapproved.
 - Repository inventory completed without reading secret-bearing files.
 - Existing uncommitted ticket-attachment SQL and QA changes identified and
@@ -2190,3 +2191,28 @@ Status: IMPLEMENTED AND LOCALLY VALIDATED.
 Operational notes:
 - No database, SQL, migration, Supabase pending file, authorization, route-guard,
   backend API, deployment, service restart, commit, or push operation was performed.
+
+## Milestone 92 - Dashboard Command Center UX Hardening
+
+Date: 2026-06-24
+
+Status: IMPLEMENTED AND LOCALLY VALIDATED.
+
+- Reframed the Dashboard as an operational command center with workspace
+  context, live/partial/refreshing status, an explicit refresh action, and
+  stronger source-of-truth labeling for live backend data versus browser-local
+  previews.
+- Expanded Attention Required and My Work to surface live task and protocol
+  urgency where data exists, while preserving honest placeholders for
+  unavailable or unwired data.
+- Added a permission-aware Platform Snapshot that links only to existing routes
+  and labels each module as live backend, browser-local preview, unavailable, or
+  count-not-wired.
+- Improved Quick Actions, recent activity empty state, and module cards without
+  changing backend contracts, route guards, RBAC, RLS, schema, migrations, or
+  package metadata.
+
+Operational notes:
+- No database, SQL, migration, Supabase pending file, authorization, route-guard,
+  backend API, commit, push, branch, package, or generated route-tree operation
+  was performed.

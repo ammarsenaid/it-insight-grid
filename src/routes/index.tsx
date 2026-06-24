@@ -24,6 +24,8 @@ import {
   Hourglass,
   PlayCircle,
   Wrench,
+  RefreshCw,
+  BookOpen,
 } from "lucide-react";
 import { useMemo, useState, type ComponentType } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -57,7 +59,7 @@ import { DetailsDrawer } from "@/components/common/DetailsDrawer";
 import { Switch } from "@/components/ui/switch";
 import { BackendKnowledgePanel } from "@/components/knowledge/BackendKnowledgePanel";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cmdbAssetsQuery } from "@/lib/cmdb/queries";
 import { ipamAddressesQuery } from "@/lib/ipam/queries";
 import { notesQuery } from "@/lib/notes/queries";
@@ -134,6 +136,7 @@ function Dashboard() {
   const role = useRole();
   const { effectiveAccess } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const prefs = useDashboardPrefs();
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const cmdbReadable = can("cmdb.view", role);
@@ -162,6 +165,17 @@ function Dashboard() {
     deletedTasksQuery,
     deletedNotesQuery,
   ].some((query) => query.isError);
+  const operationalDataLoading = [
+    cmdbQuery,
+    ipamQuery,
+    notesQueryResult,
+    protocolRunsQueryResult,
+    tasksQueryResult,
+    deletedAssetsQuery,
+    deletedAddressesQuery,
+    deletedTasksQuery,
+    deletedNotesQuery,
+  ].some((query) => query.isLoading || query.isFetching);
   const assets = cmdbQuery.data ?? [];
   const ipamAddresses = ipamQuery.data ?? [];
   const notes = notesQueryResult.data ?? [];
@@ -176,6 +190,9 @@ function Dashboard() {
 
   const me = meForRole(role);
   const primary = primaryCreateForRole(role);
+  const workspaceContext = effectiveAccess?.activeOrganization?.name
+    ?? effectiveAccess?.workspaces[0]?.name
+    ?? "Workspace context unavailable";
 
   const tickets = useMemo(() => legacyTickets.map(recomputeSla), [legacyTickets]);
 
@@ -201,6 +218,9 @@ function Dashboard() {
   const activeRuns = protocolRuns.filter((r) => r.status === "in_progress").length;
   const awaitingApproval = protocolRuns.filter((r) => r.status === "waiting_approval").length;
   const failedRuns = protocolRuns.filter((r) => r.status === "failed" || r.status === "completed_with_issues").length;
+  const overdueRuns = protocolRuns.filter((r) =>
+    !!r.dueDate && new Date(r.dueDate) < new Date() && !["completed", "completed_with_issues", "cancelled"].includes(r.status),
+  ).length;
 
   // -------- my work --------
   const myTickets = useMemo(() => {
@@ -223,6 +243,14 @@ function Dashboard() {
   }, [myTickets, tickets, role, me]);
 
   const dueToday = myTasks.filter((t) => isDueToday(t.dueDate)).length;
+  const myProtocolRuns = protocolRuns.filter((r) =>
+    !["completed", "completed_with_issues", "cancelled"].includes(r.status)
+    && !!r.assignedUser
+    && r.assignedUser === me.taskOwner,
+  ).length;
+  const myWaitingProtocolRuns = protocolRuns.filter((r) =>
+    r.status === "waiting_approval" && !!r.assignedUser && r.assignedUser === me.taskOwner,
+  ).length;
 
   // -------- charts --------
   const docChart = useMemo(() => {
@@ -245,6 +273,12 @@ function Dashboard() {
   // -------- role visibility --------
   const showServiceDesk = canAccessRoute(effectiveAccess, "/tickets");
   const showCmdbIpam = canAccessRoute(effectiveAccess, "/cmdb");
+  const showIpam = canAccessRoute(effectiveAccess, "/ipam");
+  const showTasksRoute = canAccessRoute(effectiveAccess, "/tasks");
+  const showProtocolsRoute = canAccessRoute(effectiveAccess, "/protocols");
+  const showNotesRoute = canAccessRoute(effectiveAccess, "/notes");
+  const showDocumentsRoute = canAccessRoute(effectiveAccess, "/documents");
+  const showServiceCatalogRoute = canAccessRoute(effectiveAccess, "/service-catalog");
   const showMyWork = !isReadOnly(role);
   const showTicketsChart = showServiceDesk;
   const showAuditLink = can("audit.view", role);
@@ -256,6 +290,13 @@ function Dashboard() {
   };
   const goTasks = () => navigate({ to: "/tasks" });
   const goProtocols = () => navigate({ to: "/protocols" });
+  const refreshDashboard = () => {
+    void queryClient.invalidateQueries({ queryKey: ["cmdb"] });
+    void queryClient.invalidateQueries({ queryKey: ["ipam"] });
+    void queryClient.invalidateQueries({ queryKey: ["notes"] });
+    void queryClient.invalidateQueries({ queryKey: ["protocolRuns"] });
+    void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  };
 
   // -------- sorted alerts --------
   type Alert = {
@@ -292,6 +333,18 @@ function Dashboard() {
       cta: "Open IPAM", onClick: () => navigate({ to: "/ipam" }),
     }));
   }
+  if (failedRuns > 0) alerts.push({
+    id: "failed-protocol-runs", severity: "critical", module: "System",
+    title: `${failedRuns} protocol run${failedRuns > 1 ? "s" : ""} failed or completed with issues`,
+    meta: "Review run evidence and remediation steps", cta: "Open Protocols",
+    onClick: goProtocols,
+  });
+  if (overdueRuns > 0) alerts.push({
+    id: "overdue-protocol-runs", severity: "high", module: "System",
+    title: `${overdueRuns} protocol run${overdueRuns > 1 ? "s are" : " is"} overdue`,
+    meta: "Run due date has passed", cta: "Open Protocols",
+    onClick: goProtocols,
+  });
   reviewDocs.slice(0, 3).forEach((d) => alerts.push({
     id: `doc-${d.id}`, severity: "info", module: "Knowledge",
     title: `Awaiting review: ${d.title}`,
@@ -307,9 +360,29 @@ function Dashboard() {
     <div>
       <PageHeader
         title="Dashboard"
-        description="Operational overview with live module data and clearly identified browser-local previews."
+        description="Operational command center for work, urgency, module health, and recent changes."
+        status={
+          <Badge variant="outline" className={cn(
+            "text-[10px]",
+            operationalDataUnavailable
+              ? "border-destructive/40 bg-destructive/10 text-destructive"
+              : operationalDataLoading
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-[#52D6A4]/30 bg-[#52D6A4]/10 text-[#52D6A4]",
+          )}>
+            {operationalDataUnavailable ? "Partial data" : operationalDataLoading ? "Refreshing" : "Operational"}
+          </Badge>
+        }
+        meta={
+          <span>
+            Context: {workspaceContext} · Role: {role.replaceAll("_", " ")} · Live modules refresh on demand
+          </span>
+        }
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={refreshDashboard} disabled={operationalDataLoading}>
+              <RefreshCw className={cn("mr-1.5 h-4 w-4", operationalDataLoading && "animate-spin")} /> Refresh
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => setCustomizeOpen(true)}>
               <SettingsIcon className="mr-1.5 h-4 w-4" /> Customize
             </Button>
@@ -362,6 +435,11 @@ function Dashboard() {
             <CompactMetric icon={XOctagon} label="Failed Protocol Runs" value={protocolRunsQueryResult.isSuccess ? failedRuns : "—"} sub={protocolRunsQueryResult.isError ? "Protocol data unavailable" : "Need investigation"} accent="danger" onClick={goProtocols} />
             <CompactMetric icon={ShieldCheck} label="Awaiting Approval" value={protocolRunsQueryResult.isSuccess ? awaitingApproval : "—"} sub={protocolRunsQueryResult.isError ? "Protocol data unavailable" : "Protocol runs pending"} accent="warning" onClick={goProtocols} />
           </div>
+          {!operationalDataUnavailable && visibleAlerts.length === 0 && (
+            <div className="mt-3 rounded-xl border border-[#52D6A4]/25 bg-[#52D6A4]/10 px-4 py-3 text-sm text-muted-foreground">
+              No live urgent items are currently wired for Tasks, Protocols, CMDB, IPAM, or Notes. Ticket SLA signals are browser-local previews until the live ticket dashboard contract is added.
+            </div>
+          )}
         </section>
       )}
 
@@ -375,6 +453,8 @@ function Dashboard() {
               myTasks={myTasks.length}
               waiting={waitingForMe}
               dueToday={dueToday}
+              protocolRuns={protocolRunsQueryResult.isSuccess ? myProtocolRuns : null}
+              pendingApprovals={protocolRunsQueryResult.isSuccess ? myWaitingProtocolRuns : null}
               onOpen={() => {
                 if (isRequester(role)) navigate({ to: "/my-requests" });
                 else navigate({ to: "/tasks" });
@@ -388,12 +468,57 @@ function Dashboard() {
         )}
         {prefs.quickActions && (
           <div className={(prefs.myWork && showMyWork) ? "lg:col-span-1" : "lg:col-span-3"}>
-            <QuickActions role={role} />
+            <QuickActions
+              role={role}
+              routes={{
+                tickets: showServiceDesk || canAccessRoute(effectiveAccess, "/my-requests"),
+                tasks: showTasksRoute,
+                protocols: showProtocolsRoute,
+                cmdb: showCmdbIpam,
+                ipam: showIpam,
+                notes: showNotesRoute,
+                documents: showDocumentsRoute,
+                catalog: showServiceCatalogRoute,
+              }}
+            />
           </div>
         )}
       </div>
 
-      {/* 3) Operational Alerts + Recent Activity */}
+      {/* 3) Platform Snapshot */}
+      {prefs.operationalOverview && (
+        <section className="mt-5">
+          <SectionTitle title="Platform Snapshot" caption="Module usefulness and integration status at a glance." />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {showServiceDesk && (
+              <ModuleSnapshotCard icon={TicketIcon} title="Tickets" to="/tickets" value={openTickets.length} label="open preview tickets" status="Browser-local preview" tone="warning" />
+            )}
+            {showDocumentsRoute && (
+              <ModuleSnapshotCard icon={FileText} title="Knowledge / Documents" to="/documents" value={knowledgePages.length} label="browser-local pages" status="Backend panel available below" tone="warning" />
+            )}
+            {showTasksRoute && (
+              <ModuleSnapshotCard icon={CheckSquare} title="Tasks" to="/tasks" value={tasksQueryResult.isSuccess ? openTasks.length : "—"} label={tasksQueryResult.isError ? "data unavailable" : "active tasks"} status="Live backend" tone={tasksQueryResult.isError ? "danger" : "success"} />
+            )}
+            {showProtocolsRoute && (
+              <ModuleSnapshotCard icon={ListChecks} title="Protocols" to="/protocols" value={protocolRunsQueryResult.isSuccess ? protocolRuns.length : "—"} label={protocolRunsQueryResult.isError ? "data unavailable" : "runs"} status="Live backend" tone={protocolRunsQueryResult.isError ? "danger" : "success"} />
+            )}
+            {showCmdbIpam && (
+              <ModuleSnapshotCard icon={Server} title="CMDB" to="/cmdb" value={cmdbQuery.isSuccess ? assets.length : "—"} label={cmdbQuery.isError ? "data unavailable" : "assets"} status="Live backend" tone={cmdbQuery.isError ? "danger" : "success"} />
+            )}
+            {showIpam && (
+              <ModuleSnapshotCard icon={Network} title="IPAM" to="/ipam" value={ipamQuery.isSuccess ? ipamAddresses.length : "—"} label={ipamQuery.isError ? "data unavailable" : "IP records"} status="Live backend" tone={ipamQuery.isError ? "danger" : "success"} />
+            )}
+            {showNotesRoute && (
+              <ModuleSnapshotCard icon={StickyNote} title="Notes" to="/notes" value={notesQueryResult.isSuccess ? notes.length : "—"} label={notesQueryResult.isError ? "data unavailable" : "notes"} status="Live backend" tone={notesQueryResult.isError ? "danger" : "success"} />
+            )}
+            {showServiceCatalogRoute && (
+              <ModuleSnapshotCard icon={BookOpen} title="Service Catalog" to="/service-catalog" value="Open" label="request catalog" status="Count not wired" tone="muted" />
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* 4) Operational Alerts + Recent Activity */}
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-10">
         {prefs.alerts && (
           <div className="glass-card rounded-2xl p-5 lg:col-span-7">
@@ -449,7 +574,9 @@ function Dashboard() {
                 </li>
               ))}
               {localActivity.length === 0 && (
-                <p className="py-2 text-sm text-muted-foreground">No recent activity.</p>
+                <p className="rounded-xl border border-border/40 bg-background/30 p-4 text-sm text-muted-foreground">
+                  No browser-local activity is available. A live cross-module activity feed is not wired yet.
+                </p>
               )}
             </ol>
             {showAuditLink && (
@@ -463,10 +590,10 @@ function Dashboard() {
         )}
       </div>
 
-      {/* 4) Operational Overview */}
+      {/* 5) Operational Overview */}
       {prefs.operationalOverview && (
         <section className="mt-5">
-          <SectionTitle title="Operational Overview" caption="Secondary metrics across modules." />
+          <SectionTitle title="Operational Load" caption="Secondary live metrics across modules." />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {showServiceDesk && (
               <CompactMetric icon={Inbox} label="Open Tickets" value={openTickets.length} sub="In the queue" accent="primary" onClick={() => goTickets({ status: "open" })} variant="muted" />
@@ -480,7 +607,7 @@ function Dashboard() {
         </section>
       )}
 
-      {/* 5) Tickets by Status chart */}
+      {/* 6) Tickets by Status chart */}
       {prefs.ticketsChart && showTicketsChart && (
         <section className="mt-5">
           <div className="glass-card rounded-2xl p-5">
@@ -634,13 +761,15 @@ function CompactMetric({
 }
 
 function MyWorkWidget({
-  role, myTickets, myTasks, waiting, dueToday, onOpen, onOpenTickets, onOpenWaiting, onOpenTasks, onOpenDueToday,
+  role, myTickets, myTasks, waiting, dueToday, protocolRuns, pendingApprovals, onOpen, onOpenTickets, onOpenWaiting, onOpenTasks, onOpenDueToday,
 }: {
   role: Role;
   myTickets: number;
   myTasks: number;
   waiting: number;
   dueToday: number;
+  protocolRuns: number | null;
+  pendingApprovals: number | null;
   onOpen: () => void;
   onOpenTickets: () => void;
   onOpenWaiting: () => void;
@@ -670,6 +799,12 @@ function MyWorkWidget({
         <WorkRow label="My active tasks" value={myTasks} onClick={onOpenTasks} />
         <WorkRow label="Waiting for my response" value={waiting} tone={waiting > 0 ? "warning" : "default"} onClick={onOpenWaiting} />
         <WorkRow label="Due today" value={dueToday} tone={dueToday > 0 ? "warning" : "default"} onClick={onOpenDueToday} />
+        {!requester && (
+          <WorkRow label="My protocol runs" value={protocolRuns ?? "—"} onClick={onOpen} disabled={protocolRuns === null} />
+        )}
+        {!requester && (
+          <WorkRow label="Pending approvals" value={pendingApprovals ?? "—"} tone={(pendingApprovals ?? 0) > 0 ? "warning" : "default"} onClick={onOpen} disabled={pendingApprovals === null} />
+        )}
       </div>
       <Button size="sm" variant="secondary" className="mt-4 w-full" onClick={onOpen}>
         Open My Work <ChevronRight className="ml-1 h-3.5 w-3.5" />
@@ -678,14 +813,23 @@ function MyWorkWidget({
   );
 }
 
-function WorkRow({ label, value, tone = "default", onClick }: { label: string; value: number; tone?: "default" | "warning" | "danger"; onClick: () => void }) {
+function WorkRow({
+  label, value, tone = "default", onClick, disabled = false,
+}: {
+  label: string;
+  value: number | string;
+  tone?: "default" | "warning" | "danger";
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   const toneCls =
     tone === "danger" ? "text-[#FF7C91]" : tone === "warning" ? "text-[#FFC86B]" : "text-foreground";
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-between rounded-xl border border-border/40 bg-background/30 px-3 py-2.5 text-left transition-colors hover:border-white/10 hover:bg-background/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      disabled={disabled}
+      className="flex items-center justify-between rounded-xl border border-border/40 bg-background/30 px-3 py-2.5 text-left transition-colors hover:border-white/10 hover:bg-background/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
     >
       <span className="truncate text-xs text-muted-foreground">{label}</span>
       <span className={cn("ml-2 shrink-0 text-lg font-semibold tabular-nums", toneCls)}>{value}</span>
@@ -693,16 +837,39 @@ function WorkRow({ label, value, tone = "default", onClick }: { label: string; v
   );
 }
 
-function QuickActions({ role }: { role: Role }) {
-  const actions: { to: string; icon: ComponentType<{ className?: string }>; label: string; cap?: string }[] = [
-    { to: "/tickets/new", icon: TicketIcon, label: "New ticket", cap: "tickets.create" },
-    { to: "/tasks", icon: CheckSquare, label: "Open tasks", cap: "tasks.write" },
-    { to: "/protocols", icon: ListChecks, label: "Open protocols", cap: "protocols.manage" },
-    { to: "/cmdb", icon: Server, label: "Open CMDB", cap: "cmdb.manage" },
-    { to: "/ipam", icon: Network, label: "Open IPAM", cap: "ipam.manage" },
-    { to: "/documents", icon: FileText, label: "Open knowledge base", cap: "documents.create" },
+function QuickActions({
+  role,
+  routes,
+}: {
+  role: Role;
+  routes: {
+    tickets: boolean;
+    tasks: boolean;
+    protocols: boolean;
+    cmdb: boolean;
+    ipam: boolean;
+    notes: boolean;
+    documents: boolean;
+    catalog: boolean;
+  };
+}) {
+  const actions: {
+    to: string;
+    icon: ComponentType<{ className?: string }>;
+    label: string;
+    cap?: string;
+    visible: boolean;
+  }[] = [
+    { to: "/tickets/new", icon: TicketIcon, label: "Create ticket", cap: "tickets.create", visible: routes.tickets },
+    { to: "/tasks", icon: CheckSquare, label: "New task", cap: "tasks.write", visible: routes.tasks },
+    { to: "/protocols", icon: ListChecks, label: "New protocol run", cap: "protocols.manage", visible: routes.protocols },
+    { to: "/notes", icon: StickyNote, label: "Add note", cap: "notes.write", visible: routes.notes },
+    { to: "/cmdb", icon: Server, label: "Add CMDB asset", cap: "cmdb.manage", visible: routes.cmdb },
+    { to: "/ipam", icon: Network, label: "Add IP/subnet", cap: "ipam.manage", visible: routes.ipam },
+    { to: "/service-catalog", icon: BookOpen, label: "Open catalog", visible: routes.catalog },
+    { to: "/documents", icon: FileText, label: "Open knowledge", visible: routes.documents },
   ];
-  const filtered = actions.filter((a) => !a.cap || can(a.cap, role));
+  const filtered = actions.filter((a) => a.visible && (!a.cap || can(a.cap, role)));
   return (
     <div className="glass-card flex h-full flex-col rounded-2xl p-5">
       <div className="mb-3">
@@ -721,8 +888,57 @@ function QuickActions({ role }: { role: Role }) {
             </Button>
           </Link>
         ))}
+        {filtered.length === 0 && (
+          <p className="col-span-2 rounded-xl border border-border/40 bg-background/30 p-4 text-sm text-muted-foreground">
+            No permitted quick actions are available for this role.
+          </p>
+        )}
       </div>
     </div>
+  );
+}
+
+function ModuleSnapshotCard({
+  icon: Icon, title, to, value, label, status, tone,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  to: string;
+  value: number | string;
+  label: string;
+  status: string;
+  tone: "success" | "warning" | "danger" | "muted";
+}) {
+  const toneCls = {
+    success: "border-[#52D6A4]/30 bg-[#52D6A4]/10 text-[#52D6A4]",
+    warning: "border-[#FFC86B]/30 bg-[#FFC86B]/10 text-[#FFC86B]",
+    danger: "border-[#FF7C91]/30 bg-[#FF7C91]/10 text-[#FF7C91]",
+    muted: "border-border bg-muted/30 text-muted-foreground",
+  }[tone];
+  return (
+    <Link
+      to={to}
+      className="glass-card group rounded-2xl p-4 transition-all duration-150 hover:-translate-y-0.5 hover:border-white/10 hover:shadow-lg hover:shadow-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg border", toneCls)}>
+              <Icon className="h-4 w-4" />
+            </span>
+            <h3 className="truncate text-sm font-semibold tracking-tight">{title}</h3>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-2xl font-semibold tabular-nums tracking-tight">{value}</span>
+            <span className="truncate text-xs text-muted-foreground">{label}</span>
+          </div>
+        </div>
+        <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-70 transition-opacity group-hover:opacity-100" />
+      </div>
+      <Badge variant="outline" className={cn("mt-3 text-[10px]", toneCls)}>
+        {status}
+      </Badge>
+    </Link>
   );
 }
 
