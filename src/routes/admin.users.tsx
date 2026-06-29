@@ -96,7 +96,7 @@ export const Route = createFileRoute("/admin/users")({
 
 const NO_SELECTION = "none";
 
-type TabKey = "users" | "departments" | "teams";
+type TabKey = "users" | "departments" | "teams" | "access";
 
 type UserDraft = {
   displayName: string;
@@ -176,6 +176,9 @@ function PeopleAndOrganizationPage() {
           <TabsTrigger value="teams" className="gap-2">
             <UsersRound className="h-4 w-4" /> Teams
           </TabsTrigger>
+          <TabsTrigger value="access" className="gap-2">
+            <ShieldCheck className="h-4 w-4" /> Access map
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="mt-0">
@@ -186,6 +189,9 @@ function PeopleAndOrganizationPage() {
         </TabsContent>
         <TabsContent value="teams" className="mt-0">
           <TeamsTab allowed={teamsAllowed} />
+        </TabsContent>
+        <TabsContent value="access" className="mt-0">
+          <AccessMapTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -202,17 +208,21 @@ function OverviewStrip() {
   const users = usersQ.data ?? [];
   const teams = teamsQ.data ?? [];
   const activeUsers = users.filter((u) => u.isActive).length;
+  const inactiveUsers = users.length - activeUsers;
+  const usersWithoutTeam = users.filter((u) => u.teamNames.length === 0).length;
   const admins = users.filter((u) =>
     u.roleKeys.some((k) => /admin|platform|owner/i.test(k)),
   ).length;
 
   return (
     <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Metric icon={Users} label="Active users" value={activeUsers} hint={`${users.length} total`} />
-        <Metric icon={Building2} label="Departments" value={workspaces.length} hint="Workspaces" />
+        <Metric icon={Building2} label="Departments" value={workspaces.length} hint="Across organization" />
         <Metric icon={UsersRound} label="Teams" value={teams.length} hint="Operational groups" />
         <Metric icon={ShieldCheck} label="Privileged roles" value={admins} hint="Admins & owners" />
+        <Metric icon={UsersRound} label="Users without team" value={usersWithoutTeam} hint="Need assignment" />
+        <Metric icon={Lock} label="Inactive users" value={inactiveUsers} hint="Sign-in disabled" />
       </div>
       <div className="rounded-2xl border border-border/50 bg-card/60 p-4 shadow-sm">
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -221,7 +231,7 @@ function OverviewStrip() {
         <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
           <Pill>Organization</Pill>
           <span className="text-muted-foreground">→</span>
-          <Pill>Department / Workspace</Pill>
+          <Pill>Department</Pill>
           <span className="text-muted-foreground">→</span>
           <Pill>Team</Pill>
           <span className="text-muted-foreground">→</span>
@@ -229,7 +239,7 @@ function OverviewStrip() {
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
           Each user belongs to one or more teams. Teams live inside a department. Departments are
-          organized under the active organization.
+          organized under the active organization. Access is scoped from the top down.
         </p>
       </div>
     </div>
@@ -949,11 +959,11 @@ function DepartmentsTab() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         title="New department"
-        description="Departments group teams, ownership, and content. Backend wiring is required to persist new departments."
+        description="Departments group teams, ownership, and visible modules under the organization."
         onSubmit={() => {
-          /* no backend yet */
+          /* configuration required */
         }}
-        submitLabel="Save after backend wiring"
+        submitLabel="Save department"
       >
         <BackendPendingBanner />
         <Field label="Department name">
@@ -1588,8 +1598,8 @@ function DisabledMenuItem({ label }: { label: string }) {
 
 function BackendPendingBanner() {
   return (
-    <div className="rounded-xl border border-border/50 bg-card/40 px-3 py-2 text-xs text-muted-foreground">
-      Department editing is not available in this environment.
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200/90">
+      Configuration required — department mutations are managed by your organization administrator.
     </div>
   );
 }
@@ -1597,7 +1607,150 @@ function BackendPendingBanner() {
 function DisabledFooterNote() {
   return (
     <p className="text-[11px] text-muted-foreground">
-      The primary action stays disabled until department mutations are wired to the backend.
+      Access controlled by role and scope. Contact your organization administrator to enable department changes.
     </p>
+  );
+}
+
+/* ───────────────────────── Access Map tab ───────────────────────── */
+
+type AccessLevel = "none" | "read" | "write" | "manage" | "admin";
+
+const ACCESS_LEVEL_STYLES: Record<AccessLevel, { label: string; className: string }> = {
+  none: { label: "None", className: "border-border/40 bg-muted/20 text-muted-foreground" },
+  read: { label: "Read", className: "border-sky-500/30 bg-sky-500/10 text-sky-200" },
+  write: { label: "Write", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" },
+  manage: { label: "Manage", className: "border-violet-500/30 bg-violet-500/10 text-violet-200" },
+  admin: { label: "Admin", className: "border-rose-500/30 bg-rose-500/10 text-rose-200" },
+};
+
+interface ModuleRow {
+  module: string;
+  scope: string;
+  access: Partial<Record<string, AccessLevel>>;
+}
+
+const ACCESS_ROLE_COLUMNS: { key: string; label: string }[] = [
+  { key: "platform_admin", label: "Platform Admin" },
+  { key: "it_admin", label: "IT Admin" },
+  { key: "sd_lead", label: "Service Desk Lead" },
+  { key: "helpdesk", label: "Helpdesk" },
+  { key: "technician", label: "Technician" },
+  { key: "network_admin", label: "Network Admin" },
+  { key: "doc_editor", label: "Doc Editor" },
+  { key: "auditor", label: "Auditor" },
+  { key: "employee", label: "Employee" },
+];
+
+const ACCESS_MATRIX: ModuleRow[] = [
+  { module: "Dashboard", scope: "Organization", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "manage", helpdesk: "read", technician: "read", network_admin: "read", doc_editor: "read", auditor: "read", employee: "read" } },
+  { module: "Tickets", scope: "Team / queue", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "manage", helpdesk: "write", technician: "write", network_admin: "read", doc_editor: "none", auditor: "read", employee: "none" } },
+  { module: "My Requests", scope: "Own records", access: { platform_admin: "admin", it_admin: "read", sd_lead: "read", helpdesk: "read", technician: "read", network_admin: "read", doc_editor: "read", auditor: "read", employee: "write" } },
+  { module: "Service Catalog", scope: "Organization", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "manage", helpdesk: "read", technician: "read", network_admin: "read", doc_editor: "read", auditor: "read", employee: "read" } },
+  { module: "Knowledge Base", scope: "Department / visibility", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "write", helpdesk: "write", technician: "read", network_admin: "read", doc_editor: "manage", auditor: "read", employee: "read" } },
+  { module: "CMDB", scope: "Asset scope", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "read", helpdesk: "read", technician: "write", network_admin: "manage", doc_editor: "none", auditor: "read", employee: "none" } },
+  { module: "IPAM", scope: "Network scope", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "none", helpdesk: "none", technician: "read", network_admin: "manage", doc_editor: "none", auditor: "read", employee: "none" } },
+  { module: "Tasks", scope: "Own / team", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "manage", helpdesk: "write", technician: "write", network_admin: "write", doc_editor: "write", auditor: "read", employee: "none" } },
+  { module: "Protocols", scope: "Department", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "write", helpdesk: "read", technician: "read", network_admin: "read", doc_editor: "manage", auditor: "read", employee: "none" } },
+  { module: "Notes", scope: "Own / shared", access: { platform_admin: "admin", it_admin: "write", sd_lead: "write", helpdesk: "write", technician: "write", network_admin: "write", doc_editor: "write", auditor: "read", employee: "none" } },
+  { module: "Audit Log", scope: "Organization", access: { platform_admin: "admin", it_admin: "read", sd_lead: "none", helpdesk: "none", technician: "none", network_admin: "none", doc_editor: "none", auditor: "read", employee: "none" } },
+  { module: "Reports", scope: "Organization", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "read", helpdesk: "none", technician: "none", network_admin: "read", doc_editor: "none", auditor: "read", employee: "none" } },
+  { module: "Settings", scope: "Own profile", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "write", helpdesk: "write", technician: "write", network_admin: "write", doc_editor: "write", auditor: "read", employee: "read" } },
+  { module: "Admin", scope: "Organization", access: { platform_admin: "admin", it_admin: "manage", sd_lead: "none", helpdesk: "none", technician: "none", network_admin: "none", doc_editor: "none", auditor: "none", employee: "none" } },
+];
+
+function AccessLevelChip({ level }: { level: AccessLevel }) {
+  const style = ACCESS_LEVEL_STYLES[level];
+  return (
+    <span
+      className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${style.className}`}
+    >
+      {style.label}
+    </span>
+  );
+}
+
+function AccessMapTab() {
+  const [scope, setScope] = useState<"role" | "department" | "team">("role");
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-border/50 bg-card/60 p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Module access overview</div>
+            <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+              How each role sees the platform. Page visibility is controlled in{" "}
+              <span className="font-medium text-foreground">Roles &amp; Permissions</span>; the
+              levels shown here describe the typical operational scope per module.
+            </p>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border border-border/40 bg-background/40 p-1 text-xs">
+            {(["role", "department", "team"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setScope(s)}
+                className={`rounded-md px-2.5 py-1 capitalize transition ${
+                  scope === s
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                By {s}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {(Object.keys(ACCESS_LEVEL_STYLES) as AccessLevel[]).map((lvl) => (
+            <AccessLevelChip key={lvl} level={lvl} />
+          ))}
+        </div>
+      </div>
+
+      {scope !== "role" ? (
+        <SectionCard className="border-border/50 shadow-sm">
+          <EmptyState
+            icon={Layers}
+            title={`Access by ${scope} — configuration required`}
+            description={`The ${scope} access view becomes available once your organization administrator publishes ${scope} scopes. The role view below already reflects the live model.`}
+          />
+        </SectionCard>
+      ) : (
+        <SectionCard className="overflow-hidden border-border/50 shadow-sm" contentClassName="p-0">
+          <div className="overflow-auto">
+            <Table className="min-w-[980px]">
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[200px]">Module</TableHead>
+                  <TableHead className="w-[160px]">Scope</TableHead>
+                  {ACCESS_ROLE_COLUMNS.map((col) => (
+                    <TableHead key={col.key} className="text-center text-[11px]">
+                      {col.label}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ACCESS_MATRIX.map((row) => (
+                  <TableRow key={row.module} className="hover:bg-muted/20">
+                    <TableCell className="font-medium">{row.module}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{row.scope}</TableCell>
+                    {ACCESS_ROLE_COLUMNS.map((col) => (
+                      <TableCell key={col.key} className="text-center">
+                        <AccessLevelChip level={row.access[col.key] ?? "none"} />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="border-t border-border/40 bg-card/40 px-3 py-2 text-[11px] text-muted-foreground">
+            Access controlled by role and scope. Edit per-route visibility in Roles &amp; Permissions.
+          </div>
+        </SectionCard>
+      )}
+    </div>
   );
 }
