@@ -14,8 +14,7 @@ import {
   Inbox,
   ShieldCheck,
   BarChart3,
-  Users,
-
+  ShieldHalf,
   KeyRound,
   Sliders,
   ListChecks,
@@ -80,8 +79,7 @@ const groups: { label: string; items: SidebarItem[] }[] = [
   {
     label: "Administration",
     items: [
-      { title: "People & Organization", url: "/admin/users", icon: Users },
-      { title: "Roles", url: "/admin/roles", icon: KeyRound },
+      { title: "Identity & Access", url: "/admin/identity", icon: ShieldHalf },
       { title: "Templates", url: "/admin/templates", icon: FileCode },
 
       { title: "Ticket Configuration Overview", url: "/admin/ticket-settings", icon: Sliders },

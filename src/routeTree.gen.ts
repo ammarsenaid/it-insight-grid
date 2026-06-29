@@ -44,6 +44,7 @@ import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminTeamsRouteImport } from './routes/admin.teams'
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 import { Route as AdminMailboxRouteImport } from './routes/admin.mailbox'
+import { Route as AdminIdentityRouteImport } from './routes/admin.identity'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
 import { Route as AdminCatalogRouteImport } from './routes/admin.catalog'
 
@@ -223,6 +224,11 @@ const AdminMailboxRoute = AdminMailboxRouteImport.update({
   path: '/admin/mailbox',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIdentityRoute = AdminIdentityRouteImport.update({
+  id: '/admin/identity',
+  path: '/admin/identity',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminDiagnosticsRoute = AdminDiagnosticsRouteImport.update({
   id: '/admin/diagnostics',
   path: '/admin/diagnostics',
@@ -256,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/trash': typeof TrashRoute
   '/admin/catalog': typeof AdminCatalogRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
+  '/admin/identity': typeof AdminIdentityRoute
   '/admin/mailbox': typeof AdminMailboxRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/trash': typeof TrashRoute
   '/admin/catalog': typeof AdminCatalogRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
+  '/admin/identity': typeof AdminIdentityRoute
   '/admin/mailbox': typeof AdminMailboxRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/trash': typeof TrashRoute
   '/admin/catalog': typeof AdminCatalogRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
+  '/admin/identity': typeof AdminIdentityRoute
   '/admin/mailbox': typeof AdminMailboxRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/teams': typeof AdminTeamsRoute
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/trash'
     | '/admin/catalog'
     | '/admin/diagnostics'
+    | '/admin/identity'
     | '/admin/mailbox'
     | '/admin/roles'
     | '/admin/teams'
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/trash'
     | '/admin/catalog'
     | '/admin/diagnostics'
+    | '/admin/identity'
     | '/admin/mailbox'
     | '/admin/roles'
     | '/admin/teams'
@@ -450,6 +461,7 @@ export interface FileRouteTypes {
     | '/trash'
     | '/admin/catalog'
     | '/admin/diagnostics'
+    | '/admin/identity'
     | '/admin/mailbox'
     | '/admin/roles'
     | '/admin/teams'
@@ -490,6 +502,7 @@ export interface RootRouteChildren {
   TrashRoute: typeof TrashRoute
   AdminCatalogRoute: typeof AdminCatalogRoute
   AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
+  AdminIdentityRoute: typeof AdminIdentityRoute
   AdminMailboxRoute: typeof AdminMailboxRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminTeamsRoute: typeof AdminTeamsRoute
@@ -749,6 +762,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMailboxRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/identity': {
+      id: '/admin/identity'
+      path: '/admin/identity'
+      fullPath: '/admin/identity'
+      preLoaderRoute: typeof AdminIdentityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/diagnostics': {
       id: '/admin/diagnostics'
       path: '/admin/diagnostics'
@@ -829,6 +849,7 @@ const rootRouteChildren: RootRouteChildren = {
   TrashRoute: TrashRoute,
   AdminCatalogRoute: AdminCatalogRoute,
   AdminDiagnosticsRoute: AdminDiagnosticsRoute,
+  AdminIdentityRoute: AdminIdentityRoute,
   AdminMailboxRoute: AdminMailboxRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminTeamsRoute: AdminTeamsRoute,
