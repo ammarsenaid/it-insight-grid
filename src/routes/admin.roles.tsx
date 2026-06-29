@@ -351,7 +351,7 @@ function AdminRolesPage() {
   );
 
   return (
-    <div className="p-4 pb-12 md:p-6">
+    <div className="min-w-0 max-w-full overflow-x-hidden p-4 pb-12 md:p-6">
       <CommandBar
         status={{
           isLoading: rolesQuery.isLoading,
@@ -2177,8 +2177,7 @@ function MatrixGroupRows({
     <>
       <tr className="bg-muted/20">
         <td
-          colSpan={1 + roles.length}
-          className="sticky left-0 z-10 border-y border-border/40 bg-card/95 px-3 py-1.5 backdrop-blur"
+          className="sticky left-0 z-30 min-w-72 border-y border-r border-border/40 bg-card px-3 py-1.5 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
         >
           <button
             type="button"
@@ -2200,20 +2199,23 @@ function MatrixGroupRows({
             </span>
           </button>
         </td>
+        <td colSpan={roles.length} className="border-y border-border/40 bg-muted/20" />
       </tr>
+
       {!collapsed &&
         group.permissions.map((permission, index) => {
           const zebra = index % 2 === 1;
           const rowBg = zebra ? "bg-muted/[0.04]" : "";
-          const stickyBg = zebra ? "bg-[hsl(var(--card))]/95" : "bg-card";
+          const stickyBg = zebra ? "bg-card" : "bg-card";
           return (
             <tr
               key={permission.id}
               className={`group/permission transition-colors hover:bg-muted/25 ${rowBg}`}
             >
               <td
-                className={`sticky left-0 z-20 border-r border-b border-border/30 px-4 ${density.rowPaddingY} group-hover/permission:bg-muted ${stickyBg}`}
+                className={`sticky left-0 z-20 min-w-72 border-r border-b border-border/30 px-4 shadow-[2px_0_0_hsl(var(--border)/0.4)] ${density.rowPaddingY} group-hover/permission:bg-muted ${stickyBg}`}
               >
+
                 <div className="flex flex-wrap items-center gap-1.5 font-medium text-foreground">
                   <span>{permission.name}</span>
                   {isSensitivePermission(permission.permissionKey) ? (
@@ -2764,8 +2766,7 @@ function PageVisibilityAreaRows({
     <>
       <tr className="bg-muted/20">
         <td
-          colSpan={1 + roles.length}
-          className="sticky left-0 z-10 border-y border-border/40 bg-card/95 px-3 py-1.5 backdrop-blur"
+          className="sticky left-0 z-30 min-w-72 border-y border-r border-border/40 bg-card px-3 py-1.5 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
         >
           <button
             type="button"
@@ -2787,7 +2788,9 @@ function PageVisibilityAreaRows({
             </span>
           </button>
         </td>
+        <td colSpan={roles.length} className="border-y border-border/40 bg-muted/20" />
       </tr>
+
       {!collapsed &&
         routes.map((routePath) => {
           const differs = diffLens && routeDiffersFromStatic(routePath);
@@ -2799,7 +2802,8 @@ function PageVisibilityAreaRows({
               }`}
             >
               <td
-                className={`sticky left-0 z-20 border-r border-b border-border/30 bg-card px-4 ${density.rowPaddingY} group-hover/route:bg-muted`}
+                className={`sticky left-0 z-20 min-w-72 border-r border-b border-border/30 bg-card px-4 shadow-[2px_0_0_hsl(var(--border)/0.4)] ${density.rowPaddingY} group-hover/route:bg-muted`}
+
               >
                 <div className="flex items-center gap-1.5">
                   <span className="truncate font-semibold text-foreground">
@@ -3041,8 +3045,7 @@ function StaticPageVisibilityMatrix({
               <>
                 <tr key={`area-${area}`} className="bg-muted/20">
                   <td
-                    colSpan={1 + ROLES.length}
-                    className="sticky left-0 z-10 border-y border-border/40 bg-card/95 px-3 py-1.5 backdrop-blur"
+                    className="sticky left-0 z-30 min-w-72 border-y border-r border-border/40 bg-card px-3 py-1.5 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
                   >
                     <button
                       type="button"
@@ -3063,12 +3066,14 @@ function StaticPageVisibilityMatrix({
                       </span>
                     </button>
                   </td>
+                  <td colSpan={ROLES.length} className="border-y border-border/40 bg-muted/20" />
                 </tr>
+
                 {!isCollapsed &&
                   pages.map((page) => (
                     <tr key={page.path} className="group/route transition-colors hover:bg-muted/20">
                       <td
-                        className={`sticky left-0 z-20 border-r border-b border-border/30 bg-card px-4 ${density.rowPaddingY} group-hover/route:bg-muted`}
+                        className={`sticky left-0 z-20 min-w-72 border-r border-b border-border/30 bg-card px-4 shadow-[2px_0_0_hsl(var(--border)/0.4)] ${density.rowPaddingY} group-hover/route:bg-muted`}
                       >
                         <div className="font-semibold text-foreground">{page.label}</div>
                         <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
