@@ -129,13 +129,16 @@ function readUsersTab(): TabKey {
   return TAB_KEYS_USERS.includes(value as TabKey) ? (value as TabKey) : "users";
 }
 
-export function PeopleAndOrganizationPage({ hideHeader = false }: { hideHeader?: boolean } = {}) {
+export function PeopleAndOrganizationPage({
+  hideHeader = false,
+  embeddedTab,
+}: { hideHeader?: boolean; embeddedTab?: TabKey } = {}) {
   const { session, isPlatformAdmin } = useAuth();
   const role = useRole();
   const allowed = can("admin.users", role);
   const teamsAllowed = can("admin.teams", role);
 
-  const [tab, setTabState] = useState<TabKey>(() => readUsersTab());
+  const [tab, setTabState] = useState<TabKey>(() => embeddedTab ?? readUsersTab());
   const setTab = (next: TabKey) => {
     setTabState(next);
     if (typeof window !== "undefined") {
@@ -145,15 +148,19 @@ export function PeopleAndOrganizationPage({ hideHeader = false }: { hideHeader?:
     }
   };
   useEffect(() => {
+    if (embeddedTab) {
+      setTabState(embeddedTab);
+      return;
+    }
     const sync = () => setTabState(readUsersTab());
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
-  }, []);
+  }, [embeddedTab]);
 
   if (!allowed) {
     return (
       <div>
-        {!hideHeader && (
+        {!hideHeader && !embeddedTab && (
           <PageHeader
             title="People & Organization"
             description="Manage users, departments, teams, roles, and operational ownership from one place."
@@ -164,6 +171,17 @@ export function PeopleAndOrganizationPage({ hideHeader = false }: { hideHeader?:
           title="Admin access required"
           description="Switch to the IT Administrator role via the profile menu to manage people and organization."
         />
+      </div>
+    );
+  }
+
+  if (embeddedTab) {
+    return (
+      <div className="space-y-5">
+        {embeddedTab === "users" && <UsersTab session={session} isPlatformAdmin={isPlatformAdmin} />}
+        {embeddedTab === "departments" && <DepartmentsTab />}
+        {embeddedTab === "teams" && <TeamsTab allowed={teamsAllowed} />}
+        {embeddedTab === "access" && <AccessMapTab />}
       </div>
     );
   }

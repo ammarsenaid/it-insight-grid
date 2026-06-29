@@ -190,7 +190,9 @@ export const Route = createFileRoute("/admin/roles")({
 type PageVisibilityChange = Omit<UpdateRolePageVisibilityInput, "accessToken">;
 type PermissionChange = { roleId: string; permissionId: string; action: "grant" | "revoke" };
 
-export function AdminRolesPage() {
+export function AdminRolesPage({
+  embeddedTab,
+}: { embeddedTab?: "roles" | "capabilities" | "pages" | "preview" } = {}) {
   const role = useRole();
   const { session, isPlatformAdmin } = useAuth();
   const allowed = isPlatformAdmin;
@@ -198,10 +200,12 @@ export function AdminRolesPage() {
   const enabled = Boolean(session?.user) && allowed;
   const queryClient = useQueryClient();
 
-  const { tab, setTab, preview, setPreview } = useUrlState({
+  const { tab: urlTab, setTab: setUrlTab, preview, setPreview } = useUrlState({
     defaultPreview: role,
-    defaultTab: "roles",
+    defaultTab: embeddedTab ?? "roles",
   });
+  const tab = embeddedTab ?? urlTab;
+  const setTab = embeddedTab ? () => {} : setUrlTab;
   const [density, setDensity] = useDensity();
   const [view, setView] = useRoleListView();
 
@@ -351,42 +355,47 @@ export function AdminRolesPage() {
   );
 
   return (
-    <div className="min-w-0 max-w-full overflow-x-hidden p-4 pb-12 md:p-6">
-      <CommandBar
-        status={{
-          isLoading: rolesQuery.isLoading,
-          isFetching,
-          isError: rolesQuery.isError || pageVisibilityQuery.isError,
-          isSaving,
-          lastUpdated,
-        }}
-        previewRole={preview}
-        onPreviewRoleChange={setPreview}
-        onRefresh={refresh}
-        density={density}
-        onDensityChange={setDensity}
-      />
+    <div className={embeddedTab ? "min-w-0 max-w-full overflow-x-hidden" : "min-w-0 max-w-full overflow-x-hidden p-4 pb-12 md:p-6"}>
+      {!embeddedTab && (
+        <CommandBar
+          status={{
+            isLoading: rolesQuery.isLoading,
+            isFetching,
+            isError: rolesQuery.isError || pageVisibilityQuery.isError,
+            isSaving,
+            lastUpdated,
+          }}
+          previewRole={preview}
+          onPreviewRoleChange={setPreview}
+          onRefresh={refresh}
+          density={density}
+          onDensityChange={setDensity}
+        />
+      )}
 
       <div className="space-y-5">
-        <HeadlineMetricRow items={metrics} />
+        {!embeddedTab && <HeadlineMetricRow items={metrics} />}
 
-        <AccessModelNotice />
+        {!embeddedTab && <AccessModelNotice />}
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="space-y-5">
-          <TabsList className="sticky top-[68px] z-30 -mx-1 flex h-auto w-[calc(100%+0.5rem)] justify-start gap-1 overflow-x-auto rounded-none border-b border-border/50 bg-background/85 px-1 py-1 backdrop-blur sm:gap-2">
-            <UnderlineTab value="roles" icon={KeyRound} label="Role list" accent="cyan" />
-            <UnderlineTab
-              value="capabilities"
-              icon={ShieldCheck}
-              label="Capability matrix"
-              accent="violet"
-            />
-            <UnderlineTab value="pages" icon={Eye} label="Page visibility" accent="emerald" />
-            <UnderlineTab value="preview" icon={UsersRound} label="Role preview" accent="amber" />
-          </TabsList>
+          {!embeddedTab && (
+            <TabsList className="sticky top-[68px] z-30 -mx-1 flex h-auto w-[calc(100%+0.5rem)] justify-start gap-1 overflow-x-auto rounded-none border-b border-border/50 bg-background/85 px-1 py-1 backdrop-blur sm:gap-2">
+              <UnderlineTab value="roles" icon={KeyRound} label="Role list" accent="cyan" />
+              <UnderlineTab
+                value="capabilities"
+                icon={ShieldCheck}
+                label="Capability matrix"
+                accent="violet"
+              />
+              <UnderlineTab value="pages" icon={Eye} label="Page visibility" accent="emerald" />
+              <UnderlineTab value="preview" icon={UsersRound} label="Role preview" accent="amber" />
+            </TabsList>
+          )}
 
           <TabsContent value="roles" className="space-y-4">
-            <TabHero
+{!embeddedTab && (
+              <TabHero
               accent="cyan"
               eyebrow="Tab 1 of 4"
               icon={KeyRound}
@@ -406,6 +415,7 @@ export function AdminRolesPage() {
                 "Switch between table & grid",
               ]}
             />
+            )}
             <DatabaseGate query={rolesQuery} label="role catalog">
               {(matrix) => (
                 <RoleDirectoryTab
@@ -423,7 +433,8 @@ export function AdminRolesPage() {
           </TabsContent>
 
           <TabsContent value="capabilities" className="space-y-4">
-            <TabHero
+{!embeddedTab && (
+              <TabHero
               accent="violet"
               eyebrow="Tab 2 of 4"
               icon={ShieldCheck}
@@ -440,6 +451,7 @@ export function AdminRolesPage() {
                 "Collapse groups for a denser view",
               ]}
             />
+            )}
             <DatabaseGate query={rolesQuery} label="capability matrix">
               {(matrix) => (
                 <PermissionMatrixTab
@@ -454,7 +466,8 @@ export function AdminRolesPage() {
           </TabsContent>
 
           <TabsContent value="pages" className="space-y-4">
-            <TabHero
+{!embeddedTab && (
+              <TabHero
               accent="emerald"
               eyebrow="Tab 3 of 4"
               icon={Eye}
@@ -480,6 +493,7 @@ export function AdminRolesPage() {
                 "Protected cells stay locked",
               ]}
             />
+            )}
             <PageVisibilityTab
               rolesQuery={rolesQuery}
               visibilityQuery={pageVisibilityQuery}
@@ -491,7 +505,8 @@ export function AdminRolesPage() {
           </TabsContent>
 
           <TabsContent value="preview" className="space-y-4">
-            <TabHero
+{!embeddedTab && (
+              <TabHero
               accent="amber"
               eyebrow="Tab 4 of 4"
               icon={UsersRound}
@@ -514,6 +529,7 @@ export function AdminRolesPage() {
                 "Inspect every access blocker",
               ]}
             />
+            )}
             <RolePreviewTab
               preview={preview}
               setPreview={setPreview}
