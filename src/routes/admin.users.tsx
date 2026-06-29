@@ -122,21 +122,43 @@ function listLabel(values: string[], fallback = "—"): string {
   return values.length > 0 ? values.join(", ") : fallback;
 }
 
-function PeopleAndOrganizationPage() {
+const TAB_KEYS_USERS: TabKey[] = ["users", "departments", "teams", "access"];
+function readUsersTab(): TabKey {
+  if (typeof window === "undefined") return "users";
+  const value = new URLSearchParams(window.location.search).get("tab");
+  return TAB_KEYS_USERS.includes(value as TabKey) ? (value as TabKey) : "users";
+}
+
+export function PeopleAndOrganizationPage({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const { session, isPlatformAdmin } = useAuth();
   const role = useRole();
   const allowed = can("admin.users", role);
   const teamsAllowed = can("admin.teams", role);
 
-  const [tab, setTab] = useState<TabKey>("users");
+  const [tab, setTabState] = useState<TabKey>(() => readUsersTab());
+  const setTab = (next: TabKey) => {
+    setTabState(next);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.set("tab", next);
+      window.history.replaceState(null, "", `${window.location.pathname}?${params}${window.location.hash}`);
+    }
+  };
+  useEffect(() => {
+    const sync = () => setTabState(readUsersTab());
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
 
   if (!allowed) {
     return (
       <div>
-        <PageHeader
-          title="People & Organization"
-          description="Manage users, departments, teams, roles, and operational ownership from one place."
-        />
+        {!hideHeader && (
+          <PageHeader
+            title="People & Organization"
+            description="Manage users, departments, teams, roles, and operational ownership from one place."
+          />
+        )}
         <EmptyState
           icon={Lock}
           title="Admin access required"
@@ -148,11 +170,13 @@ function PeopleAndOrganizationPage() {
 
   return (
     <div className="space-y-5 pb-8">
-      <PageHeader
-        title="People & Organization"
-        description="Manage users, departments, teams, roles, and operational ownership from one place."
-        actions={<CreateMenu canCreateUser={isPlatformAdmin} canCreateTeam={teamsAllowed} />}
-      />
+      {!hideHeader && (
+        <PageHeader
+          title="People & Organization"
+          description="Manage users, departments, teams, roles, and operational ownership from one place."
+          actions={<CreateMenu canCreateUser={isPlatformAdmin} canCreateTeam={teamsAllowed} />}
+        />
+      )}
 
       {!isPlatformAdmin && (
         <Alert className="border-border/50 bg-muted/30 text-muted-foreground">

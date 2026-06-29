@@ -190,7 +190,7 @@ export const Route = createFileRoute("/admin/roles")({
 type PageVisibilityChange = Omit<UpdateRolePageVisibilityInput, "accessToken">;
 type PermissionChange = { roleId: string; permissionId: string; action: "grant" | "revoke" };
 
-function AdminRolesPage() {
+export function AdminRolesPage() {
   const role = useRole();
   const { session, isPlatformAdmin } = useAuth();
   const allowed = isPlatformAdmin;
