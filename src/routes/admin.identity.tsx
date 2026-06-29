@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
   ChevronRight,
@@ -9,12 +9,18 @@ import {
   Lock,
   MoreHorizontal,
   Network,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
   ShieldCheck,
   UserPlus,
   Users,
   UsersRound,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -98,6 +104,22 @@ function IdentityAndAccessPage() {
   const [section, setSection] = useState<SectionKey>("users");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [query, setQuery] = useState("");
+  // Collapsible rails so the workspace doesn't get squeezed on smaller screens.
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(false);
+
+  // Auto-collapse on narrow viewports.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const apply = () => {
+      const w = window.innerWidth;
+      setLeftOpen(w >= 1280);
+      setRightOpen(w >= 1536);
+    };
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, []);
 
   if (!allowed) {
     return (
@@ -125,82 +147,153 @@ function IdentityAndAccessPage() {
   const advancedSections = visibleSections.filter((s) => s.group === "advanced");
   const meta = SECTIONS.find((s) => s.key === section)!;
 
+  const allRailItems = [...peopleSections, ...accessSections, ...(showAdvanced ? advancedSections : [])];
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)] min-h-0 w-full overflow-hidden">
-      {/* ─── Left rail: directory ─── */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border/40 bg-card/30 lg:flex">
-        <div className="flex items-center justify-between border-b border-border/40 px-3 py-3">
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5" /> Identity & Access
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Workbench
-              </DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => setShowAdvanced((v) => !v)}>
-                {showAdvanced ? "Hide advanced sections" : "Show advanced sections"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Developer
-              </DropdownMenuLabel>
-              <DropdownMenuItem asChild>
-                <Link to="/admin/users">Open legacy /admin/users</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/admin/roles">Open legacy /admin/roles</Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <div className="px-3 py-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter sections…"
-            className="h-8 w-full rounded-md border border-border/50 bg-background/50 px-2 text-xs outline-none focus:border-border"
-          />
-        </div>
-        <ScrollArea className="flex-1">
-          <div className="space-y-4 px-2 pb-3">
-            <NavGroup label="People"        items={peopleSections}   active={section} onSelect={setSection} />
-            <NavGroup label="Access control" items={accessSections}   active={section} onSelect={setSection} />
-            {showAdvanced && (
-              <NavGroup label="Advanced"    items={advancedSections} active={section} onSelect={setSection} />
+      {/* ─── Left rail: directory (collapsible) ─── */}
+      <aside
+        className={cn(
+          "hidden shrink-0 flex-col border-r border-border/40 bg-card/30 transition-[width] duration-200 md:flex",
+          leftOpen ? "w-56" : "w-14",
+        )}
+      >
+        <div className="flex items-center justify-between border-b border-border/40 px-2 py-2">
+          {leftOpen ? (
+            <div className="flex items-center gap-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5" /> Identity
+            </div>
+          ) : (
+            <ShieldCheck className="mx-auto h-4 w-4 text-muted-foreground" />
+          )}
+          <div className="flex items-center">
+            {leftOpen && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Workbench
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem onSelect={() => setShowAdvanced((v) => !v)}>
+                    {showAdvanced ? "Hide advanced sections" : "Show advanced sections"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Developer
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/users">Open legacy /admin/users</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/roles">Open legacy /admin/roles</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground"
+              onClick={() => setLeftOpen((v) => !v)}
+              title={leftOpen ? "Collapse" : "Expand"}
+            >
+              {leftOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </Button>
           </div>
+        </div>
+        {leftOpen && (
+          <div className="px-2 py-2">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter…"
+              className="h-8 w-full rounded-md border border-border/50 bg-background/50 px-2 text-xs outline-none focus:border-border"
+            />
+          </div>
+        )}
+        <ScrollArea className="flex-1">
+          {leftOpen ? (
+            <div className="space-y-4 px-2 pb-3">
+              <NavGroup label="People"        items={peopleSections}   active={section} onSelect={setSection} />
+              <NavGroup label="Access control" items={accessSections}   active={section} onSelect={setSection} />
+              {showAdvanced && (
+                <NavGroup label="Advanced"    items={advancedSections} active={section} onSelect={setSection} />
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1 px-1 py-1">
+              {allRailItems.map((it) => {
+                const Icon = it.icon;
+                const active = section === it.key;
+                return (
+                  <Tooltip key={it.key}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setSection(it.key)}
+                        className={cn(
+                          "grid h-9 w-9 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors",
+                          active ? "border-border/60 bg-background/70 text-foreground" : "hover:bg-background/50",
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">{it.label}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          )}
         </ScrollArea>
       </aside>
 
       {/* ─── Main column ─── */}
       <main className="flex min-w-0 flex-1 flex-col">
-        {/* Slim breadcrumb / mobile selector */}
-        <div className="flex items-center justify-between gap-2 border-b border-border/40 bg-background/60 px-4 py-2 backdrop-blur">
+        {/* Slim breadcrumb / mobile selector / rail toggles */}
+        <div className="flex items-center justify-between gap-2 border-b border-border/40 bg-background/60 px-3 py-2 backdrop-blur">
           <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-            <span>Identity & Access</span>
-            <ChevronRight className="h-3 w-3" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 md:hidden"
+              onClick={() => setLeftOpen((v) => !v)}
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </Button>
+            <span className="hidden sm:inline">Identity & Access</span>
+            <ChevronRight className="hidden h-3 w-3 sm:inline" />
             <span className="truncate text-foreground">{meta.label}</span>
-            <span className="ml-1 hidden text-muted-foreground/70 md:inline">· {meta.hint}</span>
+            <span className="ml-1 hidden text-muted-foreground/70 lg:inline">· {meta.hint}</span>
           </div>
-          <select
-            value={section}
-            onChange={(e) => setSection(e.target.value as SectionKey)}
-            className="h-7 rounded-md border border-border/50 bg-background px-2 text-xs lg:hidden"
-          >
-            {SECTIONS.filter((s) => showAdvanced || s.group !== "advanced").map((s) => (
-              <option key={s.key} value={s.key}>{s.label}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={section}
+              onChange={(e) => setSection(e.target.value as SectionKey)}
+              className="h-7 rounded-md border border-border/50 bg-background px-2 text-xs md:hidden"
+            >
+              {SECTIONS.filter((s) => showAdvanced || s.group !== "advanced").map((s) => (
+                <option key={s.key} value={s.key}>{s.label}</option>
+              ))}
+            </select>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground"
+              onClick={() => setRightOpen((v) => !v)}
+              title={rightOpen ? "Hide context" : "Show context"}
+            >
+              {rightOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto">
-          <div className="px-4 py-4 md:px-6">
+          <div className="px-3 py-3 md:px-5 md:py-4">
             {(section === "roles" || section === "preview") && <RolesHero section={section} />}
             <SectionActionBar section={section} onJump={setSection} />
             <SectionRouter key={section} section={section} />
@@ -208,13 +301,16 @@ function IdentityAndAccessPage() {
         </div>
       </main>
 
-      {/* ─── Right rail: context summary ─── */}
-      <aside className="hidden w-72 shrink-0 flex-col border-l border-border/40 bg-card/30 xl:flex">
-        <ContextRail section={section} onJump={setSection} />
-      </aside>
+      {/* ─── Right rail: context summary (toggle) ─── */}
+      {rightOpen && (
+        <aside className="hidden w-72 shrink-0 flex-col border-l border-border/40 bg-card/30 lg:flex">
+          <ContextRail section={section} onJump={setSection} />
+        </aside>
+      )}
     </div>
   );
 }
+
 
 /* ───────────────────────── Section router ───────────────────────── */
 
