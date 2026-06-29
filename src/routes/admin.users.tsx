@@ -1764,7 +1764,7 @@ function AccessMapTab() {
             <Table className="min-w-[980px]">
               <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[200px]">Module</TableHead>
+                  <TableHead className="sticky left-0 z-20 w-[200px] bg-card/95 shadow-[1px_0_0_0_hsl(var(--border))]">Module</TableHead>
                   <TableHead className="w-[160px]">Scope</TableHead>
                   {ACCESS_ROLE_COLUMNS.map((col) => (
                     <TableHead key={col.key} className="text-center text-[11px]">
@@ -1776,7 +1776,7 @@ function AccessMapTab() {
               <TableBody>
                 {ACCESS_MATRIX.map((row) => (
                   <TableRow key={row.module} className="hover:bg-muted/20">
-                    <TableCell className="font-medium">{row.module}</TableCell>
+                    <TableCell className="sticky left-0 z-10 bg-card font-medium shadow-[1px_0_0_0_hsl(var(--border))]">{row.module}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{row.scope}</TableCell>
                     {ACCESS_ROLE_COLUMNS.map((col) => (
                       <TableCell key={col.key} className="text-center">

@@ -9,7 +9,9 @@ import {
   Lock,
   MoreHorizontal,
   Network,
+  Plus,
   ShieldCheck,
+  UserPlus,
   Users,
   UsersRound,
 } from "lucide-react";
@@ -196,6 +198,7 @@ function IdentityAndAccessPage() {
 
         <div className="min-h-0 flex-1 overflow-auto">
           <div className="px-4 py-4 md:px-6">
+            <SectionActionBar section={section} onJump={setSection} />
             <SectionRouter key={section} section={section} />
           </div>
         </div>
@@ -217,6 +220,94 @@ function SectionRouter({ section }: { section: SectionKey }) {
   if (usersTab) return <PeopleAndOrganizationPage embeddedTab={usersTab} />;
   if (rolesTab) return <AdminRolesPage embeddedTab={rolesTab} />;
   return null;
+}
+
+/* ───────────────────────── Section action bar ───────────────────────── */
+
+function fire(name: string) {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(name));
+}
+
+function SectionActionBar({
+  section, onJump,
+}: { section: SectionKey; onJump: (s: SectionKey) => void }) {
+  const meta = SECTIONS.find((s) => s.key === section)!;
+
+  const actions = (() => {
+    switch (section) {
+      case "users":
+        return [
+          { label: "Add user", icon: UserPlus, onClick: () => fire("itkc:create-user"), primary: true },
+          { label: "Create department", icon: Building2, onClick: () => fire("itkc:create-department") },
+          { label: "Create team", icon: UsersRound, onClick: () => fire("itkc:create-team") },
+        ];
+      case "departments":
+        return [
+          { label: "Create department", icon: Plus, onClick: () => fire("itkc:create-department"), primary: true },
+          { label: "Add user", icon: UserPlus, onClick: () => { onJump("users"); setTimeout(() => fire("itkc:create-user"), 50); } },
+        ];
+      case "teams":
+        return [
+          { label: "Create team", icon: Plus, onClick: () => fire("itkc:create-team"), primary: true },
+          { label: "Add user", icon: UserPlus, onClick: () => { onJump("users"); setTimeout(() => fire("itkc:create-user"), 50); } },
+        ];
+      case "access-map":
+        return [
+          { label: "Preview a role", icon: Network, onClick: () => onJump("preview"), primary: true },
+          { label: "Manage visibility", icon: Eye, onClick: () => onJump("pages") },
+        ];
+      case "roles":
+        return [
+          { label: "Preview a role", icon: Network, onClick: () => onJump("preview"), primary: true },
+          { label: "Manage visibility", icon: Eye, onClick: () => onJump("pages") },
+          { label: "Edit capabilities", icon: Layers, onClick: () => onJump("permissions") },
+        ];
+      case "preview":
+        return [
+          { label: "Back to roles", icon: KeyRound, onClick: () => onJump("roles"), primary: true },
+          { label: "Module access map", icon: ShieldCheck, onClick: () => onJump("access-map") },
+        ];
+      case "permissions":
+        return [
+          { label: "Back to roles", icon: KeyRound, onClick: () => onJump("roles") },
+          { label: "Page visibility", icon: Eye, onClick: () => onJump("pages") },
+        ];
+      case "pages":
+        return [
+          { label: "Back to roles", icon: KeyRound, onClick: () => onJump("roles") },
+          { label: "Capabilities", icon: Layers, onClick: () => onJump("permissions") },
+        ];
+    }
+  })();
+
+  return (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/40 bg-card/40 px-3 py-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <meta.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold leading-none">{meta.label}</div>
+          <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{meta.hint}</div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {actions.map((a) => {
+          const Icon = a.icon;
+          return (
+            <Button
+              key={a.label}
+              size="sm"
+              variant={a.primary ? "default" : "outline"}
+              onClick={a.onClick}
+              className="h-8"
+            >
+              <Icon className="mr-1.5 h-3.5 w-3.5" />
+              {a.label}
+            </Button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 /* ───────────────────────── Nav group ───────────────────────── */
@@ -382,14 +473,17 @@ function ContextRail({
 
       <Separator className="bg-border/40" />
 
-      {/* Jump-tos */}
+      {/* Quick actions */}
       <div className="p-4">
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Jump to
+          Quick actions
         </div>
         <div className="space-y-1">
-          <RailLink label="Simulate a role"      onClick={() => onJump("preview")} />
-          <RailLink label="Browse role catalog"  onClick={() => onJump("roles")} />
+          <RailLink label="Add user"            onClick={() => { onJump("users"); setTimeout(() => fire("itkc:create-user"), 50); }} />
+          <RailLink label="Create department"   onClick={() => { onJump("departments"); setTimeout(() => fire("itkc:create-department"), 50); }} />
+          <RailLink label="Create team"         onClick={() => { onJump("teams"); setTimeout(() => fire("itkc:create-team"), 50); }} />
+          <RailLink label="Simulate a role"     onClick={() => onJump("preview")} />
+          <RailLink label="Manage visibility"   onClick={() => onJump("pages")} />
           <RailLink label="Module access overview" onClick={() => onJump("access-map")} />
         </div>
       </div>
