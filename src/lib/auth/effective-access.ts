@@ -68,6 +68,7 @@ export const ROUTE_REQUIREMENTS: Record<string, RouteRequirement> = {
   "/protocols/:id": { kind: "permission", anyOf: ["protocols.view", "protocols.manage"] },
   "/audit": { kind: "permission", anyOf: ["audit.view", "platform.view_audit"] },
   "/reports": { kind: "permission", anyOf: ["reports.view"] },
+  "/admin/identity": { kind: "platform-admin" },
   "/admin/users": { kind: "platform-admin" },
   "/admin/teams": { kind: "platform-admin" },
   "/admin/roles": { kind: "platform-admin" },

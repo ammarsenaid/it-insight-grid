@@ -229,6 +229,7 @@ export const PAGE_VISIBILITY: Record<string, Role[]> = {
   "/protocols/:id": [...ALL_IT],
   "/audit": [...ADMINS, "auditor"],
   "/reports": [...ADMINS, "sd_lead", "auditor"],
+  "/admin/identity": ADMINS,
   "/admin/users": ADMINS,
   "/admin/teams": ADMINS,
   "/admin/roles": ADMINS,

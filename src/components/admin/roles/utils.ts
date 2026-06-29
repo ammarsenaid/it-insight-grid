@@ -18,6 +18,7 @@ export const PAGES: PageEntry[] = [
   { path: "/notes", label: "Notes", area: "Workspace" },
   { path: "/audit", label: "Audit Log", area: "Governance" },
   { path: "/reports", label: "Reports", area: "Governance" },
+  { path: "/admin/identity", label: "Identity & Access", area: "Administration" },
   { path: "/admin/users", label: "Users", area: "Administration" },
   { path: "/admin/teams", label: "Teams", area: "Administration" },
   { path: "/admin/roles", label: "Roles", area: "Administration" },
