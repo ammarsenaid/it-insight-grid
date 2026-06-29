@@ -16,6 +16,8 @@ import {
   UsersRound,
 } from "lucide-react";
 
+import { useQuery } from "@tanstack/react-query";
+
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +33,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { can, useRole } from "@/lib/permissions";
+import { can, ROLES, useRole, type Role } from "@/lib/permissions";
+import { adminRolesQuery } from "@/lib/admin-roles/queries";
 
 import { PeopleAndOrganizationPage } from "./admin.users";
 import { AdminRolesPage } from "./admin.roles";
@@ -198,6 +201,7 @@ function IdentityAndAccessPage() {
 
         <div className="min-h-0 flex-1 overflow-auto">
           <div className="px-4 py-4 md:px-6">
+            {(section === "roles" || section === "preview") && <RolesHero section={section} />}
             <SectionActionBar section={section} onJump={setSection} />
             <SectionRouter key={section} section={section} />
           </div>
@@ -222,7 +226,116 @@ function SectionRouter({ section }: { section: SectionKey }) {
   return null;
 }
 
-/* ───────────────────────── Section action bar ───────────────────────── */
+/* ───────────────────────── Roles / Preview hero ───────────────────────── */
+
+function RolesHero({ section }: { section: "roles" | "preview" }) {
+  const { session, isPlatformAdmin, roleKeys } = useAuth();
+  const enabled = Boolean(session?.user) && isPlatformAdmin;
+  const rolesQ = useQuery({ ...adminRolesQuery(), enabled });
+  const data = rolesQ.data;
+
+  const liveRoles = data?.roles ?? [];
+  const platformCount = liveRoles.filter((r) => r.scope === "platform").length;
+  const teamCount = liveRoles.filter((r) => r.scope === "team").length;
+  const systemCount = liveRoles.filter((r) => r.isSystem).length;
+  const permCount = data?.permissions.length ?? 0;
+  const grantCount = data?.grants.length ?? 0;
+
+  const isPreview = section === "preview";
+  const accent = isPreview
+    ? "from-amber-500/15 via-amber-500/5 to-transparent ring-amber-500/20"
+    : "from-cyan-500/15 via-cyan-500/5 to-transparent ring-cyan-500/20";
+  const Icon = isPreview ? Network : KeyRound;
+
+  const eyebrow = isPreview ? "Role simulator" : "Role catalog";
+  const title = isPreview ? "Preview what a role can reach" : "Manage roles & their scope";
+  const desc = isPreview
+    ? "Step into any role to see exactly which pages and capabilities they have. Your own session never changes."
+    : "Browse every role across the platform and team scopes. Edit the metadata, scope, and capabilities of any role.";
+
+  const stats: { label: string; value: string | number }[] = isPreview
+    ? [
+        { label: "Available roles", value: liveRoles.length || ROLES.length },
+        { label: "Your roles", value: roleKeys.length },
+        { label: "Permissions", value: permCount || "—" },
+      ]
+    : [
+        { label: "Roles", value: liveRoles.length || "—" },
+        { label: "Platform", value: platformCount || "—" },
+        { label: "Team", value: teamCount || "—" },
+        { label: "System", value: systemCount || "—" },
+        { label: "Grants", value: grantCount || "—" },
+      ];
+
+  return (
+    <div className={cn(
+      "mb-4 overflow-hidden rounded-2xl border border-border/40 bg-gradient-to-br p-4 ring-1 ring-inset",
+      accent,
+    )}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className={cn(
+            "grid h-10 w-10 shrink-0 place-items-center rounded-xl ring-1 ring-inset",
+            isPreview ? "bg-amber-500/15 text-amber-200 ring-amber-500/30" : "bg-cyan-500/15 text-cyan-200 ring-cyan-500/30",
+          )}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{eyebrow}</div>
+            <h2 className="mt-0.5 truncate text-base font-semibold text-foreground sm:text-lg">{title}</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">{desc}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {stats.map((s) => (
+            <div
+              key={s.label}
+              className="rounded-lg border border-border/40 bg-background/40 px-2.5 py-1.5 text-center backdrop-blur"
+            >
+              <div className="text-sm font-semibold leading-none text-foreground">{s.value}</div>
+              <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {isPreview && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/30 pt-3">
+          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Quick pick:
+          </span>
+          {ROLES.slice(0, 6).map((r: { id: Role; label: string }) => (
+            <Badge
+              key={r.id}
+              variant="outline"
+              className="h-5 cursor-default border-border/50 bg-background/40 text-[10px] font-normal"
+              title={r.label}
+            >
+              {r.label}
+            </Badge>
+          ))}
+          <span className="text-[10px] text-muted-foreground">
+            · Use the “Acting as” panel below to switch
+          </span>
+        </div>
+      )}
+
+      {!isPreview && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/30 pt-3">
+          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Scopes:
+          </span>
+          <Badge variant="outline" className="h-5 border-cyan-500/40 bg-cyan-500/10 text-[10px] text-cyan-200">Platform</Badge>
+          <Badge variant="outline" className="h-5 border-violet-500/40 bg-violet-500/10 text-[10px] text-violet-200">Team</Badge>
+          <Badge variant="outline" className="h-5 border-border/50 bg-background/40 text-[10px]">System (locked)</Badge>
+          <Badge variant="outline" className="h-5 border-border/50 bg-background/40 text-[10px]">Custom (editable)</Badge>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 
 function fire(name: string) {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(name));
