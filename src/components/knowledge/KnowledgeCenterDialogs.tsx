@@ -1,14 +1,11 @@
 /**
- * Knowledge Center — Phase 2 UX preview dialogs (frontend only).
+ * Knowledge Center — write & permission dialogs (frontend only).
  *
- * These dialogs render the *finished* UX for write/manage flows so
- * stakeholders can review the experience before the Phase 2 ACL + write
- * engine lands. The opening trigger button is fully clickable, but every
- * confirming action (Create / Save / Publish / Apply) is intentionally
- * disabled with an explicit "Backend pending" tooltip.
- *
- * No data is mutated. No fake success toasts. No mock state.
+ * These dialogs render the finished UX for write/manage flows. Mutating
+ * actions (Create / Save / Publish / Apply) are disabled until the matching
+ * server-side authorization is available in this environment.
  */
+
 
 import { useState, type ReactNode } from "react";
 import {
@@ -146,12 +143,11 @@ function visFromString(v: string | null | undefined): VisKey {
 
 function PendingBanner() {
   return (
-    <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[12px] leading-snug text-amber-200/90">
+    <div className="flex items-start gap-2.5 rounded-lg border border-border/50 bg-card/40 px-3 py-2.5 text-[12px] leading-snug text-muted-foreground">
       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
       <span>
-        <span className="font-semibold">UX preview.</span> This flow is ready
-        visually. Creation, editing and permission changes will be enabled when
-        the Phase 2 backend (ACL + write engine) is implemented.
+        Creation, editing and permission changes are not available in this
+        environment. You can review the form below.
       </span>
     </div>
   );
@@ -169,14 +165,11 @@ function PendingSubmitButton({ label }: { label: string }) {
             className="pointer-events-none opacity-60"
           >
             {label}
-            <span className="ml-2 rounded-sm border border-current/30 px-1 py-px text-[10px] font-semibold uppercase tracking-wider opacity-80">
-              Backend pending
-            </span>
           </Button>
         </span>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-[260px] text-xs">
-        Enabled in Phase 2 when the ACL & write engine ships.
+        Not available in this environment.
       </TooltipContent>
     </Tooltip>
   );
@@ -317,9 +310,6 @@ export function InheritancePreview({
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           Access inheritance
         </p>
-        <span className="rounded-full border border-border/50 bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground">
-          Phase 2 preview
-        </span>
       </div>
       <ol className="space-y-1.5">
         {steps.map((s, i) => {
@@ -596,7 +586,7 @@ export function NewChapterDialog({
             <span>
               <span className="block font-medium">Inherit permissions from book</span>
               <span className="block text-[11px] text-muted-foreground">
-                When off, you can set per-chapter visibility. Per-chapter overrides ship in Phase 2.
+                When off, you can set per-chapter visibility.
               </span>
             </span>
           </label>
@@ -983,7 +973,7 @@ export function ManagePermissionsDialog({
               </p>
               <div className="rounded-md border border-dashed border-border/50 bg-background/30 px-3 py-4 text-center text-xs text-muted-foreground">
                 <Users className="mx-auto mb-1.5 h-4 w-4" aria-hidden />
-                Picker arrives in Phase 2 once the ACL backend is live.
+                Member selection is not available in this environment.
               </div>
             </div>
           )}
@@ -999,8 +989,7 @@ export function ManagePermissionsDialog({
 
           <p className="flex items-start gap-2 rounded-lg border border-border/50 bg-background/40 px-3 py-2.5 text-[11px] leading-snug text-muted-foreground">
             <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
-            Final access will be enforced by the Phase 2 backend ACL. This panel
-            previews the experience only.
+            Final access is enforced server-side using the rules shown above.
           </p>
         </div>
 

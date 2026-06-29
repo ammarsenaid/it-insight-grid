@@ -1581,15 +1581,15 @@ function DisabledMenuItem({ label }: { label: string }) {
           <DropdownMenuItem disabled>{label}</DropdownMenuItem>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="left">Backend wiring required</TooltipContent>
+      <TooltipContent side="left">Not available in this environment</TooltipContent>
     </Tooltip>
   );
 }
 
 function BackendPendingBanner() {
   return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200/90">
-      This form previews the planned department structure. Saving needs backend support.
+    <div className="rounded-xl border border-border/50 bg-card/40 px-3 py-2 text-xs text-muted-foreground">
+      Department editing is not available in this environment.
     </div>
   );
 }

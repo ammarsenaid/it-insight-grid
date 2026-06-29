@@ -163,25 +163,15 @@ function DiagnosticsPage() {
   return (
     <div className="space-y-5 pb-8">
       <PageHeader
-        title="Local QA & Support Tools"
-        description="Inspect browser-local workspace state. This page does not report production service health."
+        title="Support & Diagnostics"
+        description="Inspect local workspace state and run maintenance utilities."
       />
 
-      <div className="flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3 text-xs text-amber-100/80 shadow-sm">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-        <div>
-          <p className="font-semibold text-amber-100">Platform administrator tools</p>
-          <p className="mt-0.5 leading-relaxed">
-            These utilities operate on browser-local application data and should be used
-            deliberately during support or QA.
-          </p>
-        </div>
-      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <SectionCard
           title="Workspace status"
-          description="Local environment health"
+          description="Local environment summary"
           className="border-border/50 shadow-sm"
         >
           <ul className="space-y-2 text-sm">

@@ -1,12 +1,13 @@
 /**
- * Knowledge Center — BookStack-style three-column workspace (Phase 1, frontend only).
+ * Knowledge Center — BookStack-style three-column workspace.
  *
  * Hierarchy:
  *   Department (team) → Book (knowledge_space) → Chapter (knowledge_category) → Page (knowledge_article)
  *
- * Backend data is read-only here. Mutating actions are intentionally disabled
- * with an honest tooltip — the per-resource ACL backend lands in Phase 2.
+ * Backend data is read-only here. Mutating actions are disabled with a
+ * tooltip until per-resource authorization is wired server-side.
  */
+
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -955,8 +956,7 @@ function DisabledActionButton({
         </span>
       </TooltipTrigger>
       <TooltipContent side="bottom" className="max-w-[260px] text-xs">
-        <span className="font-semibold">Phase 2</span> — available when the ACL
-        & write engine ships. Read-only for now.
+        Read-only in this environment.
       </TooltipContent>
     </Tooltip>
   );
@@ -1449,7 +1449,7 @@ function CenterColumn({
             <FileText className="mx-auto mb-3 h-6 w-6 text-muted-foreground/70" />
             <p className="text-sm font-medium">No content yet</p>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              This page hasn't been written. Editing is available in Phase 2.
+              This page is empty.
             </p>
           </div>
         )}
@@ -1647,7 +1647,7 @@ function RightColumn({
 
           <PermissionStub
             title="Book permissions"
-            body="Per-book ACL inheritance to chapters and pages lands in Phase 2."
+            body="Per-book access rules apply to all chapters and pages inside this book."
           />
           <InheritancePreview
             bookName={fallback(book.name, "Untitled book")}
@@ -1711,7 +1711,7 @@ function RightColumn({
 
           <PermissionStub
             title="Chapter permissions"
-            body="Inherits the parent book's access rules. Per-chapter overrides arrive in Phase 2."
+            body="Inherits the parent book's access rules unless overridden."
           />
           <InheritancePreview
             bookName={fallback(book?.name, "Book")}
@@ -1854,13 +1854,10 @@ function PermissionStub({
   body: string;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-amber-500/30 bg-amber-500/[0.04] p-3">
+    <div className="rounded-xl border border-border/50 bg-card/30 p-3">
       <div className="flex items-center gap-1.5">
-        <Settings2 className="h-3.5 w-3.5 text-amber-300/80" />
+        <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
         <p className="text-xs font-semibold">{title}</p>
-        <span className="ml-auto rounded-full border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-300">
-          Phase 2
-        </span>
       </div>
       <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
         {body}

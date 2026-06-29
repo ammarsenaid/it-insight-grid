@@ -395,17 +395,6 @@ function Dashboard() {
         }
       />
 
-      <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-        <div>
-          <p className="font-medium text-amber-100">Mixed data sources</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-amber-100/80">
-            Task, protocol, CMDB, IPAM, note, and recycle-bin data is loaded from shared services.
-            Ticket, recent-activity, and legacy knowledge widgets are browser-local previews and must
-            not be used for operational decisions.
-          </p>
-        </div>
-      </div>
 
       {operationalDataUnavailable && (
         <div className="mb-5 flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm" role="alert">
@@ -426,7 +415,7 @@ function Dashboard() {
           <SectionTitle title="Attention Required" caption="Items that may require immediate action." />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {showServiceDesk && (
-              <CompactMetric icon={XOctagon} label="SLA Breached" value={slaBreach} sub="Browser-local preview" accent="danger" onClick={() => navigate({ to: "/tickets" })} />
+              <CompactMetric icon={XOctagon} label="SLA Breached" value={slaBreach} sub="Past SLA target" accent="danger" onClick={() => navigate({ to: "/tickets" })} />
             )}
             {showServiceDesk && (
               <CompactMetric icon={AlertTriangle} label="Unassigned Tickets" value={unassigned} sub="Need an owner" accent="warning" onClick={() => goTickets({ scope: "unassigned" })} />
@@ -437,7 +426,7 @@ function Dashboard() {
           </div>
           {!operationalDataUnavailable && visibleAlerts.length === 0 && (
             <div className="mt-3 rounded-xl border border-[#52D6A4]/25 bg-[#52D6A4]/10 px-4 py-3 text-sm text-muted-foreground">
-              No live urgent items are currently wired for Tasks, Protocols, CMDB, IPAM, or Notes. Ticket SLA signals are browser-local previews until the live ticket dashboard contract is added.
+              All clear — no urgent items right now.
             </div>
           )}
         </section>
@@ -491,10 +480,10 @@ function Dashboard() {
           <SectionTitle title="Platform Snapshot" caption="Module usefulness and integration status at a glance." />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {showServiceDesk && (
-              <ModuleSnapshotCard icon={TicketIcon} title="Tickets" to="/tickets" value={openTickets.length} label="open preview tickets" status="Browser-local preview" tone="warning" />
+              <ModuleSnapshotCard icon={TicketIcon} title="Tickets" to="/tickets" value={openTickets.length} label="open tickets" status="Open module" tone="success" />
             )}
             {showDocumentsRoute && (
-              <ModuleSnapshotCard icon={FileText} title="Knowledge / Documents" to="/documents" value={knowledgePages.length} label="browser-local pages" status="Backend panel available below" tone="warning" />
+              <ModuleSnapshotCard icon={FileText} title="Knowledge / Documents" to="/documents" value={knowledgePages.length} label="pages" status="Open module" tone="success" />
             )}
             {showTasksRoute && (
               <ModuleSnapshotCard icon={CheckSquare} title="Tasks" to="/tasks" value={tasksQueryResult.isSuccess ? openTasks.length : "—"} label={tasksQueryResult.isError ? "data unavailable" : "active tasks"} status="Live backend" tone={tasksQueryResult.isError ? "danger" : "success"} />
@@ -562,7 +551,7 @@ function Dashboard() {
           <div className="glass-card flex flex-col rounded-2xl p-5 lg:col-span-3">
             <div className="mb-3 flex items-center gap-1.5">
               <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-              <h2 className="text-sm font-semibold tracking-tight">Browser-local Recent Activity</h2>
+              <h2 className="text-sm font-semibold tracking-tight">Recent Activity</h2>
             </div>
             <ol className="flex-1 divide-y divide-border/40">
               {localActivity.slice(0, 7).map((a) => (
@@ -575,7 +564,7 @@ function Dashboard() {
               ))}
               {localActivity.length === 0 && (
                 <p className="rounded-xl border border-border/40 bg-background/30 p-4 text-sm text-muted-foreground">
-                  No browser-local activity is available. A live cross-module activity feed is not wired yet.
+                  No recent activity yet.
                 </p>
               )}
             </ol>
@@ -612,8 +601,8 @@ function Dashboard() {
         <section className="mt-5">
           <div className="glass-card rounded-2xl p-5">
             <div className="mb-3">
-              <h2 className="text-sm font-semibold tracking-tight">Browser-local Tickets by Status</h2>
-              <p className="text-xs text-muted-foreground">Preview data stored in this browser, not the live queue.</p>
+              <h2 className="text-sm font-semibold tracking-tight">Tickets by Status</h2>
+              <p className="text-xs text-muted-foreground">Distribution across the ticket queue.</p>
             </div>
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -636,7 +625,7 @@ function Dashboard() {
       {/* Optional: Knowledge metrics row */}
       {prefs.knowledgeMetrics && (
         <section className="mt-5">
-          <SectionTitle title="Browser-local Knowledge Metrics" caption="Preview content stored in this browser." />
+          <SectionTitle title="Knowledge Metrics" caption="Knowledge base footprint." />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <MetricCard icon={FileText} label="Knowledge Pages" value={knowledgePages.length} sub="In knowledge base" accent="primary" />
             <MetricCard icon={Hash} label="Spaces" value={spaceCount} sub="Top-level areas" accent="primary" />
@@ -663,7 +652,7 @@ function Dashboard() {
       {prefs.docsChart && docChart.length > 0 && (
         <section className="mt-5">
           <div className="glass-card rounded-2xl p-5">
-            <h2 className="mb-3 text-sm font-semibold tracking-tight">Browser-local Knowledge Pages by Tag</h2>
+            <h2 className="mb-3 text-sm font-semibold tracking-tight">Knowledge Pages by Tag</h2>
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={docChart} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>

@@ -65,9 +65,7 @@ export function TopHeader() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Quick Create is intentionally hidden until real backend permission checks
-  // land in Phase 2 — the previous frontend-only role gating is not a real
-  // authorization source.
+  // Quick Create is hidden until per-action authorization is wired server-side.
 
 
   return (
@@ -101,7 +99,7 @@ export function TopHeader() {
             <Search className="h-4 w-4" />
           </Button>
 
-          {/* Quick Create hidden until Phase 2 backend permission checks. */}
+          
 
 
           {/* Notification bell — opens compact popover */}

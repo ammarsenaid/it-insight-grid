@@ -1,19 +1,17 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
 import {
-  BarChart3, Ticket, Server, Network, BookOpen, CheckSquare,
-  AlertTriangle, Download, Clock, CheckCircle2,
+  BarChart3,
+  Ticket,
+  Server,
+  Network,
+  BookOpen,
+  CheckSquare,
+  ListChecks,
+  ArrowUpRight,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
-import { MetricCard } from "@/components/common/MetricCard";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-import { useData } from "@/lib/data/store";
-import { useKnowledge } from "@/lib/knowledge/store";
 import { can } from "@/lib/permissions";
-import { toCSV, downloadCSV } from "@/lib/csv";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/reports")({
   head: () => ({ meta: [{ title: "Reports · IT Knowledge Center" }] }),
@@ -23,256 +21,74 @@ export const Route = createFileRoute("/reports")({
   component: ReportsPage,
 });
 
+type ModuleLink = {
+  label: string;
+  to: string;
+  description: string;
+  icon: typeof BarChart3;
+};
+
+const MODULES: ModuleLink[] = [
+  { label: "Tickets", to: "/tickets", description: "Queue, SLA and assignment overview.", icon: Ticket },
+  { label: "Tasks", to: "/tasks", description: "Open work, due dates, ownership.", icon: CheckSquare },
+  { label: "Protocols", to: "/protocols", description: "Active runs and approvals.", icon: ListChecks },
+  { label: "CMDB", to: "/cmdb", description: "Asset inventory and status.", icon: Server },
+  { label: "IPAM", to: "/ipam", description: "IP utilization and allocations.", icon: Network },
+  { label: "Knowledge", to: "/documents", description: "Books, chapters and pages.", icon: BookOpen },
+];
+
 function ReportsPage() {
-  const data = useData();
-  const knowledge = useKnowledge();
-  const [range, setRange] = useState("30");
-
-  const sinceMs = range === "all" ? 0 : Date.now() - Number(range) * 86_400_000;
-
-  // Tickets
-  const recentTickets = useMemo(() => data.tickets.filter((t) => new Date(t.createdAt).getTime() >= sinceMs), [data.tickets, sinceMs]);
-  const openTickets = recentTickets.filter((t) => !["resolved", "closed", "cancelled"].includes(t.status));
-  const slaBreached = recentTickets.filter((t) => t.sla === "breached").length;
-  const slaWarning = recentTickets.filter((t) => t.sla === "warning").length;
-  const slaHealthy = recentTickets.filter((t) => t.sla === "ok").length;
-  const resolved = recentTickets.filter((t) => t.status === "resolved" || t.status === "closed").length;
-
-  const byPriority = ["critical", "high", "normal", "low"].map((p) => ({
-    label: p, value: recentTickets.filter((t) => t.priority === p).length,
-  }));
-  const byStatus = ["open", "in_progress", "waiting", "resolved", "closed"].map((s) => ({
-    label: s, value: recentTickets.filter((t) => t.status === s).length,
-  }));
-  const SOURCES = ["email", "portal", "service_catalog", "manual", "internal", "protocol", "task"] as const;
-  const bySource = SOURCES.map((s) => ({
-    label: s, value: recentTickets.filter((t) => (t.source ?? "manual") === s).length,
-  }));
-
-  // CMDB
-  const cmdbByStatus = ["active", "maintenance", "retired"].map((s) => ({
-    label: s, value: data.assets.filter((a) => a.status === s).length,
-  }));
-
-  // IPAM
-  const ipTotal = data.ipam.length;
-  const ipUsed = data.ipam.filter((i) => i.status === "used").length;
-  const ipReserved = data.ipam.filter((i) => i.status === "reserved").length;
-  const ipFree = data.ipam.filter((i) => i.status === "free").length;
-  const ipUtil = ipTotal ? Math.round((ipUsed / ipTotal) * 100) : 0;
-
-  // Knowledge Base pages
-  const knowledgePages = knowledge.nodes.filter((n) => n.type === "page");
-  const docByStatus = ["draft", "in_review", "approved", "published", "archived"].map((s) => ({
-    label: s, value: knowledgePages.filter((p) => p.status === s).length,
-  }));
-  const docsOverdueReview = knowledgePages.filter(
-    (p) => p.reviewDate && new Date(p.reviewDate).getTime() < Date.now(),
-  ).length;
-
-  // Tasks
-  const tasksByStatus = ["open", "in_progress", "blocked", "done"].map((s) => ({
-    label: s, value: data.tasks.filter((t) => t.status === s).length,
-  }));
-  const overdueTasks = data.tasks.filter((t) => t.dueDate && new Date(t.dueDate).getTime() < Date.now() && t.status !== "done").length;
-
-  const exportReport = (name: string, rows: Record<string, unknown>[]) => {
-    if (rows.length === 0) { toast.info("Nothing to export"); return; }
-    downloadCSV(`${name}-${Date.now()}.csv`, toCSV(rows));
-    toast.success(`Exported ${rows.length} rows`);
-  };
-
   return (
     <div>
       <PageHeader
-        title="Browser-local Report Preview"
-        description="Explore report layouts using data stored in this browser. These are not live production reports."
-        actions={
-          <div className="flex items-center gap-2">
-            <Select value={range} onValueChange={setRange}>
-              <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-                <SelectItem value="all">All time</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        }
+        title="Reports"
+        description="Cross-module reporting for tickets, tasks, infrastructure, and knowledge."
       />
 
-      <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-        <div>
-          <p className="font-medium text-amber-100">Preview data only</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-amber-100/80">
-            All values and CSV exports on this page come from browser-local legacy data. Verify
-            operational information in the live Tickets, CMDB, IPAM, Tasks, and Knowledge modules.
-          </p>
+      <section className="glass-card mt-2 flex flex-col items-center gap-3 rounded-2xl px-6 py-10 text-center">
+        <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">
+          <BarChart3 className="h-6 w-6" />
         </div>
-      </div>
+        <h2 className="text-lg font-semibold tracking-tight">Reporting setup required</h2>
+        <p className="max-w-lg text-sm text-muted-foreground">
+          Consolidated reporting is not enabled in this environment yet. In the
+          meantime, open each module directly to review live operational data.
+        </p>
+      </section>
 
-      {/* Overview cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <MetricCard icon={Ticket} label="Tickets" value={recentTickets.length} accent="primary" />
-        <MetricCard icon={Clock} label="Open" value={openTickets.length} accent="warning" />
-        <MetricCard icon={CheckCircle2} label="Resolved" value={resolved} accent="success" />
-        <MetricCard icon={AlertTriangle} label="SLA breached" value={slaBreached} accent="danger" />
-        <MetricCard icon={Server} label="CMDB assets" value={data.assets.length} accent="muted" />
-        <MetricCard icon={Network} label="IP utilization" value={`${ipUtil}%`} accent="primary" />
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Section title="Ticket SLA performance" icon={AlertTriangle} link="/tickets"
-          onExport={() => exportReport("sla", [
-            { metric: "healthy", value: slaHealthy },
-            { metric: "warning", value: slaWarning },
-            { metric: "breached", value: slaBreached },
-          ])}>
-          <Bars data={[
-            { label: "Healthy", value: slaHealthy, tone: "success" as const },
-            { label: "Warning", value: slaWarning, tone: "warning" as const },
-            { label: "Breached", value: slaBreached, tone: "danger" as const },
-          ]} />
-        </Section>
-
-        <Section title="Tickets by priority" icon={Ticket} link="/tickets"
-          onExport={() => exportReport("tickets-by-priority", byPriority)}>
-          <Bars data={byPriority.map((d) => ({ ...d, tone: priTone(d.label) }))} />
-        </Section>
-
-        <Section title="Tickets by status" icon={Ticket} link="/tickets"
-          onExport={() => exportReport("tickets-by-status", byStatus)}>
-          <Bars data={byStatus.map((d) => ({ ...d, tone: "primary" as const }))} />
-        </Section>
-
-        <Section title="Tickets by intake source" icon={Ticket} link="/tickets"
-          onExport={() => exportReport("tickets-by-source", bySource)}>
-          <Bars data={bySource.map((d) => ({ ...d, tone: d.label === "email" ? "primary" as const : d.label === "portal" ? "success" as const : d.label === "service_catalog" ? "primary" as const : d.label === "protocol" || d.label === "task" ? "warning" as const : "muted" as const }))} />
-        </Section>
-
-
-        <Section title="CMDB status" icon={Server} link="/cmdb"
-          onExport={() => exportReport("cmdb-status", cmdbByStatus)}>
-          <Bars data={cmdbByStatus.map((d) => ({ ...d, tone: d.label === "active" ? "success" : d.label === "maintenance" ? "warning" : "muted" }))} />
-        </Section>
-
-        <Section title="IPAM utilization" icon={Network} link="/ipam"
-          onExport={() => exportReport("ipam", [
-            { metric: "used", value: ipUsed },
-            { metric: "reserved", value: ipReserved },
-            { metric: "free", value: ipFree },
-          ])}>
-          <div className="mb-3">
-            <div className="mb-1 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Used</span>
-              <span className="font-mono">{ipUsed} / {ipTotal} ({ipUtil}%)</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted/40">
-              <div className="h-full bg-[#5B8CFF]" style={{ width: `${ipUtil}%` }} />
-            </div>
-          </div>
-          <Bars data={[
-            { label: "Used", value: ipUsed, tone: "primary" as const },
-            { label: "Reserved", value: ipReserved, tone: "warning" as const },
-            { label: "Free", value: ipFree, tone: "muted" as const },
-          ]} />
-        </Section>
-
-        <Section title="Knowledge Base review status" icon={BookOpen} link="/documents"
-          onExport={() => exportReport("knowledge", docByStatus)}>
-          <Bars data={docByStatus.map((d) => ({ ...d, tone: d.label === "published" || d.label === "approved" ? "success" : d.label === "in_review" ? "warning" : d.label === "draft" ? "primary" : "muted" }))} />
-          {docsOverdueReview > 0 && (
-            <div className="mt-3 flex items-center justify-between rounded-lg border border-[#FFC86B]/30 bg-[#FFC86B]/5 px-3 py-2 text-xs">
-              <span className="text-[#FFC86B]">Overdue review</span>
-              <span className="font-mono">{docsOverdueReview}</span>
-            </div>
-          )}
-        </Section>
-
-        <Section title="Tasks by status" icon={CheckSquare} link="/tasks"
-          onExport={() => exportReport("tasks", tasksByStatus)}>
-          <Bars data={tasksByStatus.map((d) => ({ ...d, tone: d.label === "done" ? "success" : d.label === "blocked" ? "danger" : "primary" }))} />
-          {overdueTasks > 0 && (
-            <div className="mt-3 flex items-center justify-between rounded-lg border border-[#FF7C91]/30 bg-[#FF7C91]/5 px-3 py-2 text-xs">
-              <span className="text-[#FF7C91]">Overdue tasks</span>
-              <span className="font-mono">{overdueTasks}</span>
-            </div>
-          )}
-        </Section>
-
-        <Section title="Activity volume" icon={BarChart3} link="/audit"
-          onExport={() => exportReport("activity", data.activity.map((a) => ({ when: a.createdAt, type: a.type, message: a.message })))}>
-          <Bars data={topModules(data.activity).map((d) => ({ ...d, tone: "primary" as const }))} />
-        </Section>
-      </div>
+      <section className="mt-6">
+        <h3 className="mb-3 text-sm font-semibold tracking-tight">Open a module</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {MODULES.map((m) => (
+            <ModuleCard key={m.to} {...m} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
 
-function priTone(p: string): "danger" | "warning" | "primary" | "muted" {
-  if (p === "critical") return "danger";
-  if (p === "high") return "warning";
-  if (p === "normal") return "primary";
-  return "muted";
-}
-
-function topModules(activity: { module?: string }[]) {
-  const m = new Map<string, number>();
-  for (const a of activity) {
-    const k = a.module ?? "other";
-    m.set(k, (m.get(k) ?? 0) + 1);
-  }
-  return Array.from(m.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 6);
-}
-
-type Tone = "primary" | "success" | "warning" | "danger" | "muted";
-const toneBar: Record<Tone, string> = {
-  primary: "bg-[#5B8CFF]", success: "bg-[#52D6A4]", warning: "bg-[#FFC86B]", danger: "bg-[#FF7C91]", muted: "bg-muted-foreground/40",
-};
-
-function Bars({ data }: { data: { label: string; value: number; tone: Tone }[] }) {
-  const max = Math.max(1, ...data.map((d) => d.value));
+function ModuleCard({ label, to, description, icon: Icon }: ModuleLink) {
   return (
-    <div className="space-y-2">
-      {data.map((d) => (
-        <div key={d.label}>
-          <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="capitalize text-muted-foreground">{d.label.replace(/_/g, " ")}</span>
-            <span className="font-mono">{d.value}</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-muted/40">
-            <div className={`h-full ${toneBar[d.tone]} transition-all`} style={{ width: `${(d.value / max) * 100}%` }} />
-          </div>
+    <Link
+      to={to}
+      className="glass-card group flex flex-col gap-3 rounded-2xl p-5 transition-colors hover:border-primary/40"
+    >
+      <div className="flex items-center justify-between">
+        <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="h-4 w-4" />
         </div>
-      ))}
-    </div>
-  );
-}
-
-function Section({ title, icon: Icon, link, onExport, children }: {
-  title: string; icon: typeof BarChart3; link?: string; onExport?: () => void; children: React.ReactNode;
-}) {
-  return (
-    <div className="glass-card rounded-2xl p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary"><Icon className="h-4 w-4" /></div>
-          <h3 className="text-sm font-semibold">{title}</h3>
-        </div>
-        <div className="flex items-center gap-1">
-          {onExport && <Button size="sm" variant="ghost" onClick={onExport}><Download className="mr-1.5 h-3.5 w-3.5" /> Export</Button>}
-          {link && (
-            <Button size="sm" variant="ghost" asChild>
-              <Link to={link}>Open</Link>
-            </Button>
-          )}
-        </div>
+        <ArrowUpRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
       </div>
-      {children}
-    </div>
+      <div>
+        <p className="text-sm font-semibold">{label}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </div>
+      <div className="mt-auto">
+        <Button size="sm" variant="ghost" asChild>
+          <span>Open {label}</span>
+        </Button>
+      </div>
+    </Link>
   );
 }
-
-// Required to satisfy unused-import warning when status badge isn't used
