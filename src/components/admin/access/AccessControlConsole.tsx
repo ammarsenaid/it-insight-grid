@@ -85,6 +85,22 @@ export function AccessControlConsole() {
   const usersQ = useQuery(adminUsersQuery());
   const teamsQ = useQuery(teamsQuery());
   const formOptionsQ = useQuery(adminUserFormOptionsQuery());
+  const users = useMemo(
+    () => (Array.isArray(usersQ.data) ? usersQ.data : []),
+    [usersQ.data],
+  );
+  const teams = useMemo(
+    () => (Array.isArray(teamsQ.data) ? teamsQ.data : []),
+    [teamsQ.data],
+  );
+  const roleOptions = useMemo(
+    () => (Array.isArray(formOptionsQ.data?.roles) ? formOptionsQ.data.roles : []),
+    [formOptionsQ.data?.roles],
+  );
+  const teamOptions = useMemo(
+    () => (Array.isArray(formOptionsQ.data?.teams) ? formOptionsQ.data.teams : []),
+    [formOptionsQ.data?.teams],
+  );
   const [kind, setKind] = useState<SubjectKind>("user");
   const [selectedId, setSelectedId] = useState("");
   const [tab, setTab] = useState<DetailTab>("overview");
@@ -98,7 +114,6 @@ export function AccessControlConsole() {
   );
   const items = useMemo<SubjectItem[]>(() => {
     if (kind === "user") {
-      const users = Array.isArray(usersQ.data) ? usersQ.data : [];
       return users.filter(Boolean).map((user) => ({
         id: user.id,
         name: user.displayName,
@@ -115,7 +130,6 @@ export function AccessControlConsole() {
       }));
     }
     if (kind === "team") {
-      const teams = Array.isArray(teamsQ.data) ? teamsQ.data : [];
       return teams.filter(Boolean).map((team) => ({
         id: team.id,
         name: team.name,
@@ -138,7 +152,7 @@ export function AccessControlConsole() {
           .toLowerCase(),
       };
     });
-  }, [kind, teamsQ.data, usersQ.data, workspaces]);
+  }, [kind, teams, users, workspaces]);
   const visibleItems = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return items.filter((item) => {
@@ -282,10 +296,10 @@ export function AccessControlConsole() {
               mode={editor}
               selectedId={selectedId}
               accessToken={session?.access_token ?? ""}
-              users={Array.isArray(usersQ.data) ? usersQ.data : []}
-              teams={Array.isArray(teamsQ.data) ? teamsQ.data : []}
-              roleOptions={formOptionsQ.data?.roles ?? []}
-              teamOptions={formOptionsQ.data?.teams ?? []}
+              users={users}
+              teams={teams}
+              roleOptions={roleOptions}
+              teamOptions={teamOptions}
               onCancel={() => setEditor(null)}
               onSaved={(id) => {
                 if (kind === "user") void invalidateUsers();
@@ -326,7 +340,7 @@ export function AccessControlConsole() {
                       variant="outline"
                       size="sm"
                       onClick={async () => {
-                        const user = usersQ.data?.find((entry) => entry.id === selected.id);
+                        const user = users.find((entry) => entry.id === selected.id);
                         if (!user || !session?.access_token) return;
                         const result = await setAdminUserActive({
                           accessToken: session.access_token,
@@ -397,8 +411,8 @@ export function AccessControlConsole() {
                 selectedId={selected.id}
                 tab={tab}
                 accessToken={session?.access_token ?? ""}
-                users={Array.isArray(usersQ.data) ? usersQ.data : []}
-                teams={Array.isArray(teamsQ.data) ? teamsQ.data : []}
+                users={users}
+                teams={teams}
                 workspaces={workspaces}
                 canManageTeams={canManageTeams}
                 canMutateAccess={isPlatformAdmin}
@@ -543,14 +557,14 @@ function SubjectEditor({
                 <span>Initial role</span>
                 <select value={roleId} onChange={(event) => setRoleId(event.target.value)} className="h-9 w-full rounded-md border bg-background px-2">
                   <option value="">No global role</option>
-                  {roleOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                  {(Array.isArray(roleOptions) ? roleOptions : []).map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
                 </select>
               </label>
               <label className="space-y-1 text-xs">
                 <span>Initial team</span>
                 <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className="h-9 w-full rounded-md border bg-background px-2">
                   <option value="">No team</option>
-                  {teamOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                  {(Array.isArray(teamOptions) ? teamOptions : []).map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
                 </select>
               </label>
             </div>
@@ -717,20 +731,23 @@ function TeamAssignments({ teamId, canManage }: { teamId: string; canManage: boo
   useEffect(() => {
     if (!roleKey && rolesQ.data?.[0]) setRoleKey(rolesQ.data[0].roleKey);
   }, [roleKey, rolesQ.data]);
+  const profiles = Array.isArray(profilesQ.data) ? profilesQ.data : [];
+  const roles = Array.isArray(rolesQ.data) ? rolesQ.data : [];
+  const members = Array.isArray(membersQ.data) ? membersQ.data : [];
 
   return (
     <div className="space-y-3 p-4">
       <div className="flex flex-wrap gap-2 rounded-lg border p-3">
         <select disabled={!canManage} value={profileId} onChange={(event) => setProfileId(event.target.value)} className="h-9 min-w-48 flex-1 rounded-md border bg-background px-2 text-xs">
           <option value="">Select user</option>
-          {(profilesQ.data ?? []).map((profile) => <option key={profile.id} value={profile.id}>{profile.displayName}</option>)}
+          {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.displayName}</option>)}
         </select>
         <select disabled={!canManage} value={roleKey} onChange={(event) => setRoleKey(event.target.value)} className="h-9 rounded-md border bg-background px-2 text-xs">
-          {(rolesQ.data ?? []).map((role) => <option key={role.roleKey} value={role.roleKey}>{role.name}</option>)}
+          {roles.map((role) => <option key={role.roleKey} value={role.roleKey}>{role.name}</option>)}
         </select>
         <Button size="sm" title={!canManage ? "You are not authorized for this backend action." : undefined} disabled={!canManage || !profileId || !roleKey || addMutation.isPending} onClick={() => addMutation.mutate()}>Add member</Button>
       </div>
-      {(membersQ.data ?? []).map((member) => (
+      {members.map((member) => (
         <div key={member.userId} className="flex flex-wrap items-center gap-2 rounded-lg border p-3">
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium">{member.displayName}</div>
@@ -750,7 +767,7 @@ function TeamAssignments({ teamId, canManage }: { teamId: string; canManage: boo
             }}
             className="h-8 rounded-md border bg-background px-2 text-xs"
           >
-            {(rolesQ.data ?? []).map((role) => <option key={role.roleKey} value={role.roleKey}>{role.name}</option>)}
+            {roles.map((role) => <option key={role.roleKey} value={role.roleKey}>{role.name}</option>)}
           </select>
           <Button
             size="sm"
@@ -829,7 +846,14 @@ function PolicyEditor({
       </div>
     );
   }
-  const entries = resourceType === "permission" ? snapshot.permissions : snapshot.routes;
+  const entries =
+    resourceType === "permission"
+      ? Array.isArray(snapshot.permissions)
+        ? snapshot.permissions
+        : []
+      : Array.isArray(snapshot.routes)
+        ? snapshot.routes
+        : [];
   return (
     <div className="space-y-3 p-4">
       <label className="block space-y-1 text-xs">
@@ -882,18 +906,19 @@ function EffectivePanel({ snapshot, loading }: { snapshot?: AdminAccessSnapshot;
   if (!snapshot?.available) return <div className="p-6 text-sm text-muted-foreground">Effective access is unavailable until backend activation.</div>;
   return (
     <div className="grid gap-4 p-4 xl:grid-cols-2">
-      <DecisionList title="Permissions" items={snapshot.permissions} />
-      <DecisionList title="Page visibility" items={snapshot.routes} />
+      <DecisionList title="Permissions" items={Array.isArray(snapshot.permissions) ? snapshot.permissions : []} />
+      <DecisionList title="Page visibility" items={Array.isArray(snapshot.routes) ? snapshot.routes : []} />
     </div>
   );
 }
 
 function DecisionList({ title, items }: { title: string; items: AdminAccessSnapshot["permissions"] }) {
+  const safeItems = Array.isArray(items) ? items : [];
   return (
     <section className="rounded-lg border p-3">
       <h3 className="mb-2 flex items-center gap-2 text-sm font-medium"><ShieldCheck className="h-4 w-4" />{title}</h3>
       <div className="max-h-96 space-y-1 overflow-auto">
-        {items.map((item) => (
+        {safeItems.map((item) => (
           <div key={item.key} className="rounded border p-2 text-xs">
             <div className="flex gap-2"><span className="truncate font-mono">{item.label}</span><Badge className="ml-auto" variant="outline">{item.effective}</Badge></div>
             <div className="mt-1 truncate text-muted-foreground">{item.source}{item.reason ? ` · ${item.reason}` : ""}</div>
@@ -906,9 +931,10 @@ function DecisionList({ title, items }: { title: string; items: AdminAccessSnaps
 
 function AuditPanel({ snapshot, loading }: { snapshot?: AdminAccessSnapshot; loading: boolean }) {
   if (loading) return <div className="p-6 text-sm text-muted-foreground">Loading history…</div>;
+  const audit = Array.isArray(snapshot?.audit) ? snapshot.audit : [];
   return (
     <div className="space-y-2 p-4">
-      {(snapshot?.audit ?? []).map((entry) => (
+      {audit.map((entry) => (
         <div key={entry.id} className="flex gap-3 rounded-lg border p-3 text-xs">
           <History className="mt-0.5 h-4 w-4 text-muted-foreground" />
           <div>
@@ -917,7 +943,7 @@ function AuditPanel({ snapshot, loading }: { snapshot?: AdminAccessSnapshot; loa
           </div>
         </div>
       ))}
-      {snapshot?.audit.length === 0 && <p className="text-sm text-muted-foreground">No access changes recorded.</p>}
+      {audit.length === 0 && <p className="text-sm text-muted-foreground">No access changes recorded.</p>}
     </div>
   );
 }

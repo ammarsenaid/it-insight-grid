@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   Building2,
   ChevronRight,
@@ -397,7 +404,13 @@ function SectionRouter({
 }) {
   const usersTab = SECTION_TO_USERS_TAB[section];
   const rolesTab = SECTION_TO_ROLES_TAB[section];
-  if (section === "access-control") return <AccessControlConsole />;
+  if (section === "access-control") {
+    return (
+      <AccessControlErrorBoundary>
+        <AccessControlConsole />
+      </AccessControlErrorBoundary>
+    );
+  }
   if (usersTab) return <PeopleAndOrganizationPage embeddedTab={usersTab} />;
   if (section === "effective") return <EffectiveUserAccessInspector />;
   if (section === "static") return <StaticFallbackReference />;
@@ -422,6 +435,43 @@ function SectionRouter({
     );
   }
   return null;
+}
+
+class AccessControlErrorBoundary extends Component<
+  { children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Access Control console failed", error, info);
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="rounded-xl border border-border/50 bg-card/40 p-6">
+          <div className="text-sm font-medium">Access Control is temporarily unavailable</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Account data could not be rendered safely. No access changes were made.
+          </p>
+          <Button
+            className="mt-3"
+            size="sm"
+            variant="outline"
+            onClick={() => this.setState({ failed: false })}
+          >
+            Try again
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function StaticFallbackReference() {
