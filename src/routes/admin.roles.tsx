@@ -195,7 +195,11 @@ type PermissionChange = { roleId: string; permissionId: string; action: "grant" 
 
 export function AdminRolesPage({
   embeddedTab,
-}: { embeddedTab?: "roles" | "capabilities" | "pages" | "preview" } = {}) {
+  onEmbeddedTabChange,
+}: {
+  embeddedTab?: "roles" | "capabilities" | "pages" | "preview";
+  onEmbeddedTabChange?: (tab: "roles" | "capabilities" | "pages" | "preview") => void;
+} = {}) {
   const role = useRole();
   const { session, isPlatformAdmin } = useAuth();
   const allowed = isPlatformAdmin;
@@ -208,7 +212,9 @@ export function AdminRolesPage({
     defaultTab: embeddedTab ?? "roles",
   });
   const tab = embeddedTab ?? urlTab;
-  const setTab = embeddedTab ? () => {} : setUrlTab;
+  const setTab = embeddedTab
+    ? (nextTab: TabKey) => onEmbeddedTabChange?.(nextTab)
+    : setUrlTab;
   const [density, setDensity] = useDensity();
   const [view, setView] = useRoleListView();
 
@@ -338,6 +344,13 @@ export function AdminRolesPage({
     void pageVisibilityQuery.refetch();
   }
 
+  const isFetching = rolesQuery.isFetching || pageVisibilityQuery.isFetching;
+  const isSaving = permissionMutation.isPending || pageVisibilityMutation.isPending;
+  const metrics = useMemo(
+    () => buildMetrics(rolesQuery.data, pageVisibilityQuery.data, isFetching),
+    [rolesQuery.data, pageVisibilityQuery.data, isFetching],
+  );
+
   if (!allowed) {
     return (
       <div className="space-y-5 p-4 md:p-6">
@@ -349,13 +362,6 @@ export function AdminRolesPage({
       </div>
     );
   }
-
-  const isFetching = rolesQuery.isFetching || pageVisibilityQuery.isFetching;
-  const isSaving = permissionMutation.isPending || pageVisibilityMutation.isPending;
-  const metrics = useMemo(
-    () => buildMetrics(rolesQuery.data, pageVisibilityQuery.data, isFetching),
-    [rolesQuery.data, pageVisibilityQuery.data, isFetching],
-  );
 
   return (
     <div className={embeddedTab ? "min-w-0 max-w-full overflow-x-hidden" : "min-w-0 max-w-full overflow-x-hidden p-4 pb-12 md:p-6"}>
@@ -1333,7 +1339,10 @@ function RoleDirectoryTable({
                           size="sm"
                           variant="secondary"
                           className="h-7 px-2 text-[11px]"
-                          onClick={() => onPreview(previewRole)}
+                          onClick={() => {
+                            onPreview(previewRole);
+                            onSwitchTab("preview");
+                          }}
                         >
                           <Eye className="mr-1 h-3 w-3" /> Preview
                         </Button>
@@ -1587,7 +1596,10 @@ function RoleDirectoryGrid({
                   size="sm"
                   variant="secondary"
                   className="flex-1"
-                  onClick={() => onPreview(previewRole)}
+                  onClick={() => {
+                    onPreview(previewRole);
+                    onSwitchTab("preview");
+                  }}
                 >
                   <Eye className="mr-1.5 h-3.5 w-3.5" /> Preview
                 </Button>

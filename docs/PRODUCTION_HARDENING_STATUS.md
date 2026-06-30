@@ -2239,3 +2239,28 @@ Operational notes:
 - No database, SQL, migration, Supabase pending file, authorization, route-guard,
   backend API, commit, push, branch, package, generated route-tree, Dashboard,
   Roles & Permissions, or People & Organization operation was performed.
+
+## Milestone 94 - Identity and Access Workspace UX Hardening
+
+Date: 2026-06-30
+
+Status: IMPLEMENTED AND LOCALLY VALIDATED.
+
+- Restored embedded navigation between Roles, Capabilities, Page visibility, and
+  Role preview so role actions no longer target an inert tab callback.
+- Removed department create and row-action affordances that had no persistence
+  handlers, and removed placeholder Access Map scope controls that did not show
+  configured access.
+- Improved the nested workspace near 1000px by using compact cards for user,
+  department, and team lists below the large breakpoint and by hiding rail
+  controls where their corresponding rail cannot render.
+- Limited create actions to users who can invoke the existing handlers, clarified
+  that the Access Map is a compiled reference, and corrected a conditional React
+  hook in the roles page.
+
+Operational notes:
+- `bun run build` completed successfully. Focused ESLint validation reported no
+  errors in the three touched routes; existing hook dependency warnings remain.
+- No database, SQL, migration, Supabase pending file, authorization, route-guard,
+  backend API, deployment, service restart, commit, push, package, generated
+  route-tree, mail worker, or mail intake state operation was performed.

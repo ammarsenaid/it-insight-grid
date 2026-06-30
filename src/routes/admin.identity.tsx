@@ -188,6 +188,8 @@ function IdentityWorkbench({
 }) {
   // Live counts feed the nav rail badges. Both queries are cheap & cached.
   const { session, isPlatformAdmin } = useAuth();
+  const role = useRole();
+  const canManageTeams = can("admin.teams", role);
   const enabled = Boolean(session?.user) && isPlatformAdmin;
   const usersQ = useQuery({ ...adminUsersQuery(), enabled });
   const rolesQ = useQuery({ ...adminRolesQuery(), enabled });
@@ -317,15 +319,6 @@ function IdentityWorkbench({
       <main className="flex min-w-0 flex-1 flex-col">
         {/* Unified command strip: breadcrumb · title · actions · rail toggles */}
         <header className="flex items-center gap-3 border-b border-border/40 bg-background/70 px-3 py-2 backdrop-blur sm:px-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 md:hidden"
-            onClick={onToggleLeft}
-          >
-            <PanelLeftOpen className="h-4 w-4" />
-          </Button>
-
           <div className="flex min-w-0 items-center gap-2">
             <meta.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
@@ -344,7 +337,12 @@ function IdentityWorkbench({
           </div>
 
           <div className="ml-auto flex items-center gap-1.5">
-            <SectionPrimaryActions section={section} onJump={onSection} />
+            <SectionPrimaryActions
+              section={section}
+              onJump={onSection}
+              canCreateUser={isPlatformAdmin}
+              canCreateTeam={canManageTeams}
+            />
             <select
               value={section}
               onChange={(e) => onSection(e.target.value as SectionKey)}
@@ -358,7 +356,7 @@ function IdentityWorkbench({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground"
+              className="hidden h-7 w-7 text-muted-foreground lg:inline-flex"
               onClick={onToggleRight}
               title={rightOpen ? "Hide context" : "Show context"}
             >
@@ -369,7 +367,7 @@ function IdentityWorkbench({
 
         <div className="min-h-0 flex-1 overflow-auto">
           <div className="px-3 py-4 sm:px-4 md:px-5">
-            <SectionRouter key={section} section={section} />
+            <SectionRouter key={section} section={section} onSection={onSection} />
           </div>
         </div>
       </main>
@@ -386,11 +384,29 @@ function IdentityWorkbench({
 
 /* ───────────────────────── Section router ───────────────────────── */
 
-function SectionRouter({ section }: { section: SectionKey }) {
+function SectionRouter({
+  section,
+  onSection,
+}: {
+  section: SectionKey;
+  onSection: (section: SectionKey) => void;
+}) {
   const usersTab = SECTION_TO_USERS_TAB[section];
   const rolesTab = SECTION_TO_ROLES_TAB[section];
   if (usersTab) return <PeopleAndOrganizationPage embeddedTab={usersTab} />;
-  if (rolesTab) return <AdminRolesPage embeddedTab={rolesTab} />;
+  if (rolesTab) {
+    return (
+      <AdminRolesPage
+        embeddedTab={rolesTab}
+        onEmbeddedTabChange={(tab) => {
+          const nextSection = Object.entries(SECTION_TO_ROLES_TAB).find(
+            ([, mappedTab]) => mappedTab === tab,
+          )?.[0] as SectionKey | undefined;
+          if (nextSection) onSection(nextSection);
+        }}
+      />
+    );
+  }
   return null;
 }
 
@@ -401,16 +417,26 @@ function fire(name: string) {
 }
 
 function SectionPrimaryActions({
-  section, onJump,
-}: { section: SectionKey; onJump: (s: SectionKey) => void }) {
+  section,
+  onJump,
+  canCreateUser,
+  canCreateTeam,
+}: {
+  section: SectionKey;
+  onJump: (s: SectionKey) => void;
+  canCreateUser: boolean;
+  canCreateTeam: boolean;
+}) {
   const actions = (() => {
     switch (section) {
       case "users":
-        return [{ label: "Add user", icon: UserPlus, onClick: () => fire("itkc:create-user") }];
-      case "departments":
-        return [{ label: "New department", icon: Plus, onClick: () => fire("itkc:create-department") }];
+        return canCreateUser
+          ? [{ label: "Add user", icon: UserPlus, onClick: () => fire("itkc:create-user") }]
+          : [];
       case "teams":
-        return [{ label: "New team", icon: Plus, onClick: () => fire("itkc:create-team") }];
+        return canCreateTeam
+          ? [{ label: "New team", icon: Plus, onClick: () => fire("itkc:create-team") }]
+          : [];
       case "access-map":
         return [{ label: "Preview a role", icon: Network, onClick: () => onJump("preview") }];
       case "roles":
@@ -503,8 +529,9 @@ function NavGroup({
 function ContextRail({
   section, onJump,
 }: { section: SectionKey; onJump: (s: SectionKey) => void }) {
-  const { effectiveAccess, profile } = useAuth();
+  const { effectiveAccess, profile, isPlatformAdmin } = useAuth();
   const role = useRole();
+  const canManageTeams = can("admin.teams", role);
   const meta = SECTIONS.find((s) => s.key === section)!;
 
   const summary: { title: string; body: string; bullets: string[] } = useMemo(() => {
@@ -565,7 +592,7 @@ function ContextRail({
   const roleKeys = effectiveAccess?.roleKeys ?? [role];
 
   // ── Role inspector (Step 5): pick any role and see its real grants. ──
-  const { session, isPlatformAdmin } = useAuth();
+  const { session } = useAuth();
   const rolesQ = useQuery({
     ...adminRolesQuery(),
     enabled: Boolean(session?.user) && isPlatformAdmin,
@@ -775,10 +802,25 @@ function ContextRail({
             Quick actions
           </div>
           <div className="space-y-1">
-            <RailLink label="Add user"               onClick={() => { onJump("users"); setTimeout(() => fire("itkc:create-user"), 50); }} />
-            <RailLink label="Create department"      onClick={() => { onJump("departments"); setTimeout(() => fire("itkc:create-department"), 50); }} />
-            <RailLink label="Create team"            onClick={() => { onJump("teams"); setTimeout(() => fire("itkc:create-team"), 50); }} />
-            <RailLink label="Manage visibility"      onClick={() => onJump("pages")} />
+            {isPlatformAdmin && (
+              <RailLink
+                label="Add user"
+                onClick={() => {
+                  onJump("users");
+                  setTimeout(() => fire("itkc:create-user"), 50);
+                }}
+              />
+            )}
+            {canManageTeams && (
+              <RailLink
+                label="Create team"
+                onClick={() => {
+                  onJump("teams");
+                  setTimeout(() => fire("itkc:create-team"), 50);
+                }}
+              />
+            )}
+            <RailLink label="Manage visibility" onClick={() => onJump("pages")} />
             <RailLink label="Module access overview" onClick={() => onJump("access-map")} />
           </div>
         </div>

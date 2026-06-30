@@ -345,11 +345,6 @@ function CreateMenu({
           <Users className="mr-2 h-4 w-4" /> New user
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => window.dispatchEvent(new CustomEvent("itkc:create-department"))}
-        >
-          <Building2 className="mr-2 h-4 w-4" /> New department
-        </DropdownMenuItem>
-        <DropdownMenuItem
           disabled={!canCreateTeam}
           onClick={() => window.dispatchEvent(new CustomEvent("itkc:create-team"))}
         >
@@ -571,7 +566,7 @@ function UsersTab({
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden max-h-[60vh] overflow-auto md:block">
+            <div className="hidden max-h-[60vh] overflow-auto lg:block">
               <Table className="min-w-[900px]">
                 <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur">
                   <TableRow className="hover:bg-transparent">
@@ -654,7 +649,7 @@ function UsersTab({
             </div>
 
             {/* Mobile cards */}
-            <div className="space-y-2 p-3 md:hidden">
+            <div className="space-y-2 p-3 lg:hidden">
               {visible.map((user) => (
                 <button
                   key={user.id}
@@ -870,14 +865,6 @@ function DepartmentsTab() {
 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [draft, setDraft] = useState({ name: "", slug: "", description: "", type: "department" });
-
-  useCreateEvent("itkc:create-department", () => {
-    setDraft({ name: "", slug: "", description: "", type: "department" });
-    setCreateOpen(true);
-  });
-
   const visible = useMemo(() => {
     let list = workspaces.slice();
     if (filter === "active") list = list.filter((w) => /active/i.test(w.status));
@@ -920,7 +907,7 @@ function DepartmentsTab() {
           />
         ) : (
           <>
-            <div className="hidden max-h-[60vh] overflow-auto md:block">
+            <div className="hidden max-h-[60vh] overflow-auto lg:block">
               <Table className="min-w-[820px]">
                 <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur">
                   <TableRow className="hover:bg-transparent">
@@ -930,7 +917,6 @@ function DepartmentsTab() {
                     <TableHead>Status</TableHead>
                     <TableHead>Teams</TableHead>
                     <TableHead>Members</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -960,16 +946,13 @@ function DepartmentsTab() {
                         </TableCell>
                         <TableCell className="text-sm">{w.teams.length}</TableCell>
                         <TableCell className="text-sm">{memberCount || "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <DepartmentRowActions />
-                        </TableCell>
                       </TableRow>
                     );
                   })}
                 </TableBody>
               </Table>
             </div>
-            <div className="space-y-2 p-3 md:hidden">
+            <div className="space-y-2 p-3 lg:hidden">
               {visible.map((w) => (
                 <div
                   key={w.id}
@@ -997,73 +980,7 @@ function DepartmentsTab() {
         )}
       </SectionCard>
 
-      <FormDrawer
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        title="New department"
-        description="Departments group teams, ownership, and visible modules under the organization."
-        onSubmit={() => {
-          /* configuration required */
-        }}
-        submitLabel="Save department"
-      >
-        <BackendPendingBanner />
-        <Field label="Department name">
-          <Input
-            value={draft.name}
-            onChange={(e) =>
-              setDraft({ ...draft, name: e.target.value, slug: slugify(e.target.value) })
-            }
-          />
-        </Field>
-        <Field label="Slug">
-          <Input
-            value={draft.slug}
-            onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
-          />
-        </Field>
-        <Field label="Type">
-          <Select value={draft.type} onValueChange={(v) => setDraft({ ...draft, type: v })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="department">Department</SelectItem>
-              <SelectItem value="workspace">Workspace</SelectItem>
-              <SelectItem value="business_unit">Business unit</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="Description">
-          <Textarea
-            rows={3}
-            value={draft.description}
-            onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-          />
-        </Field>
-        <DisabledFooterNote />
-      </FormDrawer>
     </div>
-  );
-}
-
-function DepartmentRowActions() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button size="icon" variant="ghost">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DisabledMenuItem label="View department" />
-        <DisabledMenuItem label="Edit department" />
-        <DisabledMenuItem label="Add team" />
-        <DropdownMenuSeparator />
-        <DisabledMenuItem label="Archive" />
-        <DisabledMenuItem label="Delete" />
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 
@@ -1191,7 +1108,7 @@ function TeamsTab({ allowed }: { allowed: boolean }) {
           />
         ) : (
           <>
-            <div className="hidden max-h-[60vh] overflow-auto md:block">
+            <div className="hidden max-h-[60vh] overflow-auto lg:block">
               <Table className="min-w-[820px]">
                 <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur">
                   <TableRow className="hover:bg-transparent">
@@ -1261,7 +1178,7 @@ function TeamsTab({ allowed }: { allowed: boolean }) {
                 </TableBody>
               </Table>
             </div>
-            <div className="space-y-2 p-3 md:hidden">
+            <div className="space-y-2 p-3 lg:hidden">
               {visible.map((t) => (
                 <button
                   key={t.id}
@@ -1638,22 +1555,6 @@ function DisabledMenuItem({ label }: { label: string }) {
   );
 }
 
-function BackendPendingBanner() {
-  return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200/90">
-      Configuration required — department mutations are managed by your organization administrator.
-    </div>
-  );
-}
-
-function DisabledFooterNote() {
-  return (
-    <p className="text-[11px] text-muted-foreground">
-      Access controlled by role and scope. Contact your organization administrator to enable department changes.
-    </p>
-  );
-}
-
 /* ───────────────────────── Access Map tab ───────────────────────── */
 
 type AccessLevel = "none" | "read" | "write" | "manage" | "admin";
@@ -1713,34 +1614,16 @@ function AccessLevelChip({ level }: { level: AccessLevel }) {
 }
 
 function AccessMapTab() {
-  const [scope, setScope] = useState<"role" | "department" | "team">("role");
-
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border/50 bg-card/60 p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold">Module access overview</div>
+            <div className="text-sm font-semibold">Reference module access overview</div>
             <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
-              How each role sees the platform. Page visibility is controlled in{" "}
-              <span className="font-medium text-foreground">Roles &amp; Permissions</span>; the
-              levels shown here describe the typical operational scope per module.
+              A compiled reference for typical role scope by module. This is not a live effective
+              access result; use Roles, Capabilities, and Page visibility for stored configuration.
             </p>
-          </div>
-          <div className="flex items-center gap-1 rounded-lg border border-border/40 bg-background/40 p-1 text-xs">
-            {(["role", "department", "team"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setScope(s)}
-                className={`rounded-md px-2.5 py-1 capitalize transition ${
-                  scope === s
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                By {s}
-              </button>
-            ))}
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -1750,49 +1633,43 @@ function AccessMapTab() {
         </div>
       </div>
 
-      {scope !== "role" ? (
-        <SectionCard className="border-border/50 shadow-sm">
-          <EmptyState
-            icon={Layers}
-            title={`Access by ${scope} — configuration required`}
-            description={`The ${scope} access view becomes available once your organization administrator publishes ${scope} scopes. The role view below already reflects the live model.`}
-          />
-        </SectionCard>
-      ) : (
-        <SectionCard className="overflow-hidden border-border/50 shadow-sm" contentClassName="p-0">
-          <div className="overflow-auto">
-            <Table className="min-w-[980px]">
-              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="sticky left-0 z-20 w-[200px] bg-card/95 shadow-[1px_0_0_0_hsl(var(--border))]">Module</TableHead>
-                  <TableHead className="w-[160px]">Scope</TableHead>
+      <SectionCard className="overflow-hidden border-border/50 shadow-sm" contentClassName="p-0">
+        <div className="overflow-auto">
+          <Table className="min-w-[980px]">
+            <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="sticky left-0 z-20 w-[200px] bg-card/95 shadow-[1px_0_0_0_hsl(var(--border))]">
+                  Module
+                </TableHead>
+                <TableHead className="w-[160px]">Scope</TableHead>
+                {ACCESS_ROLE_COLUMNS.map((col) => (
+                  <TableHead key={col.key} className="text-center text-[11px]">
+                    {col.label}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ACCESS_MATRIX.map((row) => (
+                <TableRow key={row.module} className="hover:bg-muted/20">
+                  <TableCell className="sticky left-0 z-10 bg-card font-medium shadow-[1px_0_0_0_hsl(var(--border))]">
+                    {row.module}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{row.scope}</TableCell>
                   {ACCESS_ROLE_COLUMNS.map((col) => (
-                    <TableHead key={col.key} className="text-center text-[11px]">
-                      {col.label}
-                    </TableHead>
+                    <TableCell key={col.key} className="text-center">
+                      <AccessLevelChip level={row.access[col.key] ?? "none"} />
+                    </TableCell>
                   ))}
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ACCESS_MATRIX.map((row) => (
-                  <TableRow key={row.module} className="hover:bg-muted/20">
-                    <TableCell className="sticky left-0 z-10 bg-card font-medium shadow-[1px_0_0_0_hsl(var(--border))]">{row.module}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{row.scope}</TableCell>
-                    {ACCESS_ROLE_COLUMNS.map((col) => (
-                      <TableCell key={col.key} className="text-center">
-                        <AccessLevelChip level={row.access[col.key] ?? "none"} />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="border-t border-border/40 bg-card/40 px-3 py-2 text-[11px] text-muted-foreground">
-            Access controlled by role and scope. Edit per-route visibility in Roles &amp; Permissions.
-          </div>
-        </SectionCard>
-      )}
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="border-t border-border/40 bg-card/40 px-3 py-2 text-[11px] text-muted-foreground">
+          Reference only. Effective access requires stored route visibility and backend grants.
+        </div>
+      </SectionCard>
     </div>
   );
 }
