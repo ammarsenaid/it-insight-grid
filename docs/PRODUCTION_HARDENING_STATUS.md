@@ -2320,3 +2320,141 @@ Operational notes:
 - No SQL, migration, RLS, permission resolver, database connection, deployment,
   service restart, commit, push, package, generated route-tree, mail worker, or
   mail intake state operation was performed.
+
+## Milestone 97 - Access Override Schema Design
+
+Date: 2026-06-30
+
+Status: STAGED FOR HUMAN DATABASE REVIEW.
+
+- Added pending SQL for user, team, and workspace permission and page-visibility
+  overrides using explicit allow/deny rows and deletion for inherit.
+- Added a protected audit log, mandatory reasons, route validation, recovery
+  protection, RLS, restricted grants, audit triggers, and catalog QA.
+- The migration was not applied or tested against a database.
+
+## Milestone 98 - Audited Access Mutation Contract
+
+Date: 2026-06-30
+
+Status: IMPLEMENTED LOCALLY; DATABASE ACTIVATION PENDING.
+
+- Added server functions for reading and mutating user, team, and workspace
+  overrides with active-platform-administrator verification.
+- Permission keys and route paths are validated, client errors remain generic,
+  reasons are mandatory, and every write relies on database audit triggers.
+
+## Milestone 99 - Effective Access Override Resolver
+
+Date: 2026-06-30
+
+Status: IMPLEMENTED LOCALLY; DATABASE ACTIVATION PENDING.
+
+- Added precedence-aware permission and route decisions: user, team, workspace,
+  then role inheritance, with hard backend route-contract checks.
+- Added allow, deny, inherit, final effective state, source, reason, and recent
+  audit provenance to the resolver response.
+
+## Milestone 100 - Subject Access Policy Console
+
+Date: 2026-06-30
+
+Status: IMPLEMENTED LOCALLY; DATABASE ACTIVATION PENDING.
+
+- Added role, user, team, and department/workspace subject selection to the
+  Permissions and Page visibility sections.
+- Added real audited saves, inherited-source and effective-result columns, error
+  states, and recent access audit history.
+
+## Milestone 101 - Access Console Activation Hardening
+
+Date: 2026-06-30
+
+Status: IMPLEMENTED LOCALLY; DATABASE ACTIVATION PENDING.
+
+- Editable controls render only after the backend confirms that override tables
+  exist. Unapplied environments receive a clear read-only pending-migration
+  warning.
+- Kept the matrix internally scrollable with a compact sticky resource column;
+  the existing role matrix and static fallback remain unchanged.
+
+## Milestone 102 - Override Mutation and Console Completion
+
+Date: 2026-06-30
+
+Status: IMPLEMENTED LOCALLY; DATABASE ACTIVATION PENDING.
+
+- Replaced the two-request inherit mutation with a restricted, transaction-backed
+  pending SQL function so one delete produces one audit event carrying the
+  administrator's current reason and identity.
+- Added subject existence checks, schema QA for the restricted function, explicit
+  empty states, save confirmation, and synchronization between Identity navigation
+  and the permission/page-visibility console mode.
+
+## Milestone 103 - Runtime Override Resolution
+
+Date: 2026-06-30
+
+Status: STAGED FOR HUMAN DATABASE REVIEW.
+
+- Added a later pending replacement for `get_my_effective_access()` that preserves
+  its frontend JSON contract while resolving user, active-team, active-workspace,
+  and role precedence at the backend authorization boundary.
+- Added internal permission and page-visibility resolvers with deny-wins behavior
+  at equal precedence, organization/workspace scoping, restricted execution, and
+  catalog QA.
+- Extended the existing effective-access inspector with final allow/deny decisions,
+  sources, and override reasons when the pending schema is available.
+- No restricted auth source file was changed; the existing provider will consume
+  the replacement RPC after reviewed migrations are applied.
+
+## Milestone 104 - Data-Boundary Permission Enforcement
+
+Date: 2026-06-30
+
+Status: STAGED FOR HUMAN DATABASE REVIEW.
+
+- Added a later pending replacement for `has_permission(text, uuid)` and
+  `has_workspace_permission(uuid, text)`, the central helpers already used by
+  RLS policies and security-definer RPCs across the application.
+- The replacements enforce active accounts, active organization context,
+  team/workspace membership for scoped resources, user/team/workspace override
+  precedence, equal-level deny wins, and existing role grants as the fallback.
+- Platform-administrator identity remains a separate hard recovery and
+  administration boundary; permission overrides do not change who is recognized
+  as a platform administrator.
+- Added static catalog QA for execution grants, security-definer posture,
+  override resolution, and active-membership checks. No SQL was executed.
+- Added a service-only activation marker and required it in the administration
+  server before editable controls become available, preventing partial migration
+  deployment from presenting overrides as live.
+
+## Milestone 105 - Identity Access Control Local Validation
+
+Date: 2026-06-30
+
+Status: LOCAL IMPLEMENTATION COMPLETE; DATABASE REVIEW BLOCKED BY SAFETY BOUNDARY.
+
+- `git diff --check` passed.
+- Focused ESLint passed with no errors; two pre-existing hook dependency warnings
+  remain in the Identity route.
+- The production client and SSR build passed.
+- Pending SQL was reviewed statically only. Applying migrations, connecting to a
+  database, and running behavioral SQL QA require explicit human approval and
+  were not performed.
+
+## Milestone 106 - Concrete Admin Access API Route
+
+Date: 2026-06-30
+
+Status: IMPLEMENTED LOCALLY; DATABASE ACTIVATION PENDING.
+
+- Added the missing `/api/admin-access` route with bearer-token extraction,
+  structured request validation, generic errors, and delegation to the existing
+  active-platform-administrator server contract.
+- Split browser fetch code from the service-role server implementation so no
+  server credentials or database implementation are included in the client
+  access helper.
+- Updated Identity & Access to call the real HTTP endpoint. The production build
+  verified route registration; its generated route-tree change was not retained
+  because generated files are outside this milestone's allowed change set.

@@ -20,7 +20,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,12 @@ import { can, useRole } from "@/lib/permissions";
 import { adminRolePageVisibilityQuery, adminRolesQuery } from "@/lib/admin-roles/queries";
 import { adminUsersQuery } from "@/lib/admin-users/queries";
 import { getAdminUserAccessExplanation } from "@/lib/admin-users/create-user";
+import { adminAccess } from "@/lib/admin-access/functions";
+import type {
+  AccessOverrideEffect,
+  AccessResourceType,
+  AccessSubjectType,
+} from "@/lib/admin-access/types";
 
 import { PeopleAndOrganizationPage } from "./admin.users";
 import { AdminRolesPage } from "./admin.roles";
@@ -398,6 +404,13 @@ function SectionRouter({
   const rolesTab = SECTION_TO_ROLES_TAB[section];
   if (usersTab) return <PeopleAndOrganizationPage embeddedTab={usersTab} />;
   if (section === "effective") return <EffectiveUserAccessInspector />;
+  if (section === "permissions" || section === "pages") {
+    return (
+      <AccessPolicyConsole
+        initialResource={section === "permissions" ? "permission" : "route"}
+      />
+    );
+  }
   if (rolesTab) {
     return (
       <AdminRolesPage
@@ -881,6 +894,23 @@ function EffectiveUserAccessInspector() {
     },
   });
   const explanation = explanationQ.data;
+  const overrideQ = useQuery({
+    queryKey: ["admin-user-effective-overrides", userId, workspaceId, teamId],
+    enabled: Boolean(session?.access_token && userId),
+    queryFn: async () => {
+      const result = await adminAccess({
+        accessToken: session?.access_token ?? "",
+        action: "read",
+        subjectType: "user",
+        subjectId: userId,
+        workspaceId: workspaceId || null,
+        teamId: teamId || null,
+      });
+      if (!result.ok) throw new Error(result.error);
+      return result.snapshot;
+    },
+  });
+  const overrideSnapshot = overrideQ.data;
 
   return (
     <div className="space-y-4">
@@ -990,9 +1020,347 @@ function EffectiveUserAccessInspector() {
               }))}
             />
           </div>
+
+          {overrideSnapshot?.available ? (
+            <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+              <AccessExplanationList
+                title="Final permission decisions"
+                empty="No permissions are registered."
+                items={overrideSnapshot.permissions.map((permission) => ({
+                  key: permission.key,
+                  label: permission.label,
+                  detail: `${permission.effective} · ${permission.source}${
+                    permission.reason ? ` · ${permission.reason}` : ""
+                  }`,
+                }))}
+              />
+              <AccessExplanationList
+                title="Final page decisions"
+                empty="No stored or overridden routes are registered."
+                items={overrideSnapshot.routes.map((route) => ({
+                  key: route.key,
+                  label: route.label,
+                  detail: `${route.effective} · ${route.source}${
+                    route.reason ? ` · ${route.reason}` : ""
+                  }`,
+                }))}
+              />
+            </div>
+          ) : overrideSnapshot && !overrideSnapshot.available ? (
+            <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
+              Override provenance will appear after the pending access-control migration is
+              reviewed and applied.
+            </div>
+          ) : overrideQ.isError ? (
+            <div className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              Override provenance could not be loaded. Existing role provenance remains
+              available above.
+            </div>
+          ) : null}
         </>
       ) : null}
     </div>
+  );
+}
+
+type PolicySubject = "role" | AccessSubjectType;
+
+function AccessPolicyConsole({
+  initialResource,
+}: {
+  initialResource: AccessResourceType;
+}) {
+  const { session, teams, effectiveAccess } = useAuth();
+  const usersQ = useQuery(adminUsersQuery());
+  const [subjectType, setSubjectType] = useState<PolicySubject>("role");
+  const [subjectId, setSubjectId] = useState("");
+  const [resourceType, setResourceType] = useState<AccessResourceType>(initialResource);
+  const [reason, setReason] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, AccessOverrideEffect>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  const users = useMemo(() => usersQ.data ?? [], [usersQ.data]);
+  const workspaces = useMemo(
+    () => effectiveAccess?.workspaces ?? [],
+    [effectiveAccess?.workspaces],
+  );
+  const options = useMemo(
+    () =>
+      subjectType === "user"
+        ? users.map((user) => ({ id: user.id, name: user.displayName }))
+        : subjectType === "team"
+          ? teams.map((team) => ({ id: team.id, name: team.name }))
+          : subjectType === "workspace"
+            ? workspaces.map((workspace) => ({ id: workspace.id, name: workspace.name }))
+            : [],
+    [subjectType, teams, users, workspaces],
+  );
+
+  useEffect(() => {
+    if (subjectType === "role") {
+      setSubjectId("");
+      return;
+    }
+    if (!options.some((option) => option.id === subjectId)) {
+      setSubjectId(options[0]?.id ?? "");
+    }
+  }, [options, subjectId, subjectType]);
+
+  useEffect(() => {
+    setDrafts({});
+    setSaveError(null);
+    setSaveMessage(null);
+  }, [subjectType, subjectId, resourceType]);
+
+  useEffect(() => {
+    setResourceType(initialResource);
+  }, [initialResource]);
+
+  const snapshotQ = useQuery({
+    queryKey: ["admin-access", subjectType, subjectId],
+    enabled: subjectType !== "role" && Boolean(session?.access_token && subjectId),
+    queryFn: async () => {
+      const result = await adminAccess({
+        accessToken: session?.access_token ?? "",
+        action: "read",
+        subjectType: subjectType as AccessSubjectType,
+        subjectId,
+        workspaceId: subjectType === "workspace" ? subjectId : null,
+        teamId: subjectType === "team" ? subjectId : null,
+      });
+      if (!result.ok) throw new Error(result.error);
+      return result.snapshot;
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ key, effect }: { key: string; effect: AccessOverrideEffect }) => {
+      const result = await adminAccess({
+        accessToken: session?.access_token ?? "",
+        action: "set",
+        subjectType: subjectType as AccessSubjectType,
+        subjectId,
+        workspaceId: subjectType === "workspace" ? subjectId : null,
+        teamId: subjectType === "team" ? subjectId : null,
+        resourceType,
+        resourceKey: key,
+        effect,
+        reason,
+      });
+      if (!result.ok) throw new Error(result.error);
+      return result.snapshot;
+    },
+    onSuccess: () => {
+      setReason("");
+      setDrafts({});
+      setSaveError(null);
+      setSaveMessage("Access override saved and audit entry recorded.");
+      void snapshotQ.refetch();
+    },
+    onError: () => {
+      setSaveMessage(null);
+      setSaveError("The access change could not be saved.");
+    },
+  });
+
+  const snapshot = snapshotQ.data;
+  const entries = resourceType === "permission" ? snapshot?.permissions ?? [] : snapshot?.routes ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border/50 bg-card/50 p-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="min-w-40 flex-1 space-y-1 text-xs">
+            <span className="font-medium text-muted-foreground">Subject type</span>
+            <select
+              value={subjectType}
+              onChange={(event) => setSubjectType(event.target.value as PolicySubject)}
+              className="h-9 w-full rounded-md border border-border/60 bg-background px-2"
+            >
+              <option value="role">Role</option>
+              <option value="user">User</option>
+              <option value="team">Team</option>
+              <option value="workspace">Department / workspace</option>
+            </select>
+          </label>
+          {subjectType !== "role" && (
+            <label className="min-w-52 flex-[2] space-y-1 text-xs">
+              <span className="font-medium text-muted-foreground">Subject</span>
+              <select
+                value={subjectId}
+                onChange={(event) => setSubjectId(event.target.value)}
+                className="h-9 w-full rounded-md border border-border/60 bg-background px-2"
+              >
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>{option.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div className="flex rounded-md border border-border/60 p-1">
+            <button
+              type="button"
+              onClick={() => setResourceType("permission")}
+              className={cn("rounded px-3 py-1.5 text-xs", resourceType === "permission" && "bg-primary/15 text-primary")}
+            >
+              Permissions
+            </button>
+            <button
+              type="button"
+              onClick={() => setResourceType("route")}
+              className={cn("rounded px-3 py-1.5 text-xs", resourceType === "route" && "bg-primary/15 text-primary")}
+            >
+              Page visibility
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {subjectType === "role" ? (
+        <AdminRolesPage embeddedTab={resourceType === "permission" ? "capabilities" : "pages"} />
+      ) : options.length === 0 ? (
+        <div className="rounded-xl border border-border/50 bg-card/40 p-6 text-sm text-muted-foreground">
+          No {subjectType === "workspace" ? "departments or workspaces" : `${subjectType}s`} are
+          available to administer.
+        </div>
+      ) : snapshotQ.isLoading ? (
+        <div className="rounded-xl border p-6 text-sm text-muted-foreground">Loading access policy…</div>
+      ) : snapshotQ.isError ? (
+        <EmptyState
+          icon={Lock}
+          title="Access policy unavailable"
+          description="The server could not load access policy configuration."
+          actionLabel="Retry"
+          onAction={() => snapshotQ.refetch()}
+        />
+      ) : snapshot && !snapshot.available ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+          <div className="font-medium text-amber-200">Access control not activated</div>
+          <p className="mt-1 text-xs text-muted-foreground">{snapshot.warning}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Controls remain unavailable until the pending migration passes human review.
+          </p>
+        </div>
+      ) : snapshot ? (
+        <>
+          {snapshot.warning && (
+            <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
+              {snapshot.warning}
+            </div>
+          )}
+          <label className="block space-y-1 text-xs">
+            <span className="font-medium text-muted-foreground">Audit reason for the next save</span>
+            <input
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Explain why this access change is required"
+              className="h-9 w-full rounded-md border border-border/60 bg-background px-3"
+            />
+          </label>
+          {saveError && <p className="text-xs text-destructive">{saveError}</p>}
+          {saveMessage && <p className="text-xs text-emerald-400">{saveMessage}</p>}
+          {entries.length === 0 ? (
+            <div className="rounded-xl border border-border/50 bg-card/40 p-6 text-sm text-muted-foreground">
+              No {resourceType === "permission" ? "permissions" : "configured routes"} are
+              available for this subject.
+            </div>
+          ) : (
+          <div className="max-h-[58vh] max-w-full overflow-auto rounded-xl border border-border/50">
+            <table className="w-full min-w-[720px] text-xs">
+              <thead className="sticky top-0 z-20 bg-card">
+                <tr>
+                  <th className="sticky left-0 z-30 w-64 bg-card px-3 py-2 text-left">Resource</th>
+                  <th className="px-3 py-2 text-left">Override</th>
+                  <th className="px-3 py-2 text-left">Effective</th>
+                  <th className="px-3 py-2 text-left">Inherited source</th>
+                  <th className="px-3 py-2 text-right">Save</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((entry) => {
+                  const draft = drafts[entry.key] ?? entry.override;
+                  return (
+                    <tr key={entry.key} className="border-t border-border/30">
+                      <td className="sticky left-0 bg-card px-3 py-2 font-mono">{entry.label}</td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={draft}
+                          onChange={(event) =>
+                            setDrafts((current) => ({
+                              ...current,
+                              [entry.key]: event.target.value as AccessOverrideEffect,
+                            }))
+                          }
+                          className="h-8 rounded border border-border/60 bg-background px-2"
+                        >
+                          <option value="inherit">Inherit</option>
+                          <option value="allow">Allow</option>
+                          <option value="deny">Deny</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <Badge variant="outline">{entry.effective}</Badge>
+                      </td>
+                      <td className="max-w-64 truncate px-3 py-2 text-muted-foreground" title={entry.source}>
+                        {entry.source}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <Button
+                          size="sm"
+                          disabled={
+                            draft === entry.override ||
+                            reason.trim().length < 3 ||
+                            saveMutation.isPending
+                          }
+                          onClick={() => saveMutation.mutate({ key: entry.key, effect: draft })}
+                        >
+                          Save
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          )}
+          <AccessAuditList audit={snapshot.audit} />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function AccessAuditList({ audit }: { audit: Array<{
+  id: string;
+  resourceType: AccessResourceType;
+  resourceKey: string;
+  previousEffect: "allow" | "deny" | null;
+  newEffect: "allow" | "deny" | null;
+  reason: string;
+  createdAt: string;
+}> }) {
+  return (
+    <section className="rounded-xl border border-border/50 bg-card/40 p-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Recent access audit
+      </h2>
+      {audit.length === 0 ? (
+        <p className="mt-2 text-xs text-muted-foreground">No override changes recorded.</p>
+      ) : (
+        <ul className="mt-2 space-y-1">
+          {audit.slice(0, 8).map((entry) => (
+            <li key={entry.id} className="rounded border border-border/30 px-2 py-1.5 text-xs">
+              <span className="font-mono">{entry.resourceKey}</span>
+              <span className="ml-2 text-muted-foreground">
+                {entry.previousEffect ?? "inherit"} → {entry.newEffect ?? "inherit"} · {entry.reason}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
