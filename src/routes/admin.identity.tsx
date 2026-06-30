@@ -1,8 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  Component,
-  type ErrorInfo,
-  type ReactNode,
   useEffect,
   useMemo,
   useState,
@@ -28,7 +25,6 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AccessControlConsole } from "@/components/admin/access/AccessControlConsole";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +50,24 @@ import { AdminRolesPage } from "./admin.roles";
 export const Route = createFileRoute("/admin/identity")({
   head: () => ({ meta: [{ title: "Identity & Access · IT Knowledge Center" }] }),
   component: IdentityAndAccessPage,
+  errorComponent: IdentityRouteError,
 });
+
+function IdentityRouteError({ reset }: { error: Error; reset: () => void }) {
+  return (
+    <div className="p-6">
+      <div className="rounded-xl border border-destructive/30 bg-card/50 p-6">
+        <h1 className="text-base font-semibold">Identity & Access could not be rendered</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          The route encountered invalid client data. No access changes were made.
+        </p>
+        <Button className="mt-4" size="sm" variant="outline" onClick={reset}>
+          Try again
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 /* ───────────────────────── Section model ───────────────────────── */
 
@@ -404,13 +417,7 @@ function SectionRouter({
 }) {
   const usersTab = SECTION_TO_USERS_TAB[section];
   const rolesTab = SECTION_TO_ROLES_TAB[section];
-  if (section === "access-control") {
-    return (
-      <AccessControlErrorBoundary>
-        <AccessControlConsole />
-      </AccessControlErrorBoundary>
-    );
-  }
+  if (section === "access-control") return <SafeAccessControlShell />;
   if (usersTab) return <PeopleAndOrganizationPage embeddedTab={usersTab} />;
   if (section === "effective") return <EffectiveUserAccessInspector />;
   if (section === "static") return <StaticFallbackReference />;
@@ -437,41 +444,106 @@ function SectionRouter({
   return null;
 }
 
-class AccessControlErrorBoundary extends Component<
-  { children: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
+function SafeAccessControlShell() {
+  const { effectiveAccess, teams: authTeams } = useAuth();
+  const usersQ = useQuery(adminUsersQuery());
+  const [kind, setKind] = useState<"users" | "teams" | "departments">("users");
+  const [search, setSearch] = useState("");
+  const users = Array.isArray(usersQ.data) ? usersQ.data : [];
+  const teams = Array.isArray(authTeams) ? authTeams : [];
+  const workspaces = Array.isArray(effectiveAccess?.workspaces)
+    ? effectiveAccess.workspaces
+    : [];
+  const needle = search.trim().toLowerCase();
+  const entries =
+    kind === "users"
+      ? users
+          .filter((user) => user && typeof user.id === "string")
+          .map((user) => ({
+            id: user.id,
+            name: typeof user.displayName === "string" ? user.displayName : "Unnamed user",
+            detail: typeof user.email === "string" ? user.email : "Email unavailable",
+          }))
+      : kind === "teams"
+        ? teams
+            .filter((team) => team && typeof team.id === "string")
+            .map((team) => ({
+              id: team.id,
+              name: typeof team.name === "string" ? team.name : "Unnamed team",
+              detail: typeof team.slug === "string" ? team.slug : "Team",
+            }))
+        : workspaces
+            .filter((workspace) => workspace && typeof workspace.id === "string")
+            .map((workspace) => ({
+              id: workspace.id,
+              name:
+                typeof workspace.name === "string" ? workspace.name : "Unnamed department",
+              detail:
+                typeof workspace.status === "string"
+                  ? workspace.status
+                  : "Status unavailable",
+            }));
+  const visibleEntries = entries.filter((entry) =>
+    `${entry.name} ${entry.detail}`.toLowerCase().includes(needle),
+  );
 
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Access Control console failed", error, info);
-  }
-
-  render() {
-    if (this.state.failed) {
-      return (
-        <div className="rounded-xl border border-border/50 bg-card/40 p-6">
-          <div className="text-sm font-medium">Access Control is temporarily unavailable</div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Account data could not be rendered safely. No access changes were made.
-          </p>
-          <Button
-            className="mt-3"
-            size="sm"
-            variant="outline"
-            onClick={() => this.setState({ failed: false })}
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2 rounded-xl border border-border/50 bg-card/50 p-2">
+        {(["users", "teams", "departments"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setKind(value)}
+            className={cn(
+              "rounded-lg px-4 py-2 text-sm capitalize",
+              kind === value
+                ? "bg-primary/15 font-medium text-primary"
+                : "text-muted-foreground hover:bg-background/60",
+            )}
           >
-            Try again
-          </Button>
+            {value}
+          </button>
+        ))}
+        <Button
+          className="ml-auto"
+          size="sm"
+          variant="outline"
+          disabled
+          title="Temporarily disabled while the full console is isolated."
+        >
+          Management temporarily disabled
+        </Button>
+      </div>
+      <div className="rounded-xl border border-border/50 bg-card/30">
+        <div className="border-b border-border/40 p-3">
+          <div className="relative max-w-md">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={`Search ${kind}…`}
+              className="h-9 w-full rounded-md border border-border/60 bg-background pl-8 pr-3 text-sm"
+            />
+          </div>
         </div>
-      );
-    }
-    return this.props.children;
-  }
+        <div className="max-h-[65vh] space-y-1 overflow-auto p-3">
+          {visibleEntries.length === 0 ? (
+            <p className="p-6 text-center text-sm text-muted-foreground">
+              No {kind} are available.
+            </p>
+          ) : (
+            visibleEntries.map((entry) => (
+              <div key={entry.id} className="rounded-lg border border-border/40 p-3">
+                <div className="text-sm font-medium">{entry.name}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{entry.detail}</div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function StaticFallbackReference() {
