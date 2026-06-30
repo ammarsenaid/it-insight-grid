@@ -2473,29 +2473,46 @@ function PageVisibilityTab({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-sky-500/25 bg-gradient-to-r from-sky-500/[0.08] via-sky-500/[0.04] to-transparent px-3 py-2 text-[11px] text-sky-100/90">
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-sky-500/15 text-sky-300">
-          <ShieldCheck className="h-3.5 w-3.5" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <strong className="font-semibold text-sky-100">Live, backend-driven.</strong>{" "}
-          Changes write to <code className="rounded bg-background/30 px-1 text-[10px]">role_page_visibility</code> instantly.
-          Visibility never bypasses backend permissions or RLS.
-        </span>
-        <Popover>
-          <PopoverTrigger asChild>
-            <button type="button" className="rounded-md border border-sky-400/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-100 transition-colors hover:bg-sky-500/20">
-              How it resolves
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 text-xs text-muted-foreground">
-            <p className="mb-2 font-semibold text-foreground">How visibility resolves</p>
-            <p>
-              Navigation requires both the <strong className="text-foreground">stored visibility</strong> row and the route's <strong className="text-foreground">backend permission contract</strong> to pass. Sessions may need a refresh after large changes.
-            </p>
-          </PopoverContent>
-        </Popover>
-      </div>
+      {source === "live" ? (
+        <div className="relative flex flex-wrap items-center gap-3 overflow-hidden rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/[0.10] via-sky-500/[0.05] to-transparent px-3.5 py-2.5 text-[11px] text-emerald-50/90">
+          <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-400 via-emerald-400/60 to-sky-400" />
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-400/30">
+            <ShieldCheck className="h-3.5 w-3.5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <strong className="font-semibold text-emerald-100">Live · backend-driven.</strong>{" "}
+            <span className="text-foreground/80">Writes hit</span>{" "}
+            <code className="rounded bg-background/40 px-1 py-0.5 font-mono text-[10px] text-emerald-200">role_page_visibility</code>{" "}
+            <span className="text-foreground/80">instantly — visibility never bypasses backend permissions or RLS.</span>
+          </span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" className="inline-flex items-center gap-1 rounded-md border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-100 transition-colors hover:bg-emerald-500/20">
+                <Info className="h-3 w-3" /> How it resolves
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 text-xs text-muted-foreground">
+              <p className="mb-2 font-semibold text-foreground">How visibility resolves</p>
+              <p>
+                Navigation requires both the <strong className="text-foreground">stored visibility</strong> row and the route's <strong className="text-foreground">backend permission contract</strong> to pass. Sessions may need a refresh after large changes.
+              </p>
+            </PopoverContent>
+          </Popover>
+        </div>
+      ) : (
+        <div className="relative flex flex-wrap items-center gap-3 overflow-hidden rounded-xl border border-slate-500/25 bg-gradient-to-r from-slate-500/[0.10] via-slate-500/[0.04] to-transparent px-3.5 py-2.5 text-[11px] text-slate-100/90">
+          <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-slate-300 via-slate-400/60 to-slate-500/0" />
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-slate-500/15 text-slate-200 ring-1 ring-slate-400/30">
+            <FileCode2 className="h-3.5 w-3.5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <strong className="font-semibold text-slate-100">Static fallback · read-only.</strong>{" "}
+            <span className="text-foreground/80">Compiled defaults from</span>{" "}
+            <code className="rounded bg-background/40 px-1 py-0.5 font-mono text-[10px] text-slate-200">PAGE_VISIBILITY</code>{" "}
+            <span className="text-foreground/80">— shown for reference and comparison. No runtime effect.</span>
+          </span>
+        </div>
+      )}
 
       <PageVisibilityToolbar
         source={source}
@@ -2678,6 +2695,48 @@ function LegendPill({ tone, icon: Icon, label }: { tone: "emerald" | "amber" | "
 }
 
 
+function PageVisibilityColumnHeader({
+  label,
+  scope,
+}: {
+  label: string;
+  scope: "platform" | "team";
+}) {
+  const tone =
+    scope === "platform"
+      ? {
+          stripe: "from-violet-400/80 via-violet-400/30 to-transparent",
+          tile: "border-violet-400/30 bg-violet-500/10 text-violet-100",
+          dot: "bg-violet-400",
+        }
+      : {
+          stripe: "from-sky-400/80 via-sky-400/30 to-transparent",
+          tile: "border-sky-400/30 bg-sky-500/10 text-sky-100",
+          dot: "bg-sky-400",
+        };
+  return (
+    <th
+      className="relative min-w-[112px] border-l border-border/20 px-2 pb-2.5 pt-3 text-center align-bottom font-medium"
+      title={`${label} · ${scope}`}
+    >
+      <span aria-hidden className={`absolute inset-x-3 top-0 h-[3px] rounded-b-full bg-gradient-to-r ${tone.stripe}`} />
+      <div className="flex flex-col items-center gap-1.5">
+        <span className={`grid h-7 w-7 place-items-center rounded-lg border text-[10px] font-bold tracking-wide shadow-sm ${tone.tile}`}>
+          {abbreviation(label)}
+        </span>
+        <span className="line-clamp-1 max-w-[110px] text-[10px] font-semibold leading-tight text-foreground">
+          {label}
+        </span>
+        <span className="inline-flex items-center gap-1 text-[8px] font-medium uppercase tracking-[0.14em] text-muted-foreground/80">
+          <span className={`h-1 w-1 rounded-full ${tone.dot}`} />
+          {scope}
+        </span>
+      </div>
+    </th>
+  );
+}
+
+
 function LivePageVisibilityMatrix({
   matrix,
   visibility,
@@ -2776,18 +2835,25 @@ function LivePageVisibilityMatrix({
   }
 
   return (
-    <div className="max-h-[68vh] overflow-auto rounded-xl border border-border/50 bg-background/20 shadow-inner">
+    <div className="max-h-[68vh] overflow-auto rounded-xl border border-border/50 bg-gradient-to-b from-background/40 to-background/10 shadow-inner">
       <table className="w-full min-w-[960px] border-separate border-spacing-0 text-xs">
         <thead className="sticky top-0 z-30 bg-card/95 shadow-[0_1px_0_hsl(var(--border))] backdrop-blur">
           <tr className="text-left text-foreground">
-            <th className="sticky left-0 z-40 min-w-72 border-r border-border/50 bg-card px-4 py-3 font-semibold">
-              <div>Route</div>
-              <div className="mt-0.5 text-[9px] font-normal uppercase tracking-wider text-muted-foreground">
-                Page and path
+            <th className="sticky left-0 z-40 min-w-72 border-r border-border/50 bg-card px-4 py-2.5 font-semibold">
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <Eye className="h-3 w-3 text-emerald-300/70" />
+                <span>Route</span>
+              </div>
+              <div className="mt-0.5 text-[9px] font-normal uppercase tracking-[0.12em] text-muted-foreground">
+                Page · path
               </div>
             </th>
             {platformRoles.map((dbRole) => (
-              <MatrixColumnHeader key={dbRole.id} dbRole={dbRole} />
+              <PageVisibilityColumnHeader
+                key={dbRole.id}
+                label={PAGE_VISIBILITY_ROLE_LABELS[dbRole.roleKey] ?? dbRole.name}
+                scope={dbRole.scope}
+              />
             ))}
           </tr>
         </thead>
@@ -3119,39 +3185,42 @@ function StaticPageVisibilityMatrix({
     );
   }
   return (
-    <div className="max-h-[68vh] overflow-auto rounded-xl border border-border/50 bg-background/20 shadow-inner">
+    <div className="max-h-[68vh] overflow-auto rounded-xl border border-border/50 bg-gradient-to-b from-background/40 to-background/10 shadow-inner">
       <table className="w-full min-w-[960px] border-separate border-spacing-0 text-xs">
         <thead className="sticky top-0 z-30 bg-card/95 shadow-[0_1px_0_hsl(var(--border))] backdrop-blur">
           <tr className="text-left text-foreground">
-            <th className="sticky left-0 z-40 min-w-72 border-r border-border/50 bg-card px-4 py-3 font-semibold">
-              <div>Route</div>
-              <div className="mt-0.5 text-[9px] font-normal uppercase tracking-wider text-muted-foreground">
+            <th className="sticky left-0 z-40 min-w-72 border-r border-border/50 bg-card px-4 py-2.5 font-semibold">
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <FileCode2 className="h-3 w-3 text-slate-300/70" />
+                <span>Route</span>
+              </div>
+              <div className="mt-0.5 text-[9px] font-normal uppercase tracking-[0.12em] text-muted-foreground">
                 Static page rule
               </div>
             </th>
             {ROLES.map((staticRole) => (
-              <th
+              <PageVisibilityColumnHeader
                 key={staticRole.id}
-                className="min-w-28 border-l border-border/20 px-2 py-3 text-center font-semibold"
-              >
-                <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-md border border-border/50 bg-background/60 text-[10px] font-bold">
-                  {abbreviation(PAGE_VISIBILITY_ROLE_LABELS[staticRole.id] ?? staticRole.label)}
-                </span>
-                <div className="mt-1 text-[9px] font-medium text-foreground">
-                  {PAGE_VISIBILITY_ROLE_LABELS[staticRole.id] ?? staticRole.label}
-                </div>
-              </th>
+                label={PAGE_VISIBILITY_ROLE_LABELS[staticRole.id] ?? staticRole.label}
+                scope="platform"
+              />
             ))}
           </tr>
         </thead>
         <tbody>
           {grouped.map(({ area, pages }) => {
             const isCollapsed = collapsed.has(`pv-static:${area}`);
+            const allowedCount = pages.reduce(
+              (sum, p) => sum + ROLES.filter((r) => (PAGE_VISIBILITY[p.path] ?? []).includes(r.id)).length,
+              0,
+            );
+            const total = pages.length * ROLES.length;
+            const pct = total > 0 ? Math.round((allowedCount / total) * 100) : 0;
             return (
               <>
-                <tr key={`area-${area}`} className="bg-muted/20">
+                <tr key={`area-${area}`} className="bg-gradient-to-r from-slate-500/[0.06] via-muted/20 to-transparent">
                   <td
-                    className="sticky left-0 z-30 min-w-72 border-y border-r border-border/40 bg-card px-3 py-1.5 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
+                    className="sticky left-0 z-30 min-w-72 border-y border-r border-border/40 bg-card px-3 py-2 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
                   >
                     <button
                       type="button"
@@ -3170,9 +3239,21 @@ function StaticPageVisibilityMatrix({
                       <span className="text-[10px] font-medium text-muted-foreground">
                         · {pages.length} route{pages.length === 1 ? "" : "s"}
                       </span>
+                      <span className="ml-auto inline-flex items-center gap-2">
+                        <span className="relative h-1.5 w-20 overflow-hidden rounded-full bg-muted/40" aria-hidden>
+                          <span
+                            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-slate-300 to-slate-400"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </span>
+                        <span className="tabular-nums text-[10px] font-semibold text-slate-200">
+                          {allowedCount}
+                          <span className="text-muted-foreground">/{total}</span>
+                        </span>
+                      </span>
                     </button>
                   </td>
-                  <td colSpan={ROLES.length} className="border-y border-border/40 bg-muted/20" />
+                  <td colSpan={ROLES.length} className="border-y border-border/40" />
                 </tr>
 
                 {!isCollapsed &&
@@ -3181,7 +3262,7 @@ function StaticPageVisibilityMatrix({
                       <td
                         className={`sticky left-0 z-20 min-w-72 border-r border-b border-border/30 bg-card px-4 shadow-[2px_0_0_hsl(var(--border)/0.4)] ${density.rowPaddingY} group-hover/route:bg-muted`}
                       >
-                        <div className="font-semibold text-foreground">{page.label}</div>
+                        <div className="truncate font-semibold text-foreground">{page.label}</div>
                         <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
                           {page.path}
                         </div>
@@ -3192,20 +3273,21 @@ function StaticPageVisibilityMatrix({
                           <td
                             key={staticRole.id}
                             className={`border-l border-b border-border/20 px-3 py-2 text-center align-middle ${
-                              visible ? "bg-emerald-500/[0.025]" : ""
+                              visible ? "bg-emerald-500/[0.05]" : ""
                             }`}
                           >
                             <span
-                              className={`mx-auto flex items-center justify-center rounded-md border ${density.cellSize} ${
+                              className={`mx-auto inline-flex items-center justify-center rounded-md border ${density.cellSize} ${
                                 visible
-                                  ? "border-emerald-500/25 bg-emerald-500/10"
-                                  : "border-border/30 bg-background/20"
+                                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.15)]"
+                                  : "border-border/30 bg-background/20 text-muted-foreground/50"
                               }`}
+                              aria-label={visible ? "Allowed" : "Hidden"}
                             >
                               {visible ? (
-                                <Check className="h-3.5 w-3.5 text-emerald-300" />
+                                <Check className="h-3.5 w-3.5" strokeWidth={3} />
                               ) : (
-                                <X className="h-3 w-3 text-muted-foreground/50" />
+                                <span className="h-1 w-1 rounded-full bg-current opacity-60" aria-hidden />
                               )}
                             </span>
                           </td>
