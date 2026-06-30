@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { AccessControlConsole } from "@/components/admin/access/AccessControlConsole";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { can, useRole } from "@/lib/permissions";
+import { can, PAGE_VISIBILITY, ROLES, useRole } from "@/lib/permissions";
 import { adminRolePageVisibilityQuery, adminRolesQuery } from "@/lib/admin-roles/queries";
 import { adminUsersQuery } from "@/lib/admin-users/queries";
 import { getAdminUserAccessExplanation } from "@/lib/admin-users/create-user";
@@ -51,6 +52,8 @@ export const Route = createFileRoute("/admin/identity")({
 /* ───────────────────────── Section model ───────────────────────── */
 
 type SectionKey =
+  | "access-control"
+  | "static"
   | "users"
   | "departments"
   | "teams"
@@ -73,35 +76,27 @@ type Section = {
 };
 
 const SECTIONS: Section[] = [
-  { key: "users",       label: "Users",         hint: "Accounts & status",         icon: Users,       group: "people"   },
-  { key: "departments", label: "Departments",   hint: "Workspaces & ownership",    icon: Building2,   group: "people"   },
-  { key: "teams",       label: "Teams",         hint: "Routing & on-call",         icon: UsersRound,  group: "people"   },
-  { key: "roles",       label: "Roles",         hint: "Role catalog & scope",      icon: KeyRound,    group: "access"   },
-  { key: "pages",       label: "Page visibility", hint: "Route allow-list",        icon: Eye,         group: "access"   },
-  { key: "permissions", label: "Capabilities",  hint: "Fine-grained grants",       icon: Layers,      group: "access", advanced: true },
-  { key: "access-map",  label: "Access map",    hint: "Modules × roles",           icon: ShieldCheck, group: "insights" },
-  { key: "preview",     label: "Role preview",  hint: "Simulate a role",           icon: Network,     group: "insights" },
-  { key: "effective",   label: "Effective access", hint: "User access & provenance", icon: ShieldCheck, group: "insights" },
+  { key: "access-control", label: "Access Control", hint: "Unified identity management", icon: ShieldCheck, group: "people" },
+  { key: "roles", label: "Roles", hint: "Role catalog & scope", icon: KeyRound, group: "access" },
+  { key: "access-map", label: "Access map", hint: "Modules × roles", icon: ShieldCheck, group: "access" },
+  { key: "preview", label: "Role preview", hint: "Simulate a role", icon: Network, group: "access" },
+  { key: "static", label: "Static fallback", hint: "Read-only code reference", icon: Eye, group: "insights" },
+  { key: "effective", label: "Effective access debug", hint: "Detailed provenance", icon: Layers, group: "insights" },
 ];
 
 const SECTION_TO_USERS_TAB: Partial<Record<SectionKey, "users" | "departments" | "teams" | "access">> = {
-  users: "users",
-  departments: "departments",
-  teams: "teams",
   "access-map": "access",
 };
 
 const SECTION_TO_ROLES_TAB: Partial<Record<SectionKey, "roles" | "capabilities" | "pages" | "preview">> = {
   roles: "roles",
   preview: "preview",
-  permissions: "capabilities",
-  pages: "pages",
 };
 
 const GROUP_LABELS: Record<SectionGroup, string> = {
-  people: "People",
-  access: "Access",
-  insights: "Insights",
+  people: "Main",
+  access: "Advanced",
+  insights: "Reference",
 };
 
 /* ───────────────────────── Page ───────────────────────── */
@@ -121,7 +116,7 @@ function IdentityAndAccessPage() {
   const role = useRole();
   const allowed = can("admin.users", role) || can("admin.roles", role);
 
-  const [section, setSection] = useState<SectionKey>("users");
+  const [section, setSection] = useState<SectionKey>("access-control");
   const [showAdvanced, setShowAdvanced] = useState(() => readPref("advanced", false));
   const [query, setQuery] = useState("");
   const [leftOpen, setLeftOpen] = useState(() => readPref("leftOpen", true));
@@ -402,8 +397,10 @@ function SectionRouter({
 }) {
   const usersTab = SECTION_TO_USERS_TAB[section];
   const rolesTab = SECTION_TO_ROLES_TAB[section];
+  if (section === "access-control") return <AccessControlConsole />;
   if (usersTab) return <PeopleAndOrganizationPage embeddedTab={usersTab} />;
   if (section === "effective") return <EffectiveUserAccessInspector />;
+  if (section === "static") return <StaticFallbackReference />;
   if (section === "permissions" || section === "pages") {
     return (
       <AccessPolicyConsole
@@ -427,6 +424,49 @@ function SectionRouter({
   return null;
 }
 
+function StaticFallbackReference() {
+  const routes = Object.entries(PAGE_VISIBILITY).sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
+        <div className="text-sm font-medium text-amber-200">Static fallback · read-only</div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Code-defined recovery reference only. It has no edit or save controls and does not
+          replace stored configuration or access overrides.
+        </p>
+      </div>
+      <div className="max-h-[70vh] max-w-full overflow-auto rounded-xl border border-border/50">
+        <table className="w-full min-w-[760px] text-xs">
+          <thead className="sticky top-0 z-20 bg-card">
+            <tr>
+              <th className="sticky left-0 z-30 w-56 bg-card px-3 py-2 text-left">Route</th>
+              {ROLES.map((role) => (
+                <th key={role.id} className="w-24 px-2 py-2 text-center">{role.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {routes.map(([routePath, allowedRoles]) => (
+              <tr key={routePath} className="border-t border-border/30">
+                <td className="sticky left-0 bg-card px-3 py-2 font-mono">{routePath}</td>
+                {ROLES.map((role) => (
+                  <td key={role.id} className="px-2 py-2 text-center">
+                    <span className={allowedRoles.includes(role.id) ? "text-emerald-400" : "text-muted-foreground/40"}>
+                      {allowedRoles.includes(role.id) ? "Allowed" : "—"}
+                    </span>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* ───────────────────────── Section primary actions (compact, in strip) ───────────────────────── */
 
 function fire(name: string) {
@@ -446,6 +486,18 @@ function SectionPrimaryActions({
 }) {
   const actions = (() => {
     switch (section) {
+      case "access-control":
+        return {
+          title: "One access console",
+          body: "Manage users, teams, departments, overrides, effective access, and history in one master-detail workspace.",
+          bullets: ["Select a subject type", "Select one item", "Manage everything in the detail tabs"],
+        };
+      case "static":
+        return {
+          title: "Static fallback reference",
+          body: "Code-defined page visibility is read-only and exists only as a recovery reference.",
+          bullets: ["No edits", "No runtime saves", "Stored configuration remains authoritative"],
+        };
       case "users":
         return canCreateUser
           ? [{ label: "Add user", icon: UserPlus, onClick: () => fire("itkc:create-user") }]
@@ -744,7 +796,7 @@ function ContextRail({
               {grantedPerms.length > 8 && (
                 <button
                   type="button"
-                  onClick={() => onJump("permissions")}
+                  onClick={() => onJump("access-control")}
                   className="text-[10px] text-muted-foreground hover:text-foreground"
                 >
                   view all →
@@ -783,7 +835,7 @@ function ContextRail({
               {visibleRoutes.length > 6 && (
                 <button
                   type="button"
-                  onClick={() => onJump("pages")}
+                  onClick={() => onJump("static")}
                   className="text-[10px] text-muted-foreground hover:text-foreground"
                 >
                   view all →
@@ -829,23 +881,17 @@ function ContextRail({
           <div className="space-y-1">
             {isPlatformAdmin && (
               <RailLink
-                label="Add user"
-                onClick={() => {
-                  onJump("users");
-                  setTimeout(() => fire("itkc:create-user"), 50);
-                }}
+                label="Open user management"
+                onClick={() => onJump("access-control")}
               />
             )}
             {canManageTeams && (
               <RailLink
-                label="Create team"
-                onClick={() => {
-                  onJump("teams");
-                  setTimeout(() => fire("itkc:create-team"), 50);
-                }}
+                label="Open team management"
+                onClick={() => onJump("access-control")}
               />
             )}
-            <RailLink label="Manage visibility" onClick={() => onJump("pages")} />
+            <RailLink label="Manage access" onClick={() => onJump("access-control")} />
             <RailLink label="Module access overview" onClick={() => onJump("access-map")} />
           </div>
         </div>

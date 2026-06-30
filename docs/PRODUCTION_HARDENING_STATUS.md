@@ -2458,3 +2458,24 @@ Status: IMPLEMENTED LOCALLY; DATABASE ACTIVATION PENDING.
 - Updated Identity & Access to call the real HTTP endpoint. The production build
   verified route registration; its generated route-tree change was not retained
   because generated files are outside this milestone's allowed change set.
+
+## Milestone 107 - Unified Access Control Console
+
+Date: 2026-06-30
+
+Status: IMPLEMENTED LOCALLY.
+
+- Consolidated user, team, and department/workspace management into one
+  master-detail Access Control workspace under `/admin/identity`.
+- Added subject lists with search and status filters plus detail tabs for
+  overview, assignments, permissions, page visibility, effective access, and
+  audit history.
+- Reused real user and team CRUD/member mutations and `/api/admin-access` for
+  permission and page-visibility overrides. Access controls remain gated by the
+  backend activation marker and active-platform-administrator authorization.
+- Workspace CRUD and user deletion remain visibly disabled with “Backend action
+  not available yet.” because no approved backend mutations exist.
+- Simplified Identity navigation to Access Control plus advanced/reference Roles,
+  Access map, Role preview, Static fallback, and Effective access debug.
+- Replaced the Static fallback navigation target with a dedicated compact,
+  read-only code-reference matrix containing no mutation controls.
