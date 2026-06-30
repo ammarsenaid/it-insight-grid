@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { can, useRole } from "@/lib/permissions";
 import { adminAccess } from "@/lib/admin-access/functions";
 import type {
   AccessOverrideEffect,
@@ -81,8 +80,7 @@ const DETAIL_TABS: Array<{ key: DetailTab; label: string }> = [
 
 export function AccessControlConsole() {
   const { session, effectiveAccess, isPlatformAdmin } = useAuth();
-  const role = useRole();
-  const canManageTeams = can("admin.teams", role);
+  const canManageTeams = isPlatformAdmin;
   const queryClient = useQueryClient();
   const usersQ = useQuery(adminUsersQuery());
   const teamsQ = useQuery(teamsQuery());
@@ -95,23 +93,30 @@ export function AccessControlConsole() {
   const [editor, setEditor] = useState<"create" | "edit" | null>(null);
 
   const workspaces = useMemo(
-    () => effectiveAccess?.workspaces ?? [],
+    () => (Array.isArray(effectiveAccess?.workspaces) ? effectiveAccess.workspaces : []),
     [effectiveAccess?.workspaces],
   );
   const items = useMemo<SubjectItem[]>(() => {
     if (kind === "user") {
-      return (usersQ.data ?? []).map((user) => ({
+      const users = Array.isArray(usersQ.data) ? usersQ.data : [];
+      return users.filter(Boolean).map((user) => ({
         id: user.id,
         name: user.displayName,
         secondary: user.email ?? "Email unavailable",
         status: user.isActive ? "active" : "inactive",
-        search: [user.displayName, user.email ?? "", ...user.roleNames, ...user.teamNames]
+        search: [
+          user.displayName,
+          user.email ?? "",
+          ...(Array.isArray(user.roleNames) ? user.roleNames : []),
+          ...(Array.isArray(user.teamNames) ? user.teamNames : []),
+        ]
           .join(" ")
           .toLowerCase(),
       }));
     }
     if (kind === "team") {
-      return (teamsQ.data ?? []).map((team) => ({
+      const teams = Array.isArray(teamsQ.data) ? teamsQ.data : [];
+      return teams.filter(Boolean).map((team) => ({
         id: team.id,
         name: team.name,
         secondary: `${team.memberCount} member${team.memberCount === 1 ? "" : "s"} · ${team.slug}`,
@@ -120,15 +125,19 @@ export function AccessControlConsole() {
         search: [team.name, team.slug, team.description ?? ""].join(" ").toLowerCase(),
       }));
     }
-    return workspaces.map((workspace) => ({
-      id: workspace.id,
-      name: workspace.name,
-      secondary: `${workspace.type} · ${workspace.teams.length} team${workspace.teams.length === 1 ? "" : "s"}`,
-      status: workspace.status,
-      search: [workspace.name, workspace.slug, workspace.type, workspace.status]
-        .join(" ")
-        .toLowerCase(),
-    }));
+    return workspaces.filter(Boolean).map((workspace) => {
+      const workspaceTeams = Array.isArray(workspace.teams) ? workspace.teams : [];
+      return {
+        id: workspace.id,
+        name: workspace.name,
+        secondary: `${workspace.type} · ${workspaceTeams.length} team${workspaceTeams.length === 1 ? "" : "s"}`,
+        status: workspace.status,
+        search: [workspace.name, workspace.slug, workspace.type, workspace.status]
+          .filter((value): value is string => typeof value === "string")
+          .join(" ")
+          .toLowerCase(),
+      };
+    });
   }, [kind, teamsQ.data, usersQ.data, workspaces]);
   const visibleItems = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -273,8 +282,8 @@ export function AccessControlConsole() {
               mode={editor}
               selectedId={selectedId}
               accessToken={session?.access_token ?? ""}
-              users={usersQ.data ?? []}
-              teams={teamsQ.data ?? []}
+              users={Array.isArray(usersQ.data) ? usersQ.data : []}
+              teams={Array.isArray(teamsQ.data) ? teamsQ.data : []}
               roleOptions={formOptionsQ.data?.roles ?? []}
               teamOptions={formOptionsQ.data?.teams ?? []}
               onCancel={() => setEditor(null)}
@@ -388,8 +397,8 @@ export function AccessControlConsole() {
                 selectedId={selected.id}
                 tab={tab}
                 accessToken={session?.access_token ?? ""}
-                users={usersQ.data ?? []}
-                teams={teamsQ.data ?? []}
+                users={Array.isArray(usersQ.data) ? usersQ.data : []}
+                teams={Array.isArray(teamsQ.data) ? teamsQ.data : []}
                 workspaces={workspaces}
                 canManageTeams={canManageTeams}
                 canMutateAccess={isPlatformAdmin}
@@ -618,7 +627,18 @@ function SubjectDetails({
         <OverviewValue label="Type" value={kind === "workspace" ? "Department / workspace" : kind} />
         <OverviewValue label="Status" value={user ? (user.isActive ? "Active" : "Inactive") : workspace?.status ?? "Active"} />
         <OverviewValue label="Description" value={team?.description ?? workspace?.type ?? "No description"} />
-        <OverviewValue label="Assignments" value={user ? `${user.roleNames.length} role(s), ${user.teamNames.length} team(s)` : team ? `${team.memberCount} member(s)` : `${workspace?.teams.length ?? 0} team(s)`} />
+        <OverviewValue
+          label="Assignments"
+          value={
+            user
+              ? `${Array.isArray(user.roleNames) ? user.roleNames.length : 0} role(s), ${
+                  Array.isArray(user.teamNames) ? user.teamNames.length : 0
+                } team(s)`
+              : team
+                ? `${team.memberCount ?? 0} member(s)`
+                : `${Array.isArray(workspace?.teams) ? workspace.teams.length : 0} team(s)`
+          }
+        />
       </div>
     );
   }
@@ -629,11 +649,23 @@ function SubjectDetails({
       <div className="space-y-3 p-4">
         {user && (
           <>
-            <OverviewValue label="Roles" value={user.roleNames.join(", ") || "No global role"} />
-            <OverviewValue label="Teams" value={user.teamNames.join(", ") || "No team"} />
+            <OverviewValue
+              label="Roles"
+              value={
+                (Array.isArray(user.roleNames) ? user.roleNames : []).join(", ") ||
+                "No global role"
+              }
+            />
+            <OverviewValue
+              label="Teams"
+              value={
+                (Array.isArray(user.teamNames) ? user.teamNames : []).join(", ") ||
+                "No team"
+              }
+            />
           </>
         )}
-        {workspace?.teams.map((entry) => (
+        {(Array.isArray(workspace?.teams) ? workspace.teams : []).map((entry) => (
           <div key={entry.id} className="rounded-lg border p-3 text-sm">{entry.name}</div>
         ))}
         <Button disabled variant="outline" title="Backend action not available yet.">
