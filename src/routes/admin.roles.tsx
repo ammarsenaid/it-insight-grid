@@ -20,6 +20,7 @@ import {
   Loader2,
   Lock,
   MoreHorizontal,
+  Network,
   Pencil,
   RefreshCw,
   Search,
@@ -2470,20 +2471,28 @@ function PageVisibilityTab({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-sky-500/30 bg-sky-500/[0.07] p-3 text-xs text-sky-100">
-        <div className="flex items-start gap-2">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-semibold">Backend-driven effective access is active</p>
-            <p className="mt-1 leading-relaxed text-sky-100/80">
-              Changes save and refetch from{" "}
-              <code className="rounded bg-background/30 px-1">role_page_visibility</code>.
-              Navigation and route guards require this visibility plus the route&apos;s backend
-              permission contract. Existing sessions may need refresh or sign-out and sign-in
-              afterward. Visibility never grants backend data permissions or bypasses RLS.
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-sky-500/25 bg-gradient-to-r from-sky-500/[0.08] via-sky-500/[0.04] to-transparent px-3 py-2 text-[11px] text-sky-100/90">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-sky-500/15 text-sky-300">
+          <ShieldCheck className="h-3.5 w-3.5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <strong className="font-semibold text-sky-100">Live, backend-driven.</strong>{" "}
+          Changes write to <code className="rounded bg-background/30 px-1 text-[10px]">role_page_visibility</code> instantly.
+          Visibility never bypasses backend permissions or RLS.
+        </span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className="rounded-md border border-sky-400/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-100 transition-colors hover:bg-sky-500/20">
+              How it resolves
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 text-xs text-muted-foreground">
+            <p className="mb-2 font-semibold text-foreground">How visibility resolves</p>
+            <p>
+              Navigation requires both the <strong className="text-foreground">stored visibility</strong> row and the route's <strong className="text-foreground">backend permission contract</strong> to pass. Sessions may need a refresh after large changes.
             </p>
-          </div>
-        </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <PageVisibilityToolbar
@@ -2494,15 +2503,6 @@ function PageVisibilityTab({
         onSearch={setSearch}
         diffLens={diffLens}
         onDiffLens={setDiffLens}
-      />
-
-      <MatrixLegend
-        items={[
-          { icon: Check, label: "Visible + allowed", tone: "text-emerald-300" },
-          { icon: AlertCircle, label: "Visibility/permission mismatch", tone: "text-amber-300" },
-          { icon: Lock, label: "Protected recovery route", tone: "text-amber-300" },
-          { icon: ShieldAlert, label: "Missing backend contract", tone: "text-rose-300" },
-        ]}
       />
 
       {source === "live" && rolesQuery.data && visibilityQuery.data ? (
@@ -2603,31 +2603,31 @@ function PageVisibilityToolbar({
         </label>
       )}
 
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button size="sm" variant="outline" className="ml-auto h-9 gap-1.5">
-            <Info className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">How visibility resolves</span>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-72 text-xs text-muted-foreground">
-          <p className="mb-2 font-semibold text-foreground">How visibility resolves</p>
-          <p>
-            <strong className="text-foreground">Stored</strong> rows in{" "}
-            <code className="rounded bg-muted/40 px-1 text-[10px]">role_page_visibility</code> are
-            server-validated and refetched after every save. The staged effective-access RPC
-            supplies these routes to navigation and route guards.
-          </p>
-          <p className="mt-2">
-            <strong className="text-foreground">Static</strong> PAGE_VISIBILITY is retained only for
-            comparison and explicit preview tooling. Backend permissions and RLS remain the required
-            authorization layer.
-          </p>
-        </PopoverContent>
-      </Popover>
+      <div className="ml-auto hidden items-center gap-1.5 md:flex">
+        <LegendPill tone="emerald" icon={Check} label="Allowed" />
+        <LegendPill tone="amber" icon={AlertCircle} label="Mismatch" />
+        <LegendPill tone="amber" icon={Lock} label="Protected" />
+        <LegendPill tone="rose" icon={ShieldAlert} label="No contract" />
+      </div>
     </div>
   );
 }
+
+function LegendPill({ tone, icon: Icon, label }: { tone: "emerald" | "amber" | "rose"; icon: typeof Check; label: string }) {
+  const toneClass =
+    tone === "emerald"
+      ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-200"
+      : tone === "amber"
+        ? "border-amber-500/25 bg-amber-500/10 text-amber-200"
+        : "border-rose-500/25 bg-rose-500/10 text-rose-200";
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${toneClass}`}>
+      <Icon className="h-3 w-3" />
+      {label}
+    </span>
+  );
+}
+
 
 function LivePageVisibilityMatrix({
   matrix,
@@ -3264,44 +3264,44 @@ function RolePreviewTab({
 
       <div className="space-y-3">
         <div
-          className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${
+          className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] ${
             usesLivePreview
-              ? "border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-100"
-              : "border-amber-500/30 bg-amber-500/10 text-amber-100"
+              ? "border-emerald-500/25 bg-gradient-to-r from-emerald-500/[0.08] via-emerald-500/[0.03] to-transparent text-emerald-100/95"
+              : "border-amber-500/30 bg-gradient-to-r from-amber-500/[0.08] via-amber-500/[0.03] to-transparent text-amber-100/95"
           }`}
           role="status"
         >
-          {usesLivePreview ? (
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-          ) : (
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          )}
-          <p>
-            <strong>
-              {usesLivePreview ? "Effective-access preview" : "Static fallback preview"}.
-            </strong>{" "}
-            {usesLivePreview
-              ? "Results combine stored route visibility with database permission grants. Self-scoped routes still depend on the signed-in user and RLS."
-              : "Live role data is unavailable, so these results are illustrative and must not be treated as effective access."}
+          <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${usesLivePreview ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>
+            {usesLivePreview ? <ShieldCheck className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+          </span>
+          <p className="min-w-0 flex-1 leading-snug">
+            <strong className="font-semibold">
+              {usesLivePreview ? "Effective-access preview" : "Static fallback preview"}
+            </strong>
+            <span className="ml-1.5 opacity-80">
+              {usesLivePreview
+                ? "Combines stored route visibility with backend grants. Self-scoped routes still depend on RLS."
+                : "Live role data unavailable — these results are illustrative only."}
+            </span>
           </p>
         </div>
         <Tabs value={subtab} onValueChange={(v) => setSubtab(v as PreviewSubtab)}>
           <TabsList className="h-auto rounded-xl border border-border/50 bg-card/40 p-1 shadow-sm">
-            <TabsTrigger value="pages" className="gap-1.5 text-xs">
+            <TabsTrigger value="pages" className="gap-1.5 text-xs data-[state=active]:bg-emerald-500/15 data-[state=active]:text-emerald-100">
               <Eye className="h-3 w-3" /> Pages
-              <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[9px]">
+              <Badge variant="outline" className="ml-1 border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0 text-[9px] text-emerald-200">
                 {previewVisible.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="capabilities" className="gap-1.5 text-xs">
+            <TabsTrigger value="capabilities" className="gap-1.5 text-xs data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-100">
               <ShieldCheck className="h-3 w-3" /> Capabilities
-              <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[9px]">
+              <Badge variant="outline" className="ml-1 border-violet-500/30 bg-violet-500/10 px-1.5 py-0 text-[9px] text-violet-200">
                 {previewAllowedCaps}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="restrictions" className="gap-1.5 text-xs">
+            <TabsTrigger value="restrictions" className="gap-1.5 text-xs data-[state=active]:bg-rose-500/15 data-[state=active]:text-rose-100">
               <EyeOff className="h-3 w-3" /> Restrictions
-              <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[9px]">
+              <Badge variant="outline" className="ml-1 border-rose-500/30 bg-rose-500/10 px-1.5 py-0 text-[9px] text-rose-200">
                 {previewHidden.length}
               </Badge>
             </TabsTrigger>
@@ -3365,17 +3365,25 @@ function ActingAsPanel({
   setCompare: (role: Role | null) => void;
 }) {
   const accent = SCOPE_ACCENTS[scopeAccent(dbRole?.scope)];
+  const scopeHalo =
+    dbRole?.scope === "platform"
+      ? "from-violet-500/20 via-violet-500/[0.06] to-transparent"
+      : dbRole?.scope === "team"
+        ? "from-sky-500/20 via-sky-500/[0.06] to-transparent"
+        : "from-slate-500/15 via-slate-500/[0.04] to-transparent";
   return (
     <section
       aria-label="Acting as role"
-      className="space-y-3 rounded-2xl border border-border/50 bg-card/60 p-4 shadow-sm lg:sticky lg:top-[150px] lg:self-start"
+      className="relative space-y-3 overflow-hidden rounded-2xl border border-border/50 bg-card/60 p-4 shadow-sm lg:sticky lg:top-[150px] lg:self-start"
     >
-      <div>
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${scopeHalo}`} aria-hidden />
+
+      <div className="relative">
         <Label
           htmlFor="role-preview-selector"
-          className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground"
+          className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground"
         >
-          Acting as
+          <Network className="h-3 w-3" /> Simulating as
         </Label>
         <select
           id="role-preview-selector"
@@ -3391,10 +3399,10 @@ function ActingAsPanel({
         </select>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="relative flex items-center gap-3 rounded-xl border border-border/40 bg-background/40 p-3">
         <span
           aria-hidden
-          className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-[12px] font-bold tracking-wider ring-1 ${accent.ring}`}
+          className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-[12px] font-bold tracking-wider ring-2 ring-offset-2 ring-offset-card ${accent.ring}`}
         >
           {abbreviation(dbRole?.name ?? roleLabel(preview))}
         </span>
@@ -3402,7 +3410,7 @@ function ActingAsPanel({
           <div className="truncate text-sm font-semibold text-foreground">
             {dbRole?.name ?? roleLabel(preview)}
           </div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <Badge
               variant="outline"
               className={`px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider ${accent.chip}`}
@@ -3413,25 +3421,25 @@ function ActingAsPanel({
               variant="outline"
               className="border-border/50 bg-background/30 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground"
             >
-              Active: {roleLabel(role)}
+              Active · {roleLabel(role)}
             </Badge>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="relative grid grid-cols-3 gap-2">
         <RailStat label="Pages" value={visibleCount} />
         <RailStat label="Hidden" value={hiddenCount} />
         <RailStat label="Caps" value={capabilityCount} />
       </div>
 
       {!isSignedIn && (
-        <Button size="sm" className="w-full" onClick={() => setRole(preview)}>
+        <Button size="sm" className="relative w-full" onClick={() => setRole(preview)}>
           Activate this role
         </Button>
       )}
 
-      <div className="space-y-1.5 border-t border-border/40 pt-3">
+      <div className="relative space-y-1.5 border-t border-border/40 pt-3">
         <Label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           <ArrowLeftRight className="h-3 w-3" /> Compare with
         </Label>
@@ -3447,10 +3455,13 @@ function ActingAsPanel({
             </option>
           ))}
         </select>
-        {compare && (
+        {compare ? (
           <p className="text-[10px] leading-relaxed text-muted-foreground">
-            Backend permission grants below highlight differences against{" "}
-            <strong className="text-foreground">{roleLabel(compare)}</strong>.
+            Differences vs <strong className="text-foreground">{roleLabel(compare)}</strong> highlight in the capabilities panel.
+          </p>
+        ) : (
+          <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+            Pick a second role to diff capability grants side-by-side.
           </p>
         )}
       </div>
@@ -3463,6 +3474,20 @@ function PreviewPagesGrid({ pages, search }: { pages: PreviewRoute[]; search: st
   const filtered = pages.filter(
     (p) => q.length === 0 || p.label.toLowerCase().includes(q) || p.path.toLowerCase().includes(q),
   );
+  const grouped = useMemo(() => {
+    const map = new Map<string, PreviewRoute[]>();
+    for (const page of filtered) {
+      const list = map.get(page.area) ?? [];
+      list.push(page);
+      map.set(page.area, list);
+    }
+    const ordered = [
+      ...AREA_ORDER.filter((a) => map.has(a)),
+      ...Array.from(map.keys()).filter((a) => !AREA_ORDER.includes(a)),
+    ];
+    return ordered.map((area) => ({ area, pages: map.get(area) ?? [] }));
+  }, [filtered]);
+
   if (filtered.length === 0) {
     return (
       <EmptyState
@@ -3473,29 +3498,49 @@ function PreviewPagesGrid({ pages, search }: { pages: PreviewRoute[]; search: st
     );
   }
   return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {filtered.map((page) => {
-        return (
-          <div
-            key={page.path}
-            className="flex items-center gap-2.5 rounded-lg border border-emerald-500/15 bg-emerald-500/[0.045] px-3 py-2.5"
-          >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/10">
-              <Check className="h-3.5 w-3.5 text-emerald-300" />
+    <div className="space-y-4">
+      {grouped.map((g) => (
+        <div key={g.area}>
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-foreground">
+              {g.area}
             </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-medium text-foreground">
-                {page.label}
-              </span>
-              <code className="block truncate text-[9px] text-muted-foreground">{page.path}</code>
-              <span className="mt-0.5 block text-[9px] text-emerald-200">Visible + allowed</span>
+            <span className="h-px flex-1 bg-gradient-to-r from-emerald-500/30 via-border/30 to-transparent" />
+            <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-1.5 py-0 text-[9px] font-semibold text-emerald-200">
+              {g.pages.length} page{g.pages.length === 1 ? "" : "s"}
             </span>
           </div>
-        );
-      })}
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {g.pages.map((page) => (
+              <div
+                key={page.path}
+                className="group/page relative flex items-center gap-2.5 overflow-hidden rounded-lg border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.07] to-emerald-500/[0.02] px-3 py-2.5 transition-colors hover:border-emerald-500/40 hover:from-emerald-500/[0.12]"
+              >
+                <span className="absolute inset-y-0 left-0 w-0.5 bg-emerald-400/60" aria-hidden />
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 ring-1 ring-emerald-500/25">
+                  <Check className="h-3.5 w-3.5 text-emerald-300" strokeWidth={3} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-semibold text-foreground">
+                    {page.label}
+                  </span>
+                  <code className="block truncate font-mono text-[9px] text-muted-foreground">
+                    {page.path}
+                  </code>
+                </span>
+                <span className="hidden text-[9px] font-semibold uppercase tracking-wider text-emerald-300/80 sm:inline">
+                  Allowed
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
+
+
 
 function PreviewCapabilities({
   preview,
@@ -3684,45 +3729,64 @@ function PreviewRestrictions({
     );
   }
   return (
-    <div className="space-y-3">
-      {grouped.map((g) => (
-        <div key={g.area} className="rounded-lg border border-border/50 bg-card/40 p-3">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {g.area}
-          </div>
-          <ul className="flex flex-wrap gap-1.5">
-            {g.pages.map((page) => (
-              <li key={page.path}>
-                <span
-                  className={`inline-flex max-w-full items-start gap-2 rounded-md border px-2.5 py-2 text-[11px] ${
-                    page.visible
-                      ? "border-amber-500/25 bg-amber-500/[0.06] text-amber-100"
-                      : "border-border/40 bg-background/30 text-muted-foreground"
-                  }`}
-                  title={page.reason}
-                >
-                  {page.visible ? (
-                    <AlertCircle className="h-3 w-3 text-amber-300" />
-                  ) : (
-                    <EyeOff className="h-3 w-3 text-muted-foreground" />
-                  )}
-                  <span className="min-w-0">
-                    <span className="flex flex-wrap items-baseline gap-x-1.5 font-medium">
-                      {page.label}
-                      <code className="text-[9px] font-normal text-muted-foreground/70">
+    <div className="space-y-4">
+      {grouped.map((g) => {
+        const blocked = g.pages.filter((p) => p.visible).length;
+        return (
+          <div key={g.area}>
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-foreground">
+                {g.area}
+              </span>
+              <span className="h-px flex-1 bg-gradient-to-r from-rose-500/30 via-border/30 to-transparent" />
+              {blocked > 0 && (
+                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] font-semibold text-amber-200">
+                  {blocked} mismatch{blocked === 1 ? "" : "es"}
+                </span>
+              )}
+              <span className="rounded-full border border-border/40 bg-background/30 px-1.5 py-0 text-[9px] font-semibold text-muted-foreground">
+                {g.pages.length}
+              </span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {g.pages.map((page) => {
+                const mismatch = page.visible; // visible but blocked → mismatch
+                return (
+                  <div
+                    key={page.path}
+                    className={`group/r relative flex items-start gap-2.5 overflow-hidden rounded-lg border px-3 py-2.5 transition-colors ${
+                      mismatch
+                        ? "border-amber-500/25 bg-gradient-to-br from-amber-500/[0.07] to-amber-500/[0.02] hover:border-amber-500/40"
+                        : "border-border/40 bg-gradient-to-br from-background/40 to-background/10 hover:border-border/70"
+                    }`}
+                    title={page.reason}
+                  >
+                    <span className={`absolute inset-y-0 left-0 w-0.5 ${mismatch ? "bg-amber-400/60" : "bg-muted-foreground/30"}`} aria-hidden />
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1 ${mismatch ? "bg-amber-500/15 ring-amber-500/25" : "bg-muted/30 ring-border/30"}`}>
+                      {mismatch ? (
+                        <AlertCircle className="h-3.5 w-3.5 text-amber-300" />
+                      ) : (
+                        <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold text-foreground">
+                        {page.label}
+                      </span>
+                      <code className="block truncate font-mono text-[9px] text-muted-foreground">
                         {page.path}
                       </code>
+                      <span className={`mt-1 block text-[10px] leading-snug ${mismatch ? "text-amber-200/90" : "text-muted-foreground"}`}>
+                        {page.reason}
+                      </span>
                     </span>
-                    <span className="mt-0.5 block text-[9px] leading-relaxed opacity-80">
-                      {page.reason}
-                    </span>
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
