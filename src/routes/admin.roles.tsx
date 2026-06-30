@@ -3047,7 +3047,7 @@ function PageVisibilityAreaRows({
                       protection.reason ??
                       (cell ? "Click to hide this route" : "Click to allow this route")
                     }
-                    sizeClass={density.cellSize}
+                    sizeClass="h-6 w-6"
                     onToggle={() =>
                       mutation.mutate({
                         roleId: dbRole.id,
@@ -3091,7 +3091,7 @@ function PageVisibilityCell({
   const flash = flashing ? "animate-[matrix-flash_1.5s_ease-out]" : "";
   if (cell === undefined) {
     return (
-      <td className="border-l border-b border-border/20 px-3 py-2 text-center align-middle text-muted-foreground">
+      <td className="border-l border-b border-border/20 px-1.5 py-1 text-center align-middle text-muted-foreground">
         —
       </td>
     );
@@ -3099,7 +3099,7 @@ function PageVisibilityCell({
   const warnTint = warning ? "bg-amber-500/[0.06]" : "";
   return (
     <td
-      className={`border-l border-b border-border/20 px-3 py-2 text-center align-middle transition-colors ${
+      className={`border-l border-b border-border/20 px-1.5 py-1 text-center align-middle transition-colors ${
         cell ? "bg-emerald-500/[0.05]" : ""
       } ${warnTint}`}
     >
@@ -3110,7 +3110,7 @@ function PageVisibilityCell({
             disabled={!canEdit}
             aria-label={`${statusLabel}. ${explanation}`}
             onClick={onToggle}
-            className={`relative inline-flex items-center justify-center rounded-md border transition-all ${sizeClass} ${
+            className={`relative inline-flex items-center justify-center rounded-[5px] border transition-all ${sizeClass} ${
               cell
                 ? warning
                   ? "border-amber-500/40 bg-amber-500/15 text-amber-200 shadow-[inset_0_0_0_1px_rgba(245,158,11,0.15)]"
@@ -3119,17 +3119,17 @@ function PageVisibilityCell({
             } ${!canEdit ? "cursor-not-allowed opacity-80" : "cursor-pointer"} ${flash}`}
           >
             {saving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
             ) : cell ? (
-              <Check className="h-3.5 w-3.5" strokeWidth={3} />
+              <Check className="h-2.5 w-2.5" strokeWidth={3.25} />
             ) : (
               <span className="h-1 w-1 rounded-full bg-current opacity-60" aria-hidden />
             )}
             {protectedCell && !saving && (
-              <Lock className="pointer-events-none absolute -right-1 -bottom-1 h-2.5 w-2.5 text-amber-400" />
+              <Lock className="pointer-events-none absolute -right-0.5 -bottom-0.5 h-2 w-2 text-amber-400" />
             )}
             {warning && !saving && (
-              <AlertCircle className="pointer-events-none absolute -right-1 -top-1 h-3 w-3 text-amber-400" />
+              <AlertCircle className="pointer-events-none absolute -right-0.5 -top-0.5 h-2 w-2 text-amber-400" />
             )}
           </button>
         </TooltipTrigger>
@@ -3272,12 +3272,12 @@ function StaticPageVisibilityMatrix({
                         return (
                           <td
                             key={staticRole.id}
-                            className={`border-l border-b border-border/20 px-3 py-2 text-center align-middle ${
+                            className={`border-l border-b border-border/20 px-1.5 py-1 text-center align-middle ${
                               visible ? "bg-emerald-500/[0.05]" : ""
                             }`}
                           >
                             <span
-                              className={`mx-auto inline-flex items-center justify-center rounded-md border ${density.cellSize} ${
+                              className={`mx-auto inline-flex h-6 w-6 items-center justify-center rounded-[5px] border ${
                                 visible
                                   ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.15)]"
                                   : "border-border/30 bg-background/20 text-muted-foreground/50"
@@ -3285,7 +3285,7 @@ function StaticPageVisibilityMatrix({
                               aria-label={visible ? "Allowed" : "Hidden"}
                             >
                               {visible ? (
-                                <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                                <Check className="h-2.5 w-2.5" strokeWidth={3.25} />
                               ) : (
                                 <span className="h-1 w-1 rounded-full bg-current opacity-60" aria-hidden />
                               )}
