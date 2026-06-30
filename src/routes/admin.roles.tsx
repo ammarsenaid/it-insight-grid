@@ -2143,18 +2143,26 @@ function MultiSelectFilter({
 
 function MatrixColumnHeader({ dbRole }: { dbRole: AdminRole }) {
   const accent = SCOPE_ACCENTS[scopeAccent(dbRole.scope)];
+  const stripe =
+    dbRole.scope === "platform"
+      ? "bg-gradient-to-b from-violet-400/70 to-violet-400/0"
+      : "bg-gradient-to-b from-sky-400/70 to-sky-400/0";
   return (
     <th
-      className="min-w-28 border-l border-border/20 px-2 py-3 text-center font-medium"
-      title={dbRole.name}
+      className="relative min-w-28 border-l border-border/20 px-2 pb-3 pt-3 text-center font-medium"
+      title={`${dbRole.name} · ${dbRole.scope}`}
     >
+      <span aria-hidden className={`absolute inset-x-2 top-0 h-0.5 rounded-b ${stripe}`} />
       <span
-        className={`mx-auto flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-bold ring-1 ${accent.ring}`}
+        className={`mx-auto flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-bold ring-1 ${accent.ring} transition-transform group-hover:scale-105`}
       >
         {abbreviation(dbRole.name)}
       </span>
       <div className="mt-1.5 truncate text-[9px] font-medium text-foreground">{dbRole.name}</div>
-      <div className="mt-0.5 text-[8px] font-normal uppercase tracking-wider text-muted-foreground">
+      <div className="mt-0.5 inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span
+          className={`h-1 w-1 rounded-full ${dbRole.scope === "platform" ? "bg-violet-400" : "bg-sky-400"}`}
+        />
         {dbRole.scope}
       </div>
     </th>
@@ -2189,11 +2197,12 @@ function MatrixGroupRows({
     0,
   );
   const totalInGroup = roles.length * group.permissions.length;
+  const pct = totalInGroup > 0 ? Math.round((grantedInGroup / totalInGroup) * 100) : 0;
   return (
     <>
-      <tr className="bg-muted/20">
+      <tr className="bg-gradient-to-r from-violet-500/[0.06] via-muted/20 to-transparent">
         <td
-          className="sticky left-0 z-30 min-w-72 border-y border-r border-border/40 bg-card px-3 py-1.5 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
+          className="sticky left-0 z-30 min-w-72 border-y border-r border-border/40 bg-card px-3 py-2 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
         >
           <button
             type="button"
@@ -2211,11 +2220,26 @@ function MatrixGroupRows({
             </span>
             <span className="text-[10px] font-medium text-muted-foreground">
               · {group.permissions.length} perm
-              {group.permissions.length === 1 ? "" : "s"} · {grantedInGroup}/{totalInGroup} grants
+              {group.permissions.length === 1 ? "" : "s"}
+            </span>
+            <span className="ml-auto inline-flex items-center gap-2">
+              <span
+                className="relative h-1.5 w-20 overflow-hidden rounded-full bg-muted/40"
+                aria-hidden
+              >
+                <span
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500"
+                  style={{ width: `${pct}%` }}
+                />
+              </span>
+              <span className="tabular-nums text-[10px] font-semibold text-emerald-300">
+                {grantedInGroup}
+                <span className="text-muted-foreground">/{totalInGroup}</span>
+              </span>
             </span>
           </button>
         </td>
-        <td colSpan={roles.length} className="border-y border-border/40 bg-muted/20" />
+        <td colSpan={roles.length} className="border-y border-border/40" />
       </tr>
 
       {!collapsed &&
@@ -2327,7 +2351,7 @@ function MatrixCell({
   sizeClass: string;
   explanation: string;
 }) {
-  const cellBg = checked ? "bg-emerald-500/[0.05]" : "";
+  const cellBg = checked ? "bg-emerald-500/[0.06]" : "";
   const flash = flashing ? "animate-[matrix-flash_1.5s_ease-out]" : "";
   return (
     <td
@@ -2346,17 +2370,19 @@ function MatrixCell({
             disabled={!canEdit}
             onClick={onToggle}
             aria-label={ariaLabel}
-            className={`relative inline-flex items-center justify-center rounded-md border transition-colors ${sizeClass} ${
+            className={`relative inline-flex items-center justify-center rounded-md border transition-all ${sizeClass} ${
               checked
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/30"
-            } ${!canEdit ? "cursor-not-allowed" : "cursor-pointer"} ${flash}`}
+                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.15)] hover:bg-emerald-500/25"
+                : "border-border/40 bg-background/20 text-muted-foreground/50 hover:border-emerald-500/30 hover:bg-emerald-500/[0.08] hover:text-emerald-300/70"
+            } ${!canEdit ? "cursor-not-allowed opacity-80" : "cursor-pointer"} ${flash}`}
           >
             {saving ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : checked ? (
-              <Check className="h-3.5 w-3.5" />
-            ) : null}
+              <Check className="h-3.5 w-3.5" strokeWidth={3} />
+            ) : (
+              <span className="h-1 w-1 rounded-full bg-current opacity-60" aria-hidden />
+            )}
             {protectedCell && !saving && (
               <Lock className="pointer-events-none absolute -right-1 -bottom-1 h-2.5 w-2.5 text-amber-400" />
             )}
@@ -2778,11 +2804,12 @@ function PageVisibilityAreaRows({
     0,
   );
   const total = routes.length * roles.length;
+  const pct = total > 0 ? Math.round((allowedCount / total) * 100) : 0;
   return (
     <>
-      <tr className="bg-muted/20">
+      <tr className="bg-gradient-to-r from-emerald-500/[0.06] via-muted/20 to-transparent">
         <td
-          className="sticky left-0 z-30 min-w-72 border-y border-r border-border/40 bg-card px-3 py-1.5 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
+          className="sticky left-0 z-30 min-w-72 border-y border-r border-border/40 bg-card px-3 py-2 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
         >
           <button
             type="button"
@@ -2799,12 +2826,23 @@ function PageVisibilityAreaRows({
               {area}
             </span>
             <span className="text-[10px] font-medium text-muted-foreground">
-              · {routes.length} route{routes.length === 1 ? "" : "s"} · {allowedCount}/{total}{" "}
-              allowed
+              · {routes.length} route{routes.length === 1 ? "" : "s"}
+            </span>
+            <span className="ml-auto inline-flex items-center gap-2">
+              <span className="relative h-1.5 w-20 overflow-hidden rounded-full bg-muted/40" aria-hidden>
+                <span
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-400 to-sky-400"
+                  style={{ width: `${pct}%` }}
+                />
+              </span>
+              <span className="tabular-nums text-[10px] font-semibold text-emerald-300">
+                {allowedCount}
+                <span className="text-muted-foreground">/{total}</span>
+              </span>
             </span>
           </button>
         </td>
-        <td colSpan={roles.length} className="border-y border-border/40 bg-muted/20" />
+        <td colSpan={roles.length} className="border-y border-border/40" />
       </tr>
 
       {!collapsed &&
@@ -2943,11 +2981,12 @@ function PageVisibilityCell({
       </td>
     );
   }
+  const warnTint = warning ? "bg-amber-500/[0.06]" : "";
   return (
     <td
       className={`border-l border-b border-border/20 px-3 py-2 text-center align-middle transition-colors ${
-        cell ? "bg-emerald-500/[0.025]" : ""
-      }`}
+        cell ? "bg-emerald-500/[0.05]" : ""
+      } ${warnTint}`}
     >
       <Tooltip>
         <TooltipTrigger asChild>
@@ -2956,18 +2995,20 @@ function PageVisibilityCell({
             disabled={!canEdit}
             aria-label={`${statusLabel}. ${explanation}`}
             onClick={onToggle}
-            className={`relative inline-flex items-center justify-center rounded-md border transition-colors ${sizeClass} ${
+            className={`relative inline-flex items-center justify-center rounded-md border transition-all ${sizeClass} ${
               cell
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                : "border-border/40 bg-background/30 text-muted-foreground"
-            } ${!canEdit ? "cursor-not-allowed" : "cursor-pointer"} ${flash}`}
+                ? warning
+                  ? "border-amber-500/40 bg-amber-500/15 text-amber-200 shadow-[inset_0_0_0_1px_rgba(245,158,11,0.15)]"
+                  : "border-emerald-500/40 bg-emerald-500/15 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.15)] hover:bg-emerald-500/25"
+                : "border-border/40 bg-background/20 text-muted-foreground/50 hover:border-emerald-500/30 hover:bg-emerald-500/[0.08]"
+            } ${!canEdit ? "cursor-not-allowed opacity-80" : "cursor-pointer"} ${flash}`}
           >
             {saving ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : cell ? (
-              <Check className="h-3.5 w-3.5" />
+              <Check className="h-3.5 w-3.5" strokeWidth={3} />
             ) : (
-              <X className="h-3 w-3 opacity-60" />
+              <span className="h-1 w-1 rounded-full bg-current opacity-60" aria-hidden />
             )}
             {protectedCell && !saving && (
               <Lock className="pointer-events-none absolute -right-1 -bottom-1 h-2.5 w-2.5 text-amber-400" />
