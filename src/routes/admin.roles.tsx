@@ -9,8 +9,10 @@ import {
   ChevronDown,
   ChevronRight,
   Columns3,
+  Database,
   Eye,
   EyeOff,
+  FileCode2,
   Filter,
   GitCompare,
   Info,
@@ -82,7 +84,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   adminRolePageVisibilityQuery,
   adminRolesKeys,
@@ -2548,38 +2550,78 @@ function PageVisibilityToolbar({
   onDiffLens: (v: boolean) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-card/40 p-2 shadow-sm">
-      <div
-        role="group"
-        aria-label="Visibility source"
-        className="flex h-9 items-center rounded-md border border-border/60 bg-background/40 p-0.5"
-      >
-        <button
-          type="button"
-          aria-pressed={source === "live"}
-          onClick={() => onSourceChange("live")}
-          disabled={!liveAvailable}
-          className={`flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-[11px] font-medium transition-colors ${
-            source === "live"
-              ? "bg-emerald-500/15 text-emerald-200 shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          } disabled:cursor-not-allowed disabled:opacity-50`}
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-gradient-to-r from-card/60 via-card/40 to-card/30 p-2 shadow-sm backdrop-blur-sm">
+      <TooltipProvider delayDuration={150}>
+        <div
+          role="group"
+          aria-label="Visibility source of truth"
+          className="relative flex h-10 items-stretch rounded-lg border border-border/70 bg-background/60 p-1 shadow-inner"
         >
-          <Eye className="h-3 w-3" /> Stored DB config
-        </button>
-        <button
-          type="button"
-          aria-pressed={source === "static"}
-          onClick={() => onSourceChange("static")}
-          className={`flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-[11px] font-medium transition-colors ${
-            source === "static"
-              ? "bg-slate-500/15 text-slate-200 shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <ShieldCheck className="h-3 w-3" /> Static fallback
-        </button>
-      </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-pressed={source === "live"}
+                onClick={() => onSourceChange("live")}
+                disabled={!liveAvailable}
+                className={`group/src relative flex items-center gap-2 rounded-md px-3 text-[11px] font-semibold transition-all ${
+                  source === "live"
+                    ? "bg-gradient-to-br from-emerald-500/25 via-emerald-500/15 to-emerald-500/5 text-emerald-100 shadow-[0_0_0_1px_rgba(16,185,129,0.35),0_4px_12px_-4px_rgba(16,185,129,0.4)]"
+                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+              >
+                <span className="relative grid h-5 w-5 place-items-center">
+                  <Database className="h-3.5 w-3.5" />
+                  {source === "live" && liveAvailable && (
+                    <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(0,0,0,0.6)]">
+                      <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    </span>
+                  )}
+                </span>
+                <span className="flex flex-col items-start leading-tight">
+                  <span>Stored config</span>
+                  <span className={`text-[9px] font-normal tracking-wide ${source === "live" ? "text-emerald-300/80" : "text-muted-foreground/70"}`}>
+                    {liveAvailable ? "Live · backend" : "Unavailable"}
+                  </span>
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-xs">
+              Reads from <code className="rounded bg-muted px-1 text-[10px]">role_page_visibility</code>. Edits persist immediately and drive runtime navigation.
+            </TooltipContent>
+          </Tooltip>
+
+          <span className="mx-0.5 my-1 w-px bg-border/60" aria-hidden />
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-pressed={source === "static"}
+                onClick={() => onSourceChange("static")}
+                className={`group/src relative flex items-center gap-2 rounded-md px-3 text-[11px] font-semibold transition-all ${
+                  source === "static"
+                    ? "bg-gradient-to-br from-slate-400/25 via-slate-400/15 to-slate-400/5 text-slate-100 shadow-[0_0_0_1px_rgba(148,163,184,0.35),0_4px_12px_-4px_rgba(148,163,184,0.4)]"
+                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                }`}
+              >
+                <span className="grid h-5 w-5 place-items-center">
+                  <FileCode2 className="h-3.5 w-3.5" />
+                </span>
+                <span className="flex flex-col items-start leading-tight">
+                  <span>Static fallback</span>
+                  <span className={`text-[9px] font-normal tracking-wide ${source === "static" ? "text-slate-300/80" : "text-muted-foreground/70"}`}>
+                    Code · read-only
+                  </span>
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px] text-xs">
+              Compiled defaults from <code className="rounded bg-muted px-1 text-[10px]">PAGE_VISIBILITY</code>. Comparison reference only — does not affect runtime.
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
 
       <div className="relative min-w-0 flex-1 sm:max-w-sm">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -2588,18 +2630,25 @@ function PageVisibilityToolbar({
           value={search}
           onChange={(e) => onSearch(e.target.value)}
           placeholder="Search route path or label…"
-          className="h-9 pl-8 text-xs"
+          className="h-10 pl-8 text-xs"
         />
       </div>
 
       {source === "live" && (
-        <label className="flex h-9 items-center gap-1.5 rounded-md border border-border/60 bg-background/40 px-2.5 text-[11px] font-medium text-muted-foreground">
+        <label
+          className={`flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-[11px] font-medium transition-colors ${
+            diffLens
+              ? "border-amber-400/40 bg-amber-500/10 text-amber-100"
+              : "border-border/60 bg-background/40 text-muted-foreground hover:text-foreground"
+          }`}
+        >
           <Checkbox
             checked={diffLens}
             onCheckedChange={(v) => onDiffLens(v === true)}
             aria-label="Highlight routes that differ from static"
           />
-          <GitCompare className="h-3.5 w-3.5" /> Differs from static
+          <GitCompare className="h-3.5 w-3.5" />
+          <span>Diff vs static</span>
         </label>
       )}
 
