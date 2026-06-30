@@ -32,6 +32,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { can, useRole } from "@/lib/permissions";
 import { adminRolePageVisibilityQuery, adminRolesQuery } from "@/lib/admin-roles/queries";
 import { adminUsersQuery } from "@/lib/admin-users/queries";
+import { getAdminUserAccessExplanation } from "@/lib/admin-users/create-user";
 
 import { PeopleAndOrganizationPage } from "./admin.users";
 import { AdminRolesPage } from "./admin.roles";
@@ -50,6 +51,7 @@ type SectionKey =
   | "access-map"
   | "roles"
   | "preview"
+  | "effective"
   | "permissions"
   | "pages";
 
@@ -73,6 +75,7 @@ const SECTIONS: Section[] = [
   { key: "permissions", label: "Capabilities",  hint: "Fine-grained grants",       icon: Layers,      group: "access", advanced: true },
   { key: "access-map",  label: "Access map",    hint: "Modules × roles",           icon: ShieldCheck, group: "insights" },
   { key: "preview",     label: "Role preview",  hint: "Simulate a role",           icon: Network,     group: "insights" },
+  { key: "effective",   label: "Effective access", hint: "User access & provenance", icon: ShieldCheck, group: "insights" },
 ];
 
 const SECTION_TO_USERS_TAB: Partial<Record<SectionKey, "users" | "departments" | "teams" | "access">> = {
@@ -394,6 +397,7 @@ function SectionRouter({
   const usersTab = SECTION_TO_USERS_TAB[section];
   const rolesTab = SECTION_TO_ROLES_TAB[section];
   if (usersTab) return <PeopleAndOrganizationPage embeddedTab={usersTab} />;
+  if (section === "effective") return <EffectiveUserAccessInspector />;
   if (rolesTab) {
     return (
       <AdminRolesPage
@@ -443,6 +447,8 @@ function SectionPrimaryActions({
         return [{ label: "Preview a role", icon: Network, onClick: () => onJump("preview") }];
       case "preview":
         return [{ label: "Back to roles", icon: KeyRound, onClick: () => onJump("roles") }];
+      case "effective":
+        return [];
       case "permissions":
       case "pages":
         return [{ label: "Back to roles", icon: KeyRound, onClick: () => onJump("roles") }];
@@ -571,6 +577,12 @@ function ContextRail({
           title: "About role preview",
           body: "Simulate what a role can actually reach without changing your own session.",
           bullets: ["Switch 'Acting as' in the toolbar", "Compare two roles side by side", "See blockers per route"],
+        };
+      case "effective":
+        return {
+          title: "About effective access",
+          body: "Inspect a real user's backend role, permission, and route sources without changing access.",
+          bullets: ["Platform roles drive routes", "Team roles add top-level permissions", "Workspace grants stay scoped"],
         };
       case "permissions":
         return {
@@ -826,6 +838,191 @@ function ContextRail({
         </div>
       </ScrollArea>
     </div>
+  );
+}
+
+function EffectiveUserAccessInspector() {
+  const { session, effectiveAccess } = useAuth();
+  const usersQ = useQuery(adminUsersQuery());
+  const users = useMemo(() => usersQ.data ?? [], [usersQ.data]);
+  const workspaces = useMemo(
+    () => effectiveAccess?.workspaces ?? [],
+    [effectiveAccess?.workspaces],
+  );
+  const [userId, setUserId] = useState("");
+  const [workspaceId, setWorkspaceId] = useState("");
+  const [teamId, setTeamId] = useState("");
+
+  useEffect(() => {
+    if (!userId && users[0]?.id) setUserId(users[0].id);
+  }, [userId, users]);
+
+  useEffect(() => {
+    if (workspaceId && !workspaces.some((workspace) => workspace.id === workspaceId)) {
+      setWorkspaceId("");
+      setTeamId("");
+    }
+  }, [workspaceId, workspaces]);
+
+  const selectedWorkspace = workspaces.find((workspace) => workspace.id === workspaceId);
+  const teams = selectedWorkspace?.teams ?? [];
+  const explanationQ = useQuery({
+    queryKey: ["admin-user-access-explanation", userId, workspaceId, teamId],
+    enabled: Boolean(session?.access_token && userId),
+    queryFn: async () => {
+      const result = await getAdminUserAccessExplanation({
+        accessToken: session?.access_token ?? "",
+        userId,
+        workspaceId: workspaceId || null,
+        teamId: teamId || null,
+      });
+      if (!result.ok) throw new Error(result.error);
+      return result.explanation;
+    },
+  });
+  const explanation = explanationQ.data;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 rounded-xl border border-border/50 bg-card/50 p-3 lg:grid-cols-3">
+        <label className="space-y-1 text-xs">
+          <span className="font-medium text-muted-foreground">User</span>
+          <select
+            value={userId}
+            onChange={(event) => setUserId(event.target.value)}
+            className="h-9 w-full rounded-md border border-border/60 bg-background px-2"
+          >
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.displayName}{user.email ? ` · ${user.email}` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="space-y-1 text-xs">
+          <span className="font-medium text-muted-foreground">Department / workspace</span>
+          <select
+            value={workspaceId}
+            onChange={(event) => {
+              setWorkspaceId(event.target.value);
+              setTeamId("");
+            }}
+            className="h-9 w-full rounded-md border border-border/60 bg-background px-2"
+          >
+            <option value="">No workspace context</option>
+            {workspaces.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>{workspace.name}</option>
+            ))}
+          </select>
+        </label>
+        <label className="space-y-1 text-xs">
+          <span className="font-medium text-muted-foreground">Team</span>
+          <select
+            value={teamId}
+            onChange={(event) => setTeamId(event.target.value)}
+            disabled={!workspaceId}
+            className="h-9 w-full rounded-md border border-border/60 bg-background px-2 disabled:opacity-50"
+          >
+            <option value="">No team context</option>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>{team.name}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {usersQ.isLoading || explanationQ.isLoading ? (
+        <div className="rounded-xl border border-border/50 p-6 text-sm text-muted-foreground">
+          Resolving effective access…
+        </div>
+      ) : explanationQ.isError ? (
+        <EmptyState
+          icon={Lock}
+          title="Could not resolve effective access"
+          description="The backend access sources for this user could not be loaded."
+          actionLabel="Retry"
+          onAction={() => explanationQ.refetch()}
+        />
+      ) : explanation ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat label="Assigned roles" value={explanation.roles.length} />
+            <Stat label="Permissions" value={explanation.permissions.length} />
+            <Stat label="Workspace permissions" value={explanation.workspacePermissions.length} />
+            <Stat label="Visible routes" value={explanation.visibleRoutes.length} />
+          </div>
+
+          <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+            <AccessExplanationList
+              title="Role assignments"
+              empty="No roles are assigned."
+              items={explanation.roles.map((source) => ({
+                key: `${source.assignment}:${source.contextId ?? "global"}:${source.roleKey}`,
+                label: source.roleName,
+                detail: `${source.assignment}${source.contextName ? ` · ${source.contextName}` : ""}`,
+              }))}
+            />
+            <AccessExplanationList
+              title="Visible routes"
+              empty="No stored routes are visible."
+              items={explanation.visibleRoutes.map((route) => ({
+                key: route.routePath,
+                label: route.routePath,
+                detail: route.sources.map((source) => source.roleName).join(", "),
+              }))}
+            />
+            <AccessExplanationList
+              title="Top-level permissions"
+              empty="No permissions resolve from global or team roles."
+              items={explanation.permissions.map((permission) => ({
+                key: permission.permissionKey,
+                label: permission.permissionKey,
+                detail: permission.sources.map((source) => source.roleName).join(", "),
+              }))}
+            />
+            <AccessExplanationList
+              title="Workspace permissions"
+              empty={workspaceId ? "No permissions resolve in this workspace." : "Select a workspace to inspect scoped permissions."}
+              items={explanation.workspacePermissions.map((permission) => ({
+                key: permission.permissionKey,
+                label: permission.permissionKey,
+                detail: permission.sources.map((source) => source.roleName).join(", "),
+              }))}
+            />
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function AccessExplanationList({
+  title,
+  empty,
+  items,
+}: {
+  title: string;
+  empty: string;
+  items: Array<{ key: string; label: string; detail: string }>;
+}) {
+  return (
+    <section className="min-w-0 rounded-xl border border-border/50 bg-card/40 p-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </h2>
+      {items.length === 0 ? (
+        <p className="mt-3 text-xs text-muted-foreground">{empty}</p>
+      ) : (
+        <ul className="mt-2 max-h-72 space-y-1 overflow-auto">
+          {items.map((item) => (
+            <li key={item.key} className="rounded-md border border-border/30 bg-background/30 px-2 py-1.5">
+              <div className="truncate font-mono text-[11px] text-foreground">{item.label}</div>
+              <div className="truncate text-[10px] text-muted-foreground">{item.detail}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

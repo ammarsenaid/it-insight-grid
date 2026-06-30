@@ -47,3 +47,35 @@ export interface UpdateAdminUserInput {
 }
 
 export type AdminUserMutationResult = { ok: true; userId: string } | { ok: false; error: string };
+
+export interface AccessGrantSource {
+  roleKey: string;
+  roleName: string;
+  roleScope: "platform" | "workspace" | "team";
+  assignment: "global" | "workspace" | "team";
+  contextId: string | null;
+  contextName: string | null;
+}
+
+export interface ExplainedPermission {
+  permissionKey: string;
+  sources: AccessGrantSource[];
+}
+
+export interface ExplainedRoute {
+  routePath: string;
+  sources: AccessGrantSource[];
+}
+
+export interface AdminUserAccessExplanation {
+  roles: AccessGrantSource[];
+  permissions: ExplainedPermission[];
+  workspacePermissions: ExplainedPermission[];
+  visibleRoutes: ExplainedRoute[];
+  isPlatformAdmin: boolean;
+  notes: string[];
+}
+
+export type AdminUserAccessExplanationResult =
+  | { ok: true; explanation: AdminUserAccessExplanation }
+  | { ok: false; error: string };

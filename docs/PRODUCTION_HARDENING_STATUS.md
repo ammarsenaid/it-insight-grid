@@ -2289,3 +2289,34 @@ Operational notes:
 - No database, SQL, migration, Supabase pending file, authorization, route-guard,
   backend API, deployment, service restart, commit, push, package, generated
   route-tree, mail worker, or mail intake state operation was performed.
+
+## Milestone 96 - Effective Access Explanation Foundation
+
+Date: 2026-06-30
+
+Status: IMPLEMENTED AND LOCALLY VALIDATED.
+
+- Added an active-platform-administrator-only read endpoint to explain a real
+  user's global, team, and workspace role assignments using existing backend
+  tables.
+- Added source attribution for top-level permissions, workspace-scoped
+  permissions, and stored visible routes without adding override or mutation
+  behavior.
+- Added an Effective access section to Identity & Access with real user,
+  workspace, and team context selectors and backend-derived grant provenance.
+- Kept current runtime semantics explicit: global roles drive stored routes,
+  active team roles contribute top-level permissions, and workspace permissions
+  remain scoped.
+- Current platform-administrator roles are global rather than organization
+  scoped, so cross-organization inspection cannot be narrowed safely until the
+  authorization schema gains an organization-bound administrator model.
+
+Operational notes:
+- `bun run build` and `git diff --check` completed successfully. Focused ESLint
+  reported no errors; two pre-existing dependency warnings remain in the
+  Identity context rail.
+- Standalone TypeScript validation remains blocked by the existing forbidden-file
+  error in `src/lib/auth/AuthProvider.tsx`.
+- No SQL, migration, RLS, permission resolver, database connection, deployment,
+  service restart, commit, push, package, generated route-tree, mail worker, or
+  mail intake state operation was performed.
