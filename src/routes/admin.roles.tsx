@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -116,6 +116,7 @@ import {
   useRole,
   type Role,
 } from "@/lib/permissions";
+import { cn } from "@/lib/utils";
 
 /*
  * Production-hardening QA contract:
@@ -2442,46 +2443,12 @@ function PageVisibilityTab({
     rolesQuery.data?.roles.length &&
     visibilityQuery.data?.length,
   );
-
-  if (rolesQuery.isLoading || visibilityQuery.isLoading) {
-    return (
-      <div className="space-y-3" role="status">
-        <SkeletonBlock className="h-12" />
-        <SkeletonBlock className="h-72" />
-      </div>
-    );
-  }
-
-  if (!liveAvailable && source === "live") {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border/60 bg-card/30 p-10 text-center">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-amber-500/10 text-amber-300">
-          <AlertCircle className="h-6 w-6" />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold">Live page visibility unavailable</h3>
-          <p className="mt-1 max-w-md text-xs text-muted-foreground">
-            The database matrix could not be loaded. Switch to the static fallback or retry.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              void rolesQuery.refetch();
-              void visibilityQuery.refetch();
-            }}
-          >
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Retry
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setSource("static")}>
-            View static fallback
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const liveStatus: "loading" | "available" | "unavailable" =
+    rolesQuery.isLoading || visibilityQuery.isLoading
+      ? "loading"
+      : liveAvailable
+        ? "available"
+        : "unavailable";
 
   return (
     <div className="space-y-3">
@@ -2492,10 +2459,20 @@ function PageVisibilityTab({
             <ShieldCheck className="h-3.5 w-3.5" />
           </span>
           <span className="min-w-0 flex-1">
-            <strong className="font-semibold text-emerald-100">Live · backend-driven.</strong>{" "}
-            <span className="text-foreground/80">Writes hit</span>{" "}
-            <code className="rounded bg-background/40 px-1 py-0.5 font-mono text-[10px] text-emerald-200">role_page_visibility</code>{" "}
-            <span className="text-foreground/80">instantly — visibility never bypasses backend permissions or RLS.</span>
+            <strong className="font-semibold text-emerald-100">
+              {liveStatus === "loading"
+                ? "Stored config · loading backend."
+                : liveStatus === "available"
+                  ? "Stored config · live backend."
+                  : "Stored config · backend unavailable."}
+            </strong>{" "}
+            <span className="text-foreground/80">
+              {liveStatus === "available"
+                ? "Changes persist immediately. Visibility never bypasses backend permissions or RLS."
+                : liveStatus === "loading"
+                  ? "You can inspect the static fallback while stored configuration loads."
+                  : "Retry the backend source or inspect the read-only static fallback."}
+            </span>
           </span>
           <Popover>
             <PopoverTrigger asChild>
@@ -2519,9 +2496,11 @@ function PageVisibilityTab({
           </span>
           <span className="min-w-0 flex-1">
             <strong className="font-semibold text-slate-100">Static fallback · read-only.</strong>{" "}
-            <span className="text-foreground/80">Compiled defaults from</span>{" "}
+            <span className="text-foreground/80">Compiled frontend rules from</span>{" "}
             <code className="rounded bg-background/40 px-1 py-0.5 font-mono text-[10px] text-slate-200">PAGE_VISIBILITY</code>{" "}
-            <span className="text-foreground/80">— shown for reference and comparison. No runtime effect.</span>
+            <span className="text-foreground/80">
+              — inspect here, edit in code. Backend permissions remain authoritative.
+            </span>
           </span>
         </div>
       )}
@@ -2529,14 +2508,54 @@ function PageVisibilityTab({
       <PageVisibilityToolbar
         source={source}
         onSourceChange={setSource}
-        liveAvailable={liveAvailable}
+        liveStatus={liveStatus}
         search={search}
         onSearch={setSearch}
         diffLens={diffLens}
         onDiffLens={setDiffLens}
       />
 
-      {source === "live" && rolesQuery.data && visibilityQuery.data ? (
+      {source === "static" ? (
+        <StaticPageVisibilityMatrix
+          search={search}
+          collapsed={collapsed}
+          onToggleCollapsed={toggle}
+          density={d}
+        />
+      ) : liveStatus === "loading" ? (
+        <div className="space-y-3" role="status" aria-label="Loading stored page visibility">
+          <SkeletonBlock className="h-12" />
+          <SkeletonBlock className="h-72" />
+        </div>
+      ) : liveStatus === "unavailable" ? (
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border/60 bg-card/30 p-8 text-center">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500/10 text-amber-300">
+            <AlertCircle className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold">Stored page visibility unavailable</h3>
+            <p className="mt-1 max-w-md text-xs text-muted-foreground">
+              The backend matrix could not be loaded. Retry or inspect the read-only static
+              fallback.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                void rolesQuery.refetch();
+                void visibilityQuery.refetch();
+              }}
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Retry
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setSource("static")}>
+              View static fallback
+            </Button>
+          </div>
+        </div>
+      ) : rolesQuery.data && visibilityQuery.data ? (
         <LivePageVisibilityMatrix
           matrix={rolesQuery.data}
           visibility={visibilityQuery.data}
@@ -2549,14 +2568,7 @@ function PageVisibilityTab({
           density={d}
           flashCells={flashCells}
         />
-      ) : (
-        <StaticPageVisibilityMatrix
-          search={search}
-          collapsed={collapsed}
-          onToggleCollapsed={toggle}
-          density={d}
-        />
-      )}
+      ) : null}
     </div>
   );
 }
@@ -2564,7 +2576,7 @@ function PageVisibilityTab({
 function PageVisibilityToolbar({
   source,
   onSourceChange,
-  liveAvailable,
+  liveStatus,
   search,
   onSearch,
   diffLens,
@@ -2572,19 +2584,19 @@ function PageVisibilityToolbar({
 }: {
   source: "live" | "static";
   onSourceChange: (v: "live" | "static") => void;
-  liveAvailable: boolean;
+  liveStatus: "loading" | "available" | "unavailable";
   search: string;
   onSearch: (v: string) => void;
   diffLens: boolean;
   onDiffLens: (v: boolean) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-gradient-to-r from-card/60 via-card/40 to-card/30 p-2 shadow-sm backdrop-blur-sm">
+    <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-gradient-to-r from-card/60 via-card/40 to-card/30 p-2 shadow-sm backdrop-blur-sm">
       <TooltipProvider delayDuration={150}>
         <div
           role="group"
           aria-label="Visibility source of truth"
-          className="relative flex h-10 items-stretch rounded-lg border border-border/70 bg-background/60 p-1 shadow-inner"
+          className="relative flex h-10 w-full items-stretch rounded-lg border border-border/70 bg-background/60 p-1 shadow-inner sm:w-auto"
         >
           <Tooltip>
             <TooltipTrigger asChild>
@@ -2592,16 +2604,15 @@ function PageVisibilityToolbar({
                 type="button"
                 aria-pressed={source === "live"}
                 onClick={() => onSourceChange("live")}
-                disabled={!liveAvailable}
-                className={`group/src relative flex items-center gap-2 rounded-md px-3 text-[11px] font-semibold transition-all ${
+                className={`group/src relative flex flex-1 items-center justify-center gap-2 rounded-md border px-3 text-[11px] font-semibold transition-all sm:flex-none ${
                   source === "live"
-                    ? "bg-gradient-to-br from-emerald-500/25 via-emerald-500/15 to-emerald-500/5 text-emerald-100 shadow-[0_0_0_1px_rgba(16,185,129,0.35),0_4px_12px_-4px_rgba(16,185,129,0.4)]"
-                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
-                } disabled:cursor-not-allowed disabled:opacity-40`}
+                    ? "border-emerald-400/45 bg-gradient-to-br from-emerald-500/25 via-emerald-500/15 to-emerald-500/5 text-emerald-100 shadow-[0_4px_12px_-4px_rgba(16,185,129,0.4)]"
+                    : "border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                }`}
               >
                 <span className="relative grid h-5 w-5 place-items-center">
                   <Database className="h-3.5 w-3.5" />
-                  {source === "live" && liveAvailable && (
+                  {source === "live" && liveStatus === "available" && (
                     <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(0,0,0,0.6)]">
                       <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
                     </span>
@@ -2610,7 +2621,11 @@ function PageVisibilityToolbar({
                 <span className="flex flex-col items-start leading-tight">
                   <span>Stored config</span>
                   <span className={`text-[9px] font-normal tracking-wide ${source === "live" ? "text-emerald-300/80" : "text-muted-foreground/70"}`}>
-                    {liveAvailable ? "Live · backend" : "Unavailable"}
+                    {liveStatus === "loading"
+                      ? "Loading backend"
+                      : liveStatus === "available"
+                        ? "Live · backend"
+                        : "Unavailable"}
                   </span>
                 </span>
               </button>
@@ -2628,10 +2643,10 @@ function PageVisibilityToolbar({
                 type="button"
                 aria-pressed={source === "static"}
                 onClick={() => onSourceChange("static")}
-                className={`group/src relative flex items-center gap-2 rounded-md px-3 text-[11px] font-semibold transition-all ${
+                className={`group/src relative flex flex-1 items-center justify-center gap-2 rounded-md border px-3 text-[11px] font-semibold transition-all sm:flex-none ${
                   source === "static"
-                    ? "bg-gradient-to-br from-slate-400/25 via-slate-400/15 to-slate-400/5 text-slate-100 shadow-[0_0_0_1px_rgba(148,163,184,0.35),0_4px_12px_-4px_rgba(148,163,184,0.4)]"
-                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                    ? "border-slate-300/45 bg-gradient-to-br from-slate-400/25 via-slate-400/15 to-slate-400/5 text-slate-100 shadow-[0_4px_12px_-4px_rgba(148,163,184,0.4)]"
+                    : "border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground"
                 }`}
               >
                 <span className="grid h-5 w-5 place-items-center">
@@ -2646,13 +2661,13 @@ function PageVisibilityToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[220px] text-xs">
-              Compiled defaults from <code className="rounded bg-muted px-1 text-[10px]">PAGE_VISIBILITY</code>. Comparison reference only — does not affect runtime.
+              Compiled frontend fallback from <code className="rounded bg-muted px-1 text-[10px]">PAGE_VISIBILITY</code>. Read-only here; backend permissions remain authoritative.
             </TooltipContent>
           </Tooltip>
         </div>
       </TooltipProvider>
 
-      <div className="relative min-w-0 flex-1 sm:max-w-sm">
+      <div className="relative min-w-[12rem] flex-1">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
@@ -2681,23 +2696,42 @@ function PageVisibilityToolbar({
         </label>
       )}
 
-      <div className="ml-auto hidden items-center gap-1.5 md:flex">
+      <div className="flex w-full flex-wrap items-center gap-1.5 lg:ml-auto lg:w-auto">
         <LegendPill tone="emerald" icon={Check} label="Allowed" />
-        <LegendPill tone="amber" icon={AlertCircle} label="Mismatch" />
-        <LegendPill tone="amber" icon={Lock} label="Protected" />
-        <LegendPill tone="rose" icon={ShieldAlert} label="No contract" />
+        {source === "static" ? (
+          <>
+            <LegendPill tone="slate" icon={EyeOff} label="Hidden" />
+            <LegendPill tone="slate" icon={Lock} label="Read-only" />
+          </>
+        ) : (
+          <>
+            <LegendPill tone="amber" icon={AlertCircle} label="Mismatch" />
+            <LegendPill tone="amber" icon={Lock} label="Protected" />
+            <LegendPill tone="rose" icon={ShieldAlert} label="No contract" />
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function LegendPill({ tone, icon: Icon, label }: { tone: "emerald" | "amber" | "rose"; icon: typeof Check; label: string }) {
+function LegendPill({
+  tone,
+  icon: Icon,
+  label,
+}: {
+  tone: "emerald" | "amber" | "rose" | "slate";
+  icon: typeof Check;
+  label: string;
+}) {
   const toneClass =
     tone === "emerald"
       ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-200"
       : tone === "amber"
         ? "border-amber-500/25 bg-amber-500/10 text-amber-200"
-        : "border-rose-500/25 bg-rose-500/10 text-rose-200";
+      : tone === "rose"
+        ? "border-rose-500/25 bg-rose-500/10 text-rose-200"
+        : "border-slate-400/25 bg-slate-400/10 text-slate-200";
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${toneClass}`}>
       <Icon className="h-3 w-3" />
@@ -2710,9 +2744,11 @@ function LegendPill({ tone, icon: Icon, label }: { tone: "emerald" | "amber" | "
 function PageVisibilityColumnHeader({
   label,
   scope,
+  compact = false,
 }: {
   label: string;
   scope: "platform" | "team";
+  compact?: boolean;
 }) {
   const tone =
     scope === "platform"
@@ -2728,21 +2764,41 @@ function PageVisibilityColumnHeader({
         };
   return (
     <th
-      className="relative min-w-[112px] border-l border-border/20 px-2 pb-2.5 pt-3 text-center align-bottom font-medium"
+      className={cn(
+        "relative border-l border-border/20 text-center align-bottom font-medium",
+        compact
+          ? "w-[72px] min-w-[72px] max-w-[72px] px-1 pb-2 pt-2.5"
+          : "min-w-[112px] px-2 pb-2.5 pt-3",
+      )}
       title={`${label} · ${scope}`}
     >
-      <span aria-hidden className={`absolute inset-x-3 top-0 h-[3px] rounded-b-full bg-gradient-to-r ${tone.stripe}`} />
-      <div className="flex flex-col items-center gap-1.5">
-        <span className={`grid h-7 w-7 place-items-center rounded-lg border text-[10px] font-bold tracking-wide shadow-sm ${tone.tile}`}>
+      <span
+        aria-hidden
+        className={`absolute inset-x-2 top-0 h-0.5 rounded-b-full bg-gradient-to-r ${tone.stripe}`}
+      />
+      <div className={cn("flex flex-col items-center", compact ? "gap-1" : "gap-1.5")}>
+        <span
+          className={cn(
+            `grid place-items-center rounded-md border font-bold tracking-wide shadow-sm ${tone.tile}`,
+            compact ? "h-6 w-6 text-[9px]" : "h-7 w-7 text-[10px]",
+          )}
+        >
           {abbreviation(label)}
         </span>
-        <span className="line-clamp-1 max-w-[110px] text-[10px] font-semibold leading-tight text-foreground">
+        <span
+          className={cn(
+            "font-semibold leading-tight text-foreground",
+            compact ? "line-clamp-2 max-w-[68px] text-[9px]" : "line-clamp-1 max-w-[110px] text-[10px]",
+          )}
+        >
           {label}
         </span>
-        <span className="inline-flex items-center gap-1 text-[8px] font-medium uppercase tracking-[0.14em] text-muted-foreground/80">
-          <span className={`h-1 w-1 rounded-full ${tone.dot}`} />
-          {scope}
-        </span>
+        {!compact && (
+          <span className="inline-flex items-center gap-1 text-[8px] font-medium uppercase tracking-[0.14em] text-muted-foreground/80">
+            <span className={`h-1 w-1 rounded-full ${tone.dot}`} />
+            {scope}
+          </span>
+        )}
       </div>
     </th>
   );
@@ -2813,7 +2869,7 @@ function LivePageVisibilityMatrix({
     return false;
   }
 
-  const grouped = useMemo(() => {
+  const grouped = (() => {
     const map = new Map<string, string[]>();
     for (const routePath of routePaths) {
       if (!routeMatches(routePath)) continue;
@@ -2828,7 +2884,7 @@ function LivePageVisibilityMatrix({
       ...Array.from(map.keys()).filter((a) => !AREA_ORDER.includes(a)),
     ];
     return orderedAreas.map((area) => ({ area, routes: map.get(area) ?? [] }));
-  }, [routePaths, q, diffLens]);
+  })();
 
   const totalShown = grouped.reduce((s, g) => s + g.routes.length, 0);
 
@@ -3167,27 +3223,32 @@ function StaticPageVisibilityMatrix({
 }) {
   const q = search.trim().toLowerCase();
   const grouped = useMemo(() => {
-    const map = new Map<string, typeof PAGES>();
-    for (const page of PAGES) {
+    const map = new Map<string, string[]>();
+    for (const routePath of Object.keys(PAGE_VISIBILITY)) {
+      const label = staticRouteLabel(routePath);
       if (
         q.length > 0 &&
-        !page.label.toLowerCase().includes(q) &&
-        !page.path.toLowerCase().includes(q)
+        !label.toLowerCase().includes(q) &&
+        !routePath.toLowerCase().includes(q)
       )
         continue;
-      const list = map.get(page.area) ?? [];
-      list.push(page);
-      map.set(page.area, list);
+      const area = staticRouteArea(routePath);
+      const list = map.get(area) ?? [];
+      list.push(routePath);
+      map.set(area, list);
     }
     const orderedAreas = [
       ...AREA_ORDER.filter((a) => map.has(a)),
       ...Array.from(map.keys()).filter((a) => !AREA_ORDER.includes(a)),
     ];
-    return orderedAreas.map((area) => ({ area, pages: map.get(area) ?? [] }));
+    return orderedAreas.map((area) => ({
+      area,
+      routes: (map.get(area) ?? []).sort((a, b) => a.localeCompare(b)),
+    }));
   }, [q]);
 
-  const total = grouped.reduce((s, g) => s + g.pages.length, 0);
-  if (total === 0) {
+  const routeCount = grouped.reduce((sum, group) => sum + group.routes.length, 0);
+  if (routeCount === 0) {
     return (
       <EmptyState
         icon={Search}
@@ -3197,17 +3258,17 @@ function StaticPageVisibilityMatrix({
     );
   }
   return (
-    <div className="max-h-[68vh] overflow-auto rounded-xl border border-border/50 bg-gradient-to-b from-background/40 to-background/10 shadow-inner">
-      <table className="w-full min-w-[960px] border-separate border-spacing-0 text-xs">
+    <div className="max-h-[60vh] w-full max-w-full overflow-auto overscroll-contain rounded-xl border border-border/50 bg-gradient-to-b from-background/40 to-background/10 shadow-inner [scrollbar-gutter:stable]">
+      <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
         <thead className="sticky top-0 z-30 bg-card/95 shadow-[0_1px_0_hsl(var(--border))] backdrop-blur">
           <tr className="text-left text-foreground">
-            <th className="sticky left-0 z-40 min-w-72 border-r border-border/50 bg-card px-4 py-2.5 font-semibold">
+            <th className="sticky left-0 z-40 w-52 min-w-52 max-w-52 border-r border-border/50 bg-card px-3 py-2 font-semibold">
               <div className="flex items-center gap-1.5 text-[11px]">
                 <FileCode2 className="h-3 w-3 text-slate-300/70" />
                 <span>Route</span>
               </div>
               <div className="mt-0.5 text-[9px] font-normal uppercase tracking-[0.12em] text-muted-foreground">
-                Static page rule
+                Compiled · read-only
               </div>
             </th>
             {ROLES.map((staticRole) => (
@@ -3215,53 +3276,53 @@ function StaticPageVisibilityMatrix({
                 key={staticRole.id}
                 label={PAGE_VISIBILITY_ROLE_LABELS[staticRole.id] ?? staticRole.label}
                 scope="platform"
+                compact
               />
             ))}
           </tr>
         </thead>
         <tbody>
-          {grouped.map(({ area, pages }) => {
+          {grouped.map(({ area, routes }) => {
             const isCollapsed = collapsed.has(`pv-static:${area}`);
-            const allowedCount = pages.reduce(
-              (sum, p) => sum + ROLES.filter((r) => (PAGE_VISIBILITY[p.path] ?? []).includes(r.id)).length,
+            const allowedCount = routes.reduce(
+              (sum, routePath) =>
+                sum +
+                ROLES.filter((role) =>
+                  (PAGE_VISIBILITY[routePath] ?? []).includes(role.id),
+                ).length,
               0,
             );
-            const total = pages.length * ROLES.length;
-            const pct = total > 0 ? Math.round((allowedCount / total) * 100) : 0;
+            const cellCount = routes.length * ROLES.length;
             return (
-              <>
-                <tr key={`area-${area}`} className="bg-gradient-to-r from-slate-500/[0.06] via-muted/20 to-transparent">
+              <Fragment key={area}>
+                <tr className="bg-gradient-to-r from-slate-500/[0.06] via-muted/20 to-transparent">
                   <td
-                    className="sticky left-0 z-30 min-w-72 border-y border-r border-border/40 bg-card px-3 py-2 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
+                    className="sticky left-0 z-30 w-52 min-w-52 max-w-52 border-y border-r border-border/40 bg-card px-2.5 py-1.5 shadow-[2px_0_0_hsl(var(--border)/0.4)]"
                   >
                     <button
                       type="button"
                       onClick={() => onToggleCollapsed(`pv-static:${area}`)}
-                      className="flex w-full items-center gap-2 text-left"
+                      className="w-full text-left"
                       aria-expanded={!isCollapsed}
                     >
-                      {isCollapsed ? (
-                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-foreground">
-                        {area}
-                      </span>
-                      <span className="text-[10px] font-medium text-muted-foreground">
-                        · {pages.length} route{pages.length === 1 ? "" : "s"}
-                      </span>
-                      <span className="ml-auto inline-flex items-center gap-2">
-                        <span className="relative h-1.5 w-20 overflow-hidden rounded-full bg-muted/40" aria-hidden>
-                          <span
-                            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-slate-300 to-slate-400"
-                            style={{ width: `${pct}%` }}
-                          />
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {isCollapsed ? (
+                          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        )}
+                        <span className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-foreground">
+                          {area}
                         </span>
-                        <span className="tabular-nums text-[10px] font-semibold text-slate-200">
-                          {allowedCount}
-                          <span className="text-muted-foreground">/{total}</span>
+                        <span className="ml-auto shrink-0 text-[9px] font-medium text-muted-foreground">
+                          {routes.length} route{routes.length === 1 ? "" : "s"}
                         </span>
+                      </span>
+                      <span className="mt-0.5 block pl-[18px] text-[9px] text-muted-foreground">
+                        <span className="font-semibold tabular-nums text-slate-200">
+                          {allowedCount}/{cellCount}
+                        </span>{" "}
+                        role grants
                       </span>
                     </button>
                   </td>
@@ -3269,27 +3330,35 @@ function StaticPageVisibilityMatrix({
                 </tr>
 
                 {!isCollapsed &&
-                  pages.map((page) => (
-                    <tr key={page.path} className="group/route transition-colors hover:bg-muted/20">
+                  routes.map((routePath) => (
+                    <tr
+                      key={routePath}
+                      className="group/route transition-colors hover:bg-muted/20"
+                    >
                       <td
-                        className={`sticky left-0 z-20 min-w-72 border-r border-b border-border/30 bg-card px-4 shadow-[2px_0_0_hsl(var(--border)/0.4)] ${density.rowPaddingY} group-hover/route:bg-muted`}
+                        className={`sticky left-0 z-20 w-52 min-w-52 max-w-52 border-r border-b border-border/30 bg-card px-3 shadow-[2px_0_0_hsl(var(--border)/0.4)] ${density.rowPaddingY} group-hover/route:bg-muted`}
                       >
-                        <div className="truncate font-semibold text-foreground">{page.label}</div>
-                        <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-                          {page.path}
+                        <div className="truncate text-[11px] font-semibold text-foreground">
+                          {staticRouteLabel(routePath)}
+                        </div>
+                        <div
+                          className="mt-0.5 truncate font-mono text-[9px] text-muted-foreground"
+                          title={routePath}
+                        >
+                          {routePath}
                         </div>
                       </td>
                       {ROLES.map((staticRole) => {
-                        const visible = (PAGE_VISIBILITY[page.path] ?? []).includes(staticRole.id);
+                        const visible = (PAGE_VISIBILITY[routePath] ?? []).includes(staticRole.id);
                         return (
                           <td
                             key={staticRole.id}
-                            className={`border-l border-b border-border/20 px-1.5 py-1 text-center align-middle ${
+                            className={`w-[72px] min-w-[72px] max-w-[72px] border-l border-b border-border/20 px-1 py-1 text-center align-middle ${
                               visible ? "bg-emerald-500/[0.05]" : ""
                             }`}
                           >
                             <span
-                              className={`mx-auto inline-flex h-6 w-6 items-center justify-center rounded-[5px] border ${
+                              className={`mx-auto inline-flex h-5 w-5 items-center justify-center rounded border ${
                                 visible
                                   ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.15)]"
                                   : "border-border/30 bg-background/20 text-muted-foreground/50"
@@ -3297,7 +3366,7 @@ function StaticPageVisibilityMatrix({
                               aria-label={visible ? "Allowed" : "Hidden"}
                             >
                               {visible ? (
-                                <Check className="h-2.5 w-2.5" strokeWidth={3.25} />
+                                <Check className="h-2.5 w-2.5" strokeWidth={3} />
                               ) : (
                                 <span className="h-1 w-1 rounded-full bg-current opacity-60" aria-hidden />
                               )}
@@ -3307,13 +3376,48 @@ function StaticPageVisibilityMatrix({
                       })}
                     </tr>
                   ))}
-              </>
+              </Fragment>
             );
           })}
         </tbody>
       </table>
     </div>
   );
+}
+
+function staticRouteLabel(routePath: string): string {
+  const configuredPage = PAGES.find((page) => page.path === routePath);
+  if (configuredPage) return configuredPage.label;
+  if (routePath === "/dashboard") return "Dashboard";
+
+  return routePath
+    .split("/")
+    .filter(Boolean)
+    .map((segment) =>
+      segment.startsWith(":")
+        ? segment.slice(1).toUpperCase()
+        : formatGroupLabel(segment),
+    )
+    .join(" / ");
+}
+
+function staticRouteArea(routePath: string): string {
+  const configuredPage = PAGES.find((page) => page.path === routePath);
+  if (configuredPage) return configuredPage.area;
+  if (routePath.startsWith("/admin/")) return "Administration";
+  if (
+    routePath.startsWith("/tickets") ||
+    routePath.startsWith("/my-requests") ||
+    routePath.startsWith("/service-catalog")
+  )
+    return "Service Desk";
+  if (routePath.startsWith("/documents") || routePath.startsWith("/search"))
+    return "Knowledge";
+  if (routePath.startsWith("/cmdb") || routePath.startsWith("/ipam"))
+    return "Infrastructure";
+  if (routePath.startsWith("/audit") || routePath.startsWith("/reports"))
+    return "Governance";
+  return pageArea(routePath);
 }
 
 /* ============================================================================

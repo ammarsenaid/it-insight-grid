@@ -2264,3 +2264,28 @@ Operational notes:
 - No database, SQL, migration, Supabase pending file, authorization, route-guard,
   backend API, deployment, service restart, commit, push, package, generated
   route-tree, mail worker, or mail intake state operation was performed.
+
+## Milestone 95 - Static Page Visibility Fallback Hardening
+
+Date: 2026-06-30
+
+Status: IMPLEMENTED AND LOCALLY VALIDATED.
+
+- Kept the Stored config / Static fallback selector available while backend data
+  loads or fails, so the code-backed fallback can always be inspected.
+- Corrected the static matrix to enumerate the complete compiled
+  `PAGE_VISIBILITY` rules instead of only the smaller curated page catalog.
+- Reduced the sticky route column and role-column widths, compacted role headers,
+  group counters, and cell icons, and constrained scrolling to the matrix.
+- Clarified live/backend versus compiled/read-only behavior and made each mode's
+  active state and relevant legend explicit.
+- Added keyed route-group fragments and removed an unstable memo dependency
+  pattern in the live visibility grouping.
+
+Operational notes:
+- `bun run build`, focused route ESLint, and `git diff --check` completed
+  successfully. Standalone TypeScript validation remains blocked by the existing
+  forbidden-file error in `src/lib/auth/AuthProvider.tsx`.
+- No database, SQL, migration, Supabase pending file, authorization, route-guard,
+  backend API, deployment, service restart, commit, push, package, generated
+  route-tree, mail worker, or mail intake state operation was performed.
