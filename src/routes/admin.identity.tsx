@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
@@ -7,40 +7,31 @@ import {
   KeyRound,
   Layers,
   Lock,
-  MoreHorizontal,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
   Plus,
+  Search,
   ShieldCheck,
   UserPlus,
   Users,
   UsersRound,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-
 import { useQuery } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { can, ROLES, useRole, type Role } from "@/lib/permissions";
-import { adminRolesQuery } from "@/lib/admin-roles/queries";
+import { can, useRole } from "@/lib/permissions";
+import { adminRolePageVisibilityQuery, adminRolesQuery } from "@/lib/admin-roles/queries";
+import { adminUsersQuery } from "@/lib/admin-users/queries";
 
 import { PeopleAndOrganizationPage } from "./admin.users";
 import { AdminRolesPage } from "./admin.roles";
@@ -62,23 +53,26 @@ type SectionKey =
   | "permissions"
   | "pages";
 
+type SectionGroup = "people" | "access" | "insights";
+
 type Section = {
   key: SectionKey;
   label: string;
   hint: string;
   icon: typeof Users;
-  group: "people" | "access" | "advanced";
+  group: SectionGroup;
+  advanced?: boolean;
 };
 
 const SECTIONS: Section[] = [
-  { key: "users",       label: "Users",         hint: "Accounts & status",     icon: Users,       group: "people" },
-  { key: "departments", label: "Departments",   hint: "Workspaces & ownership",icon: Building2,   group: "people" },
-  { key: "teams",       label: "Teams",         hint: "Routing & on-call",     icon: UsersRound,  group: "people" },
-  { key: "access-map",  label: "Access map",    hint: "Modules × roles",       icon: ShieldCheck, group: "people" },
-  { key: "roles",       label: "Roles",         hint: "Role catalog",          icon: KeyRound,    group: "access" },
-  { key: "preview",     label: "Role preview",  hint: "Simulate a role",       icon: Network,     group: "access" },
-  { key: "permissions", label: "Permissions",   hint: "Capability matrix",     icon: Layers,      group: "advanced" },
-  { key: "pages",       label: "Page visibility", hint: "Route allow-list",    icon: Eye,         group: "advanced" },
+  { key: "users",       label: "Users",         hint: "Accounts & status",         icon: Users,       group: "people"   },
+  { key: "departments", label: "Departments",   hint: "Workspaces & ownership",    icon: Building2,   group: "people"   },
+  { key: "teams",       label: "Teams",         hint: "Routing & on-call",         icon: UsersRound,  group: "people"   },
+  { key: "roles",       label: "Roles",         hint: "Role catalog & scope",      icon: KeyRound,    group: "access"   },
+  { key: "pages",       label: "Page visibility", hint: "Route allow-list",        icon: Eye,         group: "access"   },
+  { key: "permissions", label: "Capabilities",  hint: "Fine-grained grants",       icon: Layers,      group: "access", advanced: true },
+  { key: "access-map",  label: "Access map",    hint: "Modules × roles",           icon: ShieldCheck, group: "insights" },
+  { key: "preview",     label: "Role preview",  hint: "Simulate a role",           icon: Network,     group: "insights" },
 ];
 
 const SECTION_TO_USERS_TAB: Partial<Record<SectionKey, "users" | "departments" | "teams" | "access">> = {
@@ -95,31 +89,55 @@ const SECTION_TO_ROLES_TAB: Partial<Record<SectionKey, "roles" | "capabilities" 
   pages: "pages",
 };
 
+const GROUP_LABELS: Record<SectionGroup, string> = {
+  people: "People",
+  access: "Access",
+  insights: "Insights",
+};
+
 /* ───────────────────────── Page ───────────────────────── */
+
+const LS_PREFIX = "itkc.identity.";
+function readPref(key: string, fallback: boolean): boolean {
+  if (typeof window === "undefined") return fallback;
+  const v = window.localStorage.getItem(LS_PREFIX + key);
+  return v == null ? fallback : v === "1";
+}
+function writePref(key: string, value: boolean) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LS_PREFIX + key, value ? "1" : "0");
+}
 
 function IdentityAndAccessPage() {
   const role = useRole();
   const allowed = can("admin.users", role) || can("admin.roles", role);
 
   const [section, setSection] = useState<SectionKey>("users");
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(() => readPref("advanced", false));
   const [query, setQuery] = useState("");
-  // Collapsible rails so the workspace doesn't get squeezed on smaller screens.
-  const [leftOpen, setLeftOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(false);
+  const [leftOpen, setLeftOpen] = useState(() => readPref("leftOpen", true));
+  const [rightOpen, setRightOpen] = useState(() => readPref("rightOpen", false));
+  const [userOverrode, setUserOverrode] = useState(false);
 
-  // Auto-collapse on narrow viewports.
+  useEffect(() => writePref("advanced", showAdvanced), [showAdvanced]);
+  useEffect(() => writePref("leftOpen", leftOpen), [leftOpen]);
+  useEffect(() => writePref("rightOpen", rightOpen), [rightOpen]);
+
+  // Auto-collapse on narrow viewports — only until the user overrides.
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || userOverrode) return;
     const apply = () => {
       const w = window.innerWidth;
-      setLeftOpen(w >= 1280);
-      setRightOpen(w >= 1536);
+      if (w < 1280) setLeftOpen(false);
+      if (w < 1536) setRightOpen(false);
     };
     apply();
     window.addEventListener("resize", apply);
     return () => window.removeEventListener("resize", apply);
-  }, []);
+  }, [userOverrode]);
+
+  const toggleLeft = () => { setUserOverrode(true); setLeftOpen((v) => !v); };
+  const toggleRight = () => { setUserOverrode(true); setRightOpen((v) => !v); };
 
   if (!allowed) {
     return (
@@ -133,100 +151,128 @@ function IdentityAndAccessPage() {
     );
   }
 
+  return (
+    <IdentityWorkbench
+      section={section}
+      onSection={setSection}
+      query={query}
+      onQuery={setQuery}
+      showAdvanced={showAdvanced}
+      onToggleAdvanced={() => setShowAdvanced((v) => !v)}
+      leftOpen={leftOpen}
+      onToggleLeft={toggleLeft}
+      rightOpen={rightOpen}
+      onToggleRight={toggleRight}
+    />
+  );
+}
+
+/* ───────────────────────── Workbench shell ───────────────────────── */
+
+function IdentityWorkbench({
+  section, onSection, query, onQuery,
+  showAdvanced, onToggleAdvanced,
+  leftOpen, onToggleLeft,
+  rightOpen, onToggleRight,
+}: {
+  section: SectionKey;
+  onSection: (s: SectionKey) => void;
+  query: string;
+  onQuery: (v: string) => void;
+  showAdvanced: boolean;
+  onToggleAdvanced: () => void;
+  leftOpen: boolean;
+  onToggleLeft: () => void;
+  rightOpen: boolean;
+  onToggleRight: () => void;
+}) {
+  // Live counts feed the nav rail badges. Both queries are cheap & cached.
+  const { session, isPlatformAdmin } = useAuth();
+  const enabled = Boolean(session?.user) && isPlatformAdmin;
+  const usersQ = useQuery({ ...adminUsersQuery(), enabled });
+  const rolesQ = useQuery({ ...adminRolesQuery(), enabled });
+
+  const counts: Partial<Record<SectionKey, number>> = {
+    users: usersQ.data?.length,
+    roles: rolesQ.data?.roles.length,
+    permissions: rolesQ.data?.permissions.length,
+  };
+
   const visibleSections = useMemo(() => {
     const q = query.trim().toLowerCase();
     return SECTIONS.filter((s) => {
-      if (!showAdvanced && s.group === "advanced") return false;
+      if (s.advanced && !showAdvanced) return false;
       if (!q) return true;
       return s.label.toLowerCase().includes(q) || s.hint.toLowerCase().includes(q);
     });
   }, [query, showAdvanced]);
 
-  const peopleSections = visibleSections.filter((s) => s.group === "people");
-  const accessSections = visibleSections.filter((s) => s.group === "access");
-  const advancedSections = visibleSections.filter((s) => s.group === "advanced");
+  const groups: SectionGroup[] = ["people", "access", "insights"];
   const meta = SECTIONS.find((s) => s.key === section)!;
 
-  const allRailItems = [...peopleSections, ...accessSections, ...(showAdvanced ? advancedSections : [])];
-
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] min-h-0 w-full overflow-hidden">
-      {/* ─── Left rail: directory (collapsible) ─── */}
+    <div className="flex h-[calc(100vh-3.5rem)] min-h-0 w-full overflow-hidden bg-background">
+      {/* ─── Left rail: directory ─── */}
       <aside
         className={cn(
           "hidden shrink-0 flex-col border-r border-border/40 bg-card/30 transition-[width] duration-200 md:flex",
-          leftOpen ? "w-56" : "w-14",
+          leftOpen ? "w-60" : "w-14",
         )}
       >
-        <div className="flex items-center justify-between border-b border-border/40 px-2 py-2">
+        <div className="flex items-center justify-between gap-1 border-b border-border/40 px-2 py-2">
           {leftOpen ? (
             <div className="flex items-center gap-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5" /> Identity
+              <ShieldCheck className="h-3.5 w-3.5" /> Directory
             </div>
           ) : (
             <ShieldCheck className="mx-auto h-4 w-4 text-muted-foreground" />
           )}
-          <div className="flex items-center">
-            {leftOpen && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Workbench
-                  </DropdownMenuLabel>
-                  <DropdownMenuItem onSelect={() => setShowAdvanced((v) => !v)}>
-                    {showAdvanced ? "Hide advanced sections" : "Show advanced sections"}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Developer
-                  </DropdownMenuLabel>
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin/users">Open legacy /admin/users</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin/roles">Open legacy /admin/roles</Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground"
-              onClick={() => setLeftOpen((v) => !v)}
-              title={leftOpen ? "Collapse" : "Expand"}
-            >
-              {leftOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground"
+            onClick={onToggleLeft}
+            title={leftOpen ? "Collapse" : "Expand"}
+          >
+            {leftOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+          </Button>
         </div>
+
         {leftOpen && (
           <div className="px-2 py-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filter…"
-              className="h-8 w-full rounded-md border border-border/50 bg-background/50 px-2 text-xs outline-none focus:border-border"
-            />
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(e) => onQuery(e.target.value)}
+                placeholder="Filter directory…"
+                className="h-8 w-full rounded-md border border-border/50 bg-background/50 pl-7 pr-2 text-xs outline-none focus:border-border"
+              />
+            </div>
           </div>
         )}
+
         <ScrollArea className="flex-1">
           {leftOpen ? (
             <div className="space-y-4 px-2 pb-3">
-              <NavGroup label="People"        items={peopleSections}   active={section} onSelect={setSection} />
-              <NavGroup label="Access control" items={accessSections}   active={section} onSelect={setSection} />
-              {showAdvanced && (
-                <NavGroup label="Advanced"    items={advancedSections} active={section} onSelect={setSection} />
-              )}
+              {groups.map((g) => {
+                const items = visibleSections.filter((s) => s.group === g);
+                if (items.length === 0) return null;
+                return (
+                  <NavGroup
+                    key={g}
+                    label={GROUP_LABELS[g]}
+                    items={items}
+                    counts={counts}
+                    active={section}
+                    onSelect={onSection}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="flex flex-col items-center gap-1 px-1 py-1">
-              {allRailItems.map((it) => {
+              {visibleSections.map((it) => {
                 const Icon = it.icon;
                 const active = section === it.key;
                 return (
@@ -234,7 +280,7 @@ function IdentityAndAccessPage() {
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        onClick={() => setSection(it.key)}
+                        onClick={() => onSection(it.key)}
                         className={cn(
                           "grid h-9 w-9 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors",
                           active ? "border-border/60 bg-background/70 text-foreground" : "hover:bg-background/50",
@@ -250,67 +296,93 @@ function IdentityAndAccessPage() {
             </div>
           )}
         </ScrollArea>
+
+        {leftOpen && (
+          <div className="border-t border-border/40 px-2 py-2">
+            <button
+              type="button"
+              onClick={onToggleAdvanced}
+              className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-background/50"
+            >
+              <span className="uppercase tracking-wider">Advanced sections</span>
+              <Badge variant="outline" className="h-4 border-border/50 px-1.5 text-[10px]">
+                {showAdvanced ? "On" : "Off"}
+              </Badge>
+            </button>
+          </div>
+        )}
       </aside>
 
       {/* ─── Main column ─── */}
       <main className="flex min-w-0 flex-1 flex-col">
-        {/* Slim breadcrumb / mobile selector / rail toggles */}
-        <div className="flex items-center justify-between gap-2 border-b border-border/40 bg-background/60 px-3 py-2 backdrop-blur">
-          <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 md:hidden"
-              onClick={() => setLeftOpen((v) => !v)}
-            >
-              <PanelLeftOpen className="h-4 w-4" />
-            </Button>
-            <span className="hidden sm:inline">Identity & Access</span>
-            <ChevronRight className="hidden h-3 w-3 sm:inline" />
-            <span className="truncate text-foreground">{meta.label}</span>
-            <span className="ml-1 hidden text-muted-foreground/70 lg:inline">· {meta.hint}</span>
+        {/* Unified command strip: breadcrumb · title · actions · rail toggles */}
+        <header className="flex items-center gap-3 border-b border-border/40 bg-background/70 px-3 py-2 backdrop-blur sm:px-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 md:hidden"
+            onClick={onToggleLeft}
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </Button>
+
+          <div className="flex min-w-0 items-center gap-2">
+            <meta.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <span className="hidden sm:inline">Identity & Access</span>
+                <ChevronRight className="hidden h-3 w-3 sm:inline" />
+                <span className="text-muted-foreground/80">{GROUP_LABELS[meta.group]}</span>
+              </div>
+              <h1 className="truncate text-sm font-semibold leading-tight text-foreground sm:text-base">
+                {meta.label}
+                <span className="ml-2 hidden text-[11px] font-normal text-muted-foreground lg:inline">
+                  · {meta.hint}
+                </span>
+              </h1>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="ml-auto flex items-center gap-1.5">
+            <SectionPrimaryActions section={section} onJump={onSection} />
             <select
               value={section}
-              onChange={(e) => setSection(e.target.value as SectionKey)}
-              className="h-7 rounded-md border border-border/50 bg-background px-2 text-xs md:hidden"
+              onChange={(e) => onSection(e.target.value as SectionKey)}
+              className="h-8 rounded-md border border-border/50 bg-background px-2 text-xs md:hidden"
             >
-              {SECTIONS.filter((s) => showAdvanced || s.group !== "advanced").map((s) => (
+              {SECTIONS.filter((s) => showAdvanced || !s.advanced).map((s) => (
                 <option key={s.key} value={s.key}>{s.label}</option>
               ))}
             </select>
+            <Separator orientation="vertical" className="hidden h-5 lg:block" />
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground"
-              onClick={() => setRightOpen((v) => !v)}
+              onClick={onToggleRight}
               title={rightOpen ? "Hide context" : "Show context"}
             >
               {rightOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
             </Button>
           </div>
-        </div>
+        </header>
 
         <div className="min-h-0 flex-1 overflow-auto">
-          <div className="px-3 py-3 md:px-5 md:py-4">
-            {(section === "roles" || section === "preview") && <RolesHero section={section} />}
-            <SectionActionBar section={section} onJump={setSection} />
+          <div className="px-3 py-4 sm:px-4 md:px-5">
             <SectionRouter key={section} section={section} />
           </div>
         </div>
       </main>
 
-      {/* ─── Right rail: context summary (toggle) ─── */}
+      {/* ─── Right rail: context ─── */}
       {rightOpen && (
         <aside className="hidden w-72 shrink-0 flex-col border-l border-border/40 bg-card/30 lg:flex">
-          <ContextRail section={section} onJump={setSection} />
+          <ContextRail section={section} onJump={onSection} />
         </aside>
       )}
     </div>
   );
 }
-
 
 /* ───────────────────────── Section router ───────────────────────── */
 
@@ -322,210 +394,68 @@ function SectionRouter({ section }: { section: SectionKey }) {
   return null;
 }
 
-/* ───────────────────────── Roles / Preview hero ───────────────────────── */
-
-function RolesHero({ section }: { section: "roles" | "preview" }) {
-  const { session, isPlatformAdmin, roleKeys } = useAuth();
-  const enabled = Boolean(session?.user) && isPlatformAdmin;
-  const rolesQ = useQuery({ ...adminRolesQuery(), enabled });
-  const data = rolesQ.data;
-
-  const liveRoles = data?.roles ?? [];
-  const platformCount = liveRoles.filter((r) => r.scope === "platform").length;
-  const teamCount = liveRoles.filter((r) => r.scope === "team").length;
-  const systemCount = liveRoles.filter((r) => r.isSystem).length;
-  const permCount = data?.permissions.length ?? 0;
-  const grantCount = data?.grants.length ?? 0;
-
-  const isPreview = section === "preview";
-  const accent = isPreview
-    ? "from-amber-500/15 via-amber-500/5 to-transparent ring-amber-500/20"
-    : "from-cyan-500/15 via-cyan-500/5 to-transparent ring-cyan-500/20";
-  const Icon = isPreview ? Network : KeyRound;
-
-  const eyebrow = isPreview ? "Role simulator" : "Role catalog";
-  const title = isPreview ? "Preview what a role can reach" : "Manage roles & their scope";
-  const desc = isPreview
-    ? "Step into any role to see exactly which pages and capabilities they have. Your own session never changes."
-    : "Browse every role across the platform and team scopes. Edit the metadata, scope, and capabilities of any role.";
-
-  const stats: { label: string; value: string | number }[] = isPreview
-    ? [
-        { label: "Available roles", value: liveRoles.length || ROLES.length },
-        { label: "Your roles", value: roleKeys.length },
-        { label: "Permissions", value: permCount || "—" },
-      ]
-    : [
-        { label: "Roles", value: liveRoles.length || "—" },
-        { label: "Platform", value: platformCount || "—" },
-        { label: "Team", value: teamCount || "—" },
-        { label: "System", value: systemCount || "—" },
-        { label: "Grants", value: grantCount || "—" },
-      ];
-
-  return (
-    <div className={cn(
-      "mb-4 overflow-hidden rounded-2xl border border-border/40 bg-gradient-to-br p-4 ring-1 ring-inset",
-      accent,
-    )}>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className={cn(
-            "grid h-10 w-10 shrink-0 place-items-center rounded-xl ring-1 ring-inset",
-            isPreview ? "bg-amber-500/15 text-amber-200 ring-amber-500/30" : "bg-cyan-500/15 text-cyan-200 ring-cyan-500/30",
-          )}>
-            <Icon className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{eyebrow}</div>
-            <h2 className="mt-0.5 truncate text-base font-semibold text-foreground sm:text-lg">{title}</h2>
-            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">{desc}</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {stats.map((s) => (
-            <div
-              key={s.label}
-              className="rounded-lg border border-border/40 bg-background/40 px-2.5 py-1.5 text-center backdrop-blur"
-            >
-              <div className="text-sm font-semibold leading-none text-foreground">{s.value}</div>
-              <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {isPreview && (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/30 pt-3">
-          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Quick pick:
-          </span>
-          {ROLES.slice(0, 6).map((r: { id: Role; label: string }) => (
-            <Badge
-              key={r.id}
-              variant="outline"
-              className="h-5 cursor-default border-border/50 bg-background/40 text-[10px] font-normal"
-              title={r.label}
-            >
-              {r.label}
-            </Badge>
-          ))}
-          <span className="text-[10px] text-muted-foreground">
-            · Use the “Acting as” panel below to switch
-          </span>
-        </div>
-      )}
-
-      {!isPreview && (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/30 pt-3">
-          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Scopes:
-          </span>
-          <Badge variant="outline" className="h-5 border-cyan-500/40 bg-cyan-500/10 text-[10px] text-cyan-200">Platform</Badge>
-          <Badge variant="outline" className="h-5 border-violet-500/40 bg-violet-500/10 text-[10px] text-violet-200">Team</Badge>
-          <Badge variant="outline" className="h-5 border-border/50 bg-background/40 text-[10px]">System (locked)</Badge>
-          <Badge variant="outline" className="h-5 border-border/50 bg-background/40 text-[10px]">Custom (editable)</Badge>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
+/* ───────────────────────── Section primary actions (compact, in strip) ───────────────────────── */
 
 function fire(name: string) {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(name));
 }
 
-function SectionActionBar({
+function SectionPrimaryActions({
   section, onJump,
 }: { section: SectionKey; onJump: (s: SectionKey) => void }) {
-  const meta = SECTIONS.find((s) => s.key === section)!;
-
   const actions = (() => {
     switch (section) {
       case "users":
-        return [
-          { label: "Add user", icon: UserPlus, onClick: () => fire("itkc:create-user"), primary: true },
-          { label: "Create department", icon: Building2, onClick: () => fire("itkc:create-department") },
-          { label: "Create team", icon: UsersRound, onClick: () => fire("itkc:create-team") },
-        ];
+        return [{ label: "Add user", icon: UserPlus, onClick: () => fire("itkc:create-user") }];
       case "departments":
-        return [
-          { label: "Create department", icon: Plus, onClick: () => fire("itkc:create-department"), primary: true },
-          { label: "Add user", icon: UserPlus, onClick: () => { onJump("users"); setTimeout(() => fire("itkc:create-user"), 50); } },
-        ];
+        return [{ label: "New department", icon: Plus, onClick: () => fire("itkc:create-department") }];
       case "teams":
-        return [
-          { label: "Create team", icon: Plus, onClick: () => fire("itkc:create-team"), primary: true },
-          { label: "Add user", icon: UserPlus, onClick: () => { onJump("users"); setTimeout(() => fire("itkc:create-user"), 50); } },
-        ];
+        return [{ label: "New team", icon: Plus, onClick: () => fire("itkc:create-team") }];
       case "access-map":
-        return [
-          { label: "Preview a role", icon: Network, onClick: () => onJump("preview"), primary: true },
-          { label: "Manage visibility", icon: Eye, onClick: () => onJump("pages") },
-        ];
+        return [{ label: "Preview a role", icon: Network, onClick: () => onJump("preview") }];
       case "roles":
-        return [
-          { label: "Preview a role", icon: Network, onClick: () => onJump("preview"), primary: true },
-          { label: "Manage visibility", icon: Eye, onClick: () => onJump("pages") },
-          { label: "Edit capabilities", icon: Layers, onClick: () => onJump("permissions") },
-        ];
+        return [{ label: "Preview a role", icon: Network, onClick: () => onJump("preview") }];
       case "preview":
-        return [
-          { label: "Back to roles", icon: KeyRound, onClick: () => onJump("roles"), primary: true },
-          { label: "Module access map", icon: ShieldCheck, onClick: () => onJump("access-map") },
-        ];
+        return [{ label: "Back to roles", icon: KeyRound, onClick: () => onJump("roles") }];
       case "permissions":
-        return [
-          { label: "Back to roles", icon: KeyRound, onClick: () => onJump("roles") },
-          { label: "Page visibility", icon: Eye, onClick: () => onJump("pages") },
-        ];
       case "pages":
-        return [
-          { label: "Back to roles", icon: KeyRound, onClick: () => onJump("roles") },
-          { label: "Capabilities", icon: Layers, onClick: () => onJump("permissions") },
-        ];
+        return [{ label: "Back to roles", icon: KeyRound, onClick: () => onJump("roles") }];
+      default:
+        return [];
     }
   })();
 
+  if (actions.length === 0) return null;
+
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/40 bg-card/40 px-3 py-2">
-      <div className="flex min-w-0 items-center gap-2">
-        <meta.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold leading-none">{meta.label}</div>
-          <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{meta.hint}</div>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {actions.map((a) => {
-          const Icon = a.icon;
-          return (
-            <Button
-              key={a.label}
-              size="sm"
-              variant={a.primary ? "default" : "outline"}
-              onClick={a.onClick}
-              className="h-8"
-            >
-              <Icon className="mr-1.5 h-3.5 w-3.5" />
-              {a.label}
-            </Button>
-          );
-        })}
-      </div>
-    </div>
+    <>
+      {actions.map((a, i) => {
+        const Icon = a.icon;
+        return (
+          <Button
+            key={a.label}
+            size="sm"
+            variant={i === 0 ? "default" : "outline"}
+            onClick={a.onClick}
+            className="h-8"
+          >
+            <Icon className="mr-1.5 h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{a.label}</span>
+          </Button>
+        );
+      })}
+    </>
   );
 }
 
 /* ───────────────────────── Nav group ───────────────────────── */
 
 function NavGroup({
-  label, items, active, onSelect,
+  label, items, counts, active, onSelect,
 }: {
   label: string;
   items: Section[];
+  counts: Partial<Record<SectionKey, number>>;
   active: SectionKey;
   onSelect: (s: SectionKey) => void;
 }) {
@@ -539,21 +469,27 @@ function NavGroup({
         {items.map((it) => {
           const Icon = it.icon;
           const isActive = active === it.key;
+          const count = counts[it.key];
           return (
             <button
               key={it.key}
               type="button"
               onClick={() => onSelect(it.key)}
               className={cn(
-                "group flex w-full items-start gap-2 rounded-md border border-transparent px-2 py-1.5 text-left transition-colors",
+                "group flex w-full items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-left transition-colors",
                 isActive ? "border-border/60 bg-background/70" : "hover:bg-background/50",
               )}
             >
-              <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", isActive ? "text-foreground" : "text-muted-foreground")} />
-              <div className="min-w-0">
+              <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-foreground" : "text-muted-foreground")} />
+              <div className="min-w-0 flex-1">
                 <div className={cn("truncate text-sm", isActive && "font-medium")}>{it.label}</div>
                 <div className="truncate text-[11px] text-muted-foreground">{it.hint}</div>
               </div>
+              {typeof count === "number" && (
+                <Badge variant="outline" className="h-4 shrink-0 border-border/40 bg-background/40 px-1.5 text-[10px] font-normal text-muted-foreground">
+                  {count}
+                </Badge>
+              )}
             </button>
           );
         })}
@@ -607,13 +543,13 @@ function ContextRail({
         return {
           title: "About role preview",
           body: "Simulate what a role can actually reach without changing your own session.",
-          bullets: ["Switch ‘Acting as’ in the toolbar", "Compare two roles side by side", "See blockers per route"],
+          bullets: ["Switch 'Acting as' in the toolbar", "Compare two roles side by side", "See blockers per route"],
         };
       case "permissions":
         return {
-          title: "About permissions",
+          title: "About capabilities",
           body: "Fine-grained capability grants per role. Toggling a cell saves instantly with undo.",
-          bullets: ["Cells flash on save", "Use ‘Differs only’ to compare", "Collapse groups for density"],
+          bullets: ["Cells flash on save", "Use 'Differs only' to compare", "Collapse groups for density"],
         };
       case "pages":
         return {
@@ -628,9 +564,42 @@ function ContextRail({
   const routeCount = effectiveAccess?.visibleRoutes.length ?? 0;
   const roleKeys = effectiveAccess?.roleKeys ?? [role];
 
+  // ── Role inspector (Step 5): pick any role and see its real grants. ──
+  const { session, isPlatformAdmin } = useAuth();
+  const rolesQ = useQuery({
+    ...adminRolesQuery(),
+    enabled: Boolean(session?.user) && isPlatformAdmin,
+  });
+  const pageVisQ = useQuery({
+    ...adminRolePageVisibilityQuery(),
+    enabled: Boolean(session?.user) && isPlatformAdmin,
+  });
+
+  const allRoles = rolesQ.data?.roles ?? [];
+  const allPerms = rolesQ.data?.permissions ?? [];
+  const allGrants = rolesQ.data?.grants ?? [];
+  const allVis = pageVisQ.data ?? [];
+
+  // Default the inspector to the user's own primary role if we can match it.
+  const defaultRoleId = useMemo(() => {
+    const myKey = (effectiveAccess?.roleKeys ?? [role])[0];
+    return allRoles.find((r) => r.roleKey === myKey)?.id ?? allRoles[0]?.id ?? "";
+  }, [allRoles, effectiveAccess?.roleKeys, role]);
+
+  const [inspectRoleId, setInspectRoleId] = useState<string>("");
+  const activeRoleId = inspectRoleId || defaultRoleId;
+  const activeRole = allRoles.find((r) => r.id === activeRoleId);
+
+  const grantedPermIds = useMemo(
+    () => new Set(allGrants.filter((g) => g.roleId === activeRoleId).map((g) => g.permissionId)),
+    [allGrants, activeRoleId],
+  );
+  const grantedPerms = allPerms.filter((p) => grantedPermIds.has(p.id));
+  const visibleRoutes = allVis.filter((v) => v.roleId === activeRoleId && v.canView);
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Section context */}
+      {/* Section explainer */}
       <div className="border-b border-border/40 p-4">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           <meta.icon className="h-3.5 w-3.5" /> {meta.label}
@@ -649,53 +618,171 @@ function ContextRail({
 
       <Separator className="bg-border/40" />
 
-      {/* Your effective access */}
-      <div className="p-4">
+      {/* You */}
+      <div className="px-4 py-3">
         <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Your effective access
+          You
         </div>
-        <div className="mt-1 text-sm font-medium">
+        <div className="mt-1 truncate text-sm font-medium">
           {profile?.display_name ?? profile?.email ?? "Signed-in user"}
         </div>
         <div className="mt-0.5 text-xs text-muted-foreground">UI role · {role}</div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <Stat label="Permissions" value={permCount} />
-          <Stat label="Routes" value={routeCount} />
-        </div>
-
-        <div className="mt-3">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Roles held
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {roleKeys.length === 0 ? (
-              <span className="text-xs text-muted-foreground">No roles assigned.</span>
-            ) : (
-              roleKeys.map((r) => (
-                <Badge key={r} variant="secondary" className="h-5 text-[10px]">{r}</Badge>
-              ))
-            )}
-          </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Stat label="Permissions" value={effectiveAccess?.permissionKeys.length ?? 0} />
+          <Stat label="Routes" value={effectiveAccess?.visibleRoutes.length ?? 0} />
         </div>
       </div>
 
       <Separator className="bg-border/40" />
 
-      {/* Quick actions */}
-      <div className="p-4">
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Quick actions
+      {/* Inspector */}
+      <ScrollArea className="flex-1">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Effective access inspector
+            </div>
+            {activeRole && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "h-4 border-border/50 px-1.5 text-[10px]",
+                  activeRole.scope === "platform" && "text-amber-400/90",
+                )}
+              >
+                {activeRole.scope}
+              </Badge>
+            )}
+          </div>
+
+          <select
+            value={activeRoleId}
+            onChange={(e) => setInspectRoleId(e.target.value)}
+            className="mt-2 h-8 w-full rounded-md border border-border/50 bg-background px-2 text-xs"
+            disabled={allRoles.length === 0}
+          >
+            {allRoles.length === 0 ? (
+              <option>Loading roles…</option>
+            ) : (
+              allRoles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name} · {r.roleKey}
+                </option>
+              ))
+            )}
+          </select>
+
+          {activeRole?.description && (
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              {activeRole.description}
+            </p>
+          )}
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Stat label="Capabilities" value={grantedPerms.length} />
+            <Stat label="Visible routes" value={visibleRoutes.length} />
+          </div>
+
+          {/* Capability chips */}
+          <div className="mt-3">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Capabilities
+              </span>
+              {grantedPerms.length > 8 && (
+                <button
+                  type="button"
+                  onClick={() => onJump("permissions")}
+                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                >
+                  view all →
+                </button>
+              )}
+            </div>
+            {grantedPerms.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">No capabilities granted.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {grantedPerms.slice(0, 8).map((p) => (
+                  <Badge
+                    key={p.id}
+                    variant="secondary"
+                    className="h-5 max-w-full truncate text-[10px] font-normal"
+                    title={p.description ?? p.permissionKey}
+                  >
+                    {p.permissionKey}
+                  </Badge>
+                ))}
+                {grantedPerms.length > 8 && (
+                  <Badge variant="outline" className="h-5 border-border/50 px-1.5 text-[10px]">
+                    +{grantedPerms.length - 8}
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Visible routes */}
+          <div className="mt-3">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Visible routes
+              </span>
+              {visibleRoutes.length > 6 && (
+                <button
+                  type="button"
+                  onClick={() => onJump("pages")}
+                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                >
+                  view all →
+                </button>
+              )}
+            </div>
+            {visibleRoutes.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">No routes allow-listed.</p>
+            ) : (
+              <ul className="space-y-0.5">
+                {visibleRoutes.slice(0, 6).map((v) => (
+                  <li
+                    key={v.routePath}
+                    className="truncate rounded border border-border/30 bg-background/30 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                  >
+                    {v.routePath}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onJump("preview")}
+            className="mt-3 flex w-full items-center justify-between rounded-md border border-border/40 bg-background/40 px-2 py-1.5 text-xs hover:bg-background/70"
+          >
+            <span className="flex items-center gap-1.5">
+              <Network className="h-3.5 w-3.5" />
+              Open full role simulator
+            </span>
+            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+          </button>
         </div>
-        <div className="space-y-1">
-          <RailLink label="Add user"            onClick={() => { onJump("users"); setTimeout(() => fire("itkc:create-user"), 50); }} />
-          <RailLink label="Create department"   onClick={() => { onJump("departments"); setTimeout(() => fire("itkc:create-department"), 50); }} />
-          <RailLink label="Create team"         onClick={() => { onJump("teams"); setTimeout(() => fire("itkc:create-team"), 50); }} />
-          <RailLink label="Simulate a role"     onClick={() => onJump("preview")} />
-          <RailLink label="Manage visibility"   onClick={() => onJump("pages")} />
-          <RailLink label="Module access overview" onClick={() => onJump("access-map")} />
+
+        <Separator className="bg-border/40" />
+
+        {/* Quick actions */}
+        <div className="px-4 py-3">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Quick actions
+          </div>
+          <div className="space-y-1">
+            <RailLink label="Add user"               onClick={() => { onJump("users"); setTimeout(() => fire("itkc:create-user"), 50); }} />
+            <RailLink label="Create department"      onClick={() => { onJump("departments"); setTimeout(() => fire("itkc:create-department"), 50); }} />
+            <RailLink label="Create team"            onClick={() => { onJump("teams"); setTimeout(() => fire("itkc:create-team"), 50); }} />
+            <RailLink label="Manage visibility"      onClick={() => onJump("pages")} />
+            <RailLink label="Module access overview" onClick={() => onJump("access-map")} />
+          </div>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }
