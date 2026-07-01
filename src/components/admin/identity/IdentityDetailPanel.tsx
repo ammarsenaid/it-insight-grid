@@ -125,6 +125,11 @@ export function IdentityDetailPanel({
     : [];
   const accessAvailable =
     activationConfirmed && snapshot?.available === true && canManage;
+  const accessDisabledReason = !canManage
+    ? "Active platform administrator access is required."
+    : !activationConfirmed
+      ? "Access override database activation is required."
+      : "Access configuration is unavailable for this subject.";
   const accessError =
     !canReadAccess ||
     accessQuery.isError ||
@@ -133,8 +138,8 @@ export function IdentityDetailPanel({
       (result.ok === false || snapshot === null));
 
   return (
-    <section className="min-w-0 rounded-lg border bg-background">
-      <header className="border-b p-4">
+    <section className="min-w-0 overflow-hidden rounded-lg border bg-background">
+      <header className="border-b px-4 py-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {subject.type === "workspace" ? "Department" : subject.type}
         </p>
@@ -144,7 +149,7 @@ export function IdentityDetailPanel({
       <div
         role="tablist"
         aria-label={`${subject.name} management`}
-        className="flex gap-1 overflow-x-auto border-b px-3 pt-3"
+        className="grid grid-cols-2 gap-1 border-b bg-muted/20 p-2.5 sm:grid-cols-3"
       >
         {detailTabs.map((tab) => {
           const selected = activeTab === tab.id;
@@ -155,10 +160,10 @@ export function IdentityDetailPanel({
               role="tab"
               aria-selected={selected}
               onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap rounded-t-md border-b-2 px-3 py-2 text-xs font-medium ${
+              className={`min-w-0 rounded-md border px-2 py-1.5 text-center text-[11px] font-medium leading-tight ${
                 selected
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  ? "border-primary/40 bg-primary/10 text-primary shadow-sm"
+                  : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               }`}
             >
               {tab.label}
@@ -167,7 +172,7 @@ export function IdentityDetailPanel({
         })}
       </div>
 
-      <div className="min-w-0 p-4">
+      <div className="min-w-0 p-3.5">
         {activeTab === "overview" && (
           <OverviewPanel
             subject={subject}
@@ -195,6 +200,7 @@ export function IdentityDetailPanel({
             isLoading={accessQuery.isLoading}
             isError={accessError}
             canEdit={accessAvailable}
+            disabledReason={accessDisabledReason}
             onRetry={() => accessQuery.refetch()}
           />
         )}
@@ -251,7 +257,7 @@ function OverviewPanel({
     const roles = Array.isArray(user.roleNames) ? user.roleNames : [];
     const teams = Array.isArray(user.teamNames) ? user.teamNames : [];
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <DefinitionGrid
           rows={[
             ["Email", user.email ?? "Unavailable"],
@@ -260,7 +266,7 @@ function OverviewPanel({
             ["Teams", teams.length > 0 ? teams.join(", ") : "No team"],
           ]}
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <ActionButton
             disabled={!canManage || managementPending}
             disabledReason={
@@ -283,9 +289,7 @@ function OverviewPanel({
           >
             {user.isActive ? "Deactivate user" : "Activate user"}
           </ActionButton>
-          <DisabledAction reason="No approved user deletion backend is available.">
-            Delete user
-          </DisabledAction>
+          <DisabledAction>Delete user</DisabledAction>
         </div>
       </div>
     );
@@ -294,7 +298,7 @@ function OverviewPanel({
   if (subject.type === "team") {
     const team = subject.value;
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <DefinitionGrid
           rows={[
             ["Slug", team.slug || "Unavailable"],
@@ -302,7 +306,7 @@ function OverviewPanel({
             ["Description", team.description || "No description"],
           ]}
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <ActionButton
             disabled={!canManage || managementPending}
             disabledReason={
@@ -333,7 +337,7 @@ function OverviewPanel({
 
   const workspace = subject.value;
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <DefinitionGrid
         rows={[
           ["Slug", workspace.slug || "Unavailable"],
@@ -341,16 +345,10 @@ function OverviewPanel({
           ["Status", workspace.status || "Unavailable"],
         ]}
       />
-      <div className="flex flex-wrap gap-2">
-        <DisabledAction reason="No approved department creation backend is available.">
-          Create department
-        </DisabledAction>
-        <DisabledAction reason="No approved department editing backend is available.">
-          Edit department
-        </DisabledAction>
-        <DisabledAction reason="No approved department delete or archive backend is available.">
-          Delete / archive department
-        </DisabledAction>
+      <div className="flex flex-wrap gap-1.5">
+        <DisabledAction>Create department</DisabledAction>
+        <DisabledAction>Edit department</DisabledAction>
+        <DisabledAction>Delete / archive department</DisabledAction>
       </div>
     </div>
   );
@@ -685,6 +683,7 @@ function AccessDecisionPanel({
   isLoading,
   isError,
   canEdit,
+  disabledReason,
   onRetry,
 }: {
   subject: IdentitySubject;
@@ -694,6 +693,7 @@ function AccessDecisionPanel({
   isLoading: boolean;
   isError: boolean;
   canEdit: boolean;
+  disabledReason: string;
   onRetry: () => void;
 }) {
   if (isLoading) {
@@ -711,8 +711,7 @@ function AccessDecisionPanel({
     <div className="space-y-3">
       {!canEdit && (
         <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
-          Access editing is disabled because activation or active platform
-          administrator authorization was not confirmed.
+          Access editing is disabled. {disabledReason}
         </p>
       )}
       {decisions.length === 0 ? (
@@ -721,7 +720,7 @@ function AccessDecisionPanel({
           by the backend.
         </p>
       ) : (
-        <div className="max-h-[58vh] space-y-2 overflow-y-auto pr-1">
+        <div className="max-h-[58vh] space-y-1.5 overflow-y-auto pr-1">
           {decisions.map((decision) => (
             <AccessDecisionRow
               key={`${subject.type}:${subject.id}:${resourceType}:${decision.key}`}
@@ -731,6 +730,7 @@ function AccessDecisionPanel({
               decision={decision}
               queryKey={queryKey}
               canEdit={canEdit}
+              disabledReason={disabledReason}
             />
           ))}
         </div>
@@ -746,6 +746,7 @@ function AccessDecisionRow({
   decision,
   queryKey,
   canEdit,
+  disabledReason,
 }: {
   subjectType: AccessSubjectType;
   subjectId: string;
@@ -753,6 +754,7 @@ function AccessDecisionRow({
   decision: AccessDecision;
   queryKey: readonly unknown[];
   canEdit: boolean;
+  disabledReason: string;
 }) {
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -834,8 +836,8 @@ function AccessDecisionRow({
   }
 
   return (
-    <article className="rounded-md border p-3">
-      <div className="grid gap-3 min-[900px]:grid-cols-[minmax(0,1.3fr)_minmax(110px,0.55fr)_minmax(0,1fr)]">
+    <article className="rounded-md border p-2.5">
+      <div className="grid gap-2.5 min-[900px]:grid-cols-[minmax(0,1.3fr)_minmax(105px,0.5fr)_minmax(0,1fr)]">
         <div className="min-w-0">
           <p className="break-words text-sm font-medium">
             {decision.label || decision.key}
@@ -892,7 +894,7 @@ function AccessDecisionRow({
             }
             disabledReason={
               !canEdit
-                ? "Activation and active platform administrator access are required."
+                ? disabledReason
                 : mutation.isPending
                   ? "The access change is being saved."
                   : "Enter an audit reason of at least three characters."
@@ -963,7 +965,7 @@ function EffectiveAccessPanel({
           {combined.map((decision) => (
             <article
               key={`${decision.category}:${decision.key}`}
-              className="grid gap-2 p-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+              className="grid gap-2 p-2.5 sm:grid-cols-[minmax(0,1fr)_auto]"
             >
               <div className="min-w-0">
                 <p className="break-words text-sm font-medium">
@@ -1033,7 +1035,7 @@ function AuditPanel({
             entry.id ||
             `${entry.resourceType}:${entry.resourceKey}:${entry.createdAt}:${index}`
           }
-          className="p-3"
+          className="p-2.5"
         >
           <div className="flex flex-wrap items-start justify-between gap-2">
             <p className="min-w-0 break-words text-sm font-medium">
@@ -1058,11 +1060,13 @@ function AuditPanel({
 
 function DefinitionGrid({ rows }: { rows: Array<[string, string]> }) {
   return (
-    <dl className="grid gap-3 sm:grid-cols-2">
+    <dl className="grid gap-2 sm:grid-cols-2">
       {rows.map(([label, value]) => (
-        <div key={label} className="min-w-0 rounded-md border p-3">
-          <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-          <dd className="mt-1 break-words text-sm">{value}</dd>
+        <div key={label} className="min-w-0 rounded-md border px-3 py-2">
+          <dt className="text-[11px] font-medium text-muted-foreground">
+            {label}
+          </dt>
+          <dd className="mt-0.5 break-words text-sm leading-snug">{value}</dd>
         </div>
       ))}
     </dl>
@@ -1118,7 +1122,7 @@ function ActionButton({
       disabled={disabled}
       title={disabled ? disabledReason : undefined}
       onClick={onClick}
-      className={`rounded-md border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`rounded-md border px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
         destructive ? "border-destructive/50 text-destructive" : ""
       }`}
     >
@@ -1127,19 +1131,13 @@ function ActionButton({
   );
 }
 
-function DisabledAction({
-  children,
-  reason,
-}: {
-  children: ReactNode;
-  reason: string;
-}) {
+function DisabledAction({ children }: { children: ReactNode }) {
   return (
     <button
       type="button"
       disabled
-      title={reason}
-      className="cursor-not-allowed rounded-md border px-3 py-2 text-sm opacity-50"
+      title="Backend action not available yet."
+      className="cursor-not-allowed rounded-md border border-transparent bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground opacity-70"
     >
       {children}
     </button>
@@ -1150,7 +1148,7 @@ function LoadingState({ label }: { label: string }) {
   return (
     <div
       role="status"
-      className="rounded-md border bg-muted/30 px-4 py-5 text-sm text-muted-foreground"
+      className="rounded-md border bg-muted/30 px-3 py-4 text-sm text-muted-foreground"
     >
       <span className="inline-block animate-pulse">{label}</span>
     </div>

@@ -489,8 +489,8 @@ function IdentityAndAccessPage() {
             </div>
           </div>
 
-          <div className="space-y-5 p-4 sm:p-6">
-            <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(260px,0.8fr)_minmax(0,1.4fr)]">
+          <div className="space-y-4 p-4 sm:p-5">
+            <div className="grid min-w-0 gap-4 min-[900px]:grid-cols-[minmax(280px,0.58fr)_minmax(0,1fr)]">
               <div className="min-w-0">
                 {activeTab === "users" && (
                   <UsersSection
@@ -589,7 +589,7 @@ function IdentityAndAccessPage() {
                     onDeleteTeam={confirmDeleteTeam}
                   />
                 ) : (
-                  <section className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                  <section className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
                     Select a user, team, or department to manage overview,
                     assignments, access, and audit history.
                   </section>
@@ -693,7 +693,7 @@ function UsersSection({
           disabled={!isPlatformAdmin || isSaving}
           title={
             !isPlatformAdmin
-              ? "Platform administrator access is required."
+              ? "Active platform administrator access is required."
               : isSaving
                 ? "A user change is in progress."
                 : undefined
@@ -863,9 +863,9 @@ function UsersSection({
             return (
               <article
                 key={user.id}
-                className={`border-l-2 p-3 ${
+                className={`border-l-2 px-3 py-2.5 ${
                   selectedId === user.id
-                    ? "border-primary bg-primary/10"
+                    ? "border-primary bg-primary/[0.06]"
                     : "border-transparent"
                 }`}
               >
@@ -892,12 +892,12 @@ function UsersSection({
                     {user.isActive ? "Active" : "Inactive"}
                   </p>
                 </button>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"
                     aria-pressed={selectedId === user.id}
                     onClick={() => onSelect(user)}
-                    className={`rounded-md border px-3 py-1.5 text-sm ${
+                    className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
                       selectedId === user.id ? "border-primary text-primary" : ""
                     }`}
                   >
@@ -914,7 +914,7 @@ function UsersSection({
                           : undefined
                     }
                     onClick={() => onEdit(user)}
-                    className="rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-md border px-2.5 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Edit
                   </button>
@@ -922,7 +922,7 @@ function UsersSection({
                     type="button"
                     disabled
                     title={DISABLED_TITLE}
-                    className="cursor-not-allowed rounded-md border px-3 py-1.5 text-sm opacity-50"
+                    className="cursor-not-allowed rounded-md border border-transparent bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground opacity-70"
                   >
                     Delete
                   </button>
@@ -1008,7 +1008,7 @@ function TeamsSection({
           disabled={!canManage || isSaving}
           title={
             !canManage
-              ? "Platform administrator access is required."
+              ? "Active platform administrator access is required."
               : isSaving
                 ? "A team change is in progress."
                 : undefined
@@ -1125,9 +1125,9 @@ function TeamsSection({
           {visibleTeams.map((team) => (
             <article
               key={team.id}
-              className={`border-l-2 p-3 ${
+              className={`border-l-2 px-3 py-2.5 ${
                 selectedId === team.id
-                  ? "border-primary bg-primary/10"
+                  ? "border-primary bg-primary/[0.06]"
                   : "border-transparent"
               }`}
             >
@@ -1158,12 +1158,12 @@ function TeamsSection({
                   members
                 </p>
               </button>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
                   aria-pressed={selectedId === team.id}
                   onClick={() => onSelect(team)}
-                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                  className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
                     selectedId === team.id ? "border-primary text-primary" : ""
                   }`}
                 >
@@ -1180,7 +1180,7 @@ function TeamsSection({
                         : undefined
                   }
                   onClick={() => onEdit(team)}
-                  className="rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Edit
                 </button>
@@ -1195,7 +1195,7 @@ function TeamsSection({
                         : undefined
                   }
                   onClick={() => onDelete(team)}
-                  className="rounded-md border border-destructive/50 px-3 py-1.5 text-sm text-destructive disabled:opacity-50"
+                  className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs font-medium text-destructive disabled:opacity-50"
                 >
                   Delete
                 </button>
@@ -1283,9 +1283,9 @@ function DepartmentsSection({
           {visibleWorkspaces.map((workspace) => (
             <article
               key={workspace.id}
-              className={`border-l-2 p-3 ${
+              className={`border-l-2 px-3 py-2.5 ${
                 selectedId === workspace.id
-                  ? "border-primary bg-primary/10"
+                  ? "border-primary bg-primary/[0.06]"
                   : "border-transparent"
               }`}
             >
@@ -1307,34 +1307,18 @@ function DepartmentsSection({
                   {workspace.slug} · {workspace.type} · {workspace.status}
                 </p>
               </button>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-2.5 flex items-center gap-1.5">
                 <button
                   type="button"
                   aria-pressed={selectedId === workspace.id}
                   onClick={() => onSelect(workspace)}
-                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                  className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
                     selectedId === workspace.id
                       ? "border-primary text-primary"
                       : ""
                   }`}
                 >
                   Manage
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  title={DISABLED_TITLE}
-                  className="cursor-not-allowed rounded-md border px-3 py-1.5 text-sm opacity-50"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  title={DISABLED_TITLE}
-                  className="cursor-not-allowed rounded-md border px-3 py-1.5 text-sm opacity-50"
-                >
-                  Delete
                 </button>
               </div>
             </article>
@@ -1372,13 +1356,24 @@ function AccessOverrideNotice({
   return (
     <aside
       role="status"
-      className={`space-y-3 rounded-lg border p-4 ${statusClass}`}
+      className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2 ${statusClass}`}
     >
-      <p className="text-sm font-medium">{statusMessage}</p>
+      <span
+        aria-hidden="true"
+        className={`h-2 w-2 shrink-0 rounded-full ${
+          isActivated
+            ? "bg-emerald-500"
+            : isUnavailable
+              ? "bg-destructive"
+              : isLoading
+                ? "bg-muted-foreground"
+                : "bg-amber-500"
+        }`}
+      />
+      <p className="text-xs font-medium">{statusMessage}</p>
       {isActivated && (
-        <p className="text-xs text-muted-foreground">
-          Select a subject and use its Permissions or Page Visibility tab to
-          manage audited overrides.
+        <p className="text-[11px] text-muted-foreground">
+          Select a subject to manage audited access.
         </p>
       )}
     </aside>

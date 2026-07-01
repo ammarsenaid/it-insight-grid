@@ -2568,3 +2568,20 @@ Status: IMPLEMENTED LOCALLY.
 - Classified malformed successful access snapshots as errors while retaining
   the existing route error boundary, empty states, tab isolation, and backend
   authorization behavior.
+
+## Milestone 113 - Unified Identity Responsive Polish
+
+Date: 2026-07-01
+
+Status: IMPLEMENTED LOCALLY.
+
+- Replaced horizontally scrolling detail navigation with compact two- or
+  three-column tab rows so all six management tabs remain visible.
+- Tuned the desktop master-detail split to approximately 37/63 percent above
+  900px and retained clean stacking below that width.
+- Reduced list-card, overview-card, access-row, and action-button density while
+  preserving consistent selected states and every existing handler.
+- Removed redundant unsupported edit/delete controls from department list rows;
+  the same unavailable operations remain clearly disabled in the detail panel.
+- Condensed the activation state into a small status banner and aligned disabled
+  titles with backend-unavailable versus active-platform-administrator reasons.
