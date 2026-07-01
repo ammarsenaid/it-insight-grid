@@ -2675,3 +2675,22 @@ Status: APPLIED TO LOCAL PRODUCTION DATABASE.
   direct audit mutation privileges for normal authenticated users.
 - API/client and frontend activation remain intentionally deferred to the next
   reviewed milestone.
+
+## Milestone 118 - Identity Administration API and Console Activation
+
+Date: 2026-07-01
+
+Status: IMPLEMENTED LOCALLY.
+
+- Extended the existing `/api/admin-access` contract with strict, audited
+  identity-administration reads and mutations without adding a generated route.
+- Kept authorization layered: the API verifies an active platform
+  administrator with the service client, while mutations execute with the
+  caller JWT so the database RPC independently enforces `auth.uid()`.
+- Enabled global-role and team-assignment editing for users, department
+  creation/update/archive, and workspace membership/role management.
+- Added shared audit-reason requirements, mutation pending/error/success states,
+  exact query invalidation, and identity-administration history in the existing
+  Audit panel.
+- User hard deletion remains disabled to preserve authentication relationships,
+  foreign keys, and audit continuity.

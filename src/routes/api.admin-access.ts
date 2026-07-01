@@ -2,11 +2,19 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import {
   adminAccessInputSchema,
+  adminIdentityInputSchema,
   handleAdminAccess,
+  handleAdminIdentity,
 } from "@/lib/admin-access/server";
-import type { AdminAccessResult } from "@/lib/admin-access/types";
+import type {
+  AdminAccessResult,
+  IdentityAdminResult,
+} from "@/lib/admin-access/types";
 
-function json(result: AdminAccessResult, status = 200): Response {
+function json(
+  result: AdminAccessResult | IdentityAdminResult,
+  status = 200,
+): Response {
   return Response.json(result, { status });
 }
 
@@ -33,8 +41,30 @@ export const Route = createFileRoute("/api/admin-access")({
           return json({ ok: false, error: "A valid access request is required." }, 400);
         }
 
+        const requestBody =
+          typeof body === "object" && body !== null
+            ? (body as Record<string, unknown>)
+            : {};
+        const isIdentityAction =
+          typeof requestBody.action === "string" &&
+          requestBody.action.startsWith("identity.");
+        if (isIdentityAction) {
+          const parsed = adminIdentityInputSchema.safeParse({
+            ...requestBody,
+            accessToken,
+          });
+          if (!parsed.success) {
+            return json(
+              { ok: false, error: "A valid identity administration request is required." },
+              400,
+            );
+          }
+          const outcome = await handleAdminIdentity(parsed.data);
+          return json(outcome.result, outcome.status);
+        }
+
         const parsed = adminAccessInputSchema.safeParse({
-          ...(typeof body === "object" && body !== null ? body : {}),
+          ...requestBody,
           accessToken,
         });
         if (!parsed.success) {

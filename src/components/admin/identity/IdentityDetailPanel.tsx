@@ -1,14 +1,17 @@
 import { useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { adminAccess } from "@/lib/admin-access/functions";
+import { adminAccess, adminIdentity } from "@/lib/admin-access/functions";
 import type {
   AccessAuditEntry,
   AccessDecision,
   AccessOverrideEffect,
   AccessResourceType,
   AccessSubjectType,
+  IdentityAdminSnapshot,
+  IdentityAdminAuditEntry,
 } from "@/lib/admin-access/types";
+import { adminUsersKeys } from "@/lib/admin-users/queries";
 import type { AdminUser } from "@/lib/admin-users/types";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
@@ -106,6 +109,29 @@ export function IdentityDetailPanel({
       });
     },
   });
+  const identityQueryKey = [
+    "admin-identity",
+    subject.type,
+    subject.id,
+  ] as const;
+  const identityQuery = useQuery({
+    queryKey: identityQueryKey,
+    enabled: canReadAccess && subject.type !== "team",
+    retry: false,
+    queryFn: async () => {
+      if (!session?.access_token || subject.type === "team") {
+        throw new Error("Identity administration is unavailable.");
+      }
+      return adminIdentity({
+        accessToken: session.access_token,
+        action: "identity.read",
+        subjectType: subject.type,
+        subjectId: subject.id,
+      });
+    },
+  });
+  const identitySnapshot =
+    identityQuery.data?.ok === true ? identityQuery.data.snapshot : null;
 
   const result = accessQuery.data;
   const snapshot =
@@ -232,9 +258,6 @@ export function IdentityDetailPanel({
               </ActionButton>
             </>
           )}
-          {subject.type === "workspace" && (
-            <DisabledAction>Manage department</DisabledAction>
-          )}
         </div>
       </header>
 
@@ -266,11 +289,24 @@ export function IdentityDetailPanel({
 
       <div className="min-w-0 p-3.5">
         {activeTab === "overview" && (
-          <OverviewPanel subject={subject} />
+          <OverviewPanel
+            subject={subject}
+            canManage={canManage}
+            identitySnapshot={identitySnapshot}
+            identityQueryKey={identityQueryKey}
+          />
         )}
 
         {activeTab === "assignments" && (
-          <AssignmentsPanel subject={subject} canManage={canManage} />
+          <AssignmentsPanel
+            subject={subject}
+            canManage={canManage}
+            snapshot={identitySnapshot}
+            isLoading={identityQuery.isLoading}
+            isError={identityQuery.isError || identityQuery.data?.ok === false}
+            queryKey={identityQueryKey}
+            onRetry={() => identityQuery.refetch()}
+          />
         )}
 
         {(activeTab === "permissions" || activeTab === "visibility") && (
@@ -310,6 +346,11 @@ export function IdentityDetailPanel({
         {activeTab === "audit" && (
           <AuditPanel
             entries={audit}
+            identityEntries={
+              Array.isArray(identitySnapshot?.audit)
+                ? identitySnapshot.audit
+                : []
+            }
             isLoading={accessQuery.isLoading}
             isError={accessError}
             onRetry={() => accessQuery.refetch()}
@@ -322,8 +363,14 @@ export function IdentityDetailPanel({
 
 function OverviewPanel({
   subject,
+  canManage,
+  identitySnapshot,
+  identityQueryKey,
 }: {
   subject: IdentitySubject;
+  canManage: boolean;
+  identitySnapshot: IdentityAdminSnapshot | null;
+  identityQueryKey: readonly unknown[];
 }) {
   if (subject.type === "user") {
     const user = subject.value;
@@ -368,10 +415,12 @@ function OverviewPanel({
           ["Status", workspace.status || "Unavailable"],
         ]}
       />
-      <BackendUnavailableNotice>
-        Department creation, editing, archiving, and membership changes are not
-        available from the current backend.
-      </BackendUnavailableNotice>
+      <WorkspaceManagementPanel
+        workspace={workspace}
+        canManage={canManage}
+        snapshot={identitySnapshot}
+        queryKey={identityQueryKey}
+      />
     </div>
   );
 }
@@ -379,57 +428,387 @@ function OverviewPanel({
 function AssignmentsPanel({
   subject,
   canManage,
+  snapshot,
+  isLoading,
+  isError,
+  queryKey,
+  onRetry,
 }: {
   subject: IdentitySubject;
   canManage: boolean;
+  snapshot: IdentityAdminSnapshot | null;
+  isLoading: boolean;
+  isError: boolean;
+  queryKey: readonly unknown[];
+  onRetry: () => void;
 }) {
   if (subject.type === "team") {
     return <TeamAssignmentsPanel team={subject.value} canManage={canManage} />;
   }
 
   if (subject.type === "user") {
-    const roles = Array.isArray(subject.value.roleNames)
-      ? subject.value.roleNames
-      : [];
-    const teams = Array.isArray(subject.value.teamNames)
-      ? subject.value.teamNames
-      : [];
     return (
-      <div className="space-y-4">
-        <AssignmentList
-          title="Global roles"
-          values={roles}
-          empty="No global role assigned."
-        />
-        <AssignmentList
-          title="Teams"
-          values={teams}
-          empty="No team assigned."
-        />
-        <BackendUnavailableNotice>
-          Existing user APIs expose assignment during creation, but no approved
-          user-assignment mutation is available for this panel.
-        </BackendUnavailableNotice>
-      </div>
+      <UserAssignmentsPanel
+        user={subject.value}
+        canManage={canManage}
+        snapshot={snapshot}
+        isLoading={isLoading}
+        isError={isError}
+        queryKey={queryKey}
+        onRetry={onRetry}
+      />
     );
   }
 
-  const workspaceTeams = Array.isArray(subject.value.teams)
-    ? subject.value.teams
-    : [];
-  const names = workspaceTeams.map((team) => team.name);
   return (
-    <div className="space-y-4">
-      <AssignmentList
-        title="Teams in effective context"
-        values={names}
-        empty="No teams are visible in this department context."
-      />
-      <BackendUnavailableNotice>
-        Department membership changes are disabled because no approved workspace
-        membership mutation is available.
-      </BackendUnavailableNotice>
+    <WorkspaceAssignmentsPanel
+      workspace={subject.value}
+      canManage={canManage}
+      snapshot={snapshot}
+      isLoading={isLoading}
+      isError={isError}
+      queryKey={queryKey}
+      onRetry={onRetry}
+    />
+  );
+}
+
+function UserAssignmentsPanel({
+  user,
+  canManage,
+  snapshot,
+  isLoading,
+  isError,
+  queryKey,
+  onRetry,
+}: {
+  user: AdminUser;
+  canManage: boolean;
+  snapshot: IdentityAdminSnapshot | null;
+  isLoading: boolean;
+  isError: boolean;
+  queryKey: readonly unknown[];
+  onRetry: () => void;
+}) {
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
+  const [globalRole, setGlobalRole] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState("");
+  const [teamRole, setTeamRole] = useState("");
+  const [reason, setReason] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const platformRoles = Array.isArray(snapshot?.platformRoles)
+    ? snapshot.platformRoles
+    : [];
+  const teamRoles = Array.isArray(snapshot?.teamRoles) ? snapshot.teamRoles : [];
+  const teams = Array.isArray(snapshot?.teams) ? snapshot.teams : [];
+  const assignments = Array.isArray(snapshot?.teamAssignments)
+    ? snapshot.teamAssignments
+    : [];
+  const selectedGlobalRole = globalRole ?? snapshot?.globalRoleKey ?? "";
+  const globalRoleChanged =
+    globalRole !== null && globalRole !== (snapshot?.globalRoleKey ?? "");
+  const mutation = useMutation({
+    mutationFn: async (
+      change:
+        | { kind: "global"; roleKey: string | null }
+        | { kind: "team"; teamId: string; roleKey: string | null },
+    ) => {
+      if (!session?.access_token || !canManage || reason.trim().length < 3) {
+        throw new Error("A valid administrator session and audit reason are required.");
+      }
+      return adminIdentity(
+        change.kind === "global"
+          ? {
+              accessToken: session.access_token,
+              action: "identity.set_global_role",
+              userId: user.id,
+              roleKey: change.roleKey,
+              reason: reason.trim(),
+            }
+          : {
+              accessToken: session.access_token,
+              action: "identity.set_team_assignment",
+              userId: user.id,
+              teamId: change.teamId,
+              roleKey: change.roleKey,
+              reason: reason.trim(),
+            },
+      );
+    },
+    onSuccess: async (result) => {
+      if (!result.ok) {
+        setMessage(result.error || "The assignment could not be saved.");
+        return;
+      }
+      setMessage("Assignment saved.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey, exact: true }),
+        queryClient.invalidateQueries({ queryKey: adminUsersKeys.all }),
+        queryClient.invalidateQueries({ queryKey: teamsKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ["admin-access"] }),
+      ]);
+    },
+    onError: () => setMessage("The assignment could not be saved."),
+  });
+
+  if (isLoading) return <LoadingState label="Loading user assignments…" />;
+  if (isError || !snapshot) {
+    return <InlineError message="User assignments could not be loaded." onRetry={onRetry} />;
+  }
+  const disabled = !canManage || mutation.isPending || reason.trim().length < 3;
+  const disabledReason = !canManage
+    ? "Active platform administrator access is required."
+    : mutation.isPending
+      ? "An assignment change is in progress."
+      : "Enter an audit reason of at least three characters.";
+
+  return (
+    <div className="space-y-3">
+      <label className="block space-y-1 text-xs">
+        <span className="font-medium">Audit reason</span>
+        <input
+          value={reason}
+          maxLength={500}
+          onChange={(event) => setReason(event.target.value)}
+          className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+          placeholder="Required for assignment changes"
+        />
+      </label>
+      {message && <p role="status" className="rounded-md border bg-muted/30 p-2 text-xs">{message}</p>}
+      <section className="space-y-2 rounded-lg border p-3">
+        <p className="text-xs font-semibold">Global role</p>
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <select
+            value={selectedGlobalRole}
+            onChange={(event) => setGlobalRole(event.target.value)}
+            className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="">No global role</option>
+            {platformRoles.map((role) => <option key={role.id} value={role.key}>{role.name}</option>)}
+          </select>
+          <ActionButton
+            disabled={disabled || !globalRoleChanged}
+            disabledReason={
+              !globalRoleChanged ? "Select a different global role." : disabledReason
+            }
+            onClick={() => mutation.mutate({ kind: "global", roleKey: selectedGlobalRole || null })}
+          >
+            Save role
+          </ActionButton>
+        </div>
+      </section>
+      <section className="space-y-2 rounded-lg border p-3">
+        <p className="text-xs font-semibold">Add or change team assignment</p>
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm">
+            <option value="">Select team</option>
+            {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+          </select>
+          <select value={teamRole} onChange={(event) => setTeamRole(event.target.value)} className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm">
+            <option value="">Select role</option>
+            {teamRoles.map((role) => <option key={role.id} value={role.key}>{role.name}</option>)}
+          </select>
+          <ActionButton
+            disabled={disabled || !teamId || !teamRole}
+            disabledReason={!teamId || !teamRole ? "Select a team and role." : disabledReason}
+            onClick={() => mutation.mutate({ kind: "team", teamId, roleKey: teamRole })}
+          >
+            Apply
+          </ActionButton>
+        </div>
+        <div className="divide-y rounded-md border">
+          {assignments.length === 0 ? (
+            <p className="p-3 text-xs text-muted-foreground">No active team assignments.</p>
+          ) : assignments.map((assignment) => (
+            <div key={assignment.teamId} className="flex flex-wrap items-center gap-2 p-2">
+              <div className="mr-auto min-w-0">
+                <p className="truncate text-sm font-medium">{assignment.teamName}</p>
+                <p className="text-xs text-muted-foreground">{assignment.roleName || "No team role"}</p>
+              </div>
+              <ActionButton
+                destructive
+                disabled={disabled}
+                disabledReason={disabledReason}
+                onClick={() => mutation.mutate({ kind: "team", teamId: assignment.teamId, roleKey: null })}
+              >
+                Remove
+              </ActionButton>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
+  );
+}
+
+function WorkspaceAssignmentsPanel({
+  workspace,
+  canManage,
+  snapshot,
+  isLoading,
+  isError,
+  queryKey,
+  onRetry,
+}: {
+  workspace: IdentityWorkspace;
+  canManage: boolean;
+  snapshot: IdentityAdminSnapshot | null;
+  isLoading: boolean;
+  isError: boolean;
+  queryKey: readonly unknown[];
+  onRetry: () => void;
+}) {
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
+  const [userId, setUserId] = useState("");
+  const [roleKey, setRoleKey] = useState("");
+  const [reason, setReason] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const profiles = Array.isArray(snapshot?.profiles) ? snapshot.profiles : [];
+  const roles = Array.isArray(snapshot?.workspaceRoles) ? snapshot.workspaceRoles : [];
+  const members = Array.isArray(snapshot?.workspaceMembers) ? snapshot.workspaceMembers : [];
+  const mutation = useMutation({
+    mutationFn: async ({ memberUserId, nextRole }: { memberUserId: string; nextRole: string | null }) => {
+      if (!session?.access_token || !canManage || reason.trim().length < 3) throw new Error();
+      return adminIdentity({
+        accessToken: session.access_token,
+        action: "identity.set_workspace_member",
+        workspaceId: workspace.id,
+        userId: memberUserId,
+        roleKey: nextRole,
+        reason: reason.trim(),
+      });
+    },
+    onSuccess: async (result) => {
+      if (!result.ok) {
+        setMessage(result.error || "The workspace membership could not be saved.");
+        return;
+      }
+      setMessage("Workspace membership saved.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey, exact: true }),
+        queryClient.invalidateQueries({ queryKey: ["admin-access"] }),
+      ]);
+    },
+    onError: () => setMessage("The workspace membership could not be saved."),
+  });
+  if (isLoading) return <LoadingState label="Loading workspace members…" />;
+  if (isError || !snapshot) return <InlineError message="Workspace members could not be loaded." onRetry={onRetry} />;
+  const disabled = !canManage || mutation.isPending || reason.trim().length < 3;
+  const disabledReason = !canManage
+    ? "Active platform administrator access is required."
+    : mutation.isPending ? "A membership change is in progress." : "Enter an audit reason of at least three characters.";
+  return (
+    <div className="space-y-3">
+      <input value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder="Audit reason required" className="h-9 w-full rounded-md border bg-background px-3 text-sm" />
+      {message && <p role="status" className="rounded-md border bg-muted/30 p-2 text-xs">{message}</p>}
+      <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_auto]">
+        <select value={userId} onChange={(event) => setUserId(event.target.value)} className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm">
+          <option value="">Select user</option>
+          {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+        </select>
+        <select value={roleKey} onChange={(event) => setRoleKey(event.target.value)} className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm">
+          <option value="">Select workspace role</option>
+          {roles.map((role) => <option key={role.id} value={role.key}>{role.name}</option>)}
+        </select>
+        <ActionButton disabled={disabled || !userId || !roleKey} disabledReason={!userId || !roleKey ? "Select a user and workspace role." : disabledReason} onClick={() => mutation.mutate({ memberUserId: userId, nextRole: roleKey })}>Add member</ActionButton>
+      </div>
+      <div className="divide-y rounded-lg border">
+        {members.length === 0 ? <p className="p-4 text-xs text-muted-foreground">No workspace members.</p> : members.map((member) => (
+          <div key={member.userId} className="flex flex-wrap items-center gap-2 p-2.5">
+            <div className="mr-auto min-w-0">
+              <p className="truncate text-sm font-medium">{member.displayName}</p>
+              <p className="truncate text-xs text-muted-foreground">{member.roleName || "No workspace role"} · {member.status}</p>
+            </div>
+            <select
+              value={member.roleKey ?? ""}
+              disabled={disabled}
+              onChange={(event) => mutation.mutate({ memberUserId: member.userId, nextRole: event.target.value })}
+              className="h-8 rounded-md border bg-background px-2 text-xs"
+            >
+              <option value="" disabled>Select role</option>
+              {roles.map((role) => <option key={role.id} value={role.key}>{role.name}</option>)}
+            </select>
+            <ActionButton destructive disabled={disabled} disabledReason={disabledReason} onClick={() => mutation.mutate({ memberUserId: member.userId, nextRole: null })}>Remove</ActionButton>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WorkspaceManagementPanel({
+  workspace,
+  canManage,
+  snapshot,
+  queryKey,
+}: {
+  workspace: IdentityWorkspace;
+  canManage: boolean;
+  snapshot: IdentityAdminSnapshot | null;
+  queryKey: readonly unknown[];
+}) {
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
+  const fullWorkspace = Array.isArray(snapshot?.workspaces)
+    ? snapshot.workspaces.find((item) => item.id === workspace.id)
+    : null;
+  const [name, setName] = useState(workspace.name);
+  const [slug, setSlug] = useState(workspace.slug);
+  const [description, setDescription] = useState(fullWorkspace?.description ?? "");
+  const [type, setType] = useState(workspace.type || "department");
+  const [reason, setReason] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const mutation = useMutation({
+    mutationFn: async (status: "active" | "suspended" | "archived") => {
+      if (!session?.access_token || !canManage || reason.trim().length < 3) throw new Error();
+      return adminIdentity({
+        accessToken: session.access_token,
+        action: "identity.update_workspace",
+        workspaceId: workspace.id,
+        name: name.trim(),
+        slug: slug.trim(),
+        description: description.trim(),
+        workspaceType: type,
+        status,
+        reason: reason.trim(),
+      });
+    },
+    onSuccess: async (result) => {
+      if (!result.ok) {
+        setMessage(result.error || "The department could not be updated.");
+        return;
+      }
+      setMessage("Department updated.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey, exact: true }),
+        queryClient.invalidateQueries({ queryKey: ["admin-identity"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-access"] }),
+      ]);
+    },
+    onError: () => setMessage("The department could not be updated."),
+  });
+  const disabled = !canManage || mutation.isPending || reason.trim().length < 3 || !name.trim() || !slug.trim();
+  const disabledReason = !canManage ? "Active platform administrator access is required." : "Complete the fields and enter an audit reason.";
+  return (
+    <section className="space-y-2 rounded-lg border p-3">
+      <p className="text-xs font-semibold">Department management</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Name" className="h-9 rounded-md border bg-background px-2 text-sm" />
+        <input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="Slug" className="h-9 rounded-md border bg-background px-2 text-sm" />
+        <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Description" className="h-9 rounded-md border bg-background px-2 text-sm" />
+        <select value={type} onChange={(event) => setType(event.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
+          {["department", "project", "service", "partner", "management", "system"].map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+      </div>
+      <input value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder="Audit reason required" className="h-9 w-full rounded-md border bg-background px-2 text-sm" />
+      {message && <p role="status" className="text-xs text-muted-foreground">{message}</p>}
+      <div className="flex flex-wrap gap-2">
+        <ActionButton disabled={disabled} disabledReason={disabledReason} onClick={() => mutation.mutate(workspace.status === "suspended" ? "suspended" : "active")}>{mutation.isPending ? "Saving…" : "Save department"}</ActionButton>
+        <ActionButton destructive disabled={disabled || workspace.status === "archived"} disabledReason={workspace.status === "archived" ? "Department is already archived." : disabledReason} onClick={() => mutation.mutate("archived")}>Archive</ActionButton>
+      </div>
+    </section>
   );
 }
 
@@ -1283,11 +1662,13 @@ function AccessMetric({
 
 function AuditPanel({
   entries,
+  identityEntries,
   isLoading,
   isError,
   onRetry,
 }: {
   entries: AccessAuditEntry[];
+  identityEntries: IdentityAdminAuditEntry[];
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
@@ -1303,7 +1684,7 @@ function AuditPanel({
       />
     );
   }
-  if (entries.length === 0) {
+  if (entries.length === 0 && identityEntries.length === 0) {
     return (
       <div className="rounded-lg border border-dashed bg-muted/10 p-6 text-center">
         <div className="mx-auto mb-2 h-2.5 w-2.5 rounded-full bg-muted-foreground/30" />
@@ -1316,6 +1697,24 @@ function AuditPanel({
   }
   return (
     <div className="max-h-[58vh] divide-y overflow-y-auto rounded-lg border bg-card/40">
+      {identityEntries.map((entry) => (
+        <article
+          key={`identity:${entry.id}`}
+          className="relative p-2.5 pl-5 before:absolute before:left-2.5 before:top-4 before:h-1.5 before:w-1.5 before:rounded-full before:bg-amber-500/60"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <p className="text-sm font-medium">
+              {entry.action.replaceAll("_", " ")}
+            </p>
+            <time className="whitespace-nowrap text-xs text-muted-foreground">
+              {formatDate(entry.createdAt)}
+            </time>
+          </div>
+          <p className="mt-1 break-words text-xs text-muted-foreground">
+            Reason: {entry.reason || "No reason returned by backend."}
+          </p>
+        </article>
+      ))}
       {entries.map((entry, index) => (
         <article
           key={

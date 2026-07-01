@@ -12,7 +12,7 @@ import {
   type IdentitySubject,
   type IdentityWorkspace,
 } from "@/components/admin/identity/IdentityDetailPanel";
-import { adminAccess } from "@/lib/admin-access/functions";
+import { adminAccess, adminIdentity } from "@/lib/admin-access/functions";
 import {
   adminUserFormOptionsQuery,
   adminUsersKeys,
@@ -39,6 +39,14 @@ type UserDraft = {
   isActive: boolean;
 };
 
+type WorkspaceDraft = {
+  name: string;
+  slug: string;
+  description: string;
+  type: string;
+  reason: string;
+};
+
 const EMPTY_USER: UserDraft = {
   displayName: "",
   email: "",
@@ -53,7 +61,13 @@ const EMPTY_TEAM: TeamInput = {
   description: "",
 };
 
-const DISABLED_TITLE = "Backend action not available yet.";
+const EMPTY_WORKSPACE: WorkspaceDraft = {
+  name: "",
+  slug: "",
+  description: "",
+  type: "department",
+  reason: "",
+};
 
 const tabs: Array<{ id: IdentityTab; label: string }> = [
   { id: "users", label: "Users" },
@@ -112,6 +126,10 @@ function IdentityAndAccessPage() {
   const [editingTeam, setEditingTeam] = useState<TeamSummary | null>(null);
   const [showTeamForm, setShowTeamForm] = useState(false);
   const [teamMessage, setTeamMessage] = useState<string | null>(null);
+  const [workspaceDraft, setWorkspaceDraft] =
+    useState<WorkspaceDraft>(EMPTY_WORKSPACE);
+  const [showWorkspaceForm, setShowWorkspaceForm] = useState(false);
+  const [workspaceMessage, setWorkspaceMessage] = useState<string | null>(null);
 
   const queryEnabled = Boolean(session?.user);
   const usersQuery = useQuery({
@@ -145,10 +163,33 @@ function IdentityAndAccessPage() {
       });
     },
   });
+  const identityCatalogQuery = useQuery({
+    queryKey: ["admin-identity", "catalog", session?.user?.id ?? ""],
+    enabled: canCheckAccessStatus,
+    retry: false,
+    queryFn: async () => {
+      if (!session?.access_token || !session.user?.id) {
+        throw new Error("Administrator access is unavailable.");
+      }
+      return adminIdentity({
+        accessToken: session.access_token,
+        action: "identity.read",
+        subjectType: "user",
+        subjectId: session.user.id,
+      });
+    },
+  });
 
   const users = normalizeAdminUsers(usersQuery.data);
   const teams = normalizeTeams(teamListQuery.data);
-  const workspaces = normalizeWorkspaces(effectiveAccess?.workspaces);
+  const apiWorkspaces =
+    identityCatalogQuery.data?.ok === true
+      ? normalizeWorkspaces(identityCatalogQuery.data.snapshot.workspaces)
+      : [];
+  const workspaces =
+    apiWorkspaces.length > 0
+      ? apiWorkspaces
+      : normalizeWorkspaces(effectiveAccess?.workspaces);
   const roleOptions = normalizeFormOptions(userOptionsQuery.data?.roles);
   const teamOptions = normalizeFormOptions(userOptionsQuery.data?.teams);
   const canManage = Boolean(session?.user && isPlatformAdmin);
@@ -362,6 +403,31 @@ function IdentityAndAccessPage() {
       setTeamMessage("Team deleted successfully.");
     },
     onError: () => setTeamMessage("The team could not be deleted."),
+  });
+  const createWorkspaceMutation = useMutation({
+    mutationFn: async (draft: WorkspaceDraft) => {
+      if (!session?.access_token || !canManage) throw new Error();
+      return adminIdentity({
+        accessToken: session.access_token,
+        action: "identity.create_workspace",
+        name: draft.name.trim(),
+        slug: slugify(draft.slug || draft.name).slice(0, 63),
+        description: draft.description.trim(),
+        workspaceType: draft.type,
+        reason: draft.reason.trim(),
+      });
+    },
+    onSuccess: async (result) => {
+      if (!result.ok) {
+        setWorkspaceMessage(result.error || "The department could not be created.");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["admin-identity"] });
+      setShowWorkspaceForm(false);
+      setWorkspaceDraft(EMPTY_WORKSPACE);
+      setWorkspaceMessage("Department created successfully.");
+    },
+    onError: () => setWorkspaceMessage("The department could not be created."),
   });
 
   function openCreateUser() {
@@ -620,7 +686,28 @@ function IdentityAndAccessPage() {
                   <DepartmentsSection
                     workspaces={workspaces}
                     selectedId={selectedId}
+                    canManage={canManage}
+                    message={workspaceMessage}
+                    showForm={showWorkspaceForm}
+                    draft={workspaceDraft}
+                    isSaving={createWorkspaceMutation.isPending}
                     onSelect={(workspace) => setSelectedId(workspace.id)}
+                    onCreate={() => {
+                      setWorkspaceMessage(null);
+                      setWorkspaceDraft(EMPTY_WORKSPACE);
+                      setShowWorkspaceForm(true);
+                    }}
+                    onCloseForm={() => setShowWorkspaceForm(false)}
+                    onDraftChange={setWorkspaceDraft}
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      if (
+                        workspaceDraft.name.trim() &&
+                        workspaceDraft.reason.trim().length >= 3
+                      ) {
+                        createWorkspaceMutation.mutate(workspaceDraft);
+                      }
+                    }}
                   />
                 )}
               </div>
@@ -1312,11 +1399,29 @@ function TeamsSection({
 function DepartmentsSection({
   workspaces,
   selectedId,
+  canManage,
+  message,
+  showForm,
+  draft,
+  isSaving,
   onSelect,
+  onCreate,
+  onCloseForm,
+  onDraftChange,
+  onSubmit,
 }: {
   workspaces: IdentityWorkspace[];
   selectedId: string | null;
+  canManage: boolean;
+  message: string | null;
+  showForm: boolean;
+  draft: WorkspaceDraft;
+  isSaving: boolean;
   onSelect: (workspace: IdentityWorkspace) => void;
+  onCreate: () => void;
+  onCloseForm: () => void;
+  onDraftChange: (draft: WorkspaceDraft) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1344,13 +1449,25 @@ function DepartmentsSection({
         </div>
         <button
           type="button"
-          disabled
-          title={DISABLED_TITLE}
-          className="h-9 cursor-not-allowed rounded-md border bg-muted/30 px-3 text-sm font-medium text-muted-foreground opacity-70"
+          disabled={!canManage || isSaving}
+          title={
+            !canManage
+              ? "Active platform administrator access is required."
+              : isSaving
+                ? "A department change is in progress."
+                : undefined
+          }
+          onClick={onCreate}
+          className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
           New department
         </button>
       </div>
+      {message && (
+        <p role="status" className="rounded-md border bg-muted/30 p-2 text-xs">
+          {message}
+        </p>
+      )}
 
       <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
         <input
@@ -1385,6 +1502,81 @@ function DepartmentsSection({
           statusFilter === "all" ? "All statuses" : statusFilter
         }
       />
+      {showForm && (
+        <form onSubmit={onSubmit} className="space-y-2 rounded-lg border p-3">
+          <p className="text-sm font-medium">New department</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input
+              value={draft.name}
+              onChange={(event) =>
+                onDraftChange({
+                  ...draft,
+                  name: event.target.value,
+                  slug: draft.slug || slugify(event.target.value).slice(0, 63),
+                })
+              }
+              placeholder="Name"
+              maxLength={160}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            />
+            <input
+              value={draft.slug}
+              onChange={(event) =>
+                onDraftChange({ ...draft, slug: event.target.value })
+              }
+              placeholder="Slug"
+              maxLength={63}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            />
+            <input
+              value={draft.description}
+              onChange={(event) =>
+                onDraftChange({ ...draft, description: event.target.value })
+              }
+              placeholder="Description"
+              maxLength={2000}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            />
+            <select
+              value={draft.type}
+              onChange={(event) =>
+                onDraftChange({ ...draft, type: event.target.value })
+              }
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
+              {["department", "project", "service", "partner", "management", "system"].map((value) => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </select>
+          </div>
+          <input
+            value={draft.reason}
+            onChange={(event) =>
+              onDraftChange({ ...draft, reason: event.target.value })
+            }
+            placeholder="Audit reason required"
+            maxLength={500}
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+          />
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={
+                isSaving ||
+                !draft.name.trim() ||
+                !draft.slug.trim() ||
+                draft.reason.trim().length < 3
+              }
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {isSaving ? "Creating…" : "Create department"}
+            </button>
+            <button type="button" disabled={isSaving} onClick={onCloseForm} className="rounded-md border px-3 py-1.5 text-xs">
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
 
       {visibleWorkspaces.length === 0 ? (
         <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">

@@ -12,6 +12,8 @@ import type {
   AccessSubjectType,
   AdminAccessResult,
   AdminAccessSnapshot,
+  IdentityAdminResult,
+  IdentityAdminSnapshot,
 } from "./types";
 
 const routePattern =
@@ -29,7 +31,70 @@ export const adminAccessInputSchema = z.object({
   resourceKey: z.string().trim().min(1).max(255).optional(),
   effect: z.enum(["allow", "deny", "inherit"]).optional(),
   reason: z.string().trim().min(3).max(500).optional(),
-});
+}).strict();
+
+const identityReason = z.string().trim().min(3).max(500);
+const nullableRoleKey = z.string().trim().max(80).nullable();
+const workspaceType = z.enum([
+  "department",
+  "project",
+  "service",
+  "partner",
+  "management",
+  "system",
+]);
+
+export const adminIdentityInputSchema = z.discriminatedUnion("action", [
+  z.object({
+    accessToken: z.string().min(1),
+    action: z.literal("identity.read"),
+    subjectType: z.enum(["user", "workspace"]),
+    subjectId: z.string().uuid(),
+  }).strict(),
+  z.object({
+    accessToken: z.string().min(1),
+    action: z.literal("identity.set_global_role"),
+    userId: z.string().uuid(),
+    roleKey: nullableRoleKey,
+    reason: identityReason,
+  }).strict(),
+  z.object({
+    accessToken: z.string().min(1),
+    action: z.literal("identity.set_team_assignment"),
+    userId: z.string().uuid(),
+    teamId: z.string().uuid(),
+    roleKey: nullableRoleKey,
+    reason: identityReason,
+  }).strict(),
+  z.object({
+    accessToken: z.string().min(1),
+    action: z.literal("identity.create_workspace"),
+    name: z.string().trim().min(1).max(160),
+    slug: z.string().trim().regex(/^[a-z0-9][a-z0-9-]{0,62}$/),
+    description: z.string().trim().max(2000),
+    workspaceType,
+    reason: identityReason,
+  }).strict(),
+  z.object({
+    accessToken: z.string().min(1),
+    action: z.literal("identity.update_workspace"),
+    workspaceId: z.string().uuid(),
+    name: z.string().trim().min(1).max(160),
+    slug: z.string().trim().regex(/^[a-z0-9][a-z0-9-]{0,62}$/),
+    description: z.string().trim().max(2000),
+    workspaceType,
+    status: z.enum(["active", "suspended", "archived"]),
+    reason: identityReason,
+  }).strict(),
+  z.object({
+    accessToken: z.string().min(1),
+    action: z.literal("identity.set_workspace_member"),
+    workspaceId: z.string().uuid(),
+    userId: z.string().uuid(),
+    roleKey: nullableRoleKey,
+    reason: identityReason,
+  }).strict(),
+]);
 
 type Row = Record<string, unknown>;
 const rows = (value: unknown): Row[] => (Array.isArray(value) ? (value as Row[]) : []);
@@ -37,6 +102,11 @@ const text = (value: unknown): string => (typeof value === "string" ? value : ""
 const createServiceClient = (url: string, key: string) =>
   createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+const createUserClient = (url: string, key: string, token: string) =>
+  createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
   });
 type AdminClient = ReturnType<typeof createServiceClient>;
 
@@ -517,4 +587,325 @@ export async function handleAdminAccess(
   return snapshot
     ? { ok: true, snapshot }
     : { ok: false, error: "Access configuration could not be loaded." };
+}
+
+type IdentityInput = z.infer<typeof adminIdentityInputSchema>;
+export type IdentityAdminOutcome = {
+  result: IdentityAdminResult;
+  status: number;
+};
+
+async function readIdentityAdminSnapshot(
+  admin: AdminClient,
+  input: Extract<IdentityInput, { action: "identity.read" }>,
+): Promise<IdentityAdminSnapshot | null> {
+  const [
+    rolesResult,
+    teamsResult,
+    profilesResult,
+    workspacesResult,
+    organizationMembersResult,
+    globalRolesResult,
+    teamMembersResult,
+    teamMemberRolesResult,
+    workspaceMembersResult,
+    workspaceMemberRolesResult,
+    identityAuditResult,
+  ] = await Promise.all([
+    admin.from("roles").select("id, role_key, name, role_scope").order("name"),
+    admin.from("teams").select("id, name").order("name"),
+    admin.from("profiles").select("id, display_name, email").order("display_name"),
+    admin
+      .from("workspaces")
+      .select("id, organization_id, name, slug, description, type, status")
+      .order("name"),
+    admin
+      .from("organization_members")
+      .select("organization_id, user_id")
+      .eq("status", "active"),
+    input.subjectType === "user"
+      ? admin
+          .from("user_global_roles")
+          .select("role_id")
+          .eq("user_id", input.subjectId)
+      : Promise.resolve({ data: [], error: null }),
+    input.subjectType === "user"
+      ? admin
+          .from("team_members")
+          .select("team_id, membership_status")
+          .eq("user_id", input.subjectId)
+          .eq("membership_status", "active")
+      : Promise.resolve({ data: [], error: null }),
+    input.subjectType === "user"
+      ? admin
+          .from("team_member_roles")
+          .select("team_id, role_id")
+          .eq("user_id", input.subjectId)
+      : Promise.resolve({ data: [], error: null }),
+    input.subjectType === "workspace"
+      ? admin
+          .from("workspace_members")
+          .select("id, user_id, status")
+          .eq("workspace_id", input.subjectId)
+          .neq("status", "removed")
+      : Promise.resolve({ data: [], error: null }),
+    input.subjectType === "workspace"
+      ? admin.from("workspace_member_roles").select("workspace_member_id, role_id")
+      : Promise.resolve({ data: [], error: null }),
+    admin
+      .from("identity_admin_audit_log")
+      .select("id, action, previous_value, new_value, reason, created_at")
+      .eq("subject_type", input.subjectType)
+      .eq("subject_id", input.subjectId)
+      .order("created_at", { ascending: false })
+      .limit(25),
+  ]);
+  if (
+    [
+      rolesResult,
+      teamsResult,
+      profilesResult,
+      workspacesResult,
+      organizationMembersResult,
+      globalRolesResult,
+      teamMembersResult,
+      teamMemberRolesResult,
+      workspaceMembersResult,
+      workspaceMemberRolesResult,
+      identityAuditResult,
+    ].some((result) => result.error)
+  ) {
+    return null;
+  }
+
+  const roleRows = rows(rolesResult.data);
+  const roleById = new Map(roleRows.map((role) => [text(role.id), role]));
+  const teamById = new Map(
+    rows(teamsResult.data).map((team) => [text(team.id), text(team.name)]),
+  );
+  const profileById = new Map(
+    rows(profilesResult.data).map((profile) => [text(profile.id), profile]),
+  );
+  const selectedWorkspaceOrganizationId =
+    input.subjectType === "workspace"
+      ? text(
+          rows(workspacesResult.data).find(
+            (workspace) => text(workspace.id) === input.subjectId,
+          )?.organization_id,
+        )
+      : "";
+  const eligibleWorkspaceUserIds = new Set(
+    rows(organizationMembersResult.data)
+      .filter(
+        (membership) =>
+          !selectedWorkspaceOrganizationId ||
+          text(membership.organization_id) === selectedWorkspaceOrganizationId,
+      )
+      .map((membership) => text(membership.user_id)),
+  );
+  const roleOptions = (scope: string) =>
+    roleRows
+      .filter((role) => text(role.role_scope) === scope)
+      .map((role) => ({
+        id: text(role.id),
+        key: text(role.role_key),
+        name: text(role.name) || text(role.role_key),
+      }))
+      .filter((role) => role.id && role.key);
+
+  const globalRoleId = text(rows(globalRolesResult.data)[0]?.role_id);
+  const teamRoleByTeam = new Map(
+    rows(teamMemberRolesResult.data).map((assignment) => [
+      text(assignment.team_id),
+      roleById.get(text(assignment.role_id)),
+    ]),
+  );
+  const workspaceRoleByMember = new Map(
+    rows(workspaceMemberRolesResult.data).map((assignment) => [
+      text(assignment.workspace_member_id),
+      roleById.get(text(assignment.role_id)),
+    ]),
+  );
+
+  return {
+    platformRoles: roleOptions("platform"),
+    teamRoles: roleOptions("team"),
+    workspaceRoles: roleOptions("workspace"),
+    teams: rows(teamsResult.data).map((team) => ({
+      id: text(team.id),
+      key: text(team.id),
+      name: text(team.name),
+    })),
+    profiles: rows(profilesResult.data)
+      .filter(
+        (profile) =>
+          input.subjectType !== "workspace" ||
+          eligibleWorkspaceUserIds.has(text(profile.id)),
+      )
+      .map((profile) => ({
+        id: text(profile.id),
+        key: text(profile.id),
+        name:
+          text(profile.display_name) ||
+          text(profile.email) ||
+          text(profile.id).slice(0, 8),
+      })),
+    workspaces: rows(workspacesResult.data).map((workspace) => ({
+      id: text(workspace.id),
+      name: text(workspace.name),
+      slug: text(workspace.slug),
+      description: text(workspace.description) || null,
+      type: text(workspace.type),
+      status: text(workspace.status),
+    })),
+    globalRoleKey: text(roleById.get(globalRoleId)?.role_key) || null,
+    teamAssignments: rows(teamMembersResult.data).map((membership) => {
+      const teamId = text(membership.team_id);
+      const role = teamRoleByTeam.get(teamId);
+      return {
+        teamId,
+        teamName: teamById.get(teamId) ?? teamId.slice(0, 8),
+        roleKey: text(role?.role_key) || null,
+        roleName: text(role?.name) || null,
+      };
+    }),
+    workspaceMembers: rows(workspaceMembersResult.data).map((member) => {
+      const profile = profileById.get(text(member.user_id));
+      const role = workspaceRoleByMember.get(text(member.id));
+      return {
+        userId: text(member.user_id),
+        displayName:
+          text(profile?.display_name) ||
+          text(profile?.email) ||
+          text(member.user_id).slice(0, 8),
+        email: text(profile?.email) || null,
+        status: text(member.status),
+        roleKey: text(role?.role_key) || null,
+        roleName: text(role?.name) || null,
+      };
+    }),
+    audit: rows(identityAuditResult.data).map((entry) => ({
+      id: String(entry.id ?? ""),
+      action: text(entry.action),
+      previousValue: entry.previous_value ?? null,
+      newValue: entry.new_value ?? null,
+      reason: text(entry.reason),
+      createdAt: text(entry.created_at),
+    })),
+  };
+}
+
+export async function handleAdminIdentity(
+  data: IdentityInput,
+): Promise<IdentityAdminOutcome> {
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    return {
+      result: { ok: false, error: "Identity administration is unavailable." },
+      status: 503,
+    };
+  }
+  const admin = createServiceClient(supabaseUrl, serviceRoleKey);
+  const actorId = await verifyAdmin(admin, data.accessToken);
+  if (!actorId) {
+    return {
+      result: { ok: false, error: "Active platform administrator access is required." },
+      status: 403,
+    };
+  }
+
+  if (data.action === "identity.read") {
+    const snapshot = await readIdentityAdminSnapshot(admin, data);
+    return snapshot
+      ? { result: { ok: true, snapshot }, status: 200 }
+      : {
+          result: { ok: false, error: "Identity assignments could not be loaded." },
+          status: 500,
+        };
+  }
+
+  const userClient = createUserClient(supabaseUrl, anonKey, data.accessToken);
+  let mutation;
+  switch (data.action) {
+    case "identity.set_global_role":
+      mutation = await userClient.rpc("set_user_global_role_admin", {
+        p_user_id: data.userId,
+        p_role_key: data.roleKey ?? "",
+        p_reason: data.reason,
+      });
+      break;
+    case "identity.set_team_assignment":
+      mutation = await userClient.rpc("set_user_team_assignment_admin", {
+        p_user_id: data.userId,
+        p_team_id: data.teamId,
+        p_role_key: data.roleKey ?? "",
+        p_reason: data.reason,
+      });
+      break;
+    case "identity.create_workspace":
+      mutation = await userClient.rpc("create_workspace_admin", {
+        p_name: data.name,
+        p_slug: data.slug,
+        p_description: data.description,
+        p_type: data.workspaceType,
+        p_reason: data.reason,
+      });
+      break;
+    case "identity.update_workspace":
+      mutation = await userClient.rpc("update_workspace_admin", {
+        p_workspace_id: data.workspaceId,
+        p_name: data.name,
+        p_slug: data.slug,
+        p_description: data.description,
+        p_type: data.workspaceType,
+        p_status: data.status,
+        p_reason: data.reason,
+      });
+      break;
+    case "identity.set_workspace_member":
+      mutation = await userClient.rpc("set_workspace_member_admin", {
+        p_workspace_id: data.workspaceId,
+        p_user_id: data.userId,
+        p_role_key: data.roleKey ?? "",
+        p_reason: data.reason,
+      });
+      break;
+  }
+  if (mutation.error) {
+    return {
+      result: { ok: false, error: "The identity administration change could not be saved." },
+      status: mutation.error.code === "42501" ? 403 : 400,
+    };
+  }
+  const createdWorkspaceRow = Array.isArray(mutation.data)
+    ? (mutation.data[0] as Row | undefined)
+    : isRecord(mutation.data)
+      ? mutation.data
+      : undefined;
+  const createdWorkspaceId = text(createdWorkspaceRow?.id);
+  const readSubject =
+    data.action === "identity.set_global_role" ||
+    data.action === "identity.set_team_assignment"
+      ? { subjectType: "user" as const, subjectId: data.userId }
+      : data.action === "identity.set_workspace_member" ||
+          data.action === "identity.update_workspace"
+        ? { subjectType: "workspace" as const, subjectId: data.workspaceId }
+        : data.action === "identity.create_workspace" && createdWorkspaceId
+          ? { subjectType: "workspace" as const, subjectId: createdWorkspaceId }
+          : null;
+  const snapshot = readSubject
+    ? await readIdentityAdminSnapshot(admin, {
+        accessToken: data.accessToken,
+        action: "identity.read",
+        ...readSubject,
+      })
+    : null;
+  return snapshot
+    ? { result: { ok: true, snapshot }, status: 200 }
+    : {
+        result: { ok: false, error: "The change was saved but refresh failed." },
+        status: 500,
+      };
 }
