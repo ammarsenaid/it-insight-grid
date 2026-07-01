@@ -4,8 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createAdminUser,
+  setAdminUserActive,
   updateAdminUser,
 } from "@/lib/admin-users/create-user";
+import {
+  IdentityDetailPanel,
+  type IdentitySubject,
+  type IdentityWorkspace,
+} from "@/components/admin/identity/IdentityDetailPanel";
 import { adminAccess } from "@/lib/admin-access/functions";
 import {
   adminUserFormOptionsQuery,
@@ -48,7 +54,6 @@ const EMPTY_TEAM: TeamInput = {
 };
 
 const DISABLED_TITLE = "Backend action not available yet.";
-const ACCESS_DISABLED_TITLE = "Access editing is not available yet.";
 
 const tabs: Array<{ id: IdentityTab; label: string }> = [
   { id: "users", label: "Users" },
@@ -98,6 +103,7 @@ function IdentityAndAccessPage() {
   const { session, effectiveAccess, isPlatformAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<IdentityTab>("users");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [userDraft, setUserDraft] = useState<UserDraft>(EMPTY_USER);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [showUserForm, setShowUserForm] = useState(false);
@@ -160,6 +166,49 @@ function IdentityAndAccessPage() {
       ? accessStatusResult.snapshot
       : null;
   const accessOverrideActivated = accessSnapshot?.available === true;
+  const selectedUser =
+    activeTab === "users" && selectedId
+      ? users.find((user) => user.id === selectedId) ?? null
+      : null;
+  const selectedTeam =
+    activeTab === "teams" && selectedId
+      ? teams.find((team) => team.id === selectedId) ?? null
+      : null;
+  const selectedWorkspace =
+    activeTab === "departments" && selectedId
+      ? workspaces.find((workspace) => workspace.id === selectedId) ?? null
+      : null;
+  const selectedSubject: IdentitySubject | null = selectedUser
+    ? {
+        type: "user",
+        id: selectedUser.id,
+        name: selectedUser.displayName,
+        value: selectedUser,
+      }
+    : selectedTeam
+      ? {
+          type: "team",
+          id: selectedTeam.id,
+          name: selectedTeam.name,
+          value: selectedTeam,
+        }
+      : selectedWorkspace
+        ? {
+            type: "workspace",
+            id: selectedWorkspace.id,
+            name: selectedWorkspace.name,
+            value: {
+              id: selectedWorkspace.id,
+              name: selectedWorkspace.name,
+              slug: selectedWorkspace.slug,
+              status: selectedWorkspace.status,
+              type: selectedWorkspace.type,
+              teams: Array.isArray(selectedWorkspace.teams)
+                ? selectedWorkspace.teams
+                : [],
+            },
+          }
+        : null;
 
   const createUserMutation = useMutation({
     mutationFn: async (draft: UserDraft) => {
@@ -220,6 +269,28 @@ function IdentityAndAccessPage() {
     onError: () => setUserMessage("The user could not be updated."),
   });
 
+  const setUserActiveMutation = useMutation({
+    mutationFn: async (user: AdminUser) => {
+      if (!session?.access_token || !isPlatformAdmin) {
+        throw new Error("An active platform administrator session is required.");
+      }
+      return setAdminUserActive({
+        accessToken: session.access_token,
+        userId: user.id,
+        isActive: !user.isActive,
+      });
+    },
+    onSuccess: (result) => {
+      if (!result.ok) {
+        setUserMessage(result.error);
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: adminUsersKeys.all });
+      setUserMessage("User status updated successfully.");
+    },
+    onError: () => setUserMessage("The user status could not be updated."),
+  });
+
   const createTeamMutation = useMutation({
     mutationFn: (draft: TeamInput) => {
       if (!canManage) {
@@ -270,6 +341,7 @@ function IdentityAndAccessPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: teamsKeys.list() });
+      setSelectedId(null);
       setTeamMessage("Team deleted successfully.");
     },
     onError: () => setTeamMessage("The team could not be deleted."),
@@ -355,6 +427,14 @@ function IdentityAndAccessPage() {
     deleteTeamMutation.mutate(team.id);
   }
 
+  function confirmToggleUser(user: AdminUser) {
+    const action = user.isActive ? "deactivate" : "activate";
+    if (!window.confirm(`Do you want to ${action} ${user.displayName}?`)) {
+      return;
+    }
+    setUserActiveMutation.mutate(user);
+  }
+
   return (
     <main className="min-h-[calc(100vh-3.5rem)] bg-background p-4 sm:p-6">
       <div className="mx-auto max-w-6xl space-y-5">
@@ -380,7 +460,10 @@ function IdentityAndAccessPage() {
                     type="button"
                     role="tab"
                     aria-selected={isActive}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setSelectedId(null);
+                    }}
                     className={`whitespace-nowrap rounded-t-md border-b-2 px-4 py-2 text-sm font-medium ${
                       isActive
                         ? "border-primary text-foreground"
@@ -395,64 +478,98 @@ function IdentityAndAccessPage() {
           </div>
 
           <div className="space-y-5 p-4 sm:p-6">
-            {activeTab === "users" && (
-              <UsersSection
-                users={users}
-                isLoading={usersQuery.isLoading}
-                isError={usersQuery.isError}
-                isPlatformAdmin={isPlatformAdmin}
-                message={userMessage}
-                showForm={showUserForm}
-                editingUser={editingUser}
-                draft={userDraft}
-                roleOptions={roleOptions}
-                teamOptions={teamOptions}
-                isSaving={
-                  createUserMutation.isPending || updateUserMutation.isPending
-                }
-                onRetry={() => usersQuery.refetch()}
-                onCreate={openCreateUser}
-                onEdit={openEditUser}
-                onCloseForm={() => {
-                  setShowUserForm(false);
-                  setEditingUser(null);
-                }}
-                onDraftChange={setUserDraft}
-                onSubmit={submitUser}
-              />
-            )}
+            <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(260px,0.8fr)_minmax(0,1.4fr)]">
+              <div className="min-w-0">
+                {activeTab === "users" && (
+                  <UsersSection
+                    users={users}
+                    selectedId={selectedId}
+                    isLoading={usersQuery.isLoading}
+                    isError={usersQuery.isError}
+                    isPlatformAdmin={isPlatformAdmin}
+                    message={userMessage}
+                    showForm={showUserForm}
+                    editingUser={editingUser}
+                    draft={userDraft}
+                    roleOptions={roleOptions}
+                    teamOptions={teamOptions}
+                    isSaving={
+                      createUserMutation.isPending ||
+                      updateUserMutation.isPending ||
+                      setUserActiveMutation.isPending
+                    }
+                    onRetry={() => usersQuery.refetch()}
+                    onSelect={(user) => setSelectedId(user.id)}
+                    onCreate={openCreateUser}
+                    onEdit={openEditUser}
+                    onCloseForm={() => {
+                      setShowUserForm(false);
+                      setEditingUser(null);
+                    }}
+                    onDraftChange={setUserDraft}
+                    onSubmit={submitUser}
+                  />
+                )}
 
-            {activeTab === "teams" && (
-              <TeamsSection
-                teams={teams}
-                isLoading={teamListQuery.isLoading}
-                isError={teamListQuery.isError}
-                canManage={canManage}
-                message={teamMessage}
-                showForm={showTeamForm}
-                editingTeam={editingTeam}
-                draft={teamDraft}
-                isSaving={
-                  createTeamMutation.isPending ||
-                  updateTeamMutation.isPending ||
-                  deleteTeamMutation.isPending
-                }
-                onRetry={() => teamListQuery.refetch()}
-                onCreate={openCreateTeam}
-                onEdit={openEditTeam}
-                onDelete={confirmDeleteTeam}
-                onCloseForm={() => {
-                  setShowTeamForm(false);
-                  setEditingTeam(null);
-                }}
-                onDraftChange={setTeamDraft}
-                onSubmit={submitTeam}
-              />
-            )}
+                {activeTab === "teams" && (
+                  <TeamsSection
+                    teams={teams}
+                    selectedId={selectedId}
+                    isLoading={teamListQuery.isLoading}
+                    isError={teamListQuery.isError}
+                    canManage={canManage}
+                    message={teamMessage}
+                    showForm={showTeamForm}
+                    editingTeam={editingTeam}
+                    draft={teamDraft}
+                    isSaving={
+                      createTeamMutation.isPending ||
+                      updateTeamMutation.isPending ||
+                      deleteTeamMutation.isPending
+                    }
+                    onRetry={() => teamListQuery.refetch()}
+                    onSelect={(team) => setSelectedId(team.id)}
+                    onCreate={openCreateTeam}
+                    onEdit={openEditTeam}
+                    onDelete={confirmDeleteTeam}
+                    onCloseForm={() => {
+                      setShowTeamForm(false);
+                      setEditingTeam(null);
+                    }}
+                    onDraftChange={setTeamDraft}
+                    onSubmit={submitTeam}
+                  />
+                )}
 
-            {activeTab === "departments" && (
-              <DepartmentsSection workspaces={workspaces} />
-            )}
+                {activeTab === "departments" && (
+                  <DepartmentsSection
+                    workspaces={workspaces}
+                    selectedId={selectedId}
+                    onSelect={(workspace) => setSelectedId(workspace.id)}
+                  />
+                )}
+              </div>
+
+              <div className="min-w-0">
+                {selectedSubject ? (
+                  <IdentityDetailPanel
+                    key={`${selectedSubject.type}:${selectedSubject.id}`}
+                    subject={selectedSubject}
+                    activationConfirmed={accessOverrideActivated}
+                    canManage={canManage}
+                    onEditUser={openEditUser}
+                    onToggleUser={confirmToggleUser}
+                    onEditTeam={openEditTeam}
+                    onDeleteTeam={confirmDeleteTeam}
+                  />
+                ) : (
+                  <section className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                    Select a user, team, or department to manage overview,
+                    assignments, access, and audit history.
+                  </section>
+                )}
+              </div>
+            </div>
 
             <AccessOverrideNotice
               isLoading={accessStatusQuery.isLoading}
@@ -472,6 +589,7 @@ function IdentityAndAccessPage() {
 
 function UsersSection({
   users,
+  selectedId,
   isLoading,
   isError,
   isPlatformAdmin,
@@ -483,6 +601,7 @@ function UsersSection({
   teamOptions,
   isSaving,
   onRetry,
+  onSelect,
   onCreate,
   onEdit,
   onCloseForm,
@@ -490,6 +609,7 @@ function UsersSection({
   onSubmit,
 }: {
   users: AdminUser[];
+  selectedId: string | null;
   isLoading: boolean;
   isError: boolean;
   isPlatformAdmin: boolean;
@@ -501,12 +621,32 @@ function UsersSection({
   teamOptions: Array<{ id: string; name: string }>;
   isSaving: boolean;
   onRetry: () => void;
+  onSelect: (user: AdminUser) => void;
   onCreate: () => void;
   onEdit: (user: AdminUser) => void;
   onCloseForm: () => void;
   onDraftChange: (draft: UserDraft) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+  const needle = search.trim().toLowerCase();
+  const visibleUsers = users.filter((user) => {
+    if (statusFilter === "active" && !user.isActive) return false;
+    if (statusFilter === "inactive" && user.isActive) return false;
+    if (!needle) return true;
+    const roleNames = Array.isArray(user.roleNames) ? user.roleNames : [];
+    const teamNames = Array.isArray(user.teamNames) ? user.teamNames : [];
+    return [
+      user.displayName,
+      user.email ?? "",
+      ...roleNames,
+      ...teamNames,
+    ].some((value) => value.toLowerCase().includes(needle));
+  });
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -532,6 +672,30 @@ function UsersSection({
           {message}
         </p>
       )}
+
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search users"
+          className="min-w-0 rounded-md border bg-background px-3 py-2 text-sm"
+        />
+        <select
+          aria-label="User status filter"
+          value={statusFilter}
+          onChange={(event) =>
+            setStatusFilter(
+              event.target.value as "all" | "active" | "inactive",
+            )
+          }
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        >
+          <option value="all">All users</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
 
       {showForm && (
         <form onSubmit={onSubmit} className="space-y-3 rounded-lg border p-4">
@@ -633,21 +797,27 @@ function UsersSection({
         <p className="text-sm text-muted-foreground">Loading users…</p>
       ) : isError ? (
         <LoadError label="users" onRetry={onRetry} />
-      ) : users.length === 0 ? (
+      ) : visibleUsers.length === 0 ? (
         <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-          No users are available.
+          No users match the current search and filter.
         </p>
       ) : (
-        <div className="divide-y rounded-lg border">
-          {users.map((user) => {
+        <div className="max-h-[62vh] divide-y overflow-y-auto rounded-lg border">
+          {visibleUsers.map((user) => {
             const roles = Array.isArray(user.roleNames) ? user.roleNames : [];
             const teams = Array.isArray(user.teamNames) ? user.teamNames : [];
             return (
               <article
                 key={user.id}
-                className="flex flex-wrap items-center justify-between gap-3 p-3"
+                className={`p-3 ${
+                  selectedId === user.id ? "bg-primary/5" : ""
+                }`}
               >
-                <div className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => onSelect(user)}
+                  className="block w-full min-w-0 text-left"
+                >
                   <p className="truncate font-medium">{user.displayName}</p>
                   <p className="truncate text-sm text-muted-foreground">
                     {user.email ?? "Email unavailable"}
@@ -657,8 +827,15 @@ function UsersSection({
                     {teams.length > 0 ? teams.join(", ") : "No team"} ·{" "}
                     {user.isActive ? "Active" : "Inactive"}
                   </p>
-                </div>
-                <div className="flex gap-2">
+                </button>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(user)}
+                    className="rounded-md border px-3 py-1.5 text-sm"
+                  >
+                    Manage
+                  </button>
                   <button
                     type="button"
                     disabled={!isPlatformAdmin}
@@ -687,6 +864,7 @@ function UsersSection({
 
 function TeamsSection({
   teams,
+  selectedId,
   isLoading,
   isError,
   canManage,
@@ -696,6 +874,7 @@ function TeamsSection({
   draft,
   isSaving,
   onRetry,
+  onSelect,
   onCreate,
   onEdit,
   onDelete,
@@ -704,6 +883,7 @@ function TeamsSection({
   onSubmit,
 }: {
   teams: TeamSummary[];
+  selectedId: string | null;
   isLoading: boolean;
   isError: boolean;
   canManage: boolean;
@@ -713,6 +893,7 @@ function TeamsSection({
   draft: TeamInput;
   isSaving: boolean;
   onRetry: () => void;
+  onSelect: (team: TeamSummary) => void;
   onCreate: () => void;
   onEdit: (team: TeamSummary) => void;
   onDelete: (team: TeamSummary) => void;
@@ -720,6 +901,19 @@ function TeamsSection({
   onDraftChange: (draft: TeamInput) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const [search, setSearch] = useState("");
+  const [memberFilter, setMemberFilter] = useState<
+    "all" | "with-members" | "empty"
+  >("all");
+  const needle = search.trim().toLowerCase();
+  const visibleTeams = teams.filter((team) => {
+    if (memberFilter === "with-members" && team.memberCount <= 0) return false;
+    if (memberFilter === "empty" && team.memberCount > 0) return false;
+    return [team.name, team.slug, team.description ?? ""].some((value) =>
+      value.toLowerCase().includes(needle),
+    );
+  });
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -745,6 +939,30 @@ function TeamsSection({
           {message}
         </p>
       )}
+
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search teams"
+          className="min-w-0 rounded-md border bg-background px-3 py-2 text-sm"
+        />
+        <select
+          aria-label="Team membership filter"
+          value={memberFilter}
+          onChange={(event) =>
+            setMemberFilter(
+              event.target.value as "all" | "with-members" | "empty",
+            )
+          }
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        >
+          <option value="all">All teams</option>
+          <option value="with-members">With members</option>
+          <option value="empty">Empty teams</option>
+        </select>
+      </div>
 
       {showForm && (
         <form onSubmit={onSubmit} className="space-y-3 rounded-lg border p-4">
@@ -812,18 +1030,24 @@ function TeamsSection({
         <p className="text-sm text-muted-foreground">Loading teams…</p>
       ) : isError ? (
         <LoadError label="teams" onRetry={onRetry} />
-      ) : teams.length === 0 ? (
+      ) : visibleTeams.length === 0 ? (
         <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-          No teams are available.
+          No teams match the current search.
         </p>
       ) : (
-        <div className="divide-y rounded-lg border">
-          {teams.map((team) => (
+        <div className="max-h-[62vh] divide-y overflow-y-auto rounded-lg border">
+          {visibleTeams.map((team) => (
             <article
               key={team.id}
-              className="flex flex-wrap items-center justify-between gap-3 p-3"
+              className={`p-3 ${
+                selectedId === team.id ? "bg-primary/5" : ""
+              }`}
             >
-              <div className="min-w-0">
+              <button
+                type="button"
+                onClick={() => onSelect(team)}
+                className="block w-full min-w-0 text-left"
+              >
                 <p className="truncate font-medium">{team.name}</p>
                 <p className="truncate text-sm text-muted-foreground">
                   {team.description || "No description"}
@@ -831,8 +1055,15 @@ function TeamsSection({
                 <p className="text-xs text-muted-foreground">
                   {team.slug} · {team.memberCount} members
                 </p>
-              </div>
-              <div className="flex gap-2">
+              </button>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onSelect(team)}
+                  className="rounded-md border px-3 py-1.5 text-sm"
+                >
+                  Manage
+                </button>
                 <button
                   type="button"
                   disabled={!canManage}
@@ -860,15 +1091,28 @@ function TeamsSection({
 
 function DepartmentsSection({
   workspaces,
+  selectedId,
+  onSelect,
 }: {
-  workspaces: Array<{
-    id: string;
-    name: string;
-    slug: string;
-    status: string;
-    type: string;
-  }>;
+  workspaces: IdentityWorkspace[];
+  selectedId: string | null;
+  onSelect: (workspace: IdentityWorkspace) => void;
 }) {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const needle = search.trim().toLowerCase();
+  const visibleWorkspaces = workspaces.filter((workspace) => {
+    if (statusFilter !== "all" && workspace.status !== statusFilter) {
+      return false;
+    }
+    return [workspace.name, workspace.slug, workspace.type, workspace.status].some(
+      (value) => value.toLowerCase().includes(needle),
+    );
+  });
+  const statuses = Array.from(
+    new Set(workspaces.map((workspace) => workspace.status).filter(Boolean)),
+  );
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -888,24 +1132,60 @@ function DepartmentsSection({
         </button>
       </div>
 
-      {workspaces.length === 0 ? (
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search departments"
+          className="min-w-0 rounded-md border bg-background px-3 py-2 text-sm"
+        />
+        <select
+          aria-label="Department status filter"
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        >
+          <option value="all">All statuses</option>
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {visibleWorkspaces.length === 0 ? (
         <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-          No departments are available.
+          No departments match the current search and filter.
         </p>
       ) : (
-        <div className="divide-y rounded-lg border">
-          {workspaces.map((workspace) => (
+        <div className="max-h-[62vh] divide-y overflow-y-auto rounded-lg border">
+          {visibleWorkspaces.map((workspace) => (
             <article
               key={workspace.id}
-              className="flex flex-wrap items-center justify-between gap-3 p-3"
+              className={`p-3 ${
+                selectedId === workspace.id ? "bg-primary/5" : ""
+              }`}
             >
-              <div className="min-w-0">
+              <button
+                type="button"
+                onClick={() => onSelect(workspace)}
+                className="block w-full min-w-0 text-left"
+              >
                 <p className="truncate font-medium">{workspace.name}</p>
                 <p className="text-sm text-muted-foreground">
                   {workspace.slug} · {workspace.type} · {workspace.status}
                 </p>
-              </div>
-              <div className="flex gap-2">
+              </button>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onSelect(workspace)}
+                  className="rounded-md border px-3 py-1.5 text-sm"
+                >
+                  Manage
+                </button>
                 <button
                   type="button"
                   disabled
@@ -951,24 +1231,12 @@ function AccessOverrideNotice({
   return (
     <aside className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
       <p className="text-sm font-medium">{statusMessage}</p>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled
-          title={ACCESS_DISABLED_TITLE}
-          className="cursor-not-allowed rounded-md border px-3 py-2 text-sm opacity-50"
-        >
-          Edit permissions
-        </button>
-        <button
-          type="button"
-          disabled
-          title={ACCESS_DISABLED_TITLE}
-          className="cursor-not-allowed rounded-md border px-3 py-2 text-sm opacity-50"
-        >
-          Edit page visibility
-        </button>
-      </div>
+      {isActivated && (
+        <p className="text-xs text-muted-foreground">
+          Select a subject and use its Permissions or Page Visibility tab to
+          manage audited overrides.
+        </p>
+      )}
     </aside>
   );
 }

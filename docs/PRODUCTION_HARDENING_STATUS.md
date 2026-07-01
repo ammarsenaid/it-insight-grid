@@ -2479,3 +2479,25 @@ Status: IMPLEMENTED LOCALLY.
   Access map, Role preview, Static fallback, and Effective access debug.
 - Replaced the Static fallback navigation target with a dedicated compact,
   read-only code-reference matrix containing no mutation controls.
+
+## Milestone 108 - Stable One-Page Identity Management
+
+Date: 2026-07-01
+
+Status: IMPLEMENTED LOCALLY.
+
+- Extended the stable `/admin/identity` route into a responsive master-detail
+  console for users, teams, and departments without restoring the retired
+  `AccessControlConsole` implementation.
+- Added guarded search/filter lists, same-page overview and assignment panels,
+  real user activation/deactivation, and real team member add/remove/role
+  mutations using existing backend contracts.
+- Connected permission and page-visibility decisions to `/api/admin-access` for
+  read and audited allow/deny/inherit mutations. Every change requires an audit
+  reason and remains disabled unless backend activation and active platform
+  administrator authorization are confirmed.
+- Added effective-access provenance and audit-history views with safe loading,
+  empty, unavailable, and retry states.
+- User deletion, workspace CRUD/archive, user assignment editing, and workspace
+  membership editing remain disabled because no approved backend mutations
+  exist for those operations.
