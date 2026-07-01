@@ -438,7 +438,6 @@ function UsersSection({
   users,
   isLoading,
   isError,
-  canManage,
   isPlatformAdmin,
   message,
   showForm,
@@ -457,7 +456,6 @@ function UsersSection({
   users: AdminUser[];
   isLoading: boolean;
   isError: boolean;
-  canManage: boolean;
   isPlatformAdmin: boolean;
   message: string | null;
   showForm: boolean;
@@ -655,6 +653,7 @@ function TeamsSection({
   teams,
   isLoading,
   isError,
+  canManage,
   message,
   showForm,
   editingTeam,
@@ -671,6 +670,7 @@ function TeamsSection({
   teams: TeamSummary[];
   isLoading: boolean;
   isError: boolean;
+  canManage: boolean;
   message: string | null;
   showForm: boolean;
   editingTeam: TeamSummary | null;
