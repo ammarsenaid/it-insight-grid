@@ -138,18 +138,28 @@ export function IdentityDetailPanel({
       (result.ok === false || snapshot === null));
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-lg border bg-background">
-      <header className="border-b px-4 py-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {subject.type === "workspace" ? "Department" : subject.type}
-        </p>
-        <h2 className="mt-1 truncate text-lg font-semibold">{subject.name}</h2>
+    <section className="min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm">
+      <header className="flex min-w-0 items-center gap-3 border-b bg-gradient-to-r from-muted/50 to-transparent px-4 py-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background text-sm font-semibold text-primary shadow-sm">
+          {subject.name.slice(0, 1).toUpperCase()}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {subject.type === "workspace" ? "Department" : subject.type}
+          </p>
+          <h2 className="truncate text-lg font-semibold leading-tight">
+            {subject.name}
+          </h2>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Identity, assignments, and effective access
+          </p>
+        </div>
       </header>
 
       <div
         role="tablist"
         aria-label={`${subject.name} management`}
-        className="grid grid-cols-2 gap-1 border-b bg-muted/20 p-2.5 sm:grid-cols-3"
+        className="grid grid-cols-2 gap-1 border-b bg-muted/10 p-2.5 sm:grid-cols-3"
       >
         {detailTabs.map((tab) => {
           const selected = activeTab === tab.id;
@@ -162,8 +172,8 @@ export function IdentityDetailPanel({
               onClick={() => setActiveTab(tab.id)}
               className={`min-w-0 rounded-md border px-2 py-1.5 text-center text-[11px] font-medium leading-tight ${
                 selected
-                  ? "border-primary/40 bg-primary/10 text-primary shadow-sm"
-                  : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  ? "border-primary/30 bg-primary/10 text-primary shadow-sm"
+                  : "border-transparent bg-background/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               }`}
             >
               {tab.label}
@@ -836,18 +846,26 @@ function AccessDecisionRow({
   }
 
   return (
-    <article className="rounded-md border p-2.5">
+    <article className="rounded-lg border bg-card/50 p-2.5 shadow-sm">
       <div className="grid gap-2.5 min-[900px]:grid-cols-[minmax(0,1.3fr)_minmax(105px,0.5fr)_minmax(0,1fr)]">
         <div className="min-w-0">
           <p className="break-words text-sm font-medium">
             {decision.label || decision.key}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Effective:{" "}
-            <span className="font-medium text-foreground">
-              {decision.effective === "allow" ? "Allow" : "Deny"}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <span
+              className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                decision.effective === "allow"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "border-destructive/30 bg-destructive/10 text-destructive"
+              }`}
+            >
+              Effective {decision.effective === "allow" ? "Allow" : "Deny"}
             </span>
-          </p>
+            <span className="text-[11px] text-muted-foreground">
+              Override: {decision.override}
+            </span>
+          </div>
           <p className="mt-1 break-words text-xs text-muted-foreground">
             Source: {decision.source || "No provenance returned by backend."}
           </p>
@@ -866,14 +884,20 @@ function AccessDecisionRow({
               setMessage(null);
               setEffect(event.target.value as AccessOverrideEffect);
             }}
-            className="w-full rounded-md border bg-background px-2 py-2 text-sm"
+            className={`w-full rounded-md border px-2 py-2 text-sm font-medium outline-none ${
+              effect === "allow"
+                ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+                : effect === "deny"
+                  ? "border-destructive/30 bg-destructive/5 text-destructive"
+                  : "bg-background text-foreground"
+            }`}
           >
             <option value="inherit">Inherit</option>
             <option value="allow">Allow</option>
             <option value="deny">Deny</option>
           </select>
         </label>
-        <div className="space-y-2">
+        <div className="space-y-2 rounded-md bg-muted/20 p-2">
           <label className="block space-y-1 text-xs">
             <span>Audit reason</span>
             <input
@@ -941,14 +965,6 @@ function EffectiveAccessPanel({
     );
   }
 
-  const combined = [
-    ...permissions.map((decision) => ({
-      ...decision,
-      category: "Permission",
-    })),
-    ...routes.map((decision) => ({ ...decision, category: "Page" })),
-  ];
-
   return (
     <div className="space-y-3">
       {warning && (
@@ -956,45 +972,69 @@ function EffectiveAccessPanel({
           {warning}
         </p>
       )}
-      {combined.length === 0 ? (
+      {permissions.length === 0 && routes.length === 0 ? (
         <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
           No effective access decisions returned by the backend.
         </p>
       ) : (
-        <div className="max-h-[58vh] divide-y overflow-y-auto rounded-md border">
-          {combined.map((decision) => (
-            <article
-              key={`${decision.category}:${decision.key}`}
-              className="grid gap-2 p-2.5 sm:grid-cols-[minmax(0,1fr)_auto]"
-            >
-              <div className="min-w-0">
-                <p className="break-words text-sm font-medium">
-                  {decision.label || decision.key}
-                </p>
-                <p className="break-words text-xs text-muted-foreground">
-                  {decision.category} ·{" "}
-                  {decision.source || "No provenance returned by backend."}
-                </p>
-                {decision.reason && (
-                  <p className="break-words text-xs text-muted-foreground">
-                    Reason: {decision.reason}
-                  </p>
-                )}
-              </div>
-              <span
-                className={`self-start rounded-full border px-2 py-1 text-xs font-medium ${
-                  decision.effective === "allow"
-                    ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
-                    : "border-destructive/40 text-destructive"
-                }`}
-              >
-                {decision.effective === "allow" ? "Allowed" : "Denied"}
-              </span>
-            </article>
-          ))}
+        <div className="max-h-[58vh] space-y-3 overflow-y-auto pr-1">
+          <EffectiveDecisionGroup title="Permissions" decisions={permissions} />
+          <EffectiveDecisionGroup title="Page visibility" decisions={routes} />
         </div>
       )}
     </div>
+  );
+}
+
+function EffectiveDecisionGroup({
+  title,
+  decisions,
+}: {
+  title: string;
+  decisions: AccessDecision[];
+}) {
+  if (decisions.length === 0) return null;
+  return (
+    <section className="overflow-hidden rounded-lg border bg-card/40">
+      <header className="flex items-center justify-between border-b bg-muted/20 px-3 py-2">
+        <h3 className="text-xs font-semibold">{title}</h3>
+        <span className="rounded-full border bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+          {decisions.length}
+        </span>
+      </header>
+      <div className="divide-y">
+        {decisions.map((decision) => (
+          <article
+            key={decision.key}
+            className="grid gap-2 p-2.5 sm:grid-cols-[minmax(0,1fr)_auto]"
+          >
+            <div className="min-w-0">
+              <p className="break-words text-sm font-medium">
+                {decision.label || decision.key}
+              </p>
+              <p className="mt-0.5 break-words text-xs text-muted-foreground">
+                Source:{" "}
+                {decision.source || "No provenance returned by backend."}
+              </p>
+              {decision.reason && (
+                <p className="mt-0.5 break-words text-xs text-muted-foreground">
+                  Reason: {decision.reason}
+                </p>
+              )}
+            </div>
+            <span
+              className={`self-start rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                decision.effective === "allow"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "border-destructive/30 bg-destructive/10 text-destructive"
+              }`}
+            >
+              {decision.effective === "allow" ? "Allowed" : "Denied"}
+            </span>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1022,20 +1062,24 @@ function AuditPanel({
   }
   if (entries.length === 0) {
     return (
-      <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-        No access changes recorded.
-      </p>
+      <div className="rounded-lg border border-dashed bg-muted/10 p-6 text-center">
+        <div className="mx-auto mb-2 h-2.5 w-2.5 rounded-full bg-muted-foreground/30" />
+        <p className="text-sm font-medium">No access changes recorded</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Audited permission and page-visibility changes will appear here.
+        </p>
+      </div>
     );
   }
   return (
-    <div className="max-h-[58vh] divide-y overflow-y-auto rounded-md border">
+    <div className="max-h-[58vh] divide-y overflow-y-auto rounded-lg border bg-card/40">
       {entries.map((entry, index) => (
         <article
           key={
             entry.id ||
             `${entry.resourceType}:${entry.resourceKey}:${entry.createdAt}:${index}`
           }
-          className="p-2.5"
+          className="relative p-2.5 pl-5 before:absolute before:left-2.5 before:top-4 before:h-1.5 before:w-1.5 before:rounded-full before:bg-primary/50"
         >
           <div className="flex flex-wrap items-start justify-between gap-2">
             <p className="min-w-0 break-words text-sm font-medium">
@@ -1062,7 +1106,10 @@ function DefinitionGrid({ rows }: { rows: Array<[string, string]> }) {
   return (
     <dl className="grid gap-2 sm:grid-cols-2">
       {rows.map(([label, value]) => (
-        <div key={label} className="min-w-0 rounded-md border px-3 py-2">
+        <div
+          key={label}
+          className="min-w-0 rounded-lg border bg-card/40 px-3 py-2 shadow-sm"
+        >
           <dt className="text-[11px] font-medium text-muted-foreground">
             {label}
           </dt>
@@ -1083,7 +1130,7 @@ function AssignmentList({
   empty: string;
 }) {
   return (
-    <section className="rounded-md border p-3">
+    <section className="rounded-lg border bg-card/40 p-3">
       <h3 className="text-sm font-medium">{title}</h3>
       {values.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">{empty}</p>

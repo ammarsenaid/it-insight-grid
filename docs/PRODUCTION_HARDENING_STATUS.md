@@ -2585,3 +2585,23 @@ Status: IMPLEMENTED LOCALLY.
   the same unavailable operations remain clearly disabled in the detail panel.
 - Condensed the activation state into a small status banner and aligned disabled
   titles with backend-unavailable versus active-platform-administrator reasons.
+
+## Milestone 114 - Unified Identity Visual Refinement
+
+Date: 2026-07-01
+
+Status: IMPLEMENTED LOCALLY.
+
+- Strengthened the admin-console hierarchy with a compact page introduction,
+  segmented subject navigation, layered but restrained surfaces, and consistent
+  control heights.
+- Refined list cards, search/filter controls, selection states, detail headers,
+  overview fields, and empty states without changing any interaction handlers.
+- Added scannable effective allow/deny badges, visually distinct override
+  selectors, and a focused audit-reason surface to permission and page
+  visibility rows.
+- Grouped effective-access provenance into separate permission and page
+  visibility sections and improved audit-history chronology and empty-state
+  presentation.
+- Preserved responsive stacking, wrapped detail tabs, real API mutations,
+  authorization gates, and all unsupported-action disabled states.

@@ -449,20 +449,31 @@ function IdentityAndAccessPage() {
 
   return (
     <main className="min-h-[calc(100vh-3.5rem)] bg-background p-4 sm:p-6">
-      <div className="mx-auto max-w-6xl space-y-5">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">
+      <div className="mx-auto max-w-6xl space-y-4">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Administration
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             Identity &amp; Access
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Access Control</p>
+            </h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Manage people, teams, departments, and effective access from one
+              control center.
+            </p>
+          </div>
+          <span className="rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+            Access Control
+          </span>
         </header>
 
-        <section className="rounded-lg border bg-card text-card-foreground shadow-sm">
-          <div className="border-b px-4 pt-4">
+        <section className="overflow-hidden rounded-xl border bg-card/80 text-card-foreground shadow-sm">
+          <div className="border-b bg-muted/20 p-2.5">
             <div
               role="tablist"
               aria-label="Access control subjects"
-              className="flex gap-1 overflow-x-auto"
+              className="inline-flex max-w-full gap-1 rounded-lg border bg-background/70 p-1"
             >
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
@@ -476,10 +487,10 @@ function IdentityAndAccessPage() {
                       setActiveTab(tab.id);
                       setSelectedId(null);
                     }}
-                    className={`whitespace-nowrap rounded-t-md border-b-2 px-4 py-2 text-sm font-medium ${
+                    className={`whitespace-nowrap rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors ${
                       isActive
-                        ? "border-primary text-foreground"
-                        : "border-transparent text-muted-foreground hover:text-foreground"
+                        ? "border-border bg-card text-foreground shadow-sm"
+                        : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                     }`}
                   >
                     {tab.label}
@@ -589,9 +600,13 @@ function IdentityAndAccessPage() {
                     onDeleteTeam={confirmDeleteTeam}
                   />
                 ) : (
-                  <section className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-                    Select a user, team, or department to manage overview,
-                    assignments, access, and audit history.
+                  <section className="rounded-xl border border-dashed bg-muted/10 p-8 text-center">
+                    <div className="mx-auto mb-2 h-2.5 w-2.5 rounded-full bg-primary/40" />
+                    <h2 className="text-sm font-medium">Select a subject</h2>
+                    <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+                      Choose a user, team, or department to manage overview,
+                      assignments, access, and audit history.
+                    </p>
                   </section>
                 )}
               </div>
@@ -680,11 +695,11 @@ function UsersSection({
   });
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-semibold">Users</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-semibold">Users</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Create and update real user accounts.
           </p>
         </div>
@@ -699,7 +714,7 @@ function UsersSection({
                 : undefined
           }
           onClick={onCreate}
-          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           Add user
         </button>
@@ -717,7 +732,7 @@ function UsersSection({
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search users"
-          className="min-w-0 rounded-md border bg-background px-3 py-2 text-sm"
+          className="h-9 min-w-0 rounded-md border bg-background px-3 text-sm shadow-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
         />
         <select
           aria-label="User status filter"
@@ -727,7 +742,7 @@ function UsersSection({
               event.target.value as "all" | "active" | "inactive",
             )
           }
-          className="rounded-md border bg-background px-3 py-2 text-sm"
+          className="h-9 rounded-md border bg-background px-3 text-sm shadow-sm outline-none focus:border-primary/50"
         >
           <option value="all">All users</option>
           <option value="active">Active</option>
@@ -856,7 +871,7 @@ function UsersSection({
           No users match the current search and filter.
         </p>
       ) : (
-        <div className="max-h-[62vh] divide-y overflow-y-auto rounded-lg border">
+        <div className="max-h-[62vh] divide-y overflow-y-auto rounded-lg border bg-background/50">
           {visibleUsers.map((user) => {
             const roles = Array.isArray(user.roleNames) ? user.roleNames : [];
             const teams = Array.isArray(user.teamNames) ? user.teamNames : [];
@@ -866,7 +881,7 @@ function UsersSection({
                 className={`border-l-2 px-3 py-2.5 ${
                   selectedId === user.id
                     ? "border-primary bg-primary/[0.06]"
-                    : "border-transparent"
+                    : "border-transparent hover:bg-muted/30"
                 }`}
               >
                 <button
@@ -886,7 +901,7 @@ function UsersSection({
                   <p className="truncate text-sm text-muted-foreground">
                     {user.email ?? "Email unavailable"}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                     {roles.length > 0 ? roles.join(", ") : "No global role"} ·{" "}
                     {teams.length > 0 ? teams.join(", ") : "No team"} ·{" "}
                     {user.isActive ? "Active" : "Inactive"}
@@ -995,11 +1010,11 @@ function TeamsSection({
   });
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-semibold">Teams</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-semibold">Teams</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Create, update, and delete teams using the existing team API.
           </p>
         </div>
@@ -1014,7 +1029,7 @@ function TeamsSection({
                 : undefined
           }
           onClick={onCreate}
-          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           New team
         </button>
@@ -1032,7 +1047,7 @@ function TeamsSection({
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search teams"
-          className="min-w-0 rounded-md border bg-background px-3 py-2 text-sm"
+          className="h-9 min-w-0 rounded-md border bg-background px-3 text-sm shadow-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
         />
         <select
           aria-label="Team membership filter"
@@ -1042,7 +1057,7 @@ function TeamsSection({
               event.target.value as "all" | "with-members" | "empty",
             )
           }
-          className="rounded-md border bg-background px-3 py-2 text-sm"
+          className="h-9 rounded-md border bg-background px-3 text-sm shadow-sm outline-none focus:border-primary/50"
         >
           <option value="all">All teams</option>
           <option value="with-members">With members</option>
@@ -1121,14 +1136,14 @@ function TeamsSection({
           No teams match the current search.
         </p>
       ) : (
-        <div className="max-h-[62vh] divide-y overflow-y-auto rounded-lg border">
+        <div className="max-h-[62vh] divide-y overflow-y-auto rounded-lg border bg-background/50">
           {visibleTeams.map((team) => (
             <article
               key={team.id}
               className={`border-l-2 px-3 py-2.5 ${
                 selectedId === team.id
                   ? "border-primary bg-primary/[0.06]"
-                  : "border-transparent"
+                  : "border-transparent hover:bg-muted/30"
               }`}
             >
               <button
@@ -1233,11 +1248,11 @@ function DepartmentsSection({
   );
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-semibold">Departments</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-semibold">Departments</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Workspaces available in your effective access context.
           </p>
         </div>
@@ -1245,7 +1260,7 @@ function DepartmentsSection({
           type="button"
           disabled
           title={DISABLED_TITLE}
-          className="cursor-not-allowed rounded-md border px-3 py-2 text-sm font-medium opacity-50"
+          className="h-9 cursor-not-allowed rounded-md border bg-muted/30 px-3 text-sm font-medium text-muted-foreground opacity-70"
         >
           New department
         </button>
@@ -1257,13 +1272,13 @@ function DepartmentsSection({
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search departments"
-          className="min-w-0 rounded-md border bg-background px-3 py-2 text-sm"
+          className="h-9 min-w-0 rounded-md border bg-background px-3 text-sm shadow-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
         />
         <select
           aria-label="Department status filter"
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
-          className="rounded-md border bg-background px-3 py-2 text-sm"
+          className="h-9 rounded-md border bg-background px-3 text-sm shadow-sm outline-none focus:border-primary/50"
         >
           <option value="all">All statuses</option>
           {statuses.map((status) => (
@@ -1279,14 +1294,14 @@ function DepartmentsSection({
           No departments match the current search and filter.
         </p>
       ) : (
-        <div className="max-h-[62vh] divide-y overflow-y-auto rounded-lg border">
+        <div className="max-h-[62vh] divide-y overflow-y-auto rounded-lg border bg-background/50">
           {visibleWorkspaces.map((workspace) => (
             <article
               key={workspace.id}
               className={`border-l-2 px-3 py-2.5 ${
                 selectedId === workspace.id
                   ? "border-primary bg-primary/[0.06]"
-                  : "border-transparent"
+                  : "border-transparent hover:bg-muted/30"
               }`}
             >
               <button
