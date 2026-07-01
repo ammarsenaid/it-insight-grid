@@ -6,6 +6,7 @@ import {
   createAdminUser,
   updateAdminUser,
 } from "@/lib/admin-users/create-user";
+import { adminAccess } from "@/lib/admin-access/functions";
 import {
   adminUserFormOptionsQuery,
   adminUsersKeys,
@@ -47,7 +48,7 @@ const EMPTY_TEAM: TeamInput = {
 };
 
 const DISABLED_TITLE = "Backend action not available yet.";
-const ACCESS_DISABLED_TITLE = "Access override database is not activated yet.";
+const ACCESS_DISABLED_TITLE = "Access editing is not available yet.";
 
 const tabs: Array<{ id: IdentityTab; label: string }> = [
   { id: "users", label: "Users" },
@@ -119,6 +120,25 @@ function IdentityAndAccessPage() {
     ...teamsQuery(),
     enabled: queryEnabled,
   });
+  const canCheckAccessStatus = Boolean(
+    session?.access_token && session?.user?.id && isPlatformAdmin,
+  );
+  const accessStatusQuery = useQuery({
+    queryKey: ["admin-access", "activation-status", session?.user?.id ?? ""],
+    enabled: canCheckAccessStatus,
+    retry: false,
+    queryFn: async () => {
+      if (!session?.access_token || !session.user?.id) {
+        throw new Error("Administrator access is unavailable.");
+      }
+      return adminAccess({
+        accessToken: session.access_token,
+        action: "read",
+        subjectType: "user",
+        subjectId: session.user.id,
+      });
+    },
+  });
 
   const users = Array.isArray(usersQuery.data) ? usersQuery.data : [];
   const teams = Array.isArray(teamListQuery.data) ? teamListQuery.data : [];
@@ -132,6 +152,14 @@ function IdentityAndAccessPage() {
     ? userOptionsQuery.data.teams
     : [];
   const canManage = Boolean(session?.user && isPlatformAdmin);
+  const accessStatusResult = accessStatusQuery.data;
+  const accessSnapshot =
+    accessStatusResult?.ok === true &&
+    accessStatusResult.snapshot &&
+    typeof accessStatusResult.snapshot === "object"
+      ? accessStatusResult.snapshot
+      : null;
+  const accessOverrideActivated = accessSnapshot?.available === true;
 
   const createUserMutation = useMutation({
     mutationFn: async (draft: UserDraft) => {
@@ -426,7 +454,15 @@ function IdentityAndAccessPage() {
               <DepartmentsSection workspaces={workspaces} />
             )}
 
-            <AccessOverrideNotice />
+            <AccessOverrideNotice
+              isLoading={accessStatusQuery.isLoading}
+              isActivated={accessOverrideActivated}
+              isUnavailable={
+                !canCheckAccessStatus ||
+                accessStatusQuery.isError ||
+                (!accessStatusQuery.isLoading && accessStatusResult?.ok === false)
+              }
+            />
           </div>
         </section>
       </div>
@@ -895,12 +931,26 @@ function DepartmentsSection({
   );
 }
 
-function AccessOverrideNotice() {
+function AccessOverrideNotice({
+  isLoading,
+  isActivated,
+  isUnavailable,
+}: {
+  isLoading: boolean;
+  isActivated: boolean;
+  isUnavailable: boolean;
+}) {
+  const statusMessage = isLoading
+    ? "Checking access override database activation…"
+    : isActivated
+      ? "Access override database is activated."
+      : isUnavailable
+        ? "Access override activation status is unavailable."
+        : "Access override database is not activated yet.";
+
   return (
     <aside className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
-      <p className="text-sm font-medium">
-        Access override database is not activated yet.
-      </p>
+      <p className="text-sm font-medium">{statusMessage}</p>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
