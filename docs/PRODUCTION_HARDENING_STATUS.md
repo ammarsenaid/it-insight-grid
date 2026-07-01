@@ -2501,3 +2501,70 @@ Status: IMPLEMENTED LOCALLY.
 - User deletion, workspace CRUD/archive, user assignment editing, and workspace
   membership editing remain disabled because no approved backend mutations
   exist for those operations.
+
+## Milestone 109 - Unified Identity Runtime Audit
+
+Date: 2026-07-01
+
+Status: IMPLEMENTED LOCALLY.
+
+- Hardened access snapshot rendering by validating permission, route, and audit
+  entry shapes before rendering data returned through the browser helper.
+- Corrected override-control refresh behavior so a backend override change
+  remounts the affected control with the current server value.
+- Normalized missing or invalid team member counts to zero for filtering and
+  display, preventing incorrect empty-team filters and undefined labels.
+- Confirmed selected records fail closed to the existing empty detail state when
+  they disappear, unsupported workspace and user-delete controls remain
+  disabled, and no legacy `AccessControlConsole` import is present.
+
+## Milestone 110 - Access Override Save Audit
+
+Date: 2026-07-01
+
+Status: IMPLEMENTED LOCALLY.
+
+- Added an immediate in-flight guard around permission and page-visibility
+  saves so rapid repeated clicks cannot enqueue duplicate audited mutations.
+- Validated both failure messages and successful snapshot responses before
+  presenting a save as successful.
+- Awaited exact selected-subject snapshot invalidation before showing the final
+  success state, and synchronized refreshed override values without remounting
+  rows or erasing their success messages.
+- Confirmed audit reasons remain mandatory, subject changes reset row-local
+  state, detail-tab changes preserve the selected subject, and every save still
+  uses the existing `/api/admin-access` contract.
+
+## Milestone 111 - Unified Identity UX Audit
+
+Date: 2026-07-01
+
+Status: IMPLEMENTED LOCALLY.
+
+- Made selected users, teams, and departments unambiguous with a stronger
+  selection rail, background, badge, button state, and accessibility state.
+- Added specific explanations to disabled administrative, assignment, and access
+  controls while preserving every existing backend and authorization boundary.
+- Improved compact access-row behavior near 1000px, clarified audit event labels
+  and timestamps, and standardized loading surfaces across lists and detail tabs.
+- Corrected activation-status coloring so activated, unavailable, pending, and
+  loading states no longer share the same warning treatment.
+
+## Milestone 112 - Unified Identity Final Safety Audit
+
+Date: 2026-07-01
+
+Status: IMPLEMENTED LOCALLY.
+
+- Normalized user, team, workspace, form-option, team-member, role, and profile
+  query payloads before nested property access, filtering, or rendering.
+- Added an explicit loading/error/retry state for user role and team form
+  options, preventing silent partial create forms when that query fails.
+- Rejected malformed successful user mutation responses and supplied safe
+  fallback messages for malformed failures.
+- Completed pending-state locks for list and detail CRUD controls and added an
+  immediate team-assignment mutation guard to prevent repeated concurrent
+  member changes.
+- Classified malformed successful access snapshots as errors while retaining
+  the existing route error boundary, empty states, tab isolation, and backend
+  authorization behavior.

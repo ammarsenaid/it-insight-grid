@@ -146,17 +146,11 @@ function IdentityAndAccessPage() {
     },
   });
 
-  const users = Array.isArray(usersQuery.data) ? usersQuery.data : [];
-  const teams = Array.isArray(teamListQuery.data) ? teamListQuery.data : [];
-  const workspaces = Array.isArray(effectiveAccess?.workspaces)
-    ? effectiveAccess.workspaces
-    : [];
-  const roleOptions = Array.isArray(userOptionsQuery.data?.roles)
-    ? userOptionsQuery.data.roles
-    : [];
-  const teamOptions = Array.isArray(userOptionsQuery.data?.teams)
-    ? userOptionsQuery.data.teams
-    : [];
+  const users = normalizeAdminUsers(usersQuery.data);
+  const teams = normalizeTeams(teamListQuery.data);
+  const workspaces = normalizeWorkspaces(effectiveAccess?.workspaces);
+  const roleOptions = normalizeFormOptions(userOptionsQuery.data?.roles);
+  const teamOptions = normalizeFormOptions(userOptionsQuery.data?.teams);
   const canManage = Boolean(session?.user && isPlatformAdmin);
   const accessStatusResult = accessStatusQuery.data;
   const accessSnapshot =
@@ -226,7 +220,11 @@ function IdentityAndAccessPage() {
     },
     onSuccess: (result) => {
       if (!result.ok) {
-        setUserMessage(result.error);
+        setUserMessage(safeMessage(result.error, "The user could not be created."));
+        return;
+      }
+      if (typeof result.userId !== "string" || !result.userId) {
+        setUserMessage("The server returned an invalid user creation response.");
         return;
       }
       queryClient.invalidateQueries({ queryKey: adminUsersKeys.all });
@@ -257,7 +255,11 @@ function IdentityAndAccessPage() {
     },
     onSuccess: (result) => {
       if (!result.ok) {
-        setUserMessage(result.error);
+        setUserMessage(safeMessage(result.error, "The user could not be updated."));
+        return;
+      }
+      if (typeof result.userId !== "string" || !result.userId) {
+        setUserMessage("The server returned an invalid user update response.");
         return;
       }
       queryClient.invalidateQueries({ queryKey: adminUsersKeys.all });
@@ -282,7 +284,13 @@ function IdentityAndAccessPage() {
     },
     onSuccess: (result) => {
       if (!result.ok) {
-        setUserMessage(result.error);
+        setUserMessage(
+          safeMessage(result.error, "The user status could not be updated."),
+        );
+        return;
+      }
+      if (typeof result.userId !== "string" || !result.userId) {
+        setUserMessage("The server returned an invalid user status response.");
         return;
       }
       queryClient.invalidateQueries({ queryKey: adminUsersKeys.all });
@@ -369,6 +377,7 @@ function IdentityAndAccessPage() {
 
   function submitUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (createUserMutation.isPending || updateUserMutation.isPending) return;
     if (!userDraft.displayName.trim()) {
       setUserMessage("Display name is required.");
       return;
@@ -408,6 +417,7 @@ function IdentityAndAccessPage() {
 
   function submitTeam(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (createTeamMutation.isPending || updateTeamMutation.isPending) return;
     if (!teamDraft.name.trim() || !slugify(teamDraft.slug || teamDraft.name)) {
       setTeamMessage("Team name and a valid slug are required.");
       return;
@@ -421,6 +431,7 @@ function IdentityAndAccessPage() {
   }
 
   function confirmDeleteTeam(team: TeamSummary) {
+    if (deleteTeamMutation.isPending) return;
     if (!window.confirm(`Delete team "${team.name}"? This cannot be undone.`)) {
       return;
     }
@@ -428,6 +439,7 @@ function IdentityAndAccessPage() {
   }
 
   function confirmToggleUser(user: AdminUser) {
+    if (setUserActiveMutation.isPending) return;
     const action = user.isActive ? "deactivate" : "activate";
     if (!window.confirm(`Do you want to ${action} ${user.displayName}?`)) {
       return;
@@ -493,12 +505,15 @@ function IdentityAndAccessPage() {
                     draft={userDraft}
                     roleOptions={roleOptions}
                     teamOptions={teamOptions}
+                    optionsLoading={userOptionsQuery.isLoading}
+                    optionsError={userOptionsQuery.isError}
                     isSaving={
                       createUserMutation.isPending ||
                       updateUserMutation.isPending ||
                       setUserActiveMutation.isPending
                     }
                     onRetry={() => usersQuery.refetch()}
+                    onRetryOptions={() => userOptionsQuery.refetch()}
                     onSelect={(user) => setSelectedId(user.id)}
                     onCreate={openCreateUser}
                     onEdit={openEditUser}
@@ -557,6 +572,17 @@ function IdentityAndAccessPage() {
                     subject={selectedSubject}
                     activationConfirmed={accessOverrideActivated}
                     canManage={canManage}
+                    managementPending={
+                      selectedSubject.type === "user"
+                        ? createUserMutation.isPending ||
+                          updateUserMutation.isPending ||
+                          setUserActiveMutation.isPending
+                        : selectedSubject.type === "team"
+                          ? createTeamMutation.isPending ||
+                            updateTeamMutation.isPending ||
+                            deleteTeamMutation.isPending
+                          : false
+                    }
                     onEditUser={openEditUser}
                     onToggleUser={confirmToggleUser}
                     onEditTeam={openEditTeam}
@@ -599,8 +625,11 @@ function UsersSection({
   draft,
   roleOptions,
   teamOptions,
+  optionsLoading,
+  optionsError,
   isSaving,
   onRetry,
+  onRetryOptions,
   onSelect,
   onCreate,
   onEdit,
@@ -619,8 +648,11 @@ function UsersSection({
   draft: UserDraft;
   roleOptions: Array<{ id: string; name: string }>;
   teamOptions: Array<{ id: string; name: string }>;
+  optionsLoading: boolean;
+  optionsError: boolean;
   isSaving: boolean;
   onRetry: () => void;
+  onRetryOptions: () => void;
   onSelect: (user: AdminUser) => void;
   onCreate: () => void;
   onEdit: (user: AdminUser) => void;
@@ -658,8 +690,14 @@ function UsersSection({
         </div>
         <button
           type="button"
-          disabled={!isPlatformAdmin}
-          title={!isPlatformAdmin ? "Platform administrator access is required." : undefined}
+          disabled={!isPlatformAdmin || isSaving}
+          title={
+            !isPlatformAdmin
+              ? "Platform administrator access is required."
+              : isSaving
+                ? "A user change is in progress."
+                : undefined
+          }
           onClick={onCreate}
           className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -715,6 +753,15 @@ function UsersSection({
           </label>
           {!editingUser && (
             <>
+              {optionsLoading && (
+                <ListLoading label="Loading roles and teams…" />
+              )}
+              {optionsError && (
+                <LoadError
+                  label="user role and team options"
+                  onRetry={onRetryOptions}
+                />
+              )}
               <label className="block space-y-1 text-sm">
                 <span>Email</span>
                 <input
@@ -776,7 +823,14 @@ function UsersSection({
           <div className="flex gap-2">
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={
+                isSaving || (!editingUser && (optionsLoading || optionsError))
+              }
+              title={
+                !editingUser && optionsError
+                  ? "Reload role and team options before creating a user."
+                  : undefined
+              }
               className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               {isSaving ? "Saving…" : editingUser ? "Save user" : "Create user"}
@@ -794,7 +848,7 @@ function UsersSection({
       )}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading users…</p>
+        <ListLoading label="Loading users…" />
       ) : isError ? (
         <LoadError label="users" onRetry={onRetry} />
       ) : visibleUsers.length === 0 ? (
@@ -809,16 +863,26 @@ function UsersSection({
             return (
               <article
                 key={user.id}
-                className={`p-3 ${
-                  selectedId === user.id ? "bg-primary/5" : ""
+                className={`border-l-2 p-3 ${
+                  selectedId === user.id
+                    ? "border-primary bg-primary/10"
+                    : "border-transparent"
                 }`}
               >
                 <button
                   type="button"
+                  aria-pressed={selectedId === user.id}
                   onClick={() => onSelect(user)}
                   className="block w-full min-w-0 text-left"
                 >
-                  <p className="truncate font-medium">{user.displayName}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate font-medium">{user.displayName}</p>
+                    {selectedId === user.id && (
+                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                        Selected
+                      </span>
+                    )}
+                  </div>
                   <p className="truncate text-sm text-muted-foreground">
                     {user.email ?? "Email unavailable"}
                   </p>
@@ -831,14 +895,24 @@ function UsersSection({
                 <div className="mt-3 flex gap-2">
                   <button
                     type="button"
+                    aria-pressed={selectedId === user.id}
                     onClick={() => onSelect(user)}
-                    className="rounded-md border px-3 py-1.5 text-sm"
+                    className={`rounded-md border px-3 py-1.5 text-sm ${
+                      selectedId === user.id ? "border-primary text-primary" : ""
+                    }`}
                   >
                     Manage
                   </button>
                   <button
                     type="button"
-                    disabled={!isPlatformAdmin}
+                    disabled={!isPlatformAdmin || isSaving}
+                    title={
+                      !isPlatformAdmin
+                        ? "Active platform administrator access is required."
+                        : isSaving
+                          ? "A user change is in progress."
+                          : undefined
+                    }
                     onClick={() => onEdit(user)}
                     className="rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -907,8 +981,14 @@ function TeamsSection({
   >("all");
   const needle = search.trim().toLowerCase();
   const visibleTeams = teams.filter((team) => {
-    if (memberFilter === "with-members" && team.memberCount <= 0) return false;
-    if (memberFilter === "empty" && team.memberCount > 0) return false;
+    const memberCount =
+      typeof team.memberCount === "number" &&
+      Number.isFinite(team.memberCount) &&
+      team.memberCount >= 0
+        ? team.memberCount
+        : 0;
+    if (memberFilter === "with-members" && memberCount <= 0) return false;
+    if (memberFilter === "empty" && memberCount > 0) return false;
     return [team.name, team.slug, team.description ?? ""].some((value) =>
       value.toLowerCase().includes(needle),
     );
@@ -925,8 +1005,14 @@ function TeamsSection({
         </div>
         <button
           type="button"
-          disabled={!canManage}
-          title={!canManage ? "Platform administrator access is required." : undefined}
+          disabled={!canManage || isSaving}
+          title={
+            !canManage
+              ? "Platform administrator access is required."
+              : isSaving
+                ? "A team change is in progress."
+                : undefined
+          }
           onClick={onCreate}
           className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -1027,7 +1113,7 @@ function TeamsSection({
       )}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading teams…</p>
+        <ListLoading label="Loading teams…" />
       ) : isError ? (
         <LoadError label="teams" onRetry={onRetry} />
       ) : visibleTeams.length === 0 ? (
@@ -1039,34 +1125,60 @@ function TeamsSection({
           {visibleTeams.map((team) => (
             <article
               key={team.id}
-              className={`p-3 ${
-                selectedId === team.id ? "bg-primary/5" : ""
+              className={`border-l-2 p-3 ${
+                selectedId === team.id
+                  ? "border-primary bg-primary/10"
+                  : "border-transparent"
               }`}
             >
               <button
                 type="button"
+                aria-pressed={selectedId === team.id}
                 onClick={() => onSelect(team)}
                 className="block w-full min-w-0 text-left"
               >
-                <p className="truncate font-medium">{team.name}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate font-medium">{team.name}</p>
+                  {selectedId === team.id && (
+                    <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      Selected
+                    </span>
+                  )}
+                </div>
                 <p className="truncate text-sm text-muted-foreground">
                   {team.description || "No description"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {team.slug} · {team.memberCount} members
+                  {team.slug} ·{" "}
+                  {typeof team.memberCount === "number" &&
+                  Number.isFinite(team.memberCount) &&
+                  team.memberCount >= 0
+                    ? team.memberCount
+                    : 0}{" "}
+                  members
                 </p>
               </button>
               <div className="mt-3 flex gap-2">
                 <button
                   type="button"
+                  aria-pressed={selectedId === team.id}
                   onClick={() => onSelect(team)}
-                  className="rounded-md border px-3 py-1.5 text-sm"
+                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                    selectedId === team.id ? "border-primary text-primary" : ""
+                  }`}
                 >
                   Manage
                 </button>
                 <button
                   type="button"
-                  disabled={!canManage}
+                  disabled={!canManage || isSaving}
+                  title={
+                    !canManage
+                      ? "Active platform administrator access is required."
+                      : isSaving
+                        ? "A team change is in progress."
+                        : undefined
+                  }
                   onClick={() => onEdit(team)}
                   className="rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1075,6 +1187,13 @@ function TeamsSection({
                 <button
                   type="button"
                   disabled={isSaving || !canManage}
+                  title={
+                    !canManage
+                      ? "Active platform administrator access is required."
+                      : isSaving
+                        ? "A team change is in progress."
+                        : undefined
+                  }
                   onClick={() => onDelete(team)}
                   className="rounded-md border border-destructive/50 px-3 py-1.5 text-sm text-destructive disabled:opacity-50"
                 >
@@ -1164,16 +1283,26 @@ function DepartmentsSection({
           {visibleWorkspaces.map((workspace) => (
             <article
               key={workspace.id}
-              className={`p-3 ${
-                selectedId === workspace.id ? "bg-primary/5" : ""
+              className={`border-l-2 p-3 ${
+                selectedId === workspace.id
+                  ? "border-primary bg-primary/10"
+                  : "border-transparent"
               }`}
             >
               <button
                 type="button"
+                aria-pressed={selectedId === workspace.id}
                 onClick={() => onSelect(workspace)}
                 className="block w-full min-w-0 text-left"
               >
-                <p className="truncate font-medium">{workspace.name}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate font-medium">{workspace.name}</p>
+                  {selectedId === workspace.id && (
+                    <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      Selected
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground">
                   {workspace.slug} · {workspace.type} · {workspace.status}
                 </p>
@@ -1181,8 +1310,13 @@ function DepartmentsSection({
               <div className="mt-3 flex gap-2">
                 <button
                   type="button"
+                  aria-pressed={selectedId === workspace.id}
                   onClick={() => onSelect(workspace)}
-                  className="rounded-md border px-3 py-1.5 text-sm"
+                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                    selectedId === workspace.id
+                      ? "border-primary text-primary"
+                      : ""
+                  }`}
                 >
                   Manage
                 </button>
@@ -1227,9 +1361,19 @@ function AccessOverrideNotice({
       : isUnavailable
         ? "Access override activation status is unavailable."
         : "Access override database is not activated yet.";
+  const statusClass = isActivated
+    ? "border-emerald-500/30 bg-emerald-500/5"
+    : isUnavailable
+      ? "border-destructive/30 bg-destructive/5"
+      : isLoading
+        ? "border-border bg-muted/30"
+        : "border-amber-500/30 bg-amber-500/5";
 
   return (
-    <aside className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+    <aside
+      role="status"
+      className={`space-y-3 rounded-lg border p-4 ${statusClass}`}
+    >
       <p className="text-sm font-medium">{statusMessage}</p>
       {isActivated && (
         <p className="text-xs text-muted-foreground">
@@ -1238,6 +1382,17 @@ function AccessOverrideNotice({
         </p>
       )}
     </aside>
+  );
+}
+
+function ListLoading({ label }: { label: string }) {
+  return (
+    <div
+      role="status"
+      className="rounded-md border bg-muted/30 px-4 py-5 text-sm text-muted-foreground"
+    >
+      <span className="inline-block animate-pulse">{label}</span>
+    </div>
   );
 }
 
@@ -1254,4 +1409,122 @@ function LoadError({ label, onRetry }: { label: string; onRetry: () => void }) {
       </button>
     </div>
   );
+}
+
+function normalizeAdminUsers(value: unknown): AdminUser[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== "string" || !item.id) return [];
+    const email = typeof item.email === "string" ? item.email : null;
+    return [
+      {
+        id: item.id,
+        displayName:
+          typeof item.displayName === "string" && item.displayName.trim()
+            ? item.displayName
+            : email || item.id.slice(0, 8),
+        email,
+        isActive: item.isActive === true,
+        roleKeys: stringArray(item.roleKeys),
+        roleNames: stringArray(item.roleNames),
+        teamNames: stringArray(item.teamNames),
+        createdAt: typeof item.createdAt === "string" ? item.createdAt : "",
+        updatedAt: typeof item.updatedAt === "string" ? item.updatedAt : "",
+      },
+    ];
+  });
+}
+
+function normalizeTeams(value: unknown): TeamSummary[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== "string" || !item.id) return [];
+    const memberCount =
+      typeof item.memberCount === "number" &&
+      Number.isFinite(item.memberCount) &&
+      item.memberCount >= 0
+        ? item.memberCount
+        : 0;
+    return [
+      {
+        id: item.id,
+        name:
+          typeof item.name === "string" && item.name.trim()
+            ? item.name
+            : item.id.slice(0, 8),
+        slug: typeof item.slug === "string" ? item.slug : "",
+        description:
+          typeof item.description === "string" ? item.description : null,
+        createdAt: typeof item.createdAt === "string" ? item.createdAt : "",
+        updatedAt: typeof item.updatedAt === "string" ? item.updatedAt : "",
+        memberCount,
+      },
+    ];
+  });
+}
+
+function normalizeWorkspaces(value: unknown): IdentityWorkspace[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== "string" || !item.id) return [];
+    const teams = Array.isArray(item.teams)
+      ? item.teams.flatMap((team) => {
+          if (!isRecord(team) || typeof team.id !== "string" || !team.id) {
+            return [];
+          }
+          return [
+            {
+              id: team.id,
+              name:
+                typeof team.name === "string" && team.name.trim()
+                  ? team.name
+                  : team.id.slice(0, 8),
+              slug: typeof team.slug === "string" ? team.slug : null,
+            },
+          ];
+        })
+      : [];
+    return [
+      {
+        id: item.id,
+        name:
+          typeof item.name === "string" && item.name.trim()
+            ? item.name
+            : item.id.slice(0, 8),
+        slug: typeof item.slug === "string" ? item.slug : "",
+        status: typeof item.status === "string" ? item.status : "unknown",
+        type: typeof item.type === "string" ? item.type : "workspace",
+        teams,
+      },
+    ];
+  });
+}
+
+function normalizeFormOptions(
+  value: unknown,
+): Array<{ id: string; name: string }> {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) =>
+    isRecord(item) &&
+    typeof item.id === "string" &&
+    item.id &&
+    typeof item.name === "string" &&
+    item.name
+      ? [{ id: item.id, name: item.name }]
+      : [],
+  );
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function safeMessage(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value : fallback;
 }
