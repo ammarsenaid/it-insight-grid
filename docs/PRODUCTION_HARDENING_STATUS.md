@@ -2605,3 +2605,27 @@ Status: IMPLEMENTED LOCALLY.
   presentation.
 - Preserved responsive stacking, wrapped detail tabs, real API mutations,
   authorization gates, and all unsupported-action disabled states.
+
+## Milestone 115 - Identity Access Control Center Redesign
+
+Date: 2026-07-01
+
+Status: IMPLEMENTED LOCALLY.
+
+- Reworked the page shell into a denser control-center layout with live subject
+  counts, a compact access-control status pill, a 34/66 master-detail split, and
+  a guided empty workspace.
+- Simplified the subject browser into slimmer directory cards with metadata
+  chips and reduced repeated actions while preserving selection and CRUD.
+- Moved subject status and quick actions into the detail header, shortened all
+  six detail-tab labels, and consolidated unsupported department operations into
+  clear read-only notices.
+- Replaced repeated per-row audit inputs with a shared permission/visibility
+  toolbar containing search, effective-state filters, and one required audit
+  reason. Each changed row still submits its own real, audited
+  `/api/admin-access` mutation.
+- Reduced repetitive deny emphasis, added change-aware Apply controls, retained
+  distinct allow/deny/inherit styling, and kept exact query refresh and error
+  behavior.
+- Preserved grouped effective-access provenance, the audit timeline, responsive
+  stacking, route-level recovery, and every existing backend boundary.

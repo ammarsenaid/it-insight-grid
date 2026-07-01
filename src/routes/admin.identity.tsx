@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -160,6 +160,15 @@ function IdentityAndAccessPage() {
       ? accessStatusResult.snapshot
       : null;
   const accessOverrideActivated = accessSnapshot?.available === true;
+  const accessStatusUnavailable =
+    !canCheckAccessStatus ||
+    accessStatusQuery.isError ||
+    (!accessStatusQuery.isLoading && accessStatusResult?.ok === false);
+  const subjectCounts: Record<IdentityTab, number> = {
+    users: users.length,
+    teams: teams.length,
+    departments: workspaces.length,
+  };
   const selectedUser =
     activeTab === "users" && selectedId
       ? users.find((user) => user.id === selectedId) ?? null
@@ -463,8 +472,31 @@ function IdentityAndAccessPage() {
               control center.
             </p>
           </div>
-          <span className="rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
-            Access Control
+          <span
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium shadow-sm ${
+              accessOverrideActivated
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : accessStatusUnavailable
+                  ? "border-destructive/30 bg-destructive/10 text-destructive"
+                  : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                accessOverrideActivated
+                  ? "bg-emerald-500"
+                  : accessStatusUnavailable
+                    ? "bg-destructive"
+                    : "bg-amber-500"
+              }`}
+            />
+            {accessStatusQuery.isLoading
+              ? "Checking access control"
+              : accessOverrideActivated
+                ? "Access Control Active"
+                : accessStatusUnavailable
+                  ? "Access Control Unavailable"
+                  : "Access Control Pending"}
           </span>
         </header>
 
@@ -493,7 +525,16 @@ function IdentityAndAccessPage() {
                         : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                     }`}
                   >
-                    {tab.label}
+                    <span>{tab.label}</span>
+                    <span
+                      className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {subjectCounts[tab.id]}
+                    </span>
                   </button>
                 );
               })}
@@ -501,7 +542,7 @@ function IdentityAndAccessPage() {
           </div>
 
           <div className="space-y-4 p-4 sm:p-5">
-            <div className="grid min-w-0 gap-4 min-[900px]:grid-cols-[minmax(280px,0.58fr)_minmax(0,1fr)]">
+            <div className="grid min-w-0 gap-4 min-[900px]:grid-cols-[minmax(270px,0.52fr)_minmax(0,1fr)]">
               <div className="min-w-0">
                 {activeTab === "users" && (
                   <UsersSection
@@ -601,26 +642,38 @@ function IdentityAndAccessPage() {
                   />
                 ) : (
                   <section className="rounded-xl border border-dashed bg-muted/10 p-8 text-center">
-                    <div className="mx-auto mb-2 h-2.5 w-2.5 rounded-full bg-primary/40" />
-                    <h2 className="text-sm font-medium">Select a subject</h2>
-                    <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl border bg-background text-lg font-semibold text-primary shadow-sm">
+                      ↗
+                    </div>
+                    <h2 className="mt-3 text-sm font-semibold">
+                      Select a user, team, or department
+                    </h2>
+                    <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
                       Choose a user, team, or department to manage overview,
                       assignments, access, and audit history.
                     </p>
+                    <div className="mx-auto mt-5 grid max-w-xl gap-2 sm:grid-cols-3">
+                      {[
+                        ["Review access", "Understand effective permissions"],
+                        ["Manage assignments", "Review roles and memberships"],
+                        ["Audit changes", "Trace access decisions"],
+                      ].map(([title, description]) => (
+                        <div
+                          key={title}
+                          className="rounded-lg border bg-card/50 p-3 text-left"
+                        >
+                          <p className="text-xs font-medium">{title}</p>
+                          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                            {description}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </section>
                 )}
               </div>
             </div>
 
-            <AccessOverrideNotice
-              isLoading={accessStatusQuery.isLoading}
-              isActivated={accessOverrideActivated}
-              isUnavailable={
-                !canCheckAccessStatus ||
-                accessStatusQuery.isError ||
-                (!accessStatusQuery.isLoading && accessStatusResult?.ok === false)
-              }
-            />
           </div>
         </section>
       </div>
@@ -901,23 +954,20 @@ function UsersSection({
                   <p className="truncate text-sm text-muted-foreground">
                     {user.email ?? "Email unavailable"}
                   </p>
-                  <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                    {roles.length > 0 ? roles.join(", ") : "No global role"} ·{" "}
-                    {teams.length > 0 ? teams.join(", ") : "No team"} ·{" "}
-                    {user.isActive ? "Active" : "Inactive"}
-                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    <MetadataChip tone={user.isActive ? "success" : "muted"}>
+                      {user.isActive ? "Active" : "Inactive"}
+                    </MetadataChip>
+                    <MetadataChip>{roles[0] ?? "No global role"}</MetadataChip>
+                    <MetadataChip>{teams[0] ?? "No team"}</MetadataChip>
+                    {roles.length + teams.length > 2 && (
+                      <MetadataChip>
+                        +{roles.length + teams.length - 2}
+                      </MetadataChip>
+                    )}
+                  </div>
                 </button>
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    aria-pressed={selectedId === user.id}
-                    onClick={() => onSelect(user)}
-                    className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-                      selectedId === user.id ? "border-primary text-primary" : ""
-                    }`}
-                  >
-                    Manage
-                  </button>
+                <div className="mt-2 flex flex-wrap items-center justify-end gap-1.5">
                   <button
                     type="button"
                     disabled={!isPlatformAdmin || isSaving}
@@ -932,14 +982,6 @@ function UsersSection({
                     className="rounded-md border px-2.5 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Edit
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    title={DISABLED_TITLE}
-                    className="cursor-not-allowed rounded-md border border-transparent bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground opacity-70"
-                  >
-                    Delete
                   </button>
                 </div>
               </article>
@@ -1163,27 +1205,19 @@ function TeamsSection({
                 <p className="truncate text-sm text-muted-foreground">
                   {team.description || "No description"}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {team.slug} ·{" "}
-                  {typeof team.memberCount === "number" &&
-                  Number.isFinite(team.memberCount) &&
-                  team.memberCount >= 0
-                    ? team.memberCount
-                    : 0}{" "}
-                  members
-                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  <MetadataChip>{team.slug || "No slug"}</MetadataChip>
+                  <MetadataChip>
+                    {typeof team.memberCount === "number" &&
+                    Number.isFinite(team.memberCount) &&
+                    team.memberCount >= 0
+                      ? team.memberCount
+                      : 0}{" "}
+                    members
+                  </MetadataChip>
+                </div>
               </button>
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  aria-pressed={selectedId === team.id}
-                  onClick={() => onSelect(team)}
-                  className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-                    selectedId === team.id ? "border-primary text-primary" : ""
-                  }`}
-                >
-                  Manage
-                </button>
+              <div className="mt-2 flex flex-wrap items-center justify-end gap-1.5">
                 <button
                   type="button"
                   disabled={!canManage || isSaving}
@@ -1319,23 +1353,19 @@ function DepartmentsSection({
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {workspace.slug} · {workspace.type} · {workspace.status}
+                  {workspace.slug || "No slug"}
                 </p>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  <MetadataChip>{workspace.type}</MetadataChip>
+                  <MetadataChip
+                    tone={
+                      workspace.status === "active" ? "success" : "muted"
+                    }
+                  >
+                    {workspace.status}
+                  </MetadataChip>
+                </div>
               </button>
-              <div className="mt-2.5 flex items-center gap-1.5">
-                <button
-                  type="button"
-                  aria-pressed={selectedId === workspace.id}
-                  onClick={() => onSelect(workspace)}
-                  className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
-                    selectedId === workspace.id
-                      ? "border-primary text-primary"
-                      : ""
-                  }`}
-                >
-                  Manage
-                </button>
-              </div>
             </article>
           ))}
         </div>
@@ -1344,54 +1374,25 @@ function DepartmentsSection({
   );
 }
 
-function AccessOverrideNotice({
-  isLoading,
-  isActivated,
-  isUnavailable,
+function MetadataChip({
+  children,
+  tone = "default",
 }: {
-  isLoading: boolean;
-  isActivated: boolean;
-  isUnavailable: boolean;
+  children: ReactNode;
+  tone?: "default" | "success" | "muted";
 }) {
-  const statusMessage = isLoading
-    ? "Checking access override database activation…"
-    : isActivated
-      ? "Access override database is activated."
-      : isUnavailable
-        ? "Access override activation status is unavailable."
-        : "Access override database is not activated yet.";
-  const statusClass = isActivated
-    ? "border-emerald-500/30 bg-emerald-500/5"
-    : isUnavailable
-      ? "border-destructive/30 bg-destructive/5"
-      : isLoading
-        ? "border-border bg-muted/30"
-        : "border-amber-500/30 bg-amber-500/5";
-
   return (
-    <aside
-      role="status"
-      className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2 ${statusClass}`}
+    <span
+      className={`max-w-full truncate rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
+        tone === "success"
+          ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+          : tone === "muted"
+            ? "border-transparent bg-muted text-muted-foreground"
+            : "border-border/70 bg-background/60 text-muted-foreground"
+      }`}
     >
-      <span
-        aria-hidden="true"
-        className={`h-2 w-2 shrink-0 rounded-full ${
-          isActivated
-            ? "bg-emerald-500"
-            : isUnavailable
-              ? "bg-destructive"
-              : isLoading
-                ? "bg-muted-foreground"
-                : "bg-amber-500"
-        }`}
-      />
-      <p className="text-xs font-medium">{statusMessage}</p>
-      {isActivated && (
-        <p className="text-[11px] text-muted-foreground">
-          Select a subject to manage audited access.
-        </p>
-      )}
-    </aside>
+      {children}
+    </span>
   );
 }
 
