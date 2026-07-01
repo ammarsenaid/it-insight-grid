@@ -2651,3 +2651,27 @@ Status: IMPLEMENTED LOCALLY.
   and page totals, readable provenance, and compact inherited/override labels.
 - Preserved route recovery, query guards, responsive stacking, authorization
   gates, backend contracts, and unsupported-action disabled states.
+
+## Milestone 117 - Identity Administration Backend Contract
+
+Date: 2026-07-01
+
+Status: APPLIED TO LOCAL PRODUCTION DATABASE.
+
+- Added a pending, additive SQL contract for audited global-role, team
+  assignment, workspace lifecycle, and workspace membership administration.
+- Restricted every mutation RPC to an active platform administrator and added
+  last-platform-administrator protection for global-role removal.
+- Kept user hard deletion unavailable to preserve identity foreign keys and
+  audit history; the existing deactivate/reactivate workflow remains the safe
+  lifecycle operation.
+- Added static QA assertions for security-definer functions, execute grants,
+  and direct audit-table mutation privileges.
+- Created and validated a custom-format database backup before applying the
+  migration. The migration and its transaction-wrapped QA completed with
+  `ON_ERROR_STOP`.
+- Verified all five mutation functions, authenticated-only execute grants,
+  active-platform-administrator enforcement, audit-table RLS, and absence of
+  direct audit mutation privileges for normal authenticated users.
+- API/client and frontend activation remain intentionally deferred to the next
+  reviewed milestone.
