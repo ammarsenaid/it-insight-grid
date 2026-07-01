@@ -465,39 +465,47 @@ function IdentityAndAccessPage() {
               Administration
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-            Identity &amp; Access
+              Identity &amp; Access
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               Manage people, teams, departments, and effective access from one
               control center.
             </p>
           </div>
-          <span
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium shadow-sm ${
-              accessOverrideActivated
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                : accessStatusUnavailable
-                  ? "border-destructive/30 bg-destructive/10 text-destructive"
-                  : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-            }`}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                accessOverrideActivated
-                  ? "bg-emerald-500"
-                  : accessStatusUnavailable
-                    ? "bg-destructive"
-                    : "bg-amber-500"
-              }`}
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5">
+            <HeaderMetric label="Users" value={subjectCounts.users} />
+            <HeaderMetric label="Teams" value={subjectCounts.teams} />
+            <HeaderMetric
+              label="Departments"
+              value={subjectCounts.departments}
             />
-            {accessStatusQuery.isLoading
-              ? "Checking access control"
-              : accessOverrideActivated
-                ? "Access Control Active"
-                : accessStatusUnavailable
-                  ? "Access Control Unavailable"
-                  : "Access Control Pending"}
-          </span>
+            <span
+              className={`inline-flex h-8 items-center gap-2 rounded-lg border px-2.5 text-[11px] font-medium shadow-sm ${
+                accessOverrideActivated
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : accessStatusUnavailable
+                    ? "border-destructive/30 bg-destructive/10 text-destructive"
+                    : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  accessOverrideActivated
+                    ? "bg-emerald-500"
+                    : accessStatusUnavailable
+                      ? "bg-destructive"
+                      : "bg-amber-500"
+                }`}
+              />
+              {accessStatusQuery.isLoading
+                ? "Checking access"
+                : accessOverrideActivated
+                  ? "Access active"
+                  : accessStatusUnavailable
+                    ? "Access unavailable"
+                    : "Access pending"}
+            </span>
+          </div>
         </header>
 
         <section className="overflow-hidden rounded-xl border bg-card/80 text-card-foreground shadow-sm">
@@ -802,6 +810,20 @@ function UsersSection({
           <option value="inactive">Inactive</option>
         </select>
       </div>
+      <DirectorySummary
+        total={users.length}
+        visible={visibleUsers.length}
+        selected={Boolean(
+          selectedId && users.some((user) => user.id === selectedId),
+        )}
+        filterLabel={
+          statusFilter === "all"
+            ? "All users"
+            : statusFilter === "active"
+              ? "Active only"
+              : "Inactive only"
+        }
+      />
 
       {showForm && (
         <form onSubmit={onSubmit} className="space-y-3 rounded-lg border p-4">
@@ -941,49 +963,57 @@ function UsersSection({
                   type="button"
                   aria-pressed={selectedId === user.id}
                   onClick={() => onSelect(user)}
-                  className="block w-full min-w-0 text-left"
+                  className="flex w-full min-w-0 items-start gap-2.5 text-left"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate font-medium">{user.displayName}</p>
-                    {selectedId === user.id && (
-                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                        Selected
-                      </span>
-                    )}
-                  </div>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {user.email ?? "Email unavailable"}
-                  </p>
-                  <div className="mt-1.5 flex flex-wrap gap-1">
-                    <MetadataChip tone={user.isActive ? "success" : "muted"}>
-                      {user.isActive ? "Active" : "Inactive"}
-                    </MetadataChip>
-                    <MetadataChip>{roles[0] ?? "No global role"}</MetadataChip>
-                    <MetadataChip>{teams[0] ?? "No team"}</MetadataChip>
-                    {roles.length + teams.length > 2 && (
-                      <MetadataChip>
-                        +{roles.length + teams.length - 2}
+                  <DirectoryAvatar
+                    name={user.displayName}
+                    selected={selectedId === user.id}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate font-medium">{user.displayName}</p>
+                      {selectedId === user.id && (
+                        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {user.email ?? "Email unavailable"}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      <MetadataChip tone={user.isActive ? "success" : "muted"}>
+                        {user.isActive ? "Active" : "Inactive"}
                       </MetadataChip>
-                    )}
+                      <MetadataChip>{roles[0] ?? "No global role"}</MetadataChip>
+                      <MetadataChip>{teams[0] ?? "No team"}</MetadataChip>
+                      {roles.length + teams.length > 2 && (
+                        <MetadataChip>
+                          +{roles.length + teams.length - 2}
+                        </MetadataChip>
+                      )}
+                    </div>
                   </div>
                 </button>
-                <div className="mt-2 flex flex-wrap items-center justify-end gap-1.5">
-                  <button
-                    type="button"
-                    disabled={!isPlatformAdmin || isSaving}
-                    title={
-                      !isPlatformAdmin
-                        ? "Active platform administrator access is required."
-                        : isSaving
-                          ? "A user change is in progress."
-                          : undefined
-                    }
-                    onClick={() => onEdit(user)}
-                    className="rounded-md border px-2.5 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Edit
-                  </button>
-                </div>
+                {selectedId === user.id && (
+                  <div className="mt-2 flex flex-wrap items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      disabled={!isPlatformAdmin || isSaving}
+                      title={
+                        !isPlatformAdmin
+                          ? "Active platform administrator access is required."
+                          : isSaving
+                            ? "A user change is in progress."
+                            : undefined
+                      }
+                      onClick={() => onEdit(user)}
+                      className="rounded-md border px-2.5 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
               </article>
             );
           })}
@@ -1106,6 +1136,20 @@ function TeamsSection({
           <option value="empty">Empty teams</option>
         </select>
       </div>
+      <DirectorySummary
+        total={teams.length}
+        visible={visibleTeams.length}
+        selected={Boolean(
+          selectedId && teams.some((team) => team.id === selectedId),
+        )}
+        filterLabel={
+          memberFilter === "all"
+            ? "All teams"
+            : memberFilter === "with-members"
+              ? "With members"
+              : "Empty teams"
+        }
+      />
 
       {showForm && (
         <form onSubmit={onSubmit} className="space-y-3 rounded-lg border p-4">
@@ -1192,63 +1236,71 @@ function TeamsSection({
                 type="button"
                 aria-pressed={selectedId === team.id}
                 onClick={() => onSelect(team)}
-                className="block w-full min-w-0 text-left"
+                className="flex w-full min-w-0 items-start gap-2.5 text-left"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate font-medium">{team.name}</p>
-                  {selectedId === team.id && (
-                    <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                      Selected
-                    </span>
-                  )}
-                </div>
-                <p className="truncate text-sm text-muted-foreground">
-                  {team.description || "No description"}
-                </p>
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  <MetadataChip>{team.slug || "No slug"}</MetadataChip>
-                  <MetadataChip>
-                    {typeof team.memberCount === "number" &&
-                    Number.isFinite(team.memberCount) &&
-                    team.memberCount >= 0
-                      ? team.memberCount
-                      : 0}{" "}
-                    members
-                  </MetadataChip>
+                <DirectoryAvatar
+                  name={team.name}
+                  selected={selectedId === team.id}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate font-medium">{team.name}</p>
+                    {selectedId === team.id && (
+                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {team.description || "No description"}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    <MetadataChip>{team.slug || "No slug"}</MetadataChip>
+                    <MetadataChip>
+                      {typeof team.memberCount === "number" &&
+                      Number.isFinite(team.memberCount) &&
+                      team.memberCount >= 0
+                        ? team.memberCount
+                        : 0}{" "}
+                      members
+                    </MetadataChip>
+                  </div>
                 </div>
               </button>
-              <div className="mt-2 flex flex-wrap items-center justify-end gap-1.5">
-                <button
-                  type="button"
-                  disabled={!canManage || isSaving}
-                  title={
-                    !canManage
-                      ? "Active platform administrator access is required."
-                      : isSaving
-                        ? "A team change is in progress."
-                        : undefined
-                  }
-                  onClick={() => onEdit(team)}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  disabled={isSaving || !canManage}
-                  title={
-                    !canManage
-                      ? "Active platform administrator access is required."
-                      : isSaving
-                        ? "A team change is in progress."
-                        : undefined
-                  }
-                  onClick={() => onDelete(team)}
-                  className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs font-medium text-destructive disabled:opacity-50"
-                >
-                  Delete
-                </button>
-              </div>
+              {selectedId === team.id && (
+                <div className="mt-2 flex flex-wrap items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    disabled={!canManage || isSaving}
+                    title={
+                      !canManage
+                        ? "Active platform administrator access is required."
+                        : isSaving
+                          ? "A team change is in progress."
+                          : undefined
+                    }
+                    onClick={() => onEdit(team)}
+                    className="rounded-md border px-2.5 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSaving || !canManage}
+                    title={
+                      !canManage
+                        ? "Active platform administrator access is required."
+                        : isSaving
+                          ? "A team change is in progress."
+                          : undefined
+                    }
+                    onClick={() => onDelete(team)}
+                    className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs font-medium text-destructive disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
             </article>
           ))}
         </div>
@@ -1322,6 +1374,17 @@ function DepartmentsSection({
           ))}
         </select>
       </div>
+      <DirectorySummary
+        total={workspaces.length}
+        visible={visibleWorkspaces.length}
+        selected={Boolean(
+          selectedId &&
+            workspaces.some((workspace) => workspace.id === selectedId),
+        )}
+        filterLabel={
+          statusFilter === "all" ? "All statuses" : statusFilter
+        }
+      />
 
       {visibleWorkspaces.length === 0 ? (
         <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
@@ -1342,28 +1405,34 @@ function DepartmentsSection({
                 type="button"
                 aria-pressed={selectedId === workspace.id}
                 onClick={() => onSelect(workspace)}
-                className="block w-full min-w-0 text-left"
+                className="flex w-full min-w-0 items-start gap-2.5 text-left"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate font-medium">{workspace.name}</p>
-                  {selectedId === workspace.id && (
-                    <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                      Selected
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {workspace.slug || "No slug"}
-                </p>
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  <MetadataChip>{workspace.type}</MetadataChip>
-                  <MetadataChip
-                    tone={
-                      workspace.status === "active" ? "success" : "muted"
-                    }
-                  >
-                    {workspace.status}
-                  </MetadataChip>
+                <DirectoryAvatar
+                  name={workspace.name}
+                  selected={selectedId === workspace.id}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate font-medium">{workspace.name}</p>
+                    {selectedId === workspace.id && (
+                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {workspace.slug || "No slug"}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    <MetadataChip>{workspace.type}</MetadataChip>
+                    <MetadataChip
+                      tone={
+                        workspace.status === "active" ? "success" : "muted"
+                      }
+                    >
+                      {workspace.status}
+                    </MetadataChip>
+                  </div>
                 </div>
               </button>
             </article>
@@ -1371,6 +1440,67 @@ function DepartmentsSection({
         </div>
       )}
     </section>
+  );
+}
+
+function HeaderMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border bg-card/70 px-2.5 text-[11px] text-muted-foreground shadow-sm">
+      {label}
+      <strong className="font-semibold text-foreground">{value}</strong>
+    </span>
+  );
+}
+
+function DirectorySummary({
+  total,
+  visible,
+  selected,
+  filterLabel,
+}: {
+  total: number;
+  visible: number;
+  selected: boolean;
+  filterLabel: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-muted/20 px-2.5 py-1.5 text-[10px] text-muted-foreground">
+      <span>
+        <strong className="font-semibold text-foreground">{visible}</strong> of{" "}
+        {total}
+      </span>
+      <span className="h-3 w-px bg-border" aria-hidden="true" />
+      <span>{filterLabel}</span>
+      <span className="ml-auto inline-flex items-center gap-1">
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${
+            selected ? "bg-primary" : "bg-muted-foreground/40"
+          }`}
+        />
+        {selected ? "1 selected" : "None selected"}
+      </span>
+    </div>
+  );
+}
+
+function DirectoryAvatar({
+  name,
+  selected,
+}: {
+  name: string;
+  selected: boolean;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold ${
+        selected
+          ? "border-primary/30 bg-primary/10 text-primary"
+          : "bg-muted/30 text-muted-foreground"
+      }`}
+    >
+      {name.trim().slice(0, 1).toUpperCase() || "?"}
+    </span>
   );
 }
 

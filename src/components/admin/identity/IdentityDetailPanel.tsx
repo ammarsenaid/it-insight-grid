@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { adminAccess } from "@/lib/admin-access/functions";
@@ -241,7 +241,7 @@ export function IdentityDetailPanel({
       <div
         role="tablist"
         aria-label={`${subject.name} management`}
-        className="grid grid-cols-2 gap-1 border-b bg-muted/10 p-2.5 sm:grid-cols-3"
+        className="grid grid-cols-2 gap-1 border-b bg-muted/10 p-2 sm:grid-cols-3 min-[900px]:grid-cols-6"
       >
         {detailTabs.map((tab) => {
           const selected = activeTab === tab.id;
@@ -620,77 +620,87 @@ function TeamAssignmentsPanel({
       </div>
 
       {members.length === 0 ? (
-        <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-          No team members.
-        </p>
+        <div className="rounded-lg border border-dashed bg-muted/10 p-5 text-center">
+          <p className="text-sm font-medium">No team members</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Add an available user and assign a team role above.
+          </p>
+        </div>
       ) : (
-        <div className="divide-y rounded-md border">
-          {members.map((member) => (
-            <div
-              key={member.userId}
-              className="grid gap-2 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(150px,0.7fr)_auto]"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
-                  {member.displayName}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {member.email ?? "Email unavailable"}
-                </p>
-              </div>
-              <select
-                aria-label={`Role for ${member.displayName}`}
-                value={member.roleKey ?? ""}
-                disabled={!canManage || isSaving}
-                title={
-                  !canManage
-                    ? "Active platform administrator access is required."
-                    : isSaving
-                      ? "An assignment change is in progress."
-                      : undefined
-                }
-                onChange={(event) => {
-                  if (!beginAssignmentMutation()) return;
-                  roleMutation.mutate({
-                    memberUserId: member.userId,
-                    nextRoleKey: event.target.value,
-                  });
-                }}
-                className="min-w-0 rounded-md border bg-background px-2 py-1.5 text-sm"
+        <div className="overflow-hidden rounded-lg border">
+          <div className="hidden grid-cols-[minmax(0,1fr)_minmax(150px,0.7fr)_auto] gap-2 border-b bg-muted/25 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:grid">
+            <span>Member</span>
+            <span>Team role</span>
+            <span className="sr-only">Actions</span>
+          </div>
+          <div className="divide-y">
+            {members.map((member) => (
+              <div
+                key={member.userId}
+                className="grid items-center gap-2 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(150px,0.7fr)_auto]"
               >
-                <option value="" disabled>
-                  Select role
-                </option>
-                {roles.map((role) => (
-                  <option key={role.roleKey} value={role.roleKey}>
-                    {role.name}
-                  </option>
-                ))}
-              </select>
-              <ActionButton
-                disabled={!canManage || isSaving}
-                disabledReason={
-                  !canManage
-                    ? "Active platform administrator access is required."
-                    : "An assignment change is in progress."
-                }
-                destructive
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `Remove ${member.displayName} from ${team.name}?`,
-                    )
-                  ) {
-                    if (beginAssignmentMutation()) {
-                      removeMutation.mutate(member.userId);
-                    }
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {member.displayName}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {member.email ?? "Email unavailable"}
+                  </p>
+                </div>
+                <select
+                  aria-label={`Role for ${member.displayName}`}
+                  value={member.roleKey ?? ""}
+                  disabled={!canManage || isSaving}
+                  title={
+                    !canManage
+                      ? "Active platform administrator access is required."
+                      : isSaving
+                        ? "An assignment change is in progress."
+                        : undefined
                   }
-                }}
-              >
-                Remove
-              </ActionButton>
-            </div>
-          ))}
+                  onChange={(event) => {
+                    if (!beginAssignmentMutation()) return;
+                    roleMutation.mutate({
+                      memberUserId: member.userId,
+                      nextRoleKey: event.target.value,
+                    });
+                  }}
+                  className="min-w-0 rounded-md border bg-background px-2 py-1.5 text-sm"
+                >
+                  <option value="" disabled>
+                    Select role
+                  </option>
+                  {roles.map((role) => (
+                    <option key={role.roleKey} value={role.roleKey}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
+                <ActionButton
+                  disabled={!canManage || isSaving}
+                  disabledReason={
+                    !canManage
+                      ? "Active platform administrator access is required."
+                      : "An assignment change is in progress."
+                  }
+                  destructive
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Remove ${member.displayName} from ${team.name}?`,
+                      )
+                    ) {
+                      if (beginAssignmentMutation()) {
+                        removeMutation.mutate(member.userId);
+                      }
+                    }
+                  }}
+                >
+                  Remove
+                </ActionButton>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -723,11 +733,21 @@ function AccessDecisionPanel({
     "all" | "allowed" | "denied" | "overridden"
   >("all");
   const [auditReason, setAuditReason] = useState("");
+  const [draftEffects, setDraftEffects] = useState<
+    Record<string, AccessOverrideEffect>
+  >({});
   const needle = search.trim().toLowerCase();
+  const effectFor = (decision: AccessDecision): AccessOverrideEffect =>
+    draftEffects[decision.key] ?? decision.override;
+  const changedCount = decisions.filter(
+    (decision) => effectFor(decision) !== decision.override,
+  ).length;
   const visibleDecisions = decisions.filter((decision) => {
     if (filter === "allowed" && decision.effective !== "allow") return false;
     if (filter === "denied" && decision.effective !== "deny") return false;
-    if (filter === "overridden" && decision.override === "inherit") return false;
+    if (filter === "overridden" && effectFor(decision) === "inherit") {
+      return false;
+    }
     if (!needle) return true;
     return [decision.label, decision.key, decision.source].some((value) =>
       value.toLowerCase().includes(needle),
@@ -785,11 +805,15 @@ function AccessDecisionPanel({
             <option value="overridden">Overridden</option>
           </select>
         </div>
-        <label className="grid items-center gap-1.5 sm:grid-cols-[auto_minmax(0,1fr)]">
-          <span className="text-[11px] font-medium text-muted-foreground">
+        <div className="grid items-center gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+          <label
+            htmlFor={`${resourceType}-audit-reason`}
+            className="text-[11px] font-medium text-muted-foreground"
+          >
             Audit reason
-          </span>
+          </label>
           <input
+            id={`${resourceType}-audit-reason`}
             value={auditReason}
             disabled={!canEdit}
             maxLength={500}
@@ -798,7 +822,16 @@ function AccessDecisionPanel({
             title={!canEdit ? disabledReason : undefined}
             className="h-8 min-w-0 rounded-md border bg-background px-2.5 text-xs outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
-        </label>
+          <span
+            className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-medium ${
+              changedCount > 0
+                ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                : "border-border/70 bg-muted/30 text-muted-foreground"
+            }`}
+          >
+            {changedCount} pending
+          </span>
+        </div>
       </div>
       {decisions.length === 0 ? (
         <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
@@ -818,6 +851,20 @@ function AccessDecisionPanel({
               canEdit={canEdit}
               disabledReason={disabledReason}
               auditReason={auditReason}
+              effect={effectFor(decision)}
+              onEffectChange={(nextEffect) =>
+                setDraftEffects((current) => ({
+                  ...current,
+                  [decision.key]: nextEffect,
+                }))
+              }
+              onSaved={() =>
+                setDraftEffects((current) => {
+                  const next = { ...current };
+                  delete next[decision.key];
+                  return next;
+                })
+              }
             />
           ))}
           {visibleDecisions.length === 0 && (
@@ -840,6 +887,9 @@ function AccessDecisionRow({
   canEdit,
   disabledReason,
   auditReason,
+  effect,
+  onEffectChange,
+  onSaved,
 }: {
   subjectType: AccessSubjectType;
   subjectId: string;
@@ -849,25 +899,15 @@ function AccessDecisionRow({
   canEdit: boolean;
   disabledReason: string;
   auditReason: string;
+  effect: AccessOverrideEffect;
+  onEffectChange: (effect: AccessOverrideEffect) => void;
+  onSaved: () => void;
 }) {
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const saveInFlight = useRef(false);
-  const [effect, setEffect] = useState<AccessOverrideEffect>(
-    decision.override === "allow" || decision.override === "deny"
-      ? decision.override
-      : "inherit",
-  );
   const [message, setMessage] = useState<string | null>(null);
   const isChanged = effect !== decision.override;
-
-  useEffect(() => {
-    setEffect(
-      decision.override === "allow" || decision.override === "deny"
-        ? decision.override
-        : "inherit",
-    );
-  }, [decision.override]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -908,6 +948,7 @@ function AccessDecisionRow({
       }
       setMessage("Saved. Refreshing access…");
       await queryClient.invalidateQueries({ queryKey, exact: true });
+      onSaved();
       setMessage("Saved.");
       queryClient.invalidateQueries({
         queryKey: ["admin-access", "activation-status"],
@@ -935,7 +976,13 @@ function AccessDecisionRow({
   }
 
   return (
-    <article className="rounded-lg border bg-card/50 px-3 py-2 shadow-sm">
+    <article
+      className={`rounded-lg border px-3 py-2 transition-colors ${
+        isChanged
+          ? "border-amber-500/35 bg-amber-500/[0.05] shadow-sm"
+          : "bg-card/40"
+      }`}
+    >
       <div className="grid items-center gap-2.5 sm:grid-cols-[minmax(0,1fr)_105px_auto]">
         <div className="min-w-0">
           <p className="break-words text-sm font-medium">
@@ -961,6 +1008,11 @@ function AccessDecisionRow({
             <span className="text-[11px] text-muted-foreground">
               Override: {decision.override}
             </span>
+            {isChanged && (
+              <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                Pending
+              </span>
+            )}
           </div>
           <p className="mt-1 line-clamp-2 break-words text-[11px] leading-snug text-muted-foreground">
             <span className="font-medium">Source:</span>{" "}
@@ -979,7 +1031,7 @@ function AccessDecisionRow({
             disabled={!canEdit || mutation.isPending}
             onChange={(event) => {
               setMessage(null);
-              setEffect(event.target.value as AccessOverrideEffect);
+              onEffectChange(event.target.value as AccessOverrideEffect);
             }}
             className={`h-8 w-full rounded-md border px-2 text-xs font-medium outline-none ${
               effect === "allow"
@@ -1059,6 +1111,33 @@ function EffectiveAccessPanel({
     );
   }
 
+  const allowedPermissions = permissions.filter(
+    (decision) => decision.effective === "allow",
+  );
+  const deniedPermissions = permissions.filter(
+    (decision) => decision.effective === "deny",
+  );
+  const visiblePages = routes.filter(
+    (decision) => decision.effective === "allow",
+  );
+  const hiddenPages = routes.filter(
+    (decision) => decision.effective === "deny",
+  );
+  const allowedDecisions = [
+    ...allowedPermissions.map((decision) => ({
+      decision,
+      category: "Permission",
+    })),
+    ...visiblePages.map((decision) => ({ decision, category: "Page" })),
+  ];
+  const deniedDecisions = [
+    ...deniedPermissions.map((decision) => ({
+      decision,
+      category: "Permission",
+    })),
+    ...hiddenPages.map((decision) => ({ decision, category: "Page" })),
+  ];
+
   return (
     <div className="space-y-3">
       {warning && (
@@ -1071,9 +1150,41 @@ function EffectiveAccessPanel({
           No effective access decisions returned by the backend.
         </p>
       ) : (
-        <div className="max-h-[58vh] space-y-3 overflow-y-auto pr-1">
-          <EffectiveDecisionGroup title="Permissions" decisions={permissions} />
-          <EffectiveDecisionGroup title="Page visibility" decisions={routes} />
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <AccessMetric
+              label="Allowed permissions"
+              value={allowedPermissions.length}
+              tone="allow"
+            />
+            <AccessMetric
+              label="Denied permissions"
+              value={deniedPermissions.length}
+              tone="deny"
+            />
+            <AccessMetric
+              label="Visible pages"
+              value={visiblePages.length}
+              tone="allow"
+            />
+            <AccessMetric
+              label="Hidden pages"
+              value={hiddenPages.length}
+              tone="deny"
+            />
+          </div>
+          <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
+            <EffectiveDecisionGroup
+              title="Allowed"
+              items={allowedDecisions}
+              tone="allow"
+            />
+            <EffectiveDecisionGroup
+              title="Denied"
+              items={deniedDecisions}
+              tone="deny"
+            />
+          </div>
         </div>
       )}
     </div>
@@ -1082,30 +1193,45 @@ function EffectiveAccessPanel({
 
 function EffectiveDecisionGroup({
   title,
-  decisions,
+  items,
+  tone,
 }: {
   title: string;
-  decisions: AccessDecision[];
+  items: Array<{ decision: AccessDecision; category: string }>;
+  tone: "allow" | "deny";
 }) {
-  if (decisions.length === 0) return null;
+  if (items.length === 0) return null;
   return (
     <section className="overflow-hidden rounded-lg border bg-card/40">
       <header className="flex items-center justify-between border-b bg-muted/20 px-3 py-2">
-        <h3 className="text-xs font-semibold">{title}</h3>
+        <h3
+          className={`text-xs font-semibold ${
+            tone === "allow"
+              ? "text-emerald-700 dark:text-emerald-300"
+              : "text-destructive"
+          }`}
+        >
+          {title}
+        </h3>
         <span className="rounded-full border bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
-          {decisions.length}
+          {items.length}
         </span>
       </header>
       <div className="divide-y">
-        {decisions.map((decision) => (
+        {items.map(({ decision, category }) => (
           <article
-            key={decision.key}
+            key={`${category}:${decision.key}`}
             className="grid gap-2 p-2.5 sm:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div className="min-w-0">
-              <p className="break-words text-sm font-medium">
-                {decision.label || decision.key}
-              </p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <p className="break-words text-sm font-medium">
+                  {decision.label || decision.key}
+                </p>
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {category}
+                </span>
+              </div>
               <p className="mt-0.5 break-words text-xs text-muted-foreground">
                 Source:{" "}
                 {decision.source || "No provenance returned by backend."}
@@ -1116,19 +1242,42 @@ function EffectiveDecisionGroup({
                 </p>
               )}
             </div>
-            <span
-              className={`self-start rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                decision.effective === "allow"
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                  : "border-destructive/30 bg-destructive/10 text-destructive"
-              }`}
-            >
-              {decision.effective === "allow" ? "Allowed" : "Denied"}
+            <span className="self-start text-[10px] font-medium text-muted-foreground">
+              {decision.override === "inherit"
+                ? "Inherited"
+                : `Override: ${decision.override}`}
             </span>
           </article>
         ))}
       </div>
     </section>
+  );
+}
+
+function AccessMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "allow" | "deny";
+}) {
+  return (
+    <div className="rounded-lg border bg-card/40 px-3 py-2">
+      <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p
+        className={`mt-1 text-lg font-semibold leading-none ${
+          tone === "allow"
+            ? "text-emerald-700 dark:text-emerald-300"
+            : "text-destructive"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
   );
 }
 

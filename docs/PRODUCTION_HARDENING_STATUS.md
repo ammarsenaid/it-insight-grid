@@ -2629,3 +2629,25 @@ Status: IMPLEMENTED LOCALLY.
   behavior.
 - Preserved grouped effective-access provenance, the audit timeline, responsive
   stacking, route-level recovery, and every existing backend boundary.
+
+## Milestone 116 - Premium Identity Console Refinement
+
+Date: 2026-07-01
+
+Status: IMPLEMENTED LOCALLY.
+
+- Added a compact command-center summary for users, teams, departments, and
+  access-control activation, plus live count badges in subject navigation.
+- Upgraded each subject directory with result/filter/selection summaries,
+  identity avatars, quieter metadata, and actions shown only for the selected
+  record.
+- Tightened the six-tab detail navigation and team-assignment list into
+  responsive enterprise-style rows while retaining all existing CRUD and
+  membership handlers.
+- Added controlled permission and visibility drafts, accurate pending-change
+  counts, changed-row emphasis, and one shared audit reason. Each Apply action
+  remains an individual real `/api/admin-access` mutation.
+- Reorganized effective access into allowed and denied groups with permission
+  and page totals, readable provenance, and compact inherited/override labels.
+- Preserved route recovery, query guards, responsive stacking, authorization
+  gates, backend contracts, and unsupported-action disabled states.
