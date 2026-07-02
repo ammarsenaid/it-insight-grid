@@ -97,6 +97,8 @@ export const adminIdentityInputSchema = z.discriminatedUnion("action", [
 ]);
 
 type Row = Record<string, unknown>;
+const isRecord = (value: unknown): value is Row =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 const rows = (value: unknown): Row[] => (Array.isArray(value) ? (value as Row[]) : []);
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 const createServiceClient = (url: string, key: string) =>
@@ -879,11 +881,12 @@ export async function handleAdminIdentity(
       status: mutation.error.code === "42501" ? 403 : 400,
     };
   }
-  const createdWorkspaceRow = Array.isArray(mutation.data)
-    ? (mutation.data[0] as Row | undefined)
-    : isRecord(mutation.data)
-      ? mutation.data
-      : undefined;
+  const createdWorkspaceValue = Array.isArray(mutation.data)
+    ? mutation.data[0]
+    : mutation.data;
+  const createdWorkspaceRow = isRecord(createdWorkspaceValue)
+    ? createdWorkspaceValue
+    : undefined;
   const createdWorkspaceId = text(createdWorkspaceRow?.id);
   const readSubject =
     data.action === "identity.set_global_role" ||
