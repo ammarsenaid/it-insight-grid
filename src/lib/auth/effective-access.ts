@@ -73,10 +73,11 @@ export const ROUTE_REQUIREMENTS: Record<string, RouteRequirement> = {
   "/admin/users": { kind: "platform-admin" },
   "/admin/teams": { kind: "platform-admin" },
   "/admin/roles": { kind: "platform-admin" },
+  "/admin/diagnostics": { kind: "platform-admin" },
   "/admin/ticket-settings": { kind: "permission", anyOf: ["tickets.config"] },
   "/admin/mailbox": { kind: "permission", anyOf: ["tickets.config"] },
-  "/admin/templates": { kind: "missing", reason: "No backend template-management permission exists." },
-  "/admin/catalog": { kind: "missing", reason: "No backend catalog-management permission exists." },
+  "/admin/templates": { kind: "permission", anyOf: ["tickets.config"] },
+  "/admin/catalog": { kind: "permission", anyOf: ["tickets.config"] },
   "/recycle-bin": { kind: "missing", reason: "No backend recycle-bin permission exists." },
   "/trash": { kind: "missing", reason: "No backend recycle-bin permission exists." },
   "/settings": { kind: "self-service" },
@@ -100,8 +101,15 @@ function hasVisibleRoute(access: EffectiveAccess, path: string): boolean {
   if (access.visibleRoutes.some((pattern) => routeMatches(pattern, path))) {
     return true;
   }
-  return path === "/requests/new" &&
-    access.visibleRoutes.some((pattern) => routeMatches(pattern, "/my-requests"));
+  const inheritedVisibility: Record<string, string> = {
+    "/requests/new": "/my-requests",
+    "/admin/diagnostics": "/admin/identity",
+  };
+  const parentRoute = inheritedVisibility[path];
+  return Boolean(
+    parentRoute &&
+      access.visibleRoutes.some((pattern) => routeMatches(pattern, parentRoute)),
+  );
 }
 
 export function canAccessRoute(access: EffectiveAccess | null, path: string): boolean {

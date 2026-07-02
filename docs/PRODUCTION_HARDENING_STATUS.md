@@ -2785,3 +2785,16 @@ Status: IMPLEMENTED LOCALLY.
 - The synthetic preview context now satisfies the production
   `EffectiveAccess` type without changing real session loading, backend-derived
   authorization, or route guards.
+
+## Milestone 126 - Admin Utility Route Contracts
+
+Date: 2026-07-02
+
+Status: IMPLEMENTED LOCALLY.
+
+- Added a platform-administrator contract for Diagnostics and tied its
+  visibility to the existing Identity administration route.
+- Replaced the missing Catalog and Reply Templates contracts with the existing
+  backend-enforced `tickets.config` permission.
+- Added the existing Catalog administration page to the permission-filtered
+  sidebar and aligned the static Diagnostics reference with platform admins.

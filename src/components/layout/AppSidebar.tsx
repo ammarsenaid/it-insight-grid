@@ -20,6 +20,7 @@ import {
   ListChecks,
   FileCode,
   Wrench,
+  ShoppingBag,
 } from "lucide-react";
 import {
   Sidebar,
@@ -81,7 +82,7 @@ const groups: { label: string; items: SidebarItem[] }[] = [
     items: [
       { title: "Identity & Access", url: "/admin/identity", icon: ShieldHalf },
       { title: "Templates", url: "/admin/templates", icon: FileCode },
-
+      { title: "Service Catalog", url: "/admin/catalog", icon: ShoppingBag },
       { title: "Ticket Configuration Overview", url: "/admin/ticket-settings", icon: Sliders },
       { title: "Diagnostics", url: "/admin/diagnostics", icon: Wrench },
     ],
