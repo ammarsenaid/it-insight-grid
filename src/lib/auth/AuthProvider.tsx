@@ -552,6 +552,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           configured: true,
           loading: false,
           ...PREVIEW_AUTH_CONTEXT,
+          effectiveAccess: {
+            ...PREVIEW_AUTH_CONTEXT.effectiveAccess,
+            activeOrganization: null,
+            workspaces: [],
+          },
           activeOrganization,
           workspaces,
           currentWorkspace,

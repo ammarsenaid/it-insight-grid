@@ -2773,3 +2773,15 @@ Status: IMPLEMENTED LOCALLY.
   synchronization so query refreshes do not reset an open template form.
 - Added a distinct retryable Tasks query-error state while preserving the
   existing loading and genuinely empty states.
+
+## Milestone 125 - Preview Effective Access Contract
+
+Date: 2026-07-02
+
+Status: IMPLEMENTED LOCALLY.
+
+- Completed the preview-only effective-access snapshot with a null active
+  organization and an empty workspace list.
+- The synthetic preview context now satisfies the production
+  `EffectiveAccess` type without changing real session loading, backend-derived
+  authorization, or route guards.
