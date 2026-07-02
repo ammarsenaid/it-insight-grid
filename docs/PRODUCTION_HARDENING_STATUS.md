@@ -2746,3 +2746,17 @@ Status: IMPLEMENTED LOCALLY.
   prior Auth state when that second operation fails.
 - Keeps validation, platform-administrator authorization, self-deactivation
   protection, and successful API behavior unchanged.
+
+## Milestone 123 - Honest Ticket Bulk Results and Request Route Contract
+
+Date: 2026-07-02
+
+Status: IMPLEMENTED LOCALLY.
+
+- Ticket bulk updates and tag changes now settle every individual mutation,
+  refresh the queue after completion, report exact success/failure counts, and
+  retain only failed tickets in the selection for retry.
+- Added the missing self-scoped `/requests/new` access contract and made the
+  request composer inherit visibility from the existing `/my-requests` flow.
+- No ticket or request backend mutation contract, role permission, or unknown
+  route fail-closed behavior changed.

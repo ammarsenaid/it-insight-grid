@@ -56,6 +56,7 @@ export const ROUTE_REQUIREMENTS: Record<string, RouteRequirement> = {
   "/tickets/": { kind: "permission", anyOf: ["tickets.view_all"] },
   "/tickets/:id": { kind: "self-scoped" },
   "/my-requests": { kind: "self-scoped" },
+  "/requests/new": { kind: "self-scoped" },
   "/service-catalog": { kind: "permission", anyOf: ["catalog.request"] },
   "/service-catalog/:id": { kind: "permission", anyOf: ["catalog.request"] },
   "/notifications": { kind: "permission", anyOf: ["notifications.view_own"] },
@@ -96,7 +97,11 @@ export function routeRequirementFor(path: string): RouteRequirement | null {
 }
 
 function hasVisibleRoute(access: EffectiveAccess, path: string): boolean {
-  return access.visibleRoutes.some((pattern) => routeMatches(pattern, path));
+  if (access.visibleRoutes.some((pattern) => routeMatches(pattern, path))) {
+    return true;
+  }
+  return path === "/requests/new" &&
+    access.visibleRoutes.some((pattern) => routeMatches(pattern, "/my-requests"));
 }
 
 export function canAccessRoute(access: EffectiveAccess | null, path: string): boolean {

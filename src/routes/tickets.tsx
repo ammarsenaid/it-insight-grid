@@ -228,32 +228,56 @@ export function TicketsPage() {
     patch: Parameters<typeof updateTicket>[1],
     successMsg: string,
   ) => {
-    try {
-      await Promise.all(ids.map((id) => updateTicket(id, patch)));
-      invalidate();
+    const results = await Promise.allSettled(
+      ids.map((id) => updateTicket(id, patch)),
+    );
+    const failedIds = ids.filter(
+      (_, index) => results[index]?.status === "rejected",
+    );
+    const succeeded = ids.length - failedIds.length;
+
+    await qc.invalidateQueries({ queryKey: sdKeys.tickets() });
+    if (failedIds.length === 0) {
       toast.success(successMsg);
       clearSelection();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Bulk update failed");
+      return;
     }
+
+    setSelected(new Set(failedIds));
+    toast.error(
+      succeeded > 0
+        ? `${succeeded} ticket(s) updated; ${failedIds.length} failed and remain selected.`
+        : `Bulk update failed for all ${failedIds.length} selected ticket(s).`,
+    );
   };
 
   const bulkAddTag = async (ids: string[], tag: string) => {
-    try {
-      await Promise.all(
-        ids.map((id) => {
-          const t = tickets.find((x) => x.id === id);
-          if (!t) return Promise.resolve();
-          if (t.tags.includes(tag)) return Promise.resolve();
-          return updateTicket(id, { tags: [...t.tags, tag] });
-        }),
-      );
-      invalidate();
-      toast.success(`Tag added to ${ids.length} ticket(s)`);
+    const results = await Promise.allSettled(
+      ids.map((id) => {
+        const t = tickets.find((x) => x.id === id);
+        if (!t) return Promise.reject(new Error("Ticket is no longer loaded."));
+        if (t.tags.includes(tag)) return Promise.resolve();
+        return updateTicket(id, { tags: [...t.tags, tag] });
+      }),
+    );
+    const failedIds = ids.filter(
+      (_, index) => results[index]?.status === "rejected",
+    );
+    const succeeded = ids.length - failedIds.length;
+
+    await qc.invalidateQueries({ queryKey: sdKeys.tickets() });
+    if (failedIds.length === 0) {
+      toast.success(`Tag applied to ${succeeded} ticket(s)`);
       clearSelection();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Tag failed");
+      return;
     }
+
+    setSelected(new Set(failedIds));
+    toast.error(
+      succeeded > 0
+        ? `Tag applied to ${succeeded} ticket(s); ${failedIds.length} failed and remain selected.`
+        : `Tag update failed for all ${failedIds.length} selected ticket(s).`,
+    );
   };
 
   const filtered = useMemo(() => {
