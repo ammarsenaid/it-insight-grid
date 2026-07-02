@@ -97,10 +97,11 @@ export async function getAttachmentSignedUrl(
 
 export async function deleteTicketAttachment(attachment: TicketAttachment): Promise<void> {
   const sb = getSupabase();
-  // Keep metadata available when storage deletion fails so the user can retry.
-  const storageDelete = await sb.storage.from(BUCKET).remove([attachment.storagePath]);
-  if (storageDelete.error) throw storageDelete.error;
-
+  // Delete the pointer first so a metadata failure can never leave a row
+  // referencing an object that has already been permanently removed.
   const { error } = await sb.from("ticket_attachments").delete().eq("id", attachment.id);
   if (error) throw error;
+
+  const storageDelete = await sb.storage.from(BUCKET).remove([attachment.storagePath]);
+  if (storageDelete.error) throw storageDelete.error;
 }

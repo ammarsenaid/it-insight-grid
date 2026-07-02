@@ -155,14 +155,15 @@ export async function uploadAttachment(input: {
 export async function deleteAttachment(att: Pick<KbAttachment, "id" | "storage_path">): Promise<Result<true>> {
   try {
     const sb = getSupabase();
-    // Keep the pointer row when object deletion fails so the user can retry.
+    // Delete the pointer first so a metadata failure can never leave a row
+    // referencing an object that has already been permanently removed.
+    const { error } = await sb.from("knowledge_attachments").delete().eq("id", att.id);
+    if (error) return { data: null, error: msg("Delete attachment record", error) };
+
     const storageDelete = await sb.storage.from(ATTACHMENTS_BUCKET).remove([att.storage_path]);
     if (storageDelete.error) {
       return { data: null, error: msg("Delete attachment object", storageDelete.error) };
     }
-
-    const { error } = await sb.from("knowledge_attachments").delete().eq("id", att.id);
-    if (error) return { data: null, error: msg("Delete attachment record", error) };
     return { data: true, error: null };
   } catch (e) {
     return { data: null, error: msg("Delete attachment", e) };

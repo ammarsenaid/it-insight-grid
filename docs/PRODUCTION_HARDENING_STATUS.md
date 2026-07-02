@@ -2720,3 +2720,16 @@ Status: IMPLEMENTED LOCALLY.
   of silently reactivating it.
 - Leaves the explicit archive action, audit-reason requirement, authorization,
   and backend contract unchanged.
+
+## Milestone 121 - Attachment Deletion Ordering
+
+Date: 2026-07-02
+
+Status: IMPLEMENTED LOCALLY.
+
+- Changed ticket and knowledge attachment deletion to remove the metadata
+  pointer before permanently deleting its storage object.
+- A metadata deletion failure now leaves the file intact instead of creating a
+  broken attachment record that points to a missing object.
+- Storage authorization, upload behavior, and attachment permissions remain
+  unchanged.
