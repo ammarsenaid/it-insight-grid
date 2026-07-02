@@ -2760,3 +2760,16 @@ Status: IMPLEMENTED LOCALLY.
   request composer inherit visibility from the existing `/my-requests` flow.
 - No ticket or request backend mutation contract, role permission, or unknown
   route fail-closed behavior changed.
+
+## Milestone 124 - Frontend Draft and Task Error Stability
+
+Date: 2026-07-02
+
+Status: IMPLEMENTED LOCALLY.
+
+- Replaced render-time relation draft synchronization with open-transition
+  synchronization so parent rerenders do not discard unsaved selections.
+- Replaced render-time protocol form initialization with target-aware effect
+  synchronization so query refreshes do not reset an open template form.
+- Added a distinct retryable Tasks query-error state while preserving the
+  existing loading and genuinely empty states.

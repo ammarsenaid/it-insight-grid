@@ -617,7 +617,17 @@ function TasksPage() {
         )}
 
         {/* Body */}
-        {scope === "calendar" ? (
+        {tasksQ.isError ? (
+          <EmptyState
+            icon={AlertTriangle}
+            title="Tasks unavailable"
+            description="The shared tasks data could not be loaded."
+            actionLabel={tasksQ.isFetching ? undefined : "Retry"}
+            onAction={() => { void tasksQ.refetch(); }}
+            tone="danger"
+            className="mt-3"
+          />
+        ) : scope === "calendar" ? (
           <CalendarView tasks={filtered} cursor={calCursor} setCursor={setCalCursor} onOpen={(id) => setDetailId(id)} />
         ) : (
           <div className="mt-3 overflow-hidden rounded-xl border border-border/40">

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
@@ -53,9 +53,12 @@ export function RelationPicker({
   const data = useData();
   const [draft, setDraft] = useState<RelationSelection>(value);
   const [q, setQ] = useState("");
+  const wasOpen = useRef(false);
 
-  // sync draft when reopened
-  useMemo(() => setDraft(value), [value, open]);
+  useEffect(() => {
+    if (open && !wasOpen.current) setDraft(value);
+    wasOpen.current = open;
+  }, [open, value]);
 
   const toggle = (kind: RelationKind, id: string) => {
     setDraft((d) => {

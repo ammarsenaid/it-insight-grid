@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Play, Plus, ListChecks, ShieldCheck, AlertTriangle, CheckCircle2,
   Clock, Copy, Edit, Archive, Trash2, MoreHorizontal,
@@ -381,9 +381,19 @@ function TemplateDrawer({
   const template = templateId ? templates.find((t) => t.id === templateId) ?? null : null;
   const editing = !!template;
   const [form, setForm] = useState<ProtocolTemplateInput>(template ? templateToInput(template) : BLANK_TEMPLATE);
+  const initializedTarget = useRef<string | null>(null);
 
-  // Re-init when opening a different template
-  useMemo(() => { setForm(template ? templateToInput(template) : BLANK_TEMPLATE); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [template, open]);
+  useEffect(() => {
+    if (!open) {
+      initializedTarget.current = null;
+      return;
+    }
+    if (templateId && !template) return;
+    const target = templateId ?? "new";
+    if (initializedTarget.current === target) return;
+    setForm(template ? templateToInput(template) : BLANK_TEMPLATE);
+    initializedTarget.current = target;
+  }, [open, template, templateId]);
 
   const save = () => {
     if (!form.title.trim()) { toast.error("Title is required"); return; }
