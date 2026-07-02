@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { adminAccess, adminIdentity } from "@/lib/admin-access/functions";
@@ -760,6 +760,22 @@ function WorkspaceManagementPanel({
   const [type, setType] = useState(workspace.type || "department");
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  useEffect(() => {
+    setName(workspace.name);
+    setSlug(workspace.slug);
+    setDescription(fullWorkspace?.description ?? "");
+    setType(workspace.type || "department");
+  }, [
+    fullWorkspace?.description,
+    workspace.id,
+    workspace.name,
+    workspace.slug,
+    workspace.type,
+  ]);
+  const persistedStatus =
+    workspace.status === "suspended" || workspace.status === "archived"
+      ? workspace.status
+      : "active";
   const mutation = useMutation({
     mutationFn: async (status: "active" | "suspended" | "archived") => {
       if (!session?.access_token || !canManage || reason.trim().length < 3) throw new Error();
@@ -805,7 +821,7 @@ function WorkspaceManagementPanel({
       <input value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder="Audit reason required" className="h-9 w-full rounded-md border bg-background px-2 text-sm" />
       {message && <p role="status" className="text-xs text-muted-foreground">{message}</p>}
       <div className="flex flex-wrap gap-2">
-        <ActionButton disabled={disabled} disabledReason={disabledReason} onClick={() => mutation.mutate(workspace.status === "suspended" ? "suspended" : "active")}>{mutation.isPending ? "Saving…" : "Save department"}</ActionButton>
+        <ActionButton disabled={disabled} disabledReason={disabledReason} onClick={() => mutation.mutate(persistedStatus)}>{mutation.isPending ? "Saving…" : "Save department"}</ActionButton>
         <ActionButton destructive disabled={disabled || workspace.status === "archived"} disabledReason={workspace.status === "archived" ? "Department is already archived." : disabledReason} onClick={() => mutation.mutate("archived")}>Archive</ActionButton>
       </div>
     </section>

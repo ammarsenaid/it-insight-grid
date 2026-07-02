@@ -2707,3 +2707,16 @@ Status: IMPLEMENTED LOCALLY.
   changing authorization, mutation, or API response contracts.
 - Removed the post-commit `isRecord` reference failure that could report a
   successful database mutation as an API failure.
+
+## Milestone 120 - Workspace Edit State Safety
+
+Date: 2026-07-02
+
+Status: IMPLEMENTED LOCALLY.
+
+- Synchronizes department edit fields when the selected workspace or its
+  asynchronously loaded details change, preserving an existing description.
+- Keeps an archived workspace archived during a normal metadata save instead
+  of silently reactivating it.
+- Leaves the explicit archive action, audit-reason requirement, authorization,
+  and backend contract unchanged.
