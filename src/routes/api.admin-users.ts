@@ -58,6 +58,14 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function remainingBanDuration(bannedUntil: unknown): string {
+  if (typeof bannedUntil !== "string") return "none";
+  const remainingSeconds = Math.ceil((Date.parse(bannedUntil) - Date.now()) / 1000);
+  return Number.isFinite(remainingSeconds) && remainingSeconds > 0
+    ? `${remainingSeconds}s`
+    : "none";
+}
+
 // The route tree generator adds this new path during the first build.
 export const Route = createFileRoute("/api/admin-users")({
   server: {
@@ -541,6 +549,14 @@ export const Route = createFileRoute("/api/admin-users")({
         if (existingProfileError) return failure("Could not verify the selected user.", 500);
         if (!existingProfile) return failure("The selected user does not exist.", 404);
 
+        const { data: existingAuth, error: existingAuthError } =
+          await admin.auth.admin.getUserById(parsed.userId);
+        if (existingAuthError || !existingAuth.user) {
+          return failure("Could not verify the selected auth account.", 500);
+        }
+        const previousBanDuration = remainingBanDuration(existingAuth.user.banned_until);
+        const previousUserMetadata = existingAuth.user.user_metadata;
+
         const { error: authError } = await admin.auth.admin.updateUserById(parsed.userId, {
           ban_duration: parsed.isActive ? "none" : DISABLED_ACCOUNT_BAN,
           user_metadata: { display_name: parsed.displayName },
@@ -550,16 +566,32 @@ export const Route = createFileRoute("/api/admin-users")({
           return failure("Supabase could not update the auth account.", 500);
         }
 
-        const { error: profileError } = await admin
+        const { data: updatedProfile, error: profileError } = await admin
           .from("profiles")
           .update({
             display_name: parsed.displayName,
             is_active: parsed.isActive,
           })
-          .eq("id", parsed.userId);
+          .eq("id", parsed.userId)
+          .select("id")
+          .maybeSingle();
 
-        if (profileError) {
-          return failure("The user profile could not be updated.", 500);
+        if (profileError || !updatedProfile) {
+          // Auth and profile updates cannot share a transaction. Restore the
+          // captured Auth state if the profile half of the change fails.
+          const { error: rollbackError } = await admin.auth.admin.updateUserById(
+            parsed.userId,
+            {
+              ban_duration: previousBanDuration,
+              user_metadata: previousUserMetadata,
+            },
+          );
+          return failure(
+            rollbackError
+              ? "The user profile could not be updated and the auth account could not be restored. Manual reconciliation is required."
+              : "The user profile could not be updated. The auth account was restored.",
+            500,
+          );
         }
 
         return json({ ok: true, userId: parsed.userId });
@@ -630,6 +662,13 @@ export const Route = createFileRoute("/api/admin-users")({
         if (existingProfileError) return failure("Could not verify the selected user.", 500);
         if (!existingProfile) return failure("The selected user does not exist.", 404);
 
+        const { data: existingAuth, error: existingAuthError } =
+          await admin.auth.admin.getUserById(parsed.userId);
+        if (existingAuthError || !existingAuth.user) {
+          return failure("Could not verify the selected auth account.", 500);
+        }
+        const previousBanDuration = remainingBanDuration(existingAuth.user.banned_until);
+
         const { error: authError } = await admin.auth.admin.updateUserById(parsed.userId, {
           ban_duration: parsed.isActive ? "none" : DISABLED_ACCOUNT_BAN,
         });
@@ -638,13 +677,26 @@ export const Route = createFileRoute("/api/admin-users")({
           return failure("Supabase could not update the auth account status.", 500);
         }
 
-        const { error: profileError } = await admin
+        const { data: updatedProfile, error: profileError } = await admin
           .from("profiles")
           .update({ is_active: parsed.isActive })
-          .eq("id", parsed.userId);
+          .eq("id", parsed.userId)
+          .select("id")
+          .maybeSingle();
 
-        if (profileError) {
-          return failure("The user profile status could not be updated.", 500);
+        if (profileError || !updatedProfile) {
+          // Restore the prior Auth ban state when the profile status cannot be
+          // persisted, avoiding a successful half-update whenever possible.
+          const { error: rollbackError } = await admin.auth.admin.updateUserById(
+            parsed.userId,
+            { ban_duration: previousBanDuration },
+          );
+          return failure(
+            rollbackError
+              ? "The user profile status could not be updated and the auth account could not be restored. Manual reconciliation is required."
+              : "The user profile status could not be updated. The auth account was restored.",
+            500,
+          );
         }
 
         return json({ ok: true, userId: parsed.userId });

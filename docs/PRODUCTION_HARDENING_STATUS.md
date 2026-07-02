@@ -2733,3 +2733,16 @@ Status: IMPLEMENTED LOCALLY.
   broken attachment record that points to a missing object.
 - Storage authorization, upload behavior, and attachment permissions remain
   unchanged.
+
+## Milestone 122 - Admin User Update Compensation
+
+Date: 2026-07-02
+
+Status: IMPLEMENTED LOCALLY.
+
+- Captures the target account's Auth metadata and ban state before user edit
+  and activation mutations.
+- Verifies the corresponding profile update affected a row and restores the
+  prior Auth state when that second operation fails.
+- Keeps validation, platform-administrator authorization, self-deactivation
+  protection, and successful API behavior unchanged.
